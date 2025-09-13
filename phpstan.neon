@@ -16,5 +16,6 @@ parameters:
     - stubs/elementor.php
 
   # (Optional) if you see notices about undefined constants, uncomment:
-  # constants:
-  #   ABSPATH: ''
+  constants:
+    JPRM_PLUGIN_PATH: ''
+    JPRM_PLUGIN_URL: ''
