@@ -1,3 +1,6 @@
+includes:
+  - vendor/szepeviktor/phpstan-wordpress/extension.neon
+
 parameters:
   level: 4
   paths:
@@ -6,4 +9,11 @@ parameters:
     - vendor/*
     - node_modules/*
     - .github/*
-  # You can add stubs for WP if you later want deeper checks.
+
+  # teach PHPStan WP function signatures
+  stubFiles:
+    - vendor/php-stubs/wordpress-stubs/wordpress-stubs.php
+
+  # (Optional) define common WP constants so checks don’t complain
+  # constants:
+  #   ABSPATH: ''
