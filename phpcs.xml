@@ -12,10 +12,10 @@
 
   <rule ref="WordPress-Core"/>
   <!-- You can re-enable these later -->
-  <!-- <rule ref="WordPress-Docs"/> -->
-  <!-- <rule ref="WordPress-Extra"/> -->
+  <rule ref="WordPress-Docs"/>
+  <rule ref="WordPress-Extra"/>
 
   <config name="testVersion" value="7.4-8.3"/>
   <!-- Comment out temporarily if noisy -->
-  <!-- <rule ref="PHPCompatibilityWP"/> -->
+  <rule ref="PHPCompatibilityWP"/>
 </ruleset>

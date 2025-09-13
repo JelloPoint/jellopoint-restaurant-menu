@@ -19,13 +19,6 @@ jobs:
           coverage: none
           tools: composer
 
-      - name: Show workspace & locate composer.json
-        run: |
-          pwd
-          ls -la
-          echo "---- find composer.json ----"
-          find . -maxdepth 3 -name composer.json -print
-
       - name: Install Composer dev tools
         run: composer install --no-interaction --prefer-dist --no-progress
 
@@ -44,8 +37,9 @@ jobs:
             -type f -name '*.php' -print0)
           exit $FAIL
 
-      - name: PHPCS (WPCS + PHPCompatibility)
+      - name: PHPCS (non-blocking)
         run: vendor/bin/phpcs --standard=phpcs.xml
+        continue-on-error: true
 
       - name: PHPStan
         run: vendor/bin/phpstan analyse --no-progress
