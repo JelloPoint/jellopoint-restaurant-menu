@@ -41,8 +41,8 @@ jobs:
         run: vendor/bin/phpcs --standard=WordPress-Core --warning-severity=0 jellopoint-restaurant-menu.php includes/
         continue-on-error: true
 
-      - name: PHPStan
-        run: vendor/bin/phpstan analyse --no-progress
+      - name: PHPStan (WP-aware)
+        run: vendor/bin/phpstan analyse -c phpstan.neon --no-progress
 
       - name: Build ZIP (rsync; exclude dev/CI files)
         shell: bash
