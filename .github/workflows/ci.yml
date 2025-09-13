@@ -41,6 +41,18 @@ jobs:
         run: vendor/bin/phpcs --standard=WordPress-Core --warning-severity=0 jellopoint-restaurant-menu.php includes/
         continue-on-error: true
 
+      - name: Diagnose PHPStan environment
+        run: |
+          pwd
+          ls -la
+          echo "---- composer.json ----"
+          find . -maxdepth 3 -name composer.json -print
+          echo "---- phpstan.neon ----"
+          find . -maxdepth 3 -name phpstan.neon -print
+          echo "---- installed WP PHPStan packages ----"
+          find . -path "*/vendor/szepeviktor/phpstan-wordpress/extension.neon" -print
+          find . -path "*/vendor/php-stubs/wordpress-stubs/wordpress-stubs.php" -print
+       
       - name: PHPStan (WP-aware)
         run: vendor/bin/phpstan analyse -c phpstan.neon --no-progress
 
