@@ -13,6 +13,7 @@ parameters:
   # Load WordPress function signatures (add_action, add_filter, etc.)
   stubFiles:
     - vendor/php-stubs/wordpress-stubs/wordpress-stubs.php
+    - stubs/elementor.php
 
   # (Optional) if you see notices about undefined constants, uncomment:
   # constants:
