@@ -38,8 +38,7 @@ jobs:
           exit $FAIL
 
       - name: PHPCS (non-blocking)
-        run: vendor/bin/phpcs --standard=phpcs.xml
-        continue-on-error: true
+        run: vendor/bin/phpcs --standard=phpcs.xml || true
 
       - name: PHPStan
         run: vendor/bin/phpstan analyse --no-progress
