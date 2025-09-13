@@ -10,10 +10,10 @@ parameters:
     - node_modules/*
     - .github/*
 
-  # teach PHPStan WP function signatures
+  # Load WordPress function signatures (add_action, add_filter, etc.)
   stubFiles:
     - vendor/php-stubs/wordpress-stubs/wordpress-stubs.php
 
-  # (Optional) define common WP constants so checks don’t complain
+  # (Optional) if you see notices about undefined constants, uncomment:
   # constants:
   #   ABSPATH: ''
