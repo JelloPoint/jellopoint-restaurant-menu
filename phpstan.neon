@@ -14,8 +14,7 @@ parameters:
   stubFiles:
     - vendor/php-stubs/wordpress-stubs/wordpress-stubs.php
     - stubs/elementor.php
+  bootstrapFiles:
+    - stubs/constants.php
 
   # (Optional) if you see notices about undefined constants, uncomment:
-  constants:
-    JPRM_PLUGIN_PATH: ''
-    JPRM_PLUGIN_URL: ''
