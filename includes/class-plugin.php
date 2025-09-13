@@ -34,7 +34,8 @@ final class Plugin {
             wp_enqueue_script( 'jquery' );
             wp_enqueue_script( 'jquery-ui-sortable' );
 
-            $js = "(function($){
+            $js = <<<'JS'
+(function($){
 $(function(){
   var $box = $('#jprm-multi-admin');
   var $tb = $('#jprm-prices-table');
@@ -78,7 +79,9 @@ $(function(){
   updateVisibility();
   refresh();
 });
-})(jQuery);";
+})(jQuery);
+JS;
+
             wp_add_inline_script( 'jquery-ui-sortable', $js, 'after' );
 
             $css = "#jprm-multi-admin{margin-top:8px} #jprm-prices-table .sort-handle{cursor:move;opacity:.6} #jprm-prices-table .jp-hidden{display:none} #jprm-prices-table td,#jprm-prices-table th{vertical-align:middle} #jprm-prices-table input::placeholder{color:#8c8f94} #jprm-prices-table .regular-text::placeholder{color:#8c8f94}";
