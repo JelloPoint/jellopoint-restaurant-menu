@@ -23,7 +23,7 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress
 
 
-      - name: Lint PHP (exclude vendor/node_modules)
+      - name: Lint PHP (exclude  vendor/node_modules)
         shell: bash
         run: |
           set -e
