@@ -25,7 +25,7 @@ final class Plugin {
 
         // Editor experience
         add_filter( 'use_block_editor_for_post_type', [ $this, 'disable_block_editor' ], 10, 2 );
-        if ( method_exists( $this, 'cleanup_metaboxes' ) ) { add_action( 'admin_init', [ $this, 'cleanup_metaboxes' ] ); }
+        add_action( 'add_meta_boxes', [ $this, 'cleanup_metaboxes' ], 99 );
 
         
         add_action( 'admin_enqueue_scripts', function( $hook ) {
@@ -34,8 +34,7 @@ final class Plugin {
             wp_enqueue_script( 'jquery' );
             wp_enqueue_script( 'jquery-ui-sortable' );
 
-            $js = <<<'JS'
-(function($){
+            $js = "(function($){
 $(function(){
   var $box = $('#jprm-multi-admin');
   var $tb = $('#jprm-prices-table');
@@ -79,9 +78,7 @@ $(function(){
   updateVisibility();
   refresh();
 });
-})(jQuery);
-JS;
-
+})(jQuery);";
             wp_add_inline_script( 'jquery-ui-sortable', $js, 'after' );
 
             $css = "#jprm-multi-admin{margin-top:8px} #jprm-prices-table .sort-handle{cursor:move;opacity:.6} #jprm-prices-table .jp-hidden{display:none} #jprm-prices-table td,#jprm-prices-table th{vertical-align:middle} #jprm-prices-table input::placeholder{color:#8c8f94} #jprm-prices-table .regular-text::placeholder{color:#8c8f94}";
@@ -166,7 +163,7 @@ add_action( 'add_meta_boxes', [ $this, 'register_metaboxes' ] );
         </div>
     <?php }
 
-    public function disable_block_editor( $use, $post_type ) { return ( 'jprm_menu_item' === $post_type ) ?> false : $use; }
+    public function disable_block_editor( $use, $post_type ) { return ( 'jprm_menu_item' === $post_type ) ? false : $use; }
 
     public function cleanup_metaboxes() {
         $screen = function_exists('get_current_screen') ? get_current_screen() : null;
