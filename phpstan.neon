@@ -1,0 +1,9 @@
+parameters:
+  level: 4
+  paths:
+    - .
+  excludePaths:
+    - vendor/*
+    - node_modules/*
+    - .github/*
+  # You can add stubs for WP if you later want deeper checks.
