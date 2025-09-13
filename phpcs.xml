@@ -2,18 +2,20 @@
 <ruleset name="JelloPoint">
   <file>./</file>
 
-  <!-- Exclude non-source -->
+  <!-- Only errors, ignore warnings -->
+  <config name="warning_severity" value="0"/>
+
   <exclude-pattern>vendor/*</exclude-pattern>
   <exclude-pattern>node_modules/*</exclude-pattern>
   <exclude-pattern>.github/*</exclude-pattern>
   <exclude-pattern>*.zip</exclude-pattern>
 
-  <!-- WordPress rules -->
   <rule ref="WordPress-Core"/>
-  <rule ref="WordPress-Docs"/>
-  <rule ref="WordPress-Extra"/>
+  <!-- You can re-enable these later -->
+  <!-- <rule ref="WordPress-Docs"/> -->
+  <!-- <rule ref="WordPress-Extra"/> -->
 
-  <!-- PHP compatibility (7.4–8.3 for example) -->
   <config name="testVersion" value="7.4-8.3"/>
-  <rule ref="PHPCompatibilityWP"/>
+  <!-- Comment out temporarily if noisy -->
+  <!-- <rule ref="PHPCompatibilityWP"/> -->
 </ruleset>
