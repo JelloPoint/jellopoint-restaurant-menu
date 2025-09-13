@@ -25,7 +25,7 @@ final class Plugin {
 
         // Editor experience
         add_filter( 'use_block_editor_for_post_type', [ $this, 'disable_block_editor' ], 10, 2 );
-        if ( method_exists( $this, 'cleanup_metaboxes' ) ) { add_action( 'admin_init', [ $this, 'cleanup_metaboxes' ] ); }
+        if (is_callable([$this, 'cleanup_metaboxes'])) { add_action('add_meta_boxes', [$this, 'cleanup_metaboxes'], 99); }
 
         
         add_action( 'admin_enqueue_scripts', function( $hook ) {
