@@ -19,8 +19,17 @@ jobs:
           coverage: none
           tools: composer
 
+      - name: Show workspace & locate composer.json
+        run: |
+          pwd
+          ls -la
+          echo "---- find composer.json ----"
+          find . -maxdepth 3 -name composer.json -print
+
       - name: Install Composer dev tools
+        working-directory: jellopoint-restaurant-menu
         run: composer install --no-interaction --prefer-dist --no-progress
+
 
       - name: Lint PHP (exclude vendor/node_modules)
         shell: bash
