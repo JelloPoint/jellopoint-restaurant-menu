@@ -37,8 +37,8 @@ jobs:
             -type f -name '*.php' -print0)
           exit $FAIL
 
-      - name: PHPCS (non-blocking)
-        run: vendor/bin/phpcs --standard=phpcs.xml || true
+      - name: PHPCS (WP Core, errors only)
+        run: vendor/bin/phpcs --standard=WordPress-Core --warning-severity=0 jellopoint-restaurant-menu.php includes/
 
       - name: PHPStan
         run: vendor/bin/phpstan analyse --no-progress
