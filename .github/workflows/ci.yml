@@ -1,0 +1,65 @@
+name: CI
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+          tools: composer
+
+      - name: Install Composer dev tools
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Lint PHP (exclude vendor/node_modules)
+        shell: bash
+        run: |
+          set -e
+          FAIL=0
+          while IFS= read -r -d '' f; do
+            echo "::group::php -l $f"
+            php -l "$f" || FAIL=1
+            echo "::endgroup::"
+          done < <(find . \
+            -type d \( -path ./vendor -o -path ./node_modules \) -prune -false -o \
+            -type f -name '*.php' -print0)
+          exit $FAIL
+
+      - name: PHPCS (WPCS + PHPCompatibility)
+        run: vendor/bin/phpcs --standard=phpcs.xml
+
+      - name: PHPStan
+        run: vendor/bin/phpstan analyse --no-progress
+
+      - name: Build ZIP (rsync; exclude dev/CI files)
+        shell: bash
+        run: |
+          set -euxo pipefail
+          PLUGDIR="jellopoint-restaurant-menu"
+          WORKDIR="$(pwd)/package"
+          mkdir -p "$WORKDIR/$PLUGDIR"
+          rsync -a --delete \
+            --exclude 'vendor' --exclude 'node_modules' \
+            --exclude '.git*' --exclude '.github' \
+            --exclude '*.zip' \
+            --exclude 'composer.*' --exclude 'phpcs.xml' --exclude 'phpstan.neon' \
+            ./ "$WORKDIR/$PLUGDIR/"
+          cd "$WORKDIR"
+          zip -r "$GITHUB_WORKSPACE/${PLUGDIR}.zip" "$PLUGDIR"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jellopoint-restaurant-menu
+          path: jellopoint-restaurant-menu.zip
