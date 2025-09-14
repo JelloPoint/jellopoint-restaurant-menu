@@ -61,6 +61,34 @@ jobs:
           cd "$WORKDIR"
           zip -r "$GITHUB_WORKSPACE/${PLUGDIR}.zip" "$PLUGDIR"
 
+      - name: Read plugin version from header
+        id: ver
+        shell: bash
+        run: |
+          set -e
+          # Extract "Version: x.y.z" from the main plugin file
+          VER=$(php -r '$h=file_get_contents("jellopoint-restaurant-menu.php"); if (preg_match("/^\\s*\\*\\s*Version:\\s*(.+)$/m",$h,$m)) echo trim($m[1]);')
+          if [ -z "$VER" ]; then
+            # Fallback if header missing
+            VER="0.0.0-${GITHUB_RUN_NUMBER}"
+          fi
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "Detected version: $VER"
+
+      - name: Create GitHub Release and upload ZIP
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: Release v${{ steps.ver.outputs.version }}
+          body: |
+            Automated release from CI (Hardening).
+            - Branch: ${{ github.ref_name }}
+            - Commit: ${{ github.sha }}
+          files: |
+            jellopoint-restaurant-menu.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
