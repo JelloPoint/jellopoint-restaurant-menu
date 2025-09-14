@@ -297,7 +297,7 @@ add_action( 'add_meta_boxes', [ $this, 'register_metaboxes' ] );
       if(!en && $tr.index()>0){ $tr.addClass('jp-hidden'); } else { $tr.removeClass('jp-hidden'); }
     }
 
-    // Initialize existing rows
+    // Initialize  existing rows
     $tbody.find('tr').each(function(){ syncRow($(this)); });
 
     // Change handlers
