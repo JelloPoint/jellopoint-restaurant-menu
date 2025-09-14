@@ -1,7 +1,7 @@
 <?php
 /**0
  * Plugin Name: JelloPoint Restaurant Menu
- * Description: Elementor widget for restaurant menus with dynamic CPT and multi-price support.
+ * Description: Elementor  widget for restaurant menus with dynamic CPT and multi-price support.
  * Version: 2.0.1
  * Author: JelloPoint
  * Text Domain: jellopoint-restaurant-menu
