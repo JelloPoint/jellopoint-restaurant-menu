@@ -1,4 +1,5 @@
 name: CI (Dev)
+
 on:
   push:
     branches:
@@ -9,13 +10,21 @@ on:
       - develop
       - 'feature/**'
 
+permissions:
+  contents: write  # needed to create pre-releases
+
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      COMPOSER_PROCESS_TIMEOUT: 0
+      COMPOSER_NO_INTERACTION: 1
+      COMPOSER_NO_AUDIT: 1
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup PHP 8.2
         uses: shivammathur/setup-php@v2
@@ -24,7 +33,7 @@ jobs:
           coverage: none
           tools: composer
 
-      - name: Install Composer dev tools (if present)
+      - name: Install Composer dev tools (if composer.json exists)
         run: |
           if [ -f composer.json ]; then
             composer install --no-interaction --prefer-dist --no-progress
@@ -42,14 +51,15 @@ jobs:
             -type f -name '*.php' -print0)
           exit $FAIL
 
-      # PHPCS: non-blocking, errors only, scope to plugin files for speed
+      # PHPCS: non-blocking (errors only), scoped to plugin files for speed
       - name: PHPCS (non-blocking)
         run: |
           if [ -f vendor/bin/phpcs ]; then
-            vendor/bin/phpcs --standard=WordPress-Core --warning-severity=0 jellopoint-restaurant-menu.php includes/ || true
+            vendor/bin/phpcs --standard=WordPress-Core --warning-severity=0 \
+              jellopoint-restaurant-menu.php includes/ || true
           fi
 
-      # PHPStan: non-blocking, lower level via config (see step 2)
+      # PHPStan: non-blocking; uses your phpstan.neon (dev level, stubs, etc.)
       - name: PHPStan (non-blocking)
         run: |
           if [ -f vendor/bin/phpstan ]; then
@@ -78,4 +88,31 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: jellopoint-restaurant-menu
-          path: jellopoint-restaurant-menu.zip 
+          path: jellopoint-restaurant-menu.zip
+
+      # --- Pre-release from develop/feature ---
+      - name: Read plugin version from header
+        id: ver
+        shell: bash
+        run: |
+          set -e
+          VER=$(php -r '$h=file_get_contents("jellopoint-restaurant-menu.php"); if (preg_match("/^\\s*\\*\\s*Version:\\s*(.+)$/m",$h,$m)) echo trim($m[1]);')
+          [ -z "$VER" ] && VER="0.0.0"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "Detected version: $VER"
+
+      - name: Create GitHub Pre-release (develop/feature)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}-dev.${{ github.run_number }}
+          name: Dev build v${{ steps.ver.outputs.version }} (build ${{ github.run_number }})
+          body: |
+            Automated pre-release from CI (Dev).
+            - Branch: ${{ github.ref_name }}
+            - Commit: ${{ github.sha }}
+          prerelease: true
+          make_latest: false
+          files: |
+            jellopoint-restaurant-menu.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
