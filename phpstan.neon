@@ -1,20 +1,16 @@
 includes:
   - vendor/szepeviktor/phpstan-wordpress/extension.neon
+  # Optional: baseline once you’re ready
+  # - phpstan-baseline.neon
 
 parameters:
-  level: 4
-  paths:
-    - .
-  excludePaths:
-    - vendor/*
-    - node_modules/*
-    - .github/*
+  level: 2            # ← lower during active dev; raise later in Hardening
+  paths: [ . ]
+  excludePaths: [ vendor/*, node_modules/*, .github/* ]
 
-  # Load WordPress function signatures (add_action, add_filter, etc.)
   stubFiles:
     - vendor/php-stubs/wordpress-stubs/wordpress-stubs.php
     - stubs/elementor.php
+
   bootstrapFiles:
     - stubs/constants.php
-
-  # (Optional) if you see notices about undefined constants, uncomment:

@@ -1,0 +1,81 @@
+name: CI (Dev)
+on:
+  push:
+    branches:
+      - develop
+      - 'feature/**'
+  pull_request:
+    branches:
+      - develop
+      - 'feature/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+          tools: composer
+
+      - name: Install Composer dev tools (if present)
+        run: |
+          if [ -f composer.json ]; then
+            composer install --no-interaction --prefer-dist --no-progress
+          fi
+
+      - name: Lint PHP (php -l)
+        shell: bash
+        run: |
+          set -e
+          FAIL=0
+          while IFS= read -r -d '' f; do
+            php -l "$f" || FAIL=1
+          done < <(find . \
+            -type d \( -path ./vendor -o -path ./node_modules \) -prune -false -o \
+            -type f -name '*.php' -print0)
+          exit $FAIL
+
+      # PHPCS: non-blocking, errors only, scope to plugin files for speed
+      - name: PHPCS (non-blocking)
+        run: |
+          if [ -f vendor/bin/phpcs ]; then
+            vendor/bin/phpcs --standard=WordPress-Core --warning-severity=0 jellopoint-restaurant-menu.php includes/ || true
+          fi
+
+      # PHPStan: non-blocking, lower level via config (see step 2)
+      - name: PHPStan (non-blocking)
+        run: |
+          if [ -f vendor/bin/phpstan ]; then
+            vendor/bin/phpstan analyse -c phpstan.neon --no-progress || true
+          fi
+
+      - name: Build ZIP (clean)
+        shell: bash
+        run: |
+          set -euxo pipefail
+          PLUGDIR="jellopoint-restaurant-menu"
+          WORKDIR="$(pwd)/package"
+          mkdir -p "$WORKDIR/$PLUGDIR"
+          rsync -a --delete \
+            --exclude 'vendor' --exclude 'node_modules' \
+            --exclude '.git*' --exclude '.github' \
+            --exclude '*.zip' \
+            --exclude 'composer.*' --exclude 'phpcs.xml' --exclude 'phpstan.neon' \
+            --exclude 'phpstan-baseline.neon' \
+            --exclude 'stubs' \
+            ./ "$WORKDIR/$PLUGDIR/"
+          cd "$WORKDIR"
+          zip -r "$GITHUB_WORKSPACE/${PLUGDIR}.zip" "$PLUGDIR"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jellopoint-restaurant-menu
+          path: jellopoint-restaurant-menu.zip
