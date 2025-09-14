@@ -44,22 +44,24 @@ jobs:
         run: vendor/bin/phpstan analyse -c phpstan.neon --no-progress
 
       - name: Build ZIP (clean)
-        shell: bash
-        run: |
-          set -euxo pipefail
-          PLUGDIR="jellopoint-restaurant-menu"
-          WORKDIR="$(pwd)/package"
-          mkdir -p "$WORKDIR/$PLUGDIR"
-          rsync -a --delete \
-            --exclude 'vendor' --exclude 'node_modules' \
-            --exclude '.git*' --exclude '.github' \
-            --exclude '*.zip' \
-            --exclude 'composer.*' --exclude 'phpcs.xml' --exclude 'phpstan.neon' \
-            --exclude 'phpstan-baseline.neon' \
-            --exclude 'stubs' \
-            ./ "$WORKDIR/$PLUGDIR/"
-          cd "$WORKDIR"
-          zip -r "$GITHUB_WORKSPACE/${PLUGDIR}.zip" "$PLUGDIR"
+      shell: bash
+      run: |
+        set -euxo pipefail
+        PLUGDIR="jellopoint-restaurant-menu"   # ← fixed name
+        WORKDIR="$(pwd)/package"
+        mkdir -p "$WORKDIR/$PLUGDIR"
+
+        # Copy only plugin files into the fixed folder name
+        rsync -a --delete \
+        --exclude 'vendor' --exclude 'node_modules' \
+        --exclude '.git*' --exclude '.github' \
+        --exclude '*.zip' \
+        --exclude 'composer.*' --exclude 'phpcs.xml' --exclude 'phpstan.neon' \
+        --exclude 'phpstan-baseline.neon' --exclude 'stubs' \
+        ./ "$WORKDIR/$PLUGDIR/"
+
+        cd "$WORKDIR"
+        zip -r "$GITHUB_WORKSPACE/${PLUGDIR}.zip" "$PLUGDIR"   # ← zip that folder
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
