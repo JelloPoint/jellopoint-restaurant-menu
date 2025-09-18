@@ -237,33 +237,12 @@ $(function(){
 			<tr>
 				<th><label for="jprm_multi"><?php _e( 'Multiple Prices', 'jellopoint-restaurant-menu' ); ?></label></th>
 				<td>
-					<label><input type="checkbox" name="jprm_multi" value="yes" <?php checked( $multi, 'yes' ); ?> id="jprm_multi">/> <?php _e( 'Enable multiple prices (enter rows below)', 'jellopoint-restaurant-menu' ); ?></label>
-					
-					
-<style id="jprm-metabox-css">
-#jprm-multi-admin{overflow-x:auto}
-#jprm-prices-table{table-layout:fixed;width:100%}
-#jprm-prices-table th:nth-child(1),#jprm-prices-table td:nth-child(1){width:70px}
-#jprm-prices-table th:nth-child(2),#jprm-prices-table td:nth-child(2){width:240px}
-#jprm-prices-table th:nth-child(4),#jprm-prices-table td:nth-child(4){width:160px}
-#jprm-prices-table th:nth-child(5),#jprm-prices-table td:nth-child(5){width:110px}
-#jprm-prices-table th:nth-child(6),#jprm-prices-table td:nth-child(6){width:90px}
-#jprm-prices-table input[type=text]{max-width:100%}
-#jprm-prices-table .amount{max-width:150px}
-</style>
-
-					<div id="jprm-multi-admin" <?php echo ( $multi === 'yes' ? '' : 'style="display:none"' ); ?>>
-						<input type="hidden" name="jprm_prices_v1" id="jprm_prices_v1" value="" />
-						<table class="widefat striped" id="jprm-prices-table">
-							<thead>
-								<tr>
-									<th style="width:70px;"><?php _e( 'Enable', 'jellopoint-restaurant-menu' ); ?></th>
-									<th style="width:240px;"><?php _e( 'Label', 'jellopoint-restaurant-menu' ); ?></th>
-									<th><?php _e( 'Custom Label', 'jellopoint-restaurant-menu' ); ?></th>
-									<th style="width:160px;"><?php _e( 'Price', 'jellopoint-restaurant-menu' ); ?></th>
-									<th style="width:110px;"><?php _e( 'Hide Icon', 'jellopoint-restaurant-menu' ); ?></th>
-									<th style="width:90px;"></th>
-								</tr>
+					<label>
+						<input type="checkbox" id="jprm_multi" name="jprm_multi" value="yes" <?php checked( $multi ); ?> />
+						<?php _e( 'Enable multiple prices (enter rows below)', 'jellopoint-restaurant-menu' ); ?>
+					</label>
+				</td>
+			</tr>
 							</thead>
 							<tbody>
 							<?php
