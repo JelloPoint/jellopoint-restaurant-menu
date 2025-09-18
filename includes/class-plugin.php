@@ -303,77 +303,80 @@ $(function(){
 								$hi = !empty($r['hide_icon']);
 								$hidden = (!$en && $row_index>1) ? ' class="jp-hidden"' : '';
 								echo '<tr'.$hidden.'>';
-								echo '<td><input type="checkbox" class="enable" '.( $en?'checked':'' ).' /></td>';
-								echo '<td><select class="label-select">'.$options.'</select>
+echo '<td><select class="label-select">'.$options.'</select>';
+echo <<<EOT
 <script>
 (function($){
   $(function(){
-	// Ensure ID and toggle behavior
-	$('input[name="jprm_multi"]').attr('id','jprm_multi');
-	var $toggle = $('#jprm_multi'), $block = $('#jprm-multi-admin');
-	function syncToggle(){ $toggle.is(':checked') ? $block.show() : $block.hide(); }
-	if ($toggle.length){ $toggle.on('change', syncToggle); syncToggle(); }
+    // Ensure ID and toggle behavior
+    $('input[name="jprm_multi"]').attr('id','jprm_multi');
+    var $toggle = $('#jprm_multi'), $block = $('#jprm-multi-admin');
+    function syncToggle(){ $toggle.is(':checked') ? $block.show() : $block.hide(); }
+    if ($toggle.length){ $toggle.on('change', syncToggle); syncToggle(); }
 
-	var $table = $('#jprm-prices-table'), $tbody = $table.find('tbody');
+    var $table = $('#jprm-prices-table'), $tbody = $table.find('tbody');
 
-	function syncRow($tr){
-	  var isCustom = $tr.find('select.label-select').val() === 'custom';
-	  $tr.find('input.label-custom').closest('td').toggle(isCustom);
-	  var en = $tr.find('input.enable').is(':checked');
-	  if(!en && $tr.index()>0){ $tr.addClass('jp-hidden'); } else { $tr.removeClass('jp-hidden'); }
-	}
+    function syncRow($tr){
+      var isCustom = $tr.find('select.label-select').val() === 'custom';
+      $tr.find('input.label-custom').closest('td').toggle(isCustom);
+      var en = $tr.find('input.enable').is(':checked');
+      if (!en) { $tr.addClass('jp-hidden'); } else { $tr.removeClass('jp-hidden'); }
+    }
 
-	// Initialize  existing rows
-	$tbody.find('tr').each(function(){ syncRow($(this)); });
+    $tbody.find('tr').each(function(){ syncRow($(this)); });
 
-	// Change handlers
-	$tbody.on('change','select.label-select',function(){ syncRow($(this).closest('tr')); });
-	$tbody.on('change','input.enable',function(){ syncRow($(this).closest('tr')); });
+    // Change label-select toggles custom input visibility
+    $tbody.on('change','select.label-select', function(){
+      syncRow($(this).closest('tr'));
+    });
+    // Enable checkbox toggles row visibility
+    $tbody.on('change','input.enable',function(){ syncRow($(this).closest('tr')); });
 
-	// Add row
-	$('#jprm-add-price').on('click', function(e){
-	  e.preventDefault();
-	  var $last = $tbody.find('tr').last();
-	  var $new  = $last.clone(true, true).removeClass('jp-hidden');
-	  $new.find('input.enable').prop('checked', true);
-	  $new.find('select.label-select').val('custom');
-	  $new.find('input.label-custom').val('');
-	  $new.find('input.amount').val('');
-	  $tbody.append($new);
-	  syncRow($new);
-	});
+    // Add row
+    $('#jprm-add-price').on('click', function(e){
+      e.preventDefault();
+      var $last = $tbody.find('tr').last();
+      var $new  = $last.clone(true, true).removeClass('jp-hidden');
+      $new.find('input.enable').prop('checked', true);
+      $new.find('select.label-select').val('custom');
+      $new.find('input.label-custom').val('');
+      $new.find('input.amount').val('');
+      $tbody.append($new);
+      syncRow($new);
+    });
 
-	// Delete row
-	$tbody.on('click','a.jp-del-row, a:contains("Delete")', function(e){
-	  e.preventDefault();
-	  var $rows = $tbody.find('tr');
-	  if ($rows.length <= 1) return;
-	  $(this).closest('tr').remove();
-	});
+    // Delete row
+    $tbody.on('click','a.jp-del-row, a:contains("Delete")', function(e){
+      e.preventDefault();
+      var $rows = $tbody.find('tr');
+      if ($rows.length <= 1) return;
+      $(this).closest('tr').remove();
+    });
 
-	// Serialize on submit
-	function collectRows(){
-	  var out = [];
-	  $tbody.find('tr').each(function(){
-		var $tr = $(this);
-		var row = {
-		  enable: $tr.find('input.enable').is(':checked') ? 1 : 0,
-		  label_select: $tr.find('select.label-select').val() || '',
-		  label_custom: $tr.find('input.label-custom').val() || '',
-		  amount: $tr.find('input.amount').val() || '',
-		  hide_icon: $tr.find('input.hide-icon').is(':checked') ? 1 : 0
-		};
-		if (row.enable || row.label_select || row.label_custom || row.amount) out.push(row);
-	  });
-	  return out;
-	}
-	$('#post').on('submit', function(){
-	  $('#jprm_prices_v1').val(JSON.stringify(collectRows()));
-	});
+    // Serialize on submit
+    function collectRows(){
+      var out = [];
+      $tbody.find('tr').each(function(){
+        var $tr = $(this);
+        var row = {
+          enable: $tr.find('input.enable').is(':checked') ? 1 : 0,
+          label_select: $tr.find('select.label-select').val() || '',
+          label_custom: $tr.find('input.label-custom').val() || '',
+          amount: $tr.find('input.amount').val() || '',
+          hide_icon: $tr.find('input.hide-icon').is(':checked') ? 1 : 0
+        };
+        if (row.enable || row.label_select || row.label_custom || row.amount) out.push(row);
+      });
+      return out;
+    }
+    $('#post').on('submit', function(){
+      $('#jprm_prices_v1').val(JSON.stringify(collectRows()));
+    });
   });
 })(jQuery);
 </script>
-	echo '</td>';
+EOT;
+echo '</td>';
 								echo '<td><input type="text" class="label-custom regular-text" value="'.esc_attr($lc).'" /></td>';
 								echo '<td><input type="text" class="amount regular-text" value="'.esc_attr($am).'" placeholder="€ 7,50" /></td>';
 								echo '<td><input type="checkbox" class="hide-icon" '.( $hi?'checked':'' ).' /></td>';
