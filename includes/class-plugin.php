@@ -1,9 +1,6 @@
 <?php
 /**
  * Main plugin bootstrap for JelloPoint Restaurant Menu.
- *
- * This file registers the CPT, meta boxes and Elementor integration.
- * Drop-in replacement for corrupted admin rendering where placeholders like %s leaked.
  */
 
 namespace JelloPoint\RestaurantMenu;
@@ -14,7 +11,29 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 final class Plugin {
 
+    /** @var Plugin|null */
+    private static $instance = null; // <— NEW: singleton holder
+
+    /**
+     * Classic singleton accessor for backward-compat with loaders that call Plugin::instance().
+     * Example: \JelloPoint\RestaurantMenu\Plugin::instance();
+     *
+     * @return Plugin
+     */
+    public static function instance() { // <— NEW
+        if ( null === self::$instance ) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+
     public function __construct() {
+        // Prevent double boot if someone calls new Plugin() and instance().
+        if ( isset( $GLOBALS['jprm_plugin_booted'] ) ) {
+            return;
+        }
+        $GLOBALS['jprm_plugin_booted'] = true;
+
         // Core
         add_action( 'init',               [ $this, 'register_cpt' ] );
         add_action( 'plugins_loaded',     [ $this, 'i18n' ] );
@@ -29,17 +48,19 @@ final class Plugin {
         add_action( 'elementor/elements/categories_registered', [ $this, 'register_category' ] );
         add_action( 'elementor/widgets/register',               [ $this, 'register_widget' ] );
 
-        // Frontend assets (keep light, widget can enqueue its own too)
+        // Frontend assets
         add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
     }
 
     public function i18n() {
-        load_plugin_textdomain( 'jellopoint-restaurant-menu', false, dirname( plugin_basename( JPRM_PLUGIN_FILE ) ) . '/languages' );
+        // These constants should be defined in your main plugin file.
+        if ( defined( 'JPRM_PLUGIN_FILE' ) ) {
+            load_plugin_textdomain( 'jellopoint-restaurant-menu', false, dirname( plugin_basename( JPRM_PLUGIN_FILE ) ) . '/languages' );
+        } else {
+            load_plugin_textdomain( 'jellopoint-restaurant-menu' );
+        }
     }
 
-    /**
-     * Register custom post type for individual menu items.
-     */
     public function register_cpt() {
         $labels = [
             'name'               => __( 'Menu Items', 'jellopoint-restaurant-menu' ),
@@ -56,25 +77,22 @@ final class Plugin {
         ];
 
         register_post_type( 'jprm_menu_item', [
-            'label'               => __( 'Menu Items', 'jellopoint-restaurant-menu' ),
-            'labels'              => $labels,
-            'public'              => false,
-            'show_ui'             => true,
-            'show_in_menu'        => true,
-            'supports'            => [ 'title', 'editor', 'thumbnail', 'page-attributes' ],
-            'menu_icon'           => 'dashicons-food',
-            'map_meta_cap'        => true,
-            'capability_type'     => 'post',
-            'has_archive'         => false,
-            'rewrite'             => false,
+            'label'           => __( 'Menu Items', 'jellopoint-restaurant-menu' ),
+            'labels'          => $labels,
+            'public'          => false,
+            'show_ui'         => true,
+            'show_in_menu'    => true,
+            'supports'        => [ 'title', 'editor', 'thumbnail', 'page-attributes' ],
+            'menu_icon'       => 'dashicons-food',
+            'map_meta_cap'    => true,
+            'capability_type' => 'post',
+            'has_archive'     => false,
+            'rewrite'         => false,
         ] );
     }
 
     public function admin_notice() {
-        if ( ! current_user_can( 'manage_options' ) ) {
-            return;
-        }
-        if ( ! post_type_exists( 'jprm_menu_item' ) ) {
+        if ( current_user_can( 'manage_options' ) && ! post_type_exists( 'jprm_menu_item' ) ) {
             echo '<div class="notice notice-error"><p>JelloPoint Restaurant Menu: Post Type not registered.</p></div>';
         }
     }
@@ -90,9 +108,6 @@ final class Plugin {
         return $text;
     }
 
-    /**
-     * Meta boxes
-     */
     public function add_meta_boxes() {
         add_meta_box(
             'jprm_item_meta',
@@ -104,9 +119,6 @@ final class Plugin {
         );
     }
 
-    /**
-     * Render Admin meta box – FIXED: no raw %s placeholders; all fields properly escaped; balanced HTML.
-     */
     public function render_item_metabox( $post ) {
         wp_nonce_field( 'jprm_save_meta', 'jprm_meta_nonce' );
 
@@ -121,19 +133,16 @@ final class Plugin {
         $desc         = get_post_meta( $post->ID, '_jprm_desc', true );
 
         if ( ! is_array( $multi_rows ) ) {
-            // Stored as JSON string previously – decode if needed.
-            $decoded = json_decode( (string) $multi_rows, true );
+            $decoded    = json_decode( (string) $multi_rows, true );
             $multi_rows = is_array( $decoded ) ? $decoded : [];
         }
 
-        // Preset label map, filterable.
         $preset_map = apply_filters( 'jprm_price_label_full_map', [
             'small'  => [ 'label_custom' => __( 'Small', 'jellopoint-restaurant-menu' ),  'amount' => '' ],
             'medium' => [ 'label_custom' => __( 'Medium', 'jellopoint-restaurant-menu' ), 'amount' => '' ],
             'large'  => [ 'label_custom' => __( 'Large', 'jellopoint-restaurant-menu' ),  'amount' => '' ],
         ] );
 
-        // Badge position options.
         $badge_options = [
             'corner-left'  => __( 'Corner (left)', 'jellopoint-restaurant-menu' ),
             'corner-right' => __( 'Corner (right)', 'jellopoint-restaurant-menu' ),
@@ -142,7 +151,6 @@ final class Plugin {
         if ( empty( $badge_pos ) ) {
             $badge_pos = 'corner-right';
         }
-
         ?>
         <style>
             .jprm-table { width:100%; border-collapse: collapse; }
@@ -308,7 +316,6 @@ final class Plugin {
                 $('#jprm_multi_wrap').toggle( this.checked );
             });
 
-            // Seed from existing hidden input
             try {
                 var seed = JSON.parse($('#jprm_prices_v1').val() || '[]');
                 if (seed && seed.length){
@@ -321,9 +328,6 @@ final class Plugin {
         <?php
     }
 
-    /**
-     * Save meta box fields.
-     */
     public function save_meta( $post_id, $post ) {
         if ( ! isset( $_POST['jprm_meta_nonce'] ) || ! wp_verify_nonce( $_POST['jprm_meta_nonce'], 'jprm_save_meta' ) ) {
             return;
@@ -349,7 +353,7 @@ final class Plugin {
         update_post_meta( $post_id, '_jprm_price_label',         sanitize_text_field( $get_text( 'jprm_price_label' ) ) );
         update_post_meta( $post_id, '_jprm_price_label_custom',  sanitize_text_field( $get_text( 'jprm_price_label_custom' ) ) );
         update_post_meta( $post_id, '_jprm_multi',               $get_bool( 'jprm_multi' ) );
-        // Multi rows – sanitize each field.
+
         $rows_json = isset( $_POST['jprm_prices_v1'] ) ? (string) wp_unslash( $_POST['jprm_prices_v1'] ) : '[]';
         $rows      = json_decode( $rows_json, true );
         $san_rows  = [];
@@ -371,9 +375,6 @@ final class Plugin {
         update_post_meta( $post_id, '_jprm_desc',              $get_text( 'jprm_desc' ) );
     }
 
-    /**
-     * Elementor integration
-     */
     public function register_category( $elements_manager ) {
         $elements_manager->add_category(
             'jellopoint-widgets',
@@ -391,16 +392,12 @@ final class Plugin {
     }
 
     public function enqueue_assets() {
-        // Keep URLs robust if constants are defined in the main plugin file.
         if ( defined( 'JPRM_PLUGIN_URL' ) && defined( 'JPRM_VERSION' ) ) {
             wp_enqueue_style( 'jprm-frontend', JPRM_PLUGIN_URL . 'assets/css/frontend.css', [], JPRM_VERSION );
         }
     }
 
-    /**
-     * Optional shortcode renderer for dynamic output (conservative; adapt as needed).
-     * Usage: [jprm_menu id="123"]
-     */
+    // (Optional) Shortcode kept as-is for completeness.
     public function shortcode_menu( $atts ) {
         $atts = shortcode_atts( [ 'id' => 0 ], $atts, 'jprm_menu' );
         $post_id = absint( $atts['id'] );
@@ -436,15 +433,14 @@ final class Plugin {
     }
 }
 
-// Bootstrap
-// Only instantiate once.
+/**
+ * Bootstrap – keep this so either entry point works:
+ * - legacy: \JelloPoint\RestaurantMenu\Plugin::instance();
+ * - this file: jprm_bootstrap();
+ */
 if ( ! function_exists( __NAMESPACE__ . '\\jprm_bootstrap' ) ) {
     function jprm_bootstrap() {
-        static $inst = null;
-        if ( null === $inst ) {
-            $inst = new Plugin();
-        }
-        return $inst;
+        return Plugin::instance(); // <— NEW: delegate to singleton
     }
-    jprm_bootstrap();
 }
+jprm_bootstrap(); // Ensure boot on include.
