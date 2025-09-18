@@ -246,40 +246,51 @@ $(function(){
 							</thead>
 							<tbody>
 							<?php
-							$preset_map = function_exists( 'jprm_get_price_label_full_map' )
-							? jprm_get_price_label_full_map() : [];
-							$options = '<option value="">'.esc_html__('Select…','jellopoint-restaurant-menu').'</option>';
-							$options .= '<option value="custom">'.esc_html__('Custom','jellopoint-restaurant-menu').'</option>';
-							foreach( $preset_map as $slug => $row ){
-								$t = esc_html( $row['label'] );
-								$options .= '<option value="'.esc_attr($slug).'">'.$t.'</option>';
-							}
-							// Prefill from existing meta (new JSON) or from legacy textarea
-							$prefill = [];
-							$json = get_post_meta( $post->ID, '_jprm_prices_v1', true );
-							if ( $json ) {
-								$arr = json_decode( $json, true );
-								if ( is_array($arr) ) { $prefill = $arr; }
-							} elseif ( $multi_rows ) {
-								foreach ( preg_split("/\r?\n/", $multi_rows) as $line ) {
-									$line = trim($line); if ( $line === '' ) continue;
-									$parts = explode('|',$line,2);
-									$lbl = trim($parts[0]); $amt = isset($parts[1])?trim($parts[1]):'';
-									$slug = sanitize_title($lbl);
-									$label_select = isset($preset_map[$slug]) ? $slug : 'custom';
-									$label_custom = $label_select==='custom' ? $lbl : '';
-									$prefill[] = [ 'enable'=>1,'label_select'=>$label_select,'label_custom'=>$label_custom,'amount'=>$amt,'hide_icon'=>0 ];
-								}
-							}
-							if ( empty($prefill) ) { $prefill = [ [ 'enable'=>0,'label_select'=>'','label_custom'=>'','amount'=>'','hide_icon'=>0 ] ]; }
-							$row_index = 0;
-							foreach ( $prefill as $r ) {
-								$row_index++;
-								$en = !empty($r['enable']);
-								$ls = isset($r['label_select']) ? $r['label_select'] : '';
-								$lc = isset($r['label_custom']) ? $r['label_custom'] : '';
-								$am = isset($r['amount']) ? $r['amount'] : '';
-								$hi = !empty($r['hide_icon']);
+							// Build the label options safely
+                            $preset_map = function_exists('jprm_get_price_label_full_map') ? jprm_get_price_label_full_map() : [];
+                            $options  = '<option value="">' . esc_html__( 'Select…', 'jellopoint-restaurant-menu' ) . '</option>';
+                            $options .= '<option value="custom">' . esc_html__( 'Custom', 'jellopoint-restaurant-menu' ) . '</option>';
+                            foreach ( $preset_map as $slug => $row ) 
+						    {
+	                        $t = esc_html( $row['label'] );
+	                        $options .= '<option value="' . esc_attr( $slug ) . '">' . $t . '</option>';
+                            }
+							// Prefill from existing meta (JSON) or from legacy textarea
+$prefill = [];
+$json = get_post_meta( $post->ID, '_jprm_prices_v1', true );
+if ( $json ) {
+	$arr = json_decode( $json, true );
+	if ( is_array( $arr ) ) { $prefill = $arr; }
+} elseif ( $multi_rows ) {
+	// Split legacy textarea by line (handle Windows \r\n too)
+	foreach ( preg_split( "/\r?\n/", $multi_rows ) as $line ) {
+		$line = trim( $line );
+		if ( $line === '' ) { continue; }
+		$parts = explode( '|', $line, 2 );
+		$lbl = trim( $parts[0] );
+		$amt = isset( $parts[1] ) ? trim( $parts[1] ) : '';
+		$slug = sanitize_title( $lbl );
+		$label_select = isset( $preset_map[ $slug ] ) ? $slug : 'custom';
+		$label_custom = ( $label_select === 'custom' ) ? $lbl : '';
+		$prefill[] = [
+			'enable'       => 1,
+			'label_select' => $label_select,
+			'label_custom' => $label_custom,
+			'amount'       => $amt,
+			'hide_icon'    => 0,
+		];
+	}
+}
+
+if ( empty( $prefill ) ) {
+	$prefill = [
+		[
+			'enable'       => 0,
+			'label_select' => '',
+			'label_custom' => '',
+			'amount'       => '',
+			'hide_icon'    => 0,
+		],
 								$hidden = (!$en && $row_index>1) ? ' class="jp-hidden"' : '';
 								echo '<tr'.$hidden.'>';
 echo '<td><select class="label-select">'.$options.'</select>';
