@@ -291,7 +291,7 @@ if ( empty( $prefill ) ) {
 			'amount'       => '',
 			'hide_icon'    => 0,
 		],
-								$hidden = (!$en && $row_index>1) ? ' class="jp-hidden"' : '';
+								$hidden = (!$en && $row_index>1) ? ' class="jp-hidden"' : '']
 								echo '<tr'.$hidden.'>';
 echo '<td><select class="label-select">'.$options.'</select>';
 echo '</td>'; // JS handled via wp_add_inline_script
