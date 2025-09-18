@@ -269,6 +269,7 @@ $(function(){
 							<?php
 							$preset_map = function_exists( 'jprm_get_price_label_full_map' )
 							?>
+							<?php
 							jprm_get_price_label_full_map() : [];
 							$options = '<option value="">'.esc_html__('Select…','jellopoint-restaurant-menu').'</option>';
 							$options .= '<option value="custom">'.esc_html__('Custom','jellopoint-restaurant-menu').'</option>';
