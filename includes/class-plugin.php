@@ -268,9 +268,7 @@ $(function(){
 							<tbody>
 							<?php
 							$preset_map = function_exists( 'jprm_get_price_label_full_map' )
-							?>
-							<?php
-							jprm_get_price_label_full_map() : [];
+							? jprm_get_price_label_full_map() : [];
 							$options = '<option value="">'.esc_html__('Select…','jellopoint-restaurant-menu').'</option>';
 							$options .= '<option value="custom">'.esc_html__('Custom','jellopoint-restaurant-menu').'</option>';
 							foreach( $preset_map as $slug => $row ){
@@ -284,9 +282,7 @@ $(function(){
 								$arr = json_decode( $json, true );
 								if ( is_array($arr) ) { $prefill = $arr; }
 							} elseif ( $multi_rows ) {
-								foreach ( preg_split('/
-?
-/', $multi_rows) as $line ) {
+								foreach ( preg_split("/\r?\n/", $multi_rows) as $line ) {
 									$line = trim($line); if ( $line === '' ) continue;
 									$parts = explode('|',$line,2);
 									$lbl = trim($parts[0]); $amt = isset($parts[1])?trim($parts[1]):'';
