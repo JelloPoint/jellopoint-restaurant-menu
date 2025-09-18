@@ -238,5 +238,111 @@ add_action('admin_enqueue_scripts', function($hook){
         if ( $id === 'settings_page_jprm-price-labels' || $id === 'jprm_admin_page_jprm-price-labels' || $id === 'jellopoint-root_page_jprm-price-labels' || $id === 'jellopoint-admin_page_jprm-price-labels' ) {
             wp_enqueue_media();
             wp_enqueue_script('jquery');
-            wp_enqueue_scrip
+            wp_enqueue_script('jquery-ui-sortable');
+            wp_add_inline_script('jquery-ui-sortable', '
+jQuery(function($){
+    function slugify(str){
+        return (str || \'\').toString().toLowerCase()
+            .replace(/[^a-z0-9\s\-]/g,\'\')
+            .trim().replace(/\s+/g,\'-\').replace(/\-+/g,\'-\');
+    }
+    function collectRows(){
+        var rows = [];
+        $(\'#jprm-labels-table tbody tr.jprm-row\').each(function(i){
+            var $tr = $(this);
+            var label = $.trim($tr.find(\'input.label\').val());
+            var slug = $.trim($tr.find(\'input.slug\').val()) || slugify(label);
+            var icon = parseInt($tr.find(\'input.icon-id\').val(), 10) || 0;
+            var active = $tr.find(\'input.active\').is(\':checked\') ? 1 : 0;
+            rows.push({ id: \'pl-\'+i, label: label, slug: slug, icon_id: icon, active: active, order: i });
+        });
+        $(\'#jprm_price_labels_v2\').val(JSON.stringify(rows));
+    }
+    $(\'#jprm-add-row\').on(\'click\', function(e){
+        e.preventDefault();
+        var $tbody = $(\'#jprm-labels-table tbody\');
+        var idx = $tbody.find(\'tr.jprm-row\').length;
+        var html = \'<tr class="jprm-row">\' +
+            \'<td class="drag">⋮⋮</td>\' +
+            \'<td><input type="text" class="regular-text label" value="" /></td>\' +
+            \'<td><input type="text" class="regular-text slug" value="" /></td>\' +
+            \'<td class="icon-cell"><div class="jprm-icon-preview"></div><input type="hidden" class="icon-id" value="0" />\' +
+            \'<button type="button" class="button jprm-icon-select">Select</button> \' +
+            \'<button type="button" class="button-link-delete jprm-icon-remove">Remove</button></td>\' +
+            \'<td style="text-align:center;"><input type="checkbox" class="active" checked /></td>\' +
+            \'<td><button type="button" class="button-link-delete jprm-delete-row">Delete</button></td>\' +
+            \'</tr>\';
+        $tbody.append(html);
+        collectRows();
+    });
+    $(document).on(\'click\', \'.jprm-delete-row\', function(e){
+        e.preventDefault(); $(this).closest(\'tr\').remove(); collectRows();
+    });
+    if ($.fn.sortable) {
+        $(\'#jprm-labels-table tbody\').sortable({
+            handle: \'.drag\',
+            stop: collectRows,
+            helper: function(e, ui){
+                ui.children().each(function(index){
+                    var $orig = ui.children();
+                    $(this).width($orig.eq(index).width());
+                });
+                return ui;
+            }
+        });
+    } else {
+        console.warn(\'jQuery UI Sortable not loaded\');
+    }
+    // Media select
+    $(\'#jprm-labels-table\').on(\'click\', \'.jprm-icon-select\', function(e){
+        e.preventDefault();
+        var $cell = $(this).closest(\'.icon-cell\');
+        var frame = wp.media({
+            title: \'Select Icon\',
+            button: { text: \'Use this icon\' },
+            library: { type: \'image\' },
+            multiple: false
+        });
+        frame.on(\'select\', function(){
+            var att = frame.state().get(\'selection\').first().toJSON();
+            $cell.find(\'input.icon-id\').val(att.id);
+            var $prev = $cell.find(\'.jprm-icon-preview\').empty();
+            if (att.sizes && att.sizes.thumbnail) {
+                $prev.append(\'<img src="\'+att.sizes.thumbnail.url+\'" alt="" />\');
+            } else if (att.url) {
+                $prev.append(\'<img src="\'+att.url+\'" alt="" />\');
+            }
+        });
+        frame.open();
+    });
+    $(\'#jprm-labels-table\').on(\'click\', \'.jprm-icon-remove\', function(e){
+        e.preventDefault();
+        var $cell = $(this).closest(\'.icon-cell\');
+        $cell.find(\'.icon-id\').val(\'0\');
+        $cell.find(\'.jprm-icon-preview\').empty();
+        collectRows();
+    });
+    // Auto-slug when editing label if slug empty
+    $(\'#jprm-labels-table\').on(\'input\', \'input.label\', function(){
+        var $tr = $(this).closest(\'tr\');
+        var $slug = $tr.find(\'input.slug\');
+        if ( $.trim($slug.val()) === \'\' ) {
+            $slug.val( slugify( $(this).val() ) );
         }
+    });
+    // keep option up-to-date
+    $(document).on(\'input change\', \'#jprm-labels-table input\', collectRows);
+    collectRows();
+});
+', 'after');
+        }
+    }
+});
+
+
+// Public filter that widgets can use:
+function jprm_get_price_label_full_map() {
+    // result: [ 'slug' => [ 'label' => 'Large', 'icon_id' => 123 ] ]
+    $map = jprm_get_price_label_map();
+    return apply_filters( 'jprm_price_label_full_map', $map );
+}
