@@ -239,3 +239,4 @@ add_action('admin_enqueue_scripts', function($hook){
             wp_enqueue_media();
             wp_enqueue_script('jquery');
             wp_enqueue_scrip
+        }
