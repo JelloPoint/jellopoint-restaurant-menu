@@ -4,7 +4,7 @@
  * - Single top-level "JelloPoint Menu" (cutlery icon)
  * - CPT "Menu Items" nested under that top-level
  * - Taxonomies: Labels (tag-like), Sections (category-like)
- * - Elementor: category + widget registration (with file include + old/new hooks)
+ * - Elementor: category + widget registration (DEFERRED include – no early fatal)
  * - Clean metabox with Multiple Prices repeater
  * - Safe bootstrap via Plugin::instance() and jprm_bootstrap()
  */
@@ -40,9 +40,6 @@ final class Plugin {
         // i18n
         add_action( 'plugins_loaded', [ $this, 'i18n' ] );
 
-        // Ensure widget files are present before Elementor fires.
-        add_action( 'plugins_loaded', [ $this, 'maybe_include_widget_files' ], 1 );
-
         // Data model (CPT first, then taxonomies)
         add_action( 'init', [ $this, 'register_cpt' ], 9 );
         add_action( 'init', [ $this, 'register_taxonomies' ], 10 );
@@ -61,14 +58,11 @@ final class Plugin {
         add_filter( 'admin_footer_text', [ $this, 'admin_footer' ] );
         add_action( 'admin_notices',     [ $this, 'admin_notice' ] );
 
-        // Elementor – wire on init (both modern & legacy hooks)
+        // Elementor — defer widget include until Elementor is ready
         add_action( 'elementor/init', function () {
-            // Category registration (modern hook that always fires in editor)
             add_action( 'elementor/elements/categories_registered', [ $this, 'register_category' ] );
-            // Widget registration (modern)
-            add_action( 'elementor/widgets/register', [ $this, 'register_widget' ] );
-            // Legacy hook for older Elementor (pre-3.5)
-            add_action( 'elementor/widgets/widgets_registered', [ $this, 'register_widget_legacy' ] );
+            add_action( 'elementor/widgets/register',               [ $this, 'register_widget' ] );
+            add_action( 'elementor/widgets/widgets_registered',     [ $this, 'register_widget_legacy' ] ); // older Elementor
         }, 1 );
 
         // Frontend assets
@@ -84,30 +78,6 @@ final class Plugin {
             );
         } else {
             load_plugin_textdomain( 'jellopoint-restaurant-menu' );
-        }
-    }
-
-    /**
-     * Try to include the widget class file from common locations so class_exists() succeeds.
-     */
-    public function maybe_include_widget_files() {
-        if ( class_exists( '\\JelloPoint\\RestaurantMenu\\Widgets\\Restaurant_Menu' ) ) {
-            return; // nothing to do
-        }
-        $base = defined( 'JPRM_PLUGIN_PATH' ) ? JPRM_PLUGIN_PATH : plugin_dir_path( __FILE__ ) . '../';
-        $candidates = [
-            $base . 'includes/widgets/class-restaurant-menu.php',
-            $base . 'includes/widgets/restaurant-menu.php',
-            $base . 'includes/class-widget-restaurant-menu.php',
-            $base . 'includes/widgets/class-jprm-restaurant-menu.php',
-        ];
-        foreach ( $candidates as $file ) {
-            if ( is_readable( $file ) ) {
-                require_once $file;
-                if ( class_exists( '\\JelloPoint\\RestaurantMenu\\Widgets\\Restaurant_Menu' ) ) {
-                    break;
-                }
-            }
         }
     }
 
@@ -146,7 +116,6 @@ final class Plugin {
 
     /**
      * Taxonomies: Labels (tag-like) and Sections (category-like)
-     * Registered *after* CPT (and force-attached) so admin pages show.
      */
     public function register_taxonomies() {
         if ( ! taxonomy_exists( 'jprm_label' ) ) {
@@ -327,13 +296,6 @@ final class Plugin {
     }
 
     public function admin_notice() {
-        // Only show a gentle hint if Elementor is active but widget class is missing.
-        if ( is_admin() && current_user_can( 'manage_options' ) && class_exists( '\\Elementor\\Plugin' ) ) {
-            $ok = class_exists( '\\JelloPoint\\RestaurantMenu\\Widgets\\Restaurant_Menu' );
-            if ( ! $ok ) {
-                echo '<div class="notice notice-warning"><p>JelloPoint Restaurant Menu: Elementor widget class not found. If your widget file lives at a custom path, tell me where and I\'ll include it.</p></div>';
-            }
-        }
         if ( current_user_can( 'manage_options' ) && ! post_type_exists( 'jprm_menu_item' ) ) {
             echo '<div class="notice notice-error"><p>JelloPoint Restaurant Menu: Post Type not registered.</p></div>';
         }
@@ -608,11 +570,12 @@ final class Plugin {
         update_post_meta( $post_id, '_jprm_desc',              $get_text( 'jprm_desc' ) );
     }
 
+    /* ========= Elementor integration (safe) ========= */
+
     /**
-     * Elementor: add our category
+     * Elementor: add our category if missing.
      */
     public function register_category( $elements_manager ) {
-        // If the category already exists, don't re-add to avoid warnings.
         $slug = 'jellopoint-widgets';
         $categories = method_exists( $elements_manager, 'get_categories' ) ? $elements_manager->get_categories() : [];
         if ( ! isset( $categories[ $slug ] ) ) {
@@ -627,10 +590,7 @@ final class Plugin {
      * Elementor: register our widget (modern hook)
      */
     public function register_widget( $widgets_manager ) {
-        if ( ! class_exists( '\\Elementor\\Widget_Base' ) ) {
-            return;
-        }
-        $class = $this->find_widget_class();
+        $class = $this->prepare_and_find_widget_class();
         if ( $class ) {
             $widgets_manager->register( new $class() );
         }
@@ -643,16 +603,24 @@ final class Plugin {
         if ( ! class_exists( '\\Elementor\\Plugin' ) ) {
             return;
         }
-        $class = $this->find_widget_class();
+        $class = $this->prepare_and_find_widget_class();
         if ( $class ) {
             \Elementor\Plugin::instance()->widgets_manager->register_widget_type( new $class() );
         }
     }
 
     /**
-     * Try a few reasonable class names in case the file declares a different one.
+     * Ensure Elementor base class is available, then include our widget file, then resolve the FQCN.
      */
-    private function find_widget_class() {
+    private function prepare_and_find_widget_class() {
+        // Ensure Elementor has loaded its autoloader & base class.
+        if ( ! class_exists( '\\Elementor\\Widget_Base' ) ) {
+            return null;
+        }
+        // Include our widget file (deferred; safe now).
+        $this->include_widget_file();
+
+        // Try a few reasonable class names.
         $candidates = [
             '\\JelloPoint\\RestaurantMenu\\Widgets\\Restaurant_Menu',
             '\\JelloPoint\\RestaurantMenu\\Restaurant_Menu',
@@ -660,15 +628,38 @@ final class Plugin {
             '\\JelloPoint\\RestaurantMenu\\Widget_Restaurant_Menu',
         ];
         foreach ( $candidates as $fqcn ) {
-            if ( class_exists( $fqcn ) ) {
-                // Extra safety: ensure it extends Elementor\Widget_Base
-                if ( is_subclass_of( $fqcn, '\\Elementor\\Widget_Base' ) ) {
-                    return $fqcn;
-                }
+            if ( class_exists( $fqcn ) && is_subclass_of( $fqcn, '\\Elementor\\Widget_Base' ) ) {
+                return $fqcn;
             }
         }
         return null;
     }
+
+    /**
+     * Include the widget file from common locations. No include happens until Elementor is ready.
+     */
+    private function include_widget_file() {
+        static $done = false;
+        if ( $done ) return;
+        $done = true;
+
+        $base = defined( 'JPRM_PLUGIN_PATH' ) ? JPRM_PLUGIN_PATH : plugin_dir_path( __FILE__ ) . '../';
+        $candidates = [
+            $base . 'includes/widgets/class-restaurant-menu.php',
+            $base . 'includes/widgets/restaurant-menu.php',
+            $base . 'includes/class-widget-restaurant-menu.php',
+            $base . 'includes/widgets/class-jprm-restaurant-menu.php',
+        ];
+        foreach ( $candidates as $file ) {
+            if ( is_readable( $file ) ) {
+                require_once $file;
+                // stop at first readable; the prepare_and_find_widget_class() will decide if class was provided
+                break;
+            }
+        }
+    }
+
+    /* ========= /Elementor integration ========= */
 
     public function enqueue_assets() {
         if ( defined( 'JPRM_PLUGIN_URL' ) && defined( 'JPRM_VERSION' ) ) {
