@@ -6,7 +6,7 @@
  * ├─ Menus
  * ├─ Menu Items
  * ├─ Sections
- * └─ Price Labels
+ * └─ Price  Labels
  */
 
 namespace JelloPoint\RestaurantMenu;
