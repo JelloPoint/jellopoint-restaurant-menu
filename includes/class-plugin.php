@@ -1,12 +1,10 @@
 <?php
 /**
- * JelloPoint Restaurant Menu – main plugin class
+ * JelloPoint Restaurant Menu – main plugin class (AUTO-DISCOVER WIDGETS)
  * - Single top-level "JelloPoint Menu" (cutlery icon)
- * - CPT "Menu Items" nested under that top-level
- * - Taxonomies: Labels (tag-like), Sections (category-like)
- * - Elementor: category + widget registration (DEFERRED include – no early fatal)
- * - Clean metabox with Multiple Prices repeater
- * - Safe bootstrap via Plugin::instance() and jprm_bootstrap()
+ * - CPT nested there (Items, Add New, Labels, Sections)
+ * - Elementor: auto-load any widgets in includes/widgets/*.php AFTER Elementor is ready
+ * - Registers [jprm_menu] shortcode so Elementor preview renders real HTML
  */
 
 namespace JelloPoint\RestaurantMenu;
@@ -20,9 +18,6 @@ final class Plugin {
     /** @var Plugin|null */
     private static $instance = null;
 
-    /**
-     * Singleton accessor.
-     */
     public static function instance() {
         if ( null === self::$instance ) {
             self::$instance = new self();
@@ -31,38 +26,37 @@ final class Plugin {
     }
 
     private function __construct() {
-        // Prevent double boot if loader + this file both bootstrap.
+        // Avoid double boot if main file and this file both initialize.
         if ( isset( $GLOBALS['jprm_plugin_booted'] ) ) {
             return;
         }
         $GLOBALS['jprm_plugin_booted'] = true;
 
-        // i18n
+        // i18n early
         add_action( 'plugins_loaded', [ $this, 'i18n' ] );
 
-        // Data model (CPT first, then taxonomies)
+        // Data model (CPT & taxonomies)
         add_action( 'init', [ $this, 'register_cpt' ], 9 );
         add_action( 'init', [ $this, 'register_taxonomies' ], 10 );
 
-        // Admin menu (single parent + CPT/tax submenus; add missing ones explicitly)
+        // Shortcodes
+        add_action( 'init', [ $this, 'register_shortcodes' ] );
+
+        // Admin menu
         add_action( 'admin_menu', [ $this, 'register_admin_menu' ] );
         add_action( 'admin_head', [ $this, 'hide_parent_duplicate_submenu' ] );
         add_filter( 'parent_file',  [ $this, 'admin_parent_highlight' ] );
         add_filter( 'submenu_file', [ $this, 'admin_submenu_highlight' ], 10, 2 );
 
-        // Meta boxes & saving
+        // Meta boxes & save
         add_action( 'add_meta_boxes', [ $this, 'add_meta_boxes' ] );
         add_action( 'save_post',      [ $this, 'save_meta' ], 10, 2 );
 
-        // Footer + notices
-        add_filter( 'admin_footer_text', [ $this, 'admin_footer' ] );
-        add_action( 'admin_notices',     [ $this, 'admin_notice' ] );
-
-        // Elementor — defer widget include until Elementor is ready
+        // Elementor – defer and auto-discover widgets
         add_action( 'elementor/init', function () {
             add_action( 'elementor/elements/categories_registered', [ $this, 'register_category' ] );
-            add_action( 'elementor/widgets/register',               [ $this, 'register_widget' ] );
-            add_action( 'elementor/widgets/widgets_registered',     [ $this, 'register_widget_legacy' ] ); // older Elementor
+            add_action( 'elementor/widgets/register',               [ $this, 'register_widgets_autoload' ] );
+            add_action( 'elementor/widgets/widgets_registered',     [ $this, 'register_widgets_autoload_legacy' ] );
         }, 1 );
 
         // Frontend assets
@@ -81,9 +75,12 @@ final class Plugin {
         }
     }
 
-    /**
-     * CPT: Menu Items — nested under our top-level.
-     */
+    /** Shortcodes */
+    public function register_shortcodes() {
+        add_shortcode( 'jprm_menu', [ $this, 'shortcode_menu' ] );
+    }
+
+    /** CPT: Menu Items */
     public function register_cpt() {
         $labels = [
             'name'               => __( 'Menu Items', 'jellopoint-restaurant-menu' ),
@@ -104,7 +101,7 @@ final class Plugin {
             'labels'              => $labels,
             'public'              => false,
             'show_ui'             => true,
-            'show_in_menu'        => 'jprm_admin', // nest under our parent
+            'show_in_menu'        => 'jprm_admin', // under our parent
             'supports'            => [ 'title', 'editor', 'thumbnail', 'page-attributes' ],
             'menu_icon'           => 'dashicons-food',
             'map_meta_cap'        => true,
@@ -114,9 +111,7 @@ final class Plugin {
         ] );
     }
 
-    /**
-     * Taxonomies: Labels (tag-like) and Sections (category-like)
-     */
+    /** Taxonomies */
     public function register_taxonomies() {
         if ( ! taxonomy_exists( 'jprm_label' ) ) {
             register_taxonomy(
@@ -139,8 +134,6 @@ final class Plugin {
                     'show_ui'            => true,
                     'show_admin_column'  => true,
                     'hierarchical'       => false,
-                    'show_in_nav_menus'  => false,
-                    'show_tagcloud'      => false,
                 ]
             );
         } else {
@@ -170,8 +163,6 @@ final class Plugin {
                     'show_ui'            => true,
                     'show_admin_column'  => true,
                     'hierarchical'       => true,
-                    'show_in_nav_menus'  => false,
-                    'show_tagcloud'      => false,
                 ]
             );
         } else {
@@ -179,9 +170,7 @@ final class Plugin {
         }
     }
 
-    /**
-     * Top-level + ensure expected submenus exist.
-     */
+    /** Admin menu */
     public function register_admin_menu() {
         add_menu_page(
             __( 'JelloPoint Menu', 'jellopoint-restaurant-menu' ),
@@ -193,88 +182,42 @@ final class Plugin {
             25
         );
 
-        // Add the commonly expected submenus if WP hasn't already added them.
-        $this->maybe_add_submenu( 'jprm_admin',
-            __( 'Items', 'jellopoint-restaurant-menu' ),
-            __( 'Items', 'jellopoint-restaurant-menu' ),
-            'edit_posts',
-            'edit.php?post_type=jprm_menu_item'
-        );
-        $this->maybe_add_submenu( 'jprm_admin',
-            __( 'Add New', 'jellopoint-restaurant-menu' ),
-            __( 'Add New', 'jellopoint-restaurant-menu' ),
-            'edit_posts',
-            'post-new.php?post_type=jprm_menu_item'
-        );
-        $this->maybe_add_submenu( 'jprm_admin',
-            __( 'Labels', 'jellopoint-restaurant-menu' ),
-            __( 'Labels', 'jellopoint-restaurant-menu' ),
-            'edit_posts',
-            'edit-tags.php?taxonomy=jprm_label&post_type=jprm_menu_item'
-        );
-        $this->maybe_add_submenu( 'jprm_admin',
-            __( 'Sections', 'jellopoint-restaurant-menu' ),
-            __( 'Sections', 'jellopoint-restaurant-menu' ),
-            'edit_posts',
-            'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item'
-        );
-
-        // Do NOT add the "Price Labels" here if your root file already does it.
+        $this->maybe_add_submenu( 'jprm_admin', __( 'Items', 'jellopoint-restaurant-menu' ), __( 'Items', 'jellopoint-restaurant-menu' ), 'edit_posts', 'edit.php?post_type=jprm_menu_item' );
+        $this->maybe_add_submenu( 'jprm_admin', __( 'Add New', 'jellopoint-restaurant-menu' ), __( 'Add New', 'jellopoint-restaurant-menu' ), 'edit_posts', 'post-new.php?post_type=jprm_menu_item' );
+        $this->maybe_add_submenu( 'jprm_admin', __( 'Labels', 'jellopoint-restaurant-menu' ), __( 'Labels', 'jellopoint-restaurant-menu' ), 'edit_posts', 'edit-tags.php?taxonomy=jprm_label&post_type=jprm_menu_item' );
+        $this->maybe_add_submenu( 'jprm_admin', __( 'Sections', 'jellopoint-restaurant-menu' ), __( 'Sections', 'jellopoint-restaurant-menu' ), 'edit_posts', 'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item' );
     }
 
-    /**
-     * Add a submenu only if it doesn't already exist.
-     */
     private function maybe_add_submenu( $parent, $page_title, $menu_title, $cap, $menu_slug, $callback = null, $position = null ) {
         global $submenu;
         if ( isset( $submenu[ $parent ] ) && is_array( $submenu[ $parent ] ) ) {
             foreach ( $submenu[ $parent ] as $item ) {
                 if ( isset( $item[2] ) && $item[2] === $menu_slug ) {
-                    return; // already present
+                    return;
                 }
             }
         }
         add_submenu_page( $parent, $page_title, $menu_title, $cap, $menu_slug, $callback, $position );
     }
 
-    /**
-     * Remove the automatic duplicate submenu that mirrors the parent page.
-     */
     public function hide_parent_duplicate_submenu() {
         remove_submenu_page( 'jprm_admin', 'jprm_admin' );
     }
 
-    /**
-     * Highlight top-level on CPT/tax screens.
-     */
     public function admin_parent_highlight( $parent ) {
         $screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
-        if ( ! $screen ) {
-            return $parent;
-        }
-        if ( 'jprm_menu_item' === ( $screen->post_type ?? '' ) ) {
-            return 'jprm_admin';
-        }
-        if ( 'edit-tags' === ( $screen->base ?? '' ) && in_array( ( $screen->taxonomy ?? '' ), [ 'jprm_label', 'jprm_section' ], true ) ) {
-            return 'jprm_admin';
-        }
+        if ( ! $screen ) return $parent;
+        if ( 'jprm_menu_item' === ( $screen->post_type ?? '' ) ) return 'jprm_admin';
+        if ( 'edit-tags' === ( $screen->base ?? '' ) && in_array( ( $screen->taxonomy ?? '' ), [ 'jprm_label', 'jprm_section' ], true ) ) return 'jprm_admin';
         return $parent;
     }
 
     public function admin_submenu_highlight( $submenu_file, $parent_file ) {
         $screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
-        if ( 'jprm_admin' !== $parent_file || ! $screen ) {
-            return $submenu_file;
-        }
-        if ( 'edit-jprm_menu_item' === $screen->id || 'jprm_menu_item' === ( $screen->post_type ?? '' ) ) {
-            return 'edit.php?post_type=jprm_menu_item';
-        }
-        if ( 'edit-tags' === ( $screen->base ?? '' ) && 'jprm_label' === ( $screen->taxonomy ?? '' ) ) {
-            return 'edit-tags.php?taxonomy=jprm_label&post_type=jprm_menu_item';
-        }
-        if ( 'edit-tags' === ( $screen->base ?? '' ) && 'jprm_section' === ( $screen->taxonomy ?? '' ) ) {
-            return 'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item';
-        }
+        if ( 'jprm_admin' !== $parent_file || ! $screen ) return $submenu_file;
+        if ( 'edit-jprm_menu_item' === $screen->id || 'jprm_menu_item' === ( $screen->post_type ?? '' ) ) return 'edit.php?post_type=jprm_menu_item';
+        if ( 'edit-tags' === ( $screen->base ?? '' ) && 'jprm_label' === ( $screen->taxonomy ?? '' ) ) return 'edit-tags.php?taxonomy=jprm_label&post_type=jprm_menu_item';
+        if ( 'edit-tags' === ( $screen->base ?? '' ) && 'jprm_section' === ( $screen->taxonomy ?? '' ) ) return 'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item';
         return $submenu_file;
     }
 
@@ -295,26 +238,7 @@ final class Plugin {
         <?php
     }
 
-    public function admin_notice() {
-        if ( current_user_can( 'manage_options' ) && ! post_type_exists( 'jprm_menu_item' ) ) {
-            echo '<div class="notice notice-error"><p>JelloPoint Restaurant Menu: Post Type not registered.</p></div>';
-        }
-    }
-
-    public function admin_footer( $text ) {
-        if ( current_user_can( 'manage_options' ) ) {
-            $text .= ' | JelloPoint Restaurant Menu';
-            if ( defined( 'JPRM_VERSION' ) ) {
-                $text .= ' v' . esc_html( JPRM_VERSION );
-            }
-            $text .= ' active';
-        }
-        return $text;
-    }
-
-    /**
-     * Meta box: Menu Item Settings (with Multiple Prices repeater)
-     */
+    /** Meta box */
     public function add_meta_boxes() {
         add_meta_box(
             'jprm_item_meta',
@@ -499,9 +423,7 @@ final class Plugin {
                         amount: $tr.find('input.amount').val() || '',
                         hide_icon: $tr.find('input.hide-icon').is(':checked') ? 1 : 0
                     };
-                    if (row.label_custom.length || row.amount.length) {
-                        out.push(row);
-                    }
+                    if (row.label_custom.length || row.amount.length) out.push(row);
                 });
                 $('#jprm_prices_v1').val(JSON.stringify(out));
             }
@@ -570,11 +492,8 @@ final class Plugin {
         update_post_meta( $post_id, '_jprm_desc',              $get_text( 'jprm_desc' ) );
     }
 
-    /* ========= Elementor integration (safe) ========= */
+    /* ================= Elementor: auto-discover ================= */
 
-    /**
-     * Elementor: add our category if missing.
-     */
     public function register_category( $elements_manager ) {
         $slug = 'jellopoint-widgets';
         $categories = method_exists( $elements_manager, 'get_categories' ) ? $elements_manager->get_categories() : [];
@@ -586,80 +505,53 @@ final class Plugin {
         }
     }
 
-    /**
-     * Elementor: register our widget (modern hook)
-     */
-    public function register_widget( $widgets_manager ) {
-        $class = $this->prepare_and_find_widget_class();
-        if ( $class ) {
+    public function register_widgets_autoload( $widgets_manager ) {
+        $classes = $this->autoload_widgets();
+        foreach ( $classes as $class ) {
             $widgets_manager->register( new $class() );
         }
     }
 
-    /**
-     * Elementor: register our widget (legacy hook for older Elementor)
-     */
-    public function register_widget_legacy() {
+    public function register_widgets_autoload_legacy() {
         if ( ! class_exists( '\\Elementor\\Plugin' ) ) {
             return;
         }
-        $class = $this->prepare_and_find_widget_class();
-        if ( $class ) {
+        $classes = $this->autoload_widgets();
+        foreach ( $classes as $class ) {
             \Elementor\Plugin::instance()->widgets_manager->register_widget_type( new $class() );
         }
     }
 
-    /**
-     * Ensure Elementor base class is available, then include our widget file, then resolve the FQCN.
-     */
-    private function prepare_and_find_widget_class() {
-        // Ensure Elementor has loaded its autoloader & base class.
+    private function autoload_widgets() {
+        // Only when Elementor base is available
         if ( ! class_exists( '\\Elementor\\Widget_Base' ) ) {
-            return null;
+            return [];
         }
-        // Include our widget file (deferred; safe now).
-        $this->include_widget_file();
 
-        // Try a few reasonable class names.
-        $candidates = [
-            '\\JelloPoint\\RestaurantMenu\\Widgets\\Restaurant_Menu',
-            '\\JelloPoint\\RestaurantMenu\\Restaurant_Menu',
-            '\\JelloPoint\\RestaurantMenu\\Widgets\\Widget_Restaurant_Menu',
-            '\\JelloPoint\\RestaurantMenu\\Widget_Restaurant_Menu',
-        ];
-        foreach ( $candidates as $fqcn ) {
-            if ( class_exists( $fqcn ) && is_subclass_of( $fqcn, '\\Elementor\\Widget_Base' ) ) {
-                return $fqcn;
-            }
+        $widgets_dir = plugin_dir_path( __FILE__ ) . 'widgets/';
+        if ( ! is_dir( $widgets_dir ) ) {
+            return [];
         }
-        return null;
-    }
 
-    /**
-     * Include the widget file from common locations. No include happens until Elementor is ready.
-     */
-    private function include_widget_file() {
-        static $done = false;
-        if ( $done ) return;
-        $done = true;
-
-        $base = defined( 'JPRM_PLUGIN_PATH' ) ? JPRM_PLUGIN_PATH : plugin_dir_path( __FILE__ ) . '../';
-        $candidates = [
-            $base . 'includes/widgets/class-restaurant-menu.php',
-            $base . 'includes/widgets/restaurant-menu.php',
-            $base . 'includes/class-widget-restaurant-menu.php',
-            $base . 'includes/widgets/class-jprm-restaurant-menu.php',
-        ];
-        foreach ( $candidates as $file ) {
+        $before = get_declared_classes();
+        foreach ( glob( $widgets_dir . '*.php' ) as $file ) {
             if ( is_readable( $file ) ) {
                 require_once $file;
-                // stop at first readable; the prepare_and_find_widget_class() will decide if class was provided
-                break;
             }
         }
+        $after = get_declared_classes();
+        $new = array_diff( $after, $before );
+
+        $found = [];
+        foreach ( $new as $fqcn ) {
+            if ( is_subclass_of( $fqcn, '\\Elementor\\Widget_Base' ) ) {
+                $found[] = $fqcn;
+            }
+        }
+        return $found;
     }
 
-    /* ========= /Elementor integration ========= */
+    /* ================= /Elementor ================= */
 
     public function enqueue_assets() {
         if ( defined( 'JPRM_PLUGIN_URL' ) && defined( 'JPRM_VERSION' ) ) {
@@ -667,7 +559,24 @@ final class Plugin {
         }
     }
 
-    // Optional shortcode; safe to keep.
+    public function admin_notice() {
+        if ( current_user_can( 'manage_options' ) && ! post_type_exists( 'jprm_menu_item' ) ) {
+            echo '<div class="notice notice-error"><p>JelloPoint Restaurant Menu: Post Type not registered.</p></div>';
+        }
+    }
+
+    public function admin_footer( $text ) {
+        if ( current_user_can( 'manage_options' ) ) {
+            $text .= ' | JelloPoint Restaurant Menu';
+            if ( defined( 'JPRM_VERSION' ) ) {
+                $text .= ' v' . esc_html( JPRM_VERSION );
+            }
+            $text .= ' active';
+        }
+        return $text;
+    }
+
+    /** Basic example shortcode output */
     public function shortcode_menu( $atts ) {
         $atts = shortcode_atts( [ 'id' => 0 ], $atts, 'jprm_menu' );
         $post_id = absint( $atts['id'] );
@@ -691,11 +600,7 @@ final class Plugin {
     }
 }
 
-/**
- * Bootstrap helper so either entry point works:
- * - legacy main file calls \JelloPoint\RestaurantMenu\Plugin::instance()
- * - or this file can be included and call jprm_bootstrap()
- */
+/* Bootstrap so both styles work */
 if ( ! function_exists( __NAMESPACE__ . '\\jprm_bootstrap' ) ) {
     function jprm_bootstrap() { return Plugin::instance(); }
 }
