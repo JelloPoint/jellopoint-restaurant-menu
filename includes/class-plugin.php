@@ -20,7 +20,7 @@ final class Plugin {
     private static $instance = null;
 
     /**
-     * Singleton accessor (supports main loader calling Plugin::instance()).
+     * Singleton accessor.
      */
     public static function instance() {
         if ( null === self::$instance ) {
@@ -36,14 +36,14 @@ final class Plugin {
         }
         $GLOBALS['jprm_plugin_booted'] = true;
 
-        // Core / i18n
+        // i18n
         add_action( 'plugins_loaded', [ $this, 'i18n' ] );
 
-        // Data model
-        add_action( 'init', [ $this, 'register_taxonomies' ] );
-        add_action( 'init', [ $this, 'register_cpt' ] );
+        // Data model (CPT first, then taxonomies)
+        add_action( 'init', [ $this, 'register_cpt' ], 9 );
+        add_action( 'init', [ $this, 'register_taxonomies' ], 10 );
 
-        // Admin menu (single parent + automatic CPT/tax submenus)
+        // Admin menu (single parent + CPT/tax submenus; add missing ones explicitly)
         add_action( 'admin_menu', [ $this, 'register_admin_menu' ] );
         add_action( 'admin_head', [ $this, 'hide_parent_duplicate_submenu' ] );
         add_filter( 'parent_file',  [ $this, 'admin_parent_highlight' ] );
@@ -53,7 +53,7 @@ final class Plugin {
         add_action( 'add_meta_boxes', [ $this, 'add_meta_boxes' ] );
         add_action( 'save_post',      [ $this, 'save_meta' ], 10, 2 );
 
-        // Nice footer + notices
+        // Footer + notices
         add_filter( 'admin_footer_text', [ $this, 'admin_footer' ] );
         add_action( 'admin_notices',     [ $this, 'admin_notice' ] );
 
@@ -78,7 +78,41 @@ final class Plugin {
     }
 
     /**
-     * Taxonomies: Labels (non-hierarchical) and Sections (hierarchical)
+     * CPT: Menu Items — nested under our top-level.
+     */
+    public function register_cpt() {
+        $labels = [
+            'name'               => __( 'Menu Items', 'jellopoint-restaurant-menu' ),
+            'singular_name'      => __( 'Menu Item', 'jellopoint-restaurant-menu' ),
+            'add_new'            => __( 'Add New', 'jellopoint-restaurant-menu' ),
+            'add_new_item'       => __( 'Add New Menu Item', 'jellopoint-restaurant-menu' ),
+            'edit_item'          => __( 'Edit Menu Item', 'jellopoint-restaurant-menu' ),
+            'new_item'           => __( 'New Menu Item', 'jellopoint-restaurant-menu' ),
+            'view_item'          => __( 'View Menu Item', 'jellopoint-restaurant-menu' ),
+            'search_items'       => __( 'Search Menu Items', 'jellopoint-restaurant-menu' ),
+            'not_found'          => __( 'No items found', 'jellopoint-restaurant-menu' ),
+            'not_found_in_trash' => __( 'No items found in Trash', 'jellopoint-restaurant-menu' ),
+            'menu_name'          => __( 'Menu Items', 'jellopoint-restaurant-menu' ),
+        ];
+
+        register_post_type( 'jprm_menu_item', [
+            'label'               => __( 'Menu Items', 'jellopoint-restaurant-menu' ),
+            'labels'              => $labels,
+            'public'              => false,
+            'show_ui'             => true,
+            'show_in_menu'        => 'jprm_admin', // nest under our parent
+            'supports'            => [ 'title', 'editor', 'thumbnail', 'page-attributes' ],
+            'menu_icon'           => 'dashicons-food',
+            'map_meta_cap'        => true,
+            'capability_type'     => 'post',
+            'has_archive'         => false,
+            'rewrite'             => false,
+        ] );
+    }
+
+    /**
+     * Taxonomies: Labels (tag-like) and Sections (category-like)
+     * Registered *after* CPT (and force-attached) so admin pages show.
      */
     public function register_taxonomies() {
         if ( ! taxonomy_exists( 'jprm_label' ) ) {
@@ -106,6 +140,8 @@ final class Plugin {
                     'show_tagcloud'      => false,
                 ]
             );
+        } else {
+            register_taxonomy_for_object_type( 'jprm_label', 'jprm_menu_item' );
         }
 
         if ( ! taxonomy_exists( 'jprm_section' ) ) {
@@ -135,46 +171,13 @@ final class Plugin {
                     'show_tagcloud'      => false,
                 ]
             );
+        } else {
+            register_taxonomy_for_object_type( 'jprm_section', 'jprm_menu_item' );
         }
     }
 
     /**
-     * Register CPT and nest it under our single parent menu.
-     */
-    public function register_cpt() {
-        $labels = [
-            'name'               => __( 'Menu Items', 'jellopoint-restaurant-menu' ),
-            'singular_name'      => __( 'Menu Item', 'jellopoint-restaurant-menu' ),
-            'add_new'            => __( 'Add New', 'jellopoint-restaurant-menu' ),
-            'add_new_item'       => __( 'Add New Menu Item', 'jellopoint-restaurant-menu' ),
-            'edit_item'          => __( 'Edit Menu Item', 'jellopoint-restaurant-menu' ),
-            'new_item'           => __( 'New Menu Item', 'jellopoint-restaurant-menu' ),
-            'view_item'          => __( 'View Menu Item', 'jellopoint-restaurant-menu' ),
-            'search_items'       => __( 'Search Menu Items', 'jellopoint-restaurant-menu' ),
-            'not_found'          => __( 'No items found', 'jellopoint-restaurant-menu' ),
-            'not_found_in_trash' => __( 'No items found in Trash', 'jellopoint-restaurant-menu' ),
-            'menu_name'          => __( 'Menu Items', 'jellopoint-restaurant-menu' ),
-        ];
-
-        register_post_type( 'jprm_menu_item', [
-            'label'               => __( 'Menu Items', 'jellopoint-restaurant-menu' ),
-            'labels'              => $labels,
-            'public'              => false,
-            'show_ui'             => true,
-            // NEST the CPT under our admin parent (no separate top-level):
-            'show_in_menu'        => 'jprm_admin',
-            'supports'            => [ 'title', 'editor', 'thumbnail', 'page-attributes' ],
-            'menu_icon'           => 'dashicons-food',
-            'map_meta_cap'        => true,
-            'capability_type'     => 'post',
-            'has_archive'         => false,
-            'rewrite'             => false,
-        ] );
-    }
-
-    /**
-     * Single top-level "JelloPoint Menu" (cutlery icon).
-     * CPT/tax submenus appear automatically.
+     * Top-level + ensure expected submenus exist.
      */
     public function register_admin_menu() {
         add_menu_page(
@@ -187,31 +190,70 @@ final class Plugin {
             25
         );
 
-        // NOTE: Do not add Items/Add/Labels/Sections manually here.
-        // WordPress adds them from CPT/tax registrations.
-        // If your root plugin file adds a custom "Price Labels" page,
-        // keep it there to avoid duplication.
+        // Add the commonly expected submenus if WP hasn't already added them.
+        $this->maybe_add_submenu( 'jprm_admin',
+            __( 'Items', 'jellopoint-restaurant-menu' ),
+            __( 'Items', 'jellopoint-restaurant-menu' ),
+            'edit_posts',
+            'edit.php?post_type=jprm_menu_item'
+        );
+        $this->maybe_add_submenu( 'jprm_admin',
+            __( 'Add New', 'jellopoint-restaurant-menu' ),
+            __( 'Add New', 'jellopoint-restaurant-menu' ),
+            'edit_posts',
+            'post-new.php?post_type=jprm_menu_item'
+        );
+        $this->maybe_add_submenu( 'jprm_admin',
+            __( 'Labels', 'jellopoint-restaurant-menu' ),
+            __( 'Labels', 'jellopoint-restaurant-menu' ),
+            'edit_posts',
+            'edit-tags.php?taxonomy=jprm_label&post_type=jprm_menu_item'
+        );
+        $this->maybe_add_submenu( 'jprm_admin',
+            __( 'Sections', 'jellopoint-restaurant-menu' ),
+            __( 'Sections', 'jellopoint-restaurant-menu' ),
+            'edit_posts',
+            'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item'
+        );
+
+        // Do NOT add the "Price Labels" here if your root file already does it.
     }
 
     /**
-     * Remove the duplicate submenu WordPress adds that mirrors the parent page.
+     * Add a submenu only if it doesn't already exist.
+     */
+    private function maybe_add_submenu( $parent, $page_title, $menu_title, $cap, $menu_slug, $callback = null, $position = null ) {
+        global $submenu;
+        if ( isset( $submenu[ $parent ] ) && is_array( $submenu[ $parent ] ) ) {
+            foreach ( $submenu[ $parent ] as $item ) {
+                // $item[2] is menu_slug / file
+                if ( isset( $item[2] ) && $item[2] === $menu_slug ) {
+                    return; // already present
+                }
+            }
+        }
+        add_submenu_page( $parent, $page_title, $menu_title, $cap, $menu_slug, $callback, $position );
+    }
+
+    /**
+     * Remove the automatic duplicate submenu that mirrors the parent page.
      */
     public function hide_parent_duplicate_submenu() {
         remove_submenu_page( 'jprm_admin', 'jprm_admin' );
     }
 
     /**
-     * Ensure the correct top-level is highlighted on CPT/tax screens.
+     * Highlight top-level on CPT/tax screens.
      */
     public function admin_parent_highlight( $parent ) {
         $screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
         if ( ! $screen ) {
             return $parent;
         }
-        if ( 'jprm_menu_item' === $screen->post_type ) {
+        if ( 'jprm_menu_item' === ( $screen->post_type ?? '' ) ) {
             return 'jprm_admin';
         }
-        if ( 'edit-tags' === $screen->base && in_array( $screen->taxonomy, [ 'jprm_label', 'jprm_section' ], true ) ) {
+        if ( 'edit-tags' === ( $screen->base ?? '' ) && in_array( ( $screen->taxonomy ?? '' ), [ 'jprm_label', 'jprm_section' ], true ) ) {
             return 'jprm_admin';
         }
         return $parent;
@@ -222,13 +264,13 @@ final class Plugin {
         if ( 'jprm_admin' !== $parent_file || ! $screen ) {
             return $submenu_file;
         }
-        if ( 'edit-jprm_menu_item' === $screen->id || 'jprm_menu_item' === $screen->post_type ) {
+        if ( 'edit-jprm_menu_item' === $screen->id || 'jprm_menu_item' === ( $screen->post_type ?? '' ) ) {
             return 'edit.php?post_type=jprm_menu_item';
         }
-        if ( 'edit-tags' === $screen->base && 'jprm_label' === $screen->taxonomy ) {
+        if ( 'edit-tags' === ( $screen->base ?? '' ) && 'jprm_label' === ( $screen->taxonomy ?? '' ) ) {
             return 'edit-tags.php?taxonomy=jprm_label&post_type=jprm_menu_item';
         }
-        if ( 'edit-tags' === $screen->base && 'jprm_section' === $screen->taxonomy ) {
+        if ( 'edit-tags' === ( $screen->base ?? '' ) && 'jprm_section' === ( $screen->taxonomy ?? '' ) ) {
             return 'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item';
         }
         return $submenu_file;
