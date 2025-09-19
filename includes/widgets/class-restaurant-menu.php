@@ -319,7 +319,7 @@ $repeater->add_control( 'item_badge', [ 'label'=>__( 'Badge','jellopoint-restaur
 
     
 
-        /* ===== Style: Description ===== */
+        /* =====  Style: Description ===== */
         $this->start_controls_section( 'section_style_desc', [ 'label'=>__( 'Description','jellopoint-restaurant-menu' ), 'tab'=>Controls_Manager::TAB_STYLE ] );
         $this->add_control( 'desc_color', [ 'label'=>__( 'Color','jellopoint-restaurant-menu' ), 'type'=>Controls_Manager::COLOR, 'selectors'=>[ '{{WRAPPER}} .jp-menu__desc'=>'color: {{VALUE}};' ] ] );
         $this->add_group_control( Group_Control_Typography::get_type(), [ 'name'=>'desc_typo', 'selector'=>'{{WRAPPER}} .jp-menu__desc' ] );
