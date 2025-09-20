@@ -1,10 +1,11 @@
 <?php
 /**
  * JelloPoint Restaurant Menu – main plugin class
- * - Menus as TAXONOMY (so items can belong to multiple menus)
- * - Full Menu Item meta boxes (Price, Multiple Prices, Badge, etc.)
+ * - Menus as TAXONOMY (items can belong to multiple menus)
+ * - Full Menu Item meta boxes (Price, Multiple Prices, Badge, Separator, etc.)
  * - Admin left menu (cutlery): Menus, Menu Items, Sections, Price Labels
- * - Shortcode now RENDERS items for the selected Menu, optionally filtered by Sections
+ * - Shortcode renders with v2.1.0-compatible markup/classes for layout parity
+ * - Sections render hierarchically; only sections with items are shown
  */
 
 namespace JelloPoint\RestaurantMenu;
@@ -34,6 +35,9 @@ final class Plugin {
         // Full meta boxes for Menu Items
         add_action( 'add_meta_boxes', [ $this, 'add_meta_boxes' ] );
         add_action( 'save_post',      [ $this, 'save_meta' ], 10, 2 );
+
+        // Output the tiny alignment CSS helpers used by v2.1.0
+        add_action( 'wp_head', [ $this, 'output_alignment_css' ] );
 
         // Elementor (deferred)
         add_action( 'elementor/init', function () {
@@ -66,9 +70,9 @@ final class Plugin {
         ] );
     }
 
-    /* ===== Taxonomies ===== */
+    /* ===== Taxonomies (Menus as TAXONOMY) ===== */
     public function register_taxonomies() {
-        // Menus (non-hierarchical taxonomy)
+        // Menus (non-hierarchical)
         if ( ! taxonomy_exists( 'jprm_menu' ) ) {
             register_taxonomy(
                 'jprm_menu',
@@ -246,7 +250,7 @@ final class Plugin {
         $multi_rows   = get_post_meta( $post->ID, '_jprm_multi_rows', true );
         $badge        = get_post_meta( $post->ID, '_jprm_badge', true );
         $badge_pos    = get_post_meta( $post->ID, '_jprm_badge_position', true );
-        $separator    = get_post_meta( $post->ID, '_jprm_separator', true );
+        $separator    = get_post_meta( $post->ID, '_jprm_separator', true ); // 'yes' legacy, or ''/1 new
         $visible      = get_post_meta( $post->ID, '_jprm_visible', true );
         $desc         = get_post_meta( $post->ID, '_jprm_desc', true );
 
@@ -256,9 +260,9 @@ final class Plugin {
         }
 
         $preset_map = apply_filters( 'jprm_price_label_full_map', [
-            'small'  => [ 'label_custom' => __( 'Small', 'jellopoint-restaurant-menu' ),  'amount' => '' ],
-            'medium' => [ 'label_custom' => __( 'Medium', 'jellopoint-restaurant-menu' ), 'amount' => '' ],
-            'large'  => [ 'label_custom' => __( 'Large', 'jellopoint-restaurant-menu' ),  'amount' => '' ],
+            'small'  => [ 'label_custom' => __( 'Small', 'jellopoint-restaurant-menu' ) ],
+            'medium' => [ 'label_custom' => __( 'Medium', 'jellopoint-restaurant-menu' ) ],
+            'large'  => [ 'label_custom' => __( 'Large', 'jellopoint-restaurant-menu' ) ],
         ] );
 
         $badge_options = [
@@ -374,14 +378,13 @@ final class Plugin {
                 <tr>
                     <th><label for="jprm_separator"><?php esc_html_e( 'Separator', 'jellopoint-restaurant-menu' ); ?></label></th>
                     <td>
-                        <input type="text" id="jprm_separator" name="jprm_separator" value="<?php echo esc_attr( $separator ); ?>" placeholder="·" />
-                        <span class="jprm-muted"><?php esc_html_e( 'Used between title and price.', 'jellopoint-restaurant-menu' ); ?></span>
+                        <label><input type="checkbox" id="jprm_separator" name="jprm_separator" value="yes" <?php checked( $separator, 'yes' ); ?> /> <?php esc_html_e( 'Show a divider line after item', 'jellopoint-restaurant-menu' ); ?></label>
                     </td>
                 </tr>
                 <tr>
                     <th><label for="jprm_visible"><?php esc_html_e( 'Visible', 'jellopoint-restaurant-menu' ); ?></label></th>
                     <td>
-                        <label><input type="checkbox" id="jprm_visible" name="jprm_visible" value="1" <?php checked( (bool) $visible ); ?> /> <?php esc_html_e( 'Show this item on the site', 'jellopoint-restaurant-menu' ); ?></label>
+                        <label><input type="checkbox" id="jprm_visible" name="jprm_visible" value="yes" <?php checked( (string)$visible, 'yes' ); checked( (string)$visible, '1' ); ?> /> <?php esc_html_e( 'Show this item on the site', 'jellopoint-restaurant-menu' ); ?></label>
                     </td>
                 </tr>
                 <tr>
@@ -469,8 +472,10 @@ final class Plugin {
 
         update_post_meta( $post_id, '_jprm_badge',             sanitize_text_field( $get_text( 'jprm_badge' ) ) );
         update_post_meta( $post_id, '_jprm_badge_position',    sanitize_text_field( $get_text( 'jprm_badge_position' ) ) );
-        update_post_meta( $post_id, '_jprm_separator',         sanitize_text_field( $get_text( 'jprm_separator' ) ) );
-        update_post_meta( $post_id, '_jprm_visible',           $get_bool( 'jprm_visible' ) );
+        // Separator: store 'yes' when checked for legacy layout compatibility
+        update_post_meta( $post_id, '_jprm_separator',         isset($_POST['jprm_separator']) ? 'yes' : '' );
+        // Visible: store 'yes' like legacy, but also accept '1' on read
+        update_post_meta( $post_id, '_jprm_visible',           isset($_POST['jprm_visible']) ? 'yes' : '' );
         update_post_meta( $post_id, '_jprm_desc',              $get_text( 'jprm_desc' ) );
     }
 
@@ -478,10 +483,19 @@ final class Plugin {
     public function register_category( $elements_manager ) {
         $slug = 'jellopoint-widgets';
         $cats = method_exists( $elements_manager, 'get_categories' ) ? $elements_manager->get_categories() : [];
-        if ( ! isset( $cats[ $slug ] ) ) $elements_manager->add_category( $slug, [ 'title' => __( 'JelloPoint Widgets', 'jellopoint-restaurant-menu' ), 'icon' => 'fa fa-plug' ] );
+        if ( ! isset( $cats[ $slug ] ) ) {
+            $elements_manager->add_category( $slug, [ 'title' => __( 'JelloPoint Widgets', 'jellopoint-restaurant-menu' ), 'icon' => 'fa fa-plug' ] );
+        }
     }
-    public function register_widgets_autoload( $widgets_manager ) { $classes = $this->autoload_widgets(); foreach ( $classes as $class ) $widgets_manager->register( new $class() ); }
-    public function register_widgets_autoload_legacy() { if ( ! class_exists( '\\Elementor\\Plugin' ) ) return; $classes = $this->autoload_widgets(); foreach ( $classes as $class ) \Elementor\Plugin::instance()->widgets_manager->register_widget_type( new $class() ); }
+    public function register_widgets_autoload( $widgets_manager ) {
+        $classes = $this->autoload_widgets();
+        foreach ( $classes as $class ) $widgets_manager->register( new $class() );
+    }
+    public function register_widgets_autoload_legacy() {
+        if ( ! class_exists( '\\Elementor\\Plugin' ) ) return;
+        $classes = $this->autoload_widgets();
+        foreach ( $classes as $class ) \Elementor\Plugin::instance()->widgets_manager->register_widget_type( new $class() );
+    }
     private function autoload_widgets() {
         if ( ! class_exists( '\\Elementor\\Widget_Base' ) ) return [];
         $widgets_dir = plugin_dir_path( __FILE__ ) . 'widgets/';
@@ -495,59 +509,54 @@ final class Plugin {
         return $found;
     }
 
-    /* ===== Shortcode (NOW renders items) ===== */
+    /* ===== Shortcode (renders items with v2.1.0 markup, hierarchically by sections) ===== */
     public function register_shortcodes() { add_shortcode( 'jprm_menu', [ $this, 'shortcode_menu' ] ); }
 
     /**
-     * [jprm_menu menu="term_id_or_slug" sections="slug,slug"]
+     * [jprm_menu menu="term_id_or_slug[,slug]" sections="slug,slug" orderby="menu_order,title" order="ASC" limit="-1" hide_invisible="yes" row_order="label_left|price_left" label_presentation="text|icon"]
      */
     public function shortcode_menu( $atts ) {
         $atts = shortcode_atts( [
-            'menu'     => '',
-            'id'       => '',
-            'sections' => '',
-            'orderby'  => 'menu_order,title',
-            'order'    => 'ASC',
-            'limit'    => 0,
+            'menu'               => '',
+            'sections'           => '',
+            'orderby'            => 'menu_order',
+            'order'              => 'ASC',
+            'limit'              => -1,
+            'hide_invisible'     => 'yes',
+            'row_order'          => 'label_left',
+            'label_presentation' => 'text',
         ], $atts, 'jprm_menu' );
 
-        // Resolve menu term
-        $menu_arg = $atts['menu'] !== '' ? $atts['menu'] : $atts['id'];
-        $menu_term = null;
-        if ( $menu_arg !== '' ) {
-            if ( is_numeric( $menu_arg ) ) {
-                $menu_term = get_term( absint( $menu_arg ), 'jprm_menu' );
-            } else {
-                $menu_term = get_term_by( 'slug', sanitize_title( (string) $menu_arg ), 'jprm_menu' );
-                if ( ! $menu_term ) { $menu_term = get_term_by( 'name', (string) $menu_arg, 'jprm_menu' ); }
+        // Resolve menu terms (allow list)
+        $menu_terms = [];
+        if ( $atts['menu'] !== '' ) {
+            foreach ( array_filter( array_map( 'trim', explode( ',', (string) $atts['menu'] ) ) ) as $m ) {
+                if ( is_numeric( $m ) ) { $t = get_term( absint( $m ), 'jprm_menu' ); }
+                else { $t = get_term_by( 'slug', sanitize_title( $m ), 'jprm_menu' ); if ( ! $t ) $t = get_term_by( 'name', $m, 'jprm_menu' ); }
+                if ( $t && ! is_wp_error( $t ) ) $menu_terms[] = (int) $t->term_id;
             }
         }
-        if ( ! $menu_term || is_wp_error( $menu_term ) ) return '';
+        if ( empty( $menu_terms ) ) return '';
 
-        // Resolve sections filter
+        // Resolve sections filter (list)
         $section_ids = [];
-        if ( ! empty( $atts['sections'] ) ) {
-            $parts = array_filter( array_map( 'trim', explode( ',', (string) $atts['sections'] ) ) );
-            foreach ( $parts as $p ) {
-                if ( is_numeric( $p ) ) {
-                    $s = get_term( absint( $p ), 'jprm_section' );
-                } else {
-                    $s = get_term_by( 'slug', sanitize_title( $p ), 'jprm_section' );
-                    if ( ! $s ) $s = get_term_by( 'name', $p, 'jprm_section' );
-                }
-                if ( $s && ! is_wp_error( $s ) ) $section_ids[] = (int) $s->term_id;
+        if ( $atts['sections'] !== '' ) {
+            foreach ( array_filter( array_map( 'trim', explode( ',', (string) $atts['sections'] ) ) ) as $s ) {
+                if ( is_numeric( $s ) ) { $t = get_term( absint( $s ), 'jprm_section' ); }
+                else { $t = get_term_by( 'slug', sanitize_title( $s ), 'jprm_section' ); if ( ! $t ) $t = get_term_by( 'name', $s, 'jprm_section' ); }
+                if ( $t && ! is_wp_error( $t ) ) $section_ids[] = (int) $t->term_id;
             }
             $section_ids = array_values( array_unique( $section_ids ) );
         }
 
-        // Build query
         $taxq = [
             'relation' => 'AND',
             [
                 'taxonomy' => 'jprm_menu',
                 'field'    => 'term_id',
-                'terms'    => [ (int) $menu_term->term_id ],
+                'terms'    => $menu_terms,
                 'include_children' => false,
+                'operator' => 'IN',
             ],
         ];
         if ( $section_ids ) {
@@ -555,162 +564,233 @@ final class Plugin {
                 'taxonomy' => 'jprm_section',
                 'field'    => 'term_id',
                 'terms'    => $section_ids,
+                'operator' => 'IN',
             ];
         }
 
-        $orderby_parts = array_filter( array_map( 'trim', explode( ',', (string) $atts['orderby'] ) ) );
-        $orderby = [];
-        foreach ( $orderby_parts as $p ) {
-            if ( in_array( $p, [ 'title', 'menu_order', 'date' ], true ) ) $orderby[ $p ] = strtoupper( $atts['order'] ) === 'DESC' ? 'DESC' : 'ASC';
+        $meta_q = [];
+        if ( strtolower( (string) $atts['hide_invisible'] ) === 'yes' ) {
+            // legacy 'yes' or new '1'
+            $meta_q[] = [
+                'relation' => 'OR',
+                [ 'key' => '_jprm_visible', 'value' => 'yes', 'compare' => '=' ],
+                [ 'key' => '_jprm_visible', 'value' => '1',   'compare' => '=' ],
+                [ 'key' => '_jprm_visible', 'compare' => 'NOT EXISTS' ], // default visible
+            ];
         }
-        if ( empty( $orderby ) ) $orderby = [ 'menu_order' => 'ASC', 'title' => 'ASC' ];
 
         $args = [
             'post_type'      => 'jprm_menu_item',
             'post_status'    => 'publish',
-            'posts_per_page' => max( 0, (int) $atts['limit'] ) > 0 ? (int) $atts['limit'] : -1,
+            'posts_per_page' => intval( $atts['limit'] ),
+            'orderby'        => $atts['orderby'],
+            'order'          => $atts['order'],
             'tax_query'      => $taxq,
-            'orderby'        => $orderby,
+            'meta_query'     => $meta_q ?: null,
             'no_found_rows'  => true,
         ];
         $q = new \WP_Query( $args );
+        if ( ! $q->have_posts() ) return '';
 
-        // Group items by section
-        $groups = []; // section_id => [ 'term' => term|null, 'items' => [] ]
-        $order_map = [];
-        if ( $section_ids ) {
-            $i = 0; foreach ( $section_ids as $sid ) { $order_map[ $sid ] = $i++; }
-        }
-
-        foreach ( $q->posts as $p ) {
+        // Group items by section hierarchy
+        $items = $q->posts;
+        $item_sections = []; // post_id => [term_ids]
+        $all_term_ids  = [];
+        foreach ( $items as $p ) {
             $terms = get_the_terms( $p->ID, 'jprm_section' );
-            $bucket_ids = [];
+            $ids = [];
+            if ( $terms && ! is_wp_error( $terms ) ) {
+                foreach ( $terms as $t ) { $ids[] = (int) $t->term_id; $all_term_ids[] = (int) $t->term_id; }
+            } else {
+                $ids[] = 0; // ungrouped bucket
+            }
+            $item_sections[ $p->ID ] = array_values( array_unique( $ids ) );
+        }
+        $all_term_ids = array_values( array_unique( $all_term_ids ) );
 
-            if ( $section_ids ) {
-                // include only selected
-                if ( $terms && ! is_wp_error( $terms ) ) {
-                    foreach ( $terms as $t ) {
-                        if ( in_array( $t->term_id, $section_ids, true ) ) $bucket_ids[] = (int) $t->term_id;
+        // Build section tree only for terms that actually appear
+        $children = []; $parents = []; $terms_cache = [];
+        if ( $all_term_ids ) {
+            $all_terms = get_terms([ 'taxonomy'=>'jprm_section', 'hide_empty'=>false, 'include'=>$all_term_ids ]);
+            if ( ! is_wp_error( $all_terms ) ) {
+                foreach ( $all_terms as $t ) { $terms_cache[ $t->term_id ] = $t; $parents[ $t->term_id ] = (int) $t->parent; }
+                // climb ancestors to ensure full chain is present
+                $queue = $all_term_ids;
+                while ( $queue ) {
+                    $tid = array_pop( $queue );
+                    $par = isset( $parents[$tid] ) ? $parents[$tid] : ( isset($terms_cache[$tid]) ? (int) $terms_cache[$tid]->parent : 0 );
+                    if ( $par && ! isset( $terms_cache[$par] ) ) {
+                        $anc = get_term( $par, 'jprm_section' );
+                        if ( $anc && ! is_wp_error( $anc ) ) { $terms_cache[$anc->term_id] = $anc; $parents[$anc->term_id] = (int) $anc->parent; $queue[] = $anc->term_id; }
                     }
                 }
-                if ( empty( $bucket_ids ) ) {
-                    // if no matching section, skip
-                    continue;
+                // rebuild children map
+                foreach ( $terms_cache as $tid => $t ) {
+                    $par = (int) $t->parent;
+                    if ( ! isset( $children[$par] ) ) $children[$par] = [];
+                    $children[$par][] = $tid;
                 }
-            } else {
-                if ( $terms && ! is_wp_error( $terms ) ) {
-                    foreach ( $terms as $t ) { $bucket_ids[] = (int) $t->term_id; }
+                foreach ( $children as $par => &$_kids ) {
+                    usort( $_kids, function( $a, $b ) use ( $terms_cache ) {
+                        return strcasecmp( $terms_cache[$a]->name, $terms_cache[$b]->name );
+                    } );
                 }
-                if ( empty( $bucket_ids ) ) {
-                    $bucket_ids[] = 0; // ungrouped
-                }
-            }
-
-            // Build item view model
-            $item = [
-                'ID'        => $p->ID,
-                'title'     => get_the_title( $p ),
-                'desc'      => get_post_meta( $p->ID, '_jprm_desc', true ),
-                'separator' => get_post_meta( $p->ID, '_jprm_separator', true ),
-                'badge'     => get_post_meta( $p->ID, '_jprm_badge', true ),
-                'badge_pos' => get_post_meta( $p->ID, '_jprm_badge_position', true ) ?: 'corner-right',
-                'multi'     => (bool) get_post_meta( $p->ID, '_jprm_multi', true ),
-                'rows'      => get_post_meta( $p->ID, '_jprm_multi_rows', true ),
-                'price'     => get_post_meta( $p->ID, '_jprm_price', true ),
-                'visible'   => (bool) get_post_meta( $p->ID, '_jprm_visible', true ),
-            ];
-
-            // Default: show if not explicitly hidden (so empty meta means show)
-            if ( array_key_exists( 'visible', $item ) && $item['visible'] === 0 && get_post_meta( $p->ID, '_jprm_visible', true ) !== '' ) {
-                continue;
-            }
-
-            if ( ! is_array( $item['rows'] ) ) {
-                $dec = json_decode( (string) $item['rows'], true );
-                $item['rows'] = is_array( $dec ) ? $dec : [];
-            }
-
-            foreach ( $bucket_ids as $sid ) {
-                if ( ! isset( $groups[ $sid ] ) ) {
-                    $term = $sid ? get_term( $sid, 'jprm_section' ) : null;
-                    $groups[ $sid ] = [ 'term' => $term, 'items' => [] ];
-                }
-                $groups[ $sid ]['items'][] = $item;
             }
         }
 
-        // Sort section groups: by provided order or by term name
-        uksort( $groups, function( $a, $b ) use ( $order_map, $groups ) {
-            if ( isset( $order_map[$a] ) && isset( $order_map[$b] ) ) return $order_map[$a] - $order_map[$b];
-            if ( isset( $order_map[$a] ) ) return -1;
-            if ( isset( $order_map[$b] ) ) return 1;
-            $an = $groups[$a]['term'] ? $groups[$a]['term']->name : '';
-            $bn = $groups[$b]['term'] ? $groups[$b]['term']->name : '';
-            return strcasecmp( $an, $bn );
-        });
+        // Helper: render items list (jp-* markup) for an array of posts filtered by an exact section id (or 0 for ungrouped)
+        $row_order = ( $atts['row_order'] === 'price_left' ) ? 'price_left' : 'label_left';
+        $label_presentation = ( $atts['label_presentation'] === 'icon' ) ? 'icon' : 'text';
 
-        // Render
-        ob_start(); ?>
-        <div class="jprm-menu" data-menu-term="<?php echo (int) $menu_term->term_id; ?>">
-            <div class="jprm-menu__title"><?php echo esc_html( $menu_term->name ); ?></div>
+        $render_items = function( $post_ids, $section_id ) use ( $row_order, $label_presentation ) {
+            echo '<ul class="jp-menu">';
+            foreach ( $post_ids as $pid ) {
+                $title = get_the_title( $pid );
+                $desc_meta = get_post_meta( $pid, '_jprm_desc', true );
+                $desc = $desc_meta ? wpautop( $desc_meta ) : apply_filters( 'the_content', get_post_field( 'post_content', $pid ) );
+                $price = get_post_meta( $pid, '_jprm_price', true );
+                $price_label = get_post_meta( $pid, '_jprm_price_label', true );
+                $price_label_custom = get_post_meta( $pid, '_jprm_price_label_custom', true );
+                $multi = (bool) get_post_meta( $pid, '_jprm_multi', true );
+                $rows  = get_post_meta( $pid, '_jprm_multi_rows', true );
+                if ( ! is_array( $rows ) ) { $dec = json_decode( (string) $rows, true ); $rows = is_array( $dec ) ? $dec : []; }
+                $badge = get_post_meta( $pid, '_jprm_badge', true );
+                $badge_p = get_post_meta( $pid, '_jprm_badge_position', true ); if ( ! $badge_p ) $badge_p = 'corner-right';
+                $sep  = ( get_post_meta( $pid, '_jprm_separator', true ) === 'yes' ); // legacy divider
+                $img  = get_the_post_thumbnail( $pid, 'thumbnail', [ 'class'=>'attachment-thumbnail size-thumbnail' ] );
+                $badge_class = 'jp-menu__badge' . ( $badge_p === 'inline' ? ' jp-menu__badge--inline' : ' jp-menu__badge--corner jp-menu__badge--' . ( $badge_p === 'corner-left' ? 'corner-left' : 'corner-right' ) );
 
-            <?php foreach ( $groups as $sid => $group ) : ?>
-                <div class="jprm-section" data-section-id="<?php echo (int) $sid; ?>">
-                    <?php if ( $group['term'] ) : ?>
-                        <h3 class="jprm-section__title"><?php echo esc_html( $group['term']->name ); ?></h3>
-                    <?php endif; ?>
+                echo '<li class="jp-menu__item">';
+                if ( $badge ) echo '<span class="'.esc_attr($badge_class).'">'.esc_html($badge).'</span>';
 
-                    <ul class="jprm-items">
-                        <?php foreach ( $group['items'] as $it ) : ?>
-                            <li class="jprm-item" data-item-id="<?php echo (int) $it['ID']; ?>">
-                                <div class="jprm-item__line">
-                                    <span class="jprm-item__name"><?php echo esc_html( $it['title'] ); ?></span>
-                                    <?php if ( $it['badge'] && $it['badge_pos'] === 'inline' ) : ?>
-                                        <span class="jprm-item__badge jprm-badge--inline"><?php echo esc_html( $it['badge'] ); ?></span>
-                                    <?php endif; ?>
+                echo '<div class="jp-menu__inner" style="display:grid;grid-template-columns:1fr auto;align-items:start;gap:1rem">';
+                  echo '<div class="jp-box-left" style="display:flex;gap:.75rem;flex:1 1 auto;min-width:0">';
+                    if ( $img ) echo '<div class="jp-menu__media">'.$img.'</div>';
+                    echo '<div class="jp-menu__content" style="flex:1 1 auto;min-width:0;width:auto">';
+                      echo '<div class="jp-menu__header">';
+                        echo '<span class="jp-menu__title">'.esc_html($title).'</span>';
+                      echo '</div>';
+                      if ( $desc ) echo '<div class="jp-menu__desc">'.$desc.'</div>';
+                    echo '</div>';
+                  echo '</div>';
+                  echo '<div class="jp-box-right" style="flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end">';
 
-                                    <?php
-                                    $sep = $it['separator'] !== '' ? $it['separator'] : ' · ';
-                                    if ( $it['multi'] && ! empty( $it['rows'] ) ) :
-                                    ?>
-                                        <span class="jprm-item__sep"><?php echo esc_html( $sep ); ?></span>
-                                        <span class="jprm-item__prices">
-                                            <?php
-                                            $first = true;
-                                            foreach ( $it['rows'] as $r ) {
-                                                $label = isset( $r['label_custom'] ) ? $r['label_custom'] : '';
-                                                $amount = isset( $r['amount'] ) ? $r['amount'] : '';
-                                                if ( $label === '' && $amount === '' ) continue;
-                                                if ( ! $first ) echo '<span class="jprm-price__sep"> / </span>';
-                                                echo '<span class="jprm-price">';
-                                                if ( $label !== '' ) echo '<span class="jprm-price__label">'. esc_html( $label ) .'</span> ';
-                                                if ( $amount !== '' ) echo '<span class="jprm-price__amount">'. esc_html( $amount ) .'</span>';
-                                                echo '</span>';
-                                                $first = false;
-                                            }
-                                            ?>
-                                        </span>
-                                    <?php elseif ( $it['price'] !== '' ) : ?>
-                                        <span class="jprm-item__sep"><?php echo esc_html( $sep ); ?></span>
-                                        <span class="jprm-item__price"><?php echo esc_html( $it['price'] ); ?></span>
-                                    <?php endif; ?>
-                                </div>
+                    $wrapper_class = 'jp-menu__price-row ' . ( $row_order === 'price_left' ? 'jp-order--price-left' : 'jp-order--label-left' );
 
-                                <?php if ( $it['badge'] && in_array( $it['badge_pos'], ['corner-left','corner-right'], true ) ) : ?>
-                                    <span class="jprm-item__badge jprm-badge--<?php echo esc_attr( $it['badge_pos'] ); ?>"><?php echo esc_html( $it['badge'] ); ?></span>
-                                <?php endif; ?>
+                    if ( $multi && ! empty( $rows ) ) {
+                        echo '<div class="jp-menu__pricegroup" style="display:inline-grid;justify-items:end">';
+                        foreach ( $rows as $r ) {
+                            $label = isset( $r['label_custom'] ) ? $r['label_custom'] : '';
+                            $amount = isset( $r['amount'] ) ? $r['amount'] : '';
+                            if ( $label === '' && $amount === '' ) continue;
 
-                                <?php if ( $it['desc'] ) : ?>
-                                    <div class="jprm-item__desc"><?php echo wp_kses_post( wpautop( $it['desc'] ) ); ?></div>
-                                <?php endif; ?>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
-                </div>
-            <?php endforeach; ?>
-        </div>
-        <?php
+                            $label_html = $label ? '<span class="jp-price-label">'.esc_html($label).'</span>' : '';
+                            echo '<div class="'.esc_attr($wrapper_class).'">'
+                                . '<span class="jp-col jp-col-labelwrap">'.$label_html.'</span>'
+                                . '<span class="jp-col jp-col-price">'.wp_kses_post( $amount ).'</span>'
+                                . '</div>';
+                        }
+                        echo '</div>';
+                    } else {
+                        if ( $price !== '' ) {
+                            $label_text = '';
+                            if ( $price_label === 'custom' ) { $label_text = $price_label_custom; }
+                            elseif ( $price_label ) { $label_text = ucwords( str_replace( '-', ' ', $price_label ) ); }
+                            $label_html = $label_text ? '<span class="jp-price-label">'.esc_html($label_text).'</span>' : '';
+                            echo '<div class="'.esc_attr($wrapper_class).'">'
+                                . '<span class="jp-col jp-col-labelwrap">'.$label_html.'</span>'
+                                . '<span class="jp-col jp-col-price">'.wp_kses_post( $price ).'</span>'
+                                . '</div>';
+                        }
+                    }
+
+                  echo '</div>';
+                echo '</div>';
+                if ( $sep ) echo '<div class="jp-menu__separator" aria-hidden="true"></div>';
+                echo '</li>';
+            }
+            echo '</ul>';
+        };
+
+        // Partition posts by section id
+        $posts_by_section = []; // section_id => [post IDs]
+        foreach ( $items as $p ) {
+            $ids = isset( $item_sections[$p->ID] ) ? $item_sections[$p->ID] : [0];
+            foreach ( $ids as $sid ) {
+                if ( ! isset( $posts_by_section[$sid] ) ) $posts_by_section[$sid] = [];
+                $posts_by_section[$sid][] = $p->ID;
+            }
+        }
+
+        ob_start();
+        // If no sections on any items, just render a flat list
+        if ( empty( $all_term_ids ) ) {
+            $render_items( wp_list_pluck( $items, 'ID' ), 0 );
+        } else {
+            // Determine roots to show: either selected section roots, or all roots present
+            $roots = [];
+            if ( $section_ids ) {
+                foreach ( $section_ids as $sid ) {
+                    $anc = get_ancestors( $sid, 'jprm_section' );
+                    $root = $sid;
+                    if ( $anc ) $root = end( $anc ); // last ancestor is highest
+                    if ( isset( $terms_cache[$root] ) ) $roots[$root] = true;
+                }
+            } else {
+                foreach ( $terms_cache as $tid => $t ) {
+                    if ( (int) $t->parent === 0 ) $roots[$tid] = true;
+                }
+            }
+            $roots = array_keys( $roots );
+            usort( $roots, function( $a, $b ) use ( $terms_cache ) {
+                return strcasecmp( $terms_cache[$a]->name, $terms_cache[$b]->name );
+            } );
+
+            $render_section = function( $sid, $level ) use ( &$render_section, $children, $terms_cache, $posts_by_section, $render_items ) {
+                $has_items_here = ! empty( $posts_by_section[ $sid ] );
+                $has_items_below = false;
+                foreach ( (array) ($children[$sid] ?? []) as $kid ) {
+                    if ( ! empty( $posts_by_section[$kid] ) ) { $has_items_below = true; break; }
+                }
+                if ( ! $has_items_here && ! $has_items_below ) return; // prune empty branches
+
+                echo '<div class="jp-section jp-section--level-'.intval($level).'">';
+                if ( $sid && isset( $terms_cache[$sid] ) ) {
+                    echo '<h3 class="jp-menu__section-title">'. esc_html( $terms_cache[$sid]->name ) .'</h3>';
+                }
+                if ( $has_items_here ) { $render_items( $posts_by_section[$sid], $sid ); }
+                foreach ( (array) ($children[$sid] ?? []) as $kid ) {
+                    $render_section( $kid, $level+1 );
+                }
+                echo '</div>';
+            };
+
+            foreach ( $roots as $root_sid ) {
+                $render_section( $root_sid, 1 );
+            }
+
+            // Ungrouped items (sid 0)
+            if ( ! empty( $posts_by_section[0] ) ) {
+                echo '<div class="jp-section jp-section--level-1">';
+                $render_items( $posts_by_section[0], 0 );
+                echo '</div>';
+            }
+        }
+
         return ob_get_clean();
+    }
+
+    public function output_alignment_css() {
+        echo '<style id="jprm-fixes-inline-css">
+        .jp-menu__inner{display:grid;grid-template-columns:1fr auto;align-items:start;gap:1rem}
+        .jp-box-right{display:flex;flex-direction:column;align-items:flex-end}
+        .jp-menu__pricegroup{display:inline-grid;justify-items:end;text-align:right}
+        .jp-menu__price-row{display:flex;align-items:center;justify-content:space-between;gap:.5rem;width:100%}
+        .jp-menu__price-row .jp-col{display:block}
+        .jp-menu__price-row .jp-col.jp-col-labelwrap{display:inline-flex;align-items:center;gap:.5rem}
+        .jp-menu__item{display:grid;grid-template-columns:1fr auto;gap:1rem}
+        .jp-menu__item .jp-menu__pricegroup,.jp-menu__item .jp-menu__price{justify-self:end;text-align:right}
+        </style>';
     }
 }
 
