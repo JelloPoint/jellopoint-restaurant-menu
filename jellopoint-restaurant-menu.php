@@ -56,22 +56,7 @@ add_action('admin_init', function() {
     }
     register_setting( 'jprm_settings_v2', 'jprm_price_labels_v2' );
 });
-add_action('admin_menu', function() {
-        // Top-level Jellopoint menu (safe fallback)
-        if ( ! isset( $GLOBALS['admin_page_hooks']['jellopoint-admin'] ) ) {
-            add_menu_page( 'Jellopoint', 'Jellopoint', 'manage_options', 'jellopoint-admin', function(){}, 'dashicons-index-card', 60 );
-        }
-        add_submenu_page(
-            'jellopoint-admin',
-            __('Restaurant Menu - Price Labels','jellopoint-restaurant-menu'),
-            __('Restaurant Menu - Price Labels','jellopoint-restaurant-menu'),
-            'manage_options',
-            'jprm-price-labels',
-            'jprm_render_price_labels_page'
-        );
-    });
-
-    add_action('admin_init', function() {
+add_action('admin_init', function() {
         register_setting( 'jprm_settings', 'jprm_price_labels', [
             'type' => 'string',
             'sanitize_callback' => function( $input ) {
@@ -230,18 +215,9 @@ add_action('admin_menu', function() {
     );
 }, 20);
 
-// Admin menus for Price Labels
-add_action('admin_menu', function() {
-    // Add under Settings
-    add_options_page(
-        __('Restaurant Menu – Price Labels','jellopoint-restaurant-menu'),
-        __('Price Labels (Restaurant Menu)','jellopoint-restaurant-menu'),
-        'manage_options',
-        'jprm-price-labels',
-        'jprm_render_price_labels_page'
-    );
-    // Also add under JelloPoint root menu if present
-    if ( isset( $GLOBALS['admin_page_hooks']['jellopoint-root'] ) ) {
+add_action('admin_menu', function(){
+    // Add Price Labels under the JelloPoint root menu only
+    if ( isset($GLOBALS['admin_page_hooks']['jellopoint-root']) ) {
         add_submenu_page(
             'jellopoint-root',
             __('Restaurant Menu – Price Labels','jellopoint-restaurant-menu'),
@@ -252,7 +228,6 @@ add_action('admin_menu', function() {
         );
     }
 }, 20);
-
 function jprm_get_price_label_full_map() {
     $v2 = get_option('jprm_price_labels_v2', '');
     $out = [];
@@ -285,13 +260,7 @@ add_action('admin_enqueue_scripts', function($hook){
     if ( function_exists('get_current_screen') ) {
         $screen = get_current_screen();
         $id = $screen ? $screen->id : '';
-        if (
-    $id === 'settings_page_jprm-price-labels' ||
-    $id === 'jellopoint-root_page_jprm-price-labels' ||
-    $id === 'jellopoint-admin_page_jprm-price-labels' ||
-    $id === 'toplevel_page_jprm-price-labels' ||
-    ( isset($_GET['page']) && sanitize_key($_GET['page']) === 'jprm-price-labels' )
-) {
+        if ( $id === 'settings_page_jprm-price-labels' || $id === 'jellopoint-root_page_jprm-price-labels' ) {
             wp_enqueue_media();
             wp_enqueue_script('jquery');
             wp_enqueue_script('jquery-ui-sortable');
