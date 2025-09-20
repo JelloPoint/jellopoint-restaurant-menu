@@ -386,17 +386,3 @@ jQuery(function($){
         }
     }
 });
-
-add_action('admin_menu', function(){
-    if ( isset($GLOBALS['admin_page_hooks']['jellopoint-root']) ) {
-        add_submenu_page(
-            'jellopoint-root',
-            __('Restaurant Menu – Price Labels','jellopoint-restaurant-menu'),
-            __('Price Labels','jellopoint-restaurant-menu'),
-            'manage_options',
-            'jprm-price-labels',
-            'jprm_render_price_labels_page',
-            40
-        );
-    }
-}, 60);
