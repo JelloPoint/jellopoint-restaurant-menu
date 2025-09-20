@@ -531,7 +531,21 @@ echo '<div class="' . $wrapper_class . '">'
         echo '<style>.jp-menu__inner{display:grid;grid-template-columns:1fr auto;align-items:start;gap:1rem}.jp-box-right{display:flex;flex-direction:column;align-items:flex-end}.jp-menu__pricegroup{display:inline-grid;justify-items:end;text-align:right}.jp-menu__price-row{display:flex;align-items:center;justify-content:space-between;gap:.5em;width:100%}.jp-menu__price-row .jp-col{display:block}.jp-menu__price-row .jp-col.jp-col-labelwrap{display:inline-flex;align-items:center;gap:.5em}.jp-menu__price-row.jp-order--price-left .jp-col-price{order:1}.jp-menu__price-row.jp-order--price-left .jp-col-labelwrap{order:2}.jp-menu__price-row.jp-order--label-left .jp-col-labelwrap{order:1}.jp-menu__price-row.jp-order--label-left .jp-col-price{order:2}</style>';
 
         } else {
-            echo do_shortcode( '[jprm_menu' . ' menu="' . esc_attr( implode( ',', (array)($s['query_menus'] ?? []) ) ) . '"' . ' sections="' . esc_attr( implode( ',', (array)($s['query_sections'] ?? []) ) ) . '"' . ' orderby="' . esc_attr( $s['query_orderby'] ?? 'menu_order' ) . '"' . ' order="' . esc_attr( $s['query_order'] ?? 'ASC' ) . '"' . ' limit="' . esc_attr( $s['query_limit'] ?? -1 ) . '"' . ' hide_invisible="' . ( isset($s['hide_invisible']) && $s['hide_invisible']==='yes' ? '1' : '0' ) . '"' . ' row_order="' . esc_attr( isset($s['row_order']) ? $s['row_order'] : 'label_left' ) . '"' . ' label_presentation="' . esc_attr( isset($s['label_presentation']) ? $s['label_presentation'] : 'text' ) . '"' .  . ' dedupe="' . esc_attr( isset($s['dedupe']) ? $s['dedupe'] : 'deepest_only' ) . '"'' ]' );
+            $menus = isset($s['query_menus']) ? (array) $s['query_menus'] : [];
+            $sections = isset($s['query_sections']) ? (array) $s['query_sections'] : [];
+            $shortcode = '[jprm_menu';
+            $shortcode .= ' menu="' . esc_attr( implode( ',', $menus ) ) . '"';
+            $shortcode .= ' sections="' . esc_attr( implode( ',', $sections ) ) . '"';
+            $shortcode .= ' orderby="' . esc_attr( isset($s['query_orderby']) ? $s['query_orderby'] : 'menu_order' ) . '"';
+            $shortcode .= ' order="' . esc_attr( isset($s['query_order']) ? $s['query_order'] : 'ASC' ) . '"';
+            $shortcode .= ' limit="' . esc_attr( isset($s['query_limit']) ? $s['query_limit'] : -1 ) . '"';
+            $shortcode .= ' hide_invisible="' . ( isset($s['hide_invisible']) && $s['hide_invisible']==='yes' ? '1' : '0' ) . '"';
+            $shortcode .= ' row_order="' . esc_attr( isset($s['row_order']) ? $s['row_order'] : 'label_left' ) . '"';
+            $shortcode .= ' label_presentation="' . esc_attr( isset($s['label_presentation']) ? $s['label_presentation'] : 'text' ) . '"';
+            $shortcode .= ' dedupe="' . esc_attr( isset($s['dedupe']) ? $s['dedupe'] : 'deepest_only' ) . '"';
+            $shortcode .= ']';
+            echo do_shortcode( $shortcode );
+        }
         }
     }
 }
