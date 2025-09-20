@@ -39,7 +39,7 @@ class Restaurant_Menu extends Widget_Base {
 
     protected function register_controls() {
 
-        /* ===== Source ===== */
+        /* ===== Source / Mode ===== */
         $this->start_controls_section(
             'section_source',
             [ 'label' => __( 'Source', 'jellopoint-restaurant-menu' ), 'tab' => Controls_Manager::TAB_CONTENT ]
@@ -60,10 +60,14 @@ class Restaurant_Menu extends Widget_Base {
 
         $this->end_controls_section();
 
-        /* ===== Dynamic Query ===== */
+        /* ===== Dynamic / Query ===== */
         $this->start_controls_section(
             'section_query',
-            [ 'label' => __( 'Dynamic / Query', 'jellopoint-restaurant-menu' ), 'tab' => Controls_Manager::TAB_CONTENT ]
+            [
+                'label'     => __( 'Dynamic / Query', 'jellopoint-restaurant-menu' ),
+                'tab'       => Controls_Manager::TAB_CONTENT,
+                'condition' => [ 'data_source' => 'dynamic' ], // <-- hide whole section when Static
+            ]
         );
 
         $this->add_control(
@@ -74,7 +78,6 @@ class Restaurant_Menu extends Widget_Base {
                 'options'      => $this->get_taxonomy_options( 'jprm_menu' ),
                 'multiple'     => true,
                 'label_block'  => true,
-                'condition'    => [ 'data_source' => 'dynamic' ],
                 'description'  => __( 'Select Menu terms. Items can belong to multiple menus.', 'jellopoint-restaurant-menu' ),
             ]
         );
@@ -87,7 +90,6 @@ class Restaurant_Menu extends Widget_Base {
                 'options'      => $this->get_taxonomy_options( 'jprm_section', true ),
                 'multiple'     => true,
                 'label_block'  => true,
-                'condition'    => [ 'data_source' => 'dynamic' ],
                 'description'  => __( 'Optional: limit output to these Sections (with their sub-sections).', 'jellopoint-restaurant-menu' ),
             ]
         );
@@ -103,7 +105,6 @@ class Restaurant_Menu extends Widget_Base {
                     'date'       => __( 'Date', 'jellopoint-restaurant-menu' ),
                 ],
                 'default'   => 'menu_order',
-                'condition' => [ 'data_source' => 'dynamic' ],
             ]
         );
 
@@ -117,7 +118,6 @@ class Restaurant_Menu extends Widget_Base {
                     'DESC' => __( 'DESC', 'jellopoint-restaurant-menu' ),
                 ],
                 'default'   => 'ASC',
-                'condition' => [ 'data_source' => 'dynamic' ],
             ]
         );
 
@@ -127,7 +127,6 @@ class Restaurant_Menu extends Widget_Base {
                 'label'     => __( 'Items Limit', 'jellopoint-restaurant-menu' ),
                 'type'      => Controls_Manager::NUMBER,
                 'default'   => -1,
-                'condition' => [ 'data_source' => 'dynamic' ],
             ]
         );
 
@@ -140,7 +139,6 @@ class Restaurant_Menu extends Widget_Base {
                 'label_off'    => __( 'No', 'jellopoint-restaurant-menu' ),
                 'return_value' => 'yes',
                 'default'      => 'yes',
-                'condition'    => [ 'data_source' => 'dynamic' ],
             ]
         );
 
@@ -154,7 +152,6 @@ class Restaurant_Menu extends Widget_Base {
                     'price_left' => __( 'Price left, Label right', 'jellopoint-restaurant-menu' ),
                 ],
                 'default'   => 'label_left',
-                'condition' => [ 'data_source' => 'dynamic' ],
             ]
         );
 
@@ -165,25 +162,22 @@ class Restaurant_Menu extends Widget_Base {
                 'type'      => Controls_Manager::SELECT,
                 'options'   => [
                     'text' => __( 'Text', 'jellopoint-restaurant-menu' ),
-                    //'icon' => __( 'Icon (if styled)', 'jellopoint-restaurant-menu' ),
                 ],
                 'default'   => 'text',
-                'condition' => [ 'data_source' => 'dynamic' ],
             ]
         );
 
         $this->add_control(
             'dedupe',
             [
-                'label'     => __( 'De-duplication', 'jellopoint-restaurant-menu' ),
-                'type'      => Controls_Manager::SELECT,
-                'options'   => [
+                'label'       => __( 'De-duplication', 'jellopoint-restaurant-menu' ),
+                'type'        => Controls_Manager::SELECT,
+                'options'     => [
                     'deepest_only' => __( 'Deepest only (recommended)', 'jellopoint-restaurant-menu' ),
                     'all_assigned' => __( 'All assigned (parent + child)', 'jellopoint-restaurant-menu' ),
                     'topmost_only' => __( 'Topmost only', 'jellopoint-restaurant-menu' ),
                 ],
-                'default'   => 'deepest_only',
-                'condition' => [ 'data_source' => 'dynamic' ],
+                'default'     => 'deepest_only',
                 'description' => __( 'When an item is tagged to both a parent and a child section, choose where it should appear.', 'jellopoint-restaurant-menu' ),
             ]
         );
@@ -231,7 +225,7 @@ class Restaurant_Menu extends Widget_Base {
         $terms = get_terms( [ 'taxonomy' => $taxonomy, 'hide_empty' => false ] );
         if ( is_wp_error( $terms ) || ! $terms ) return $out;
 
-        // Build label as "Parent > Child" if requested
+        // Build label as "Parent › Child" if requested
         $by_id = [];
         foreach ( $terms as $t ) $by_id[ $t->term_id ] = $t;
 
@@ -329,4 +323,3 @@ class Restaurant_Menu extends Widget_Base {
         }
     }
 }
-
