@@ -71,7 +71,8 @@ final class Plugin {
             ],
             'public'       => false,
             'show_ui'      => true,
-            'show_in_menu' => 'jprm_admin',
+            // IMPORTANT: prevent WordPress from auto-adding CPT + tax submenus under our top-level
+            'show_in_menu' => false,
             'supports'     => [ 'title', 'editor', 'thumbnail', 'page-attributes' ],
             'map_meta_cap' => true,
         ] );
@@ -110,7 +111,7 @@ final class Plugin {
         ] );
     }
 
-    /* ===== Admin Menu ===== */
+    /* ===== Admin Menu (curated, no duplicates) ===== */
     public function register_admin_menu() {
         add_menu_page(
             __( 'JelloPoint Menu', 'jellopoint-restaurant-menu' ),
@@ -122,6 +123,7 @@ final class Plugin {
             25
         );
 
+        // Curated submenus (one of each)
         add_submenu_page( 'jprm_admin', __( 'Menus', 'jellopoint-restaurant-menu' ), __( 'Menus', 'jellopoint-restaurant-menu' ), 'edit_posts', 'edit-tags.php?taxonomy=jprm_menu&post_type=jprm_menu_item' );
         add_submenu_page( 'jprm_admin', __( 'Menu Items', 'jellopoint-restaurant-menu' ), __( 'Menu Items', 'jellopoint-restaurant-menu' ), 'edit_posts', 'edit.php?post_type=jprm_menu_item' );
         add_submenu_page( 'jprm_admin', __( 'Sections', 'jellopoint-restaurant-menu' ), __( 'Sections', 'jellopoint-restaurant-menu' ), 'edit_posts', 'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item' );
@@ -129,6 +131,7 @@ final class Plugin {
     }
 
     public function hide_parent_duplicate_submenu() {
+        // Remove the implicit "Dashboard link" row that mirrors the top-level
         remove_submenu_page( 'jprm_admin', 'jprm_admin' );
     }
 
@@ -277,7 +280,7 @@ final class Plugin {
                                     }
                                 }
                                 if ( empty( $prefill ) ) {
-                                    $prefill = [ [ 'enable'=>0,'label_select'=>'','label_custom'=>'','amount'=>'','hide_icon'=>0 ] ];
+                                    $prefill = [ [ 'enable'=>0,'label_select'=>'','label_custom':'','amount':'','hide_icon':0 ] ];
                                 }
                                 $row_index = 0;
                                 foreach ( $prefill as $r ) {
@@ -753,8 +756,6 @@ final class Plugin {
     }
 
     /* ===== Price Labels term meta (icon) ===== */
-    
-    
     public function enqueue_media_for_label( $hook ) {
         if ( empty( $_GET['taxonomy'] ) || $_GET['taxonomy'] !== 'jprm_label' ) return;
         wp_enqueue_media();
@@ -769,7 +770,7 @@ final class Plugin {
         var a = frame.state().get('selection').first().toJSON();
         var url = (a.sizes && a.sizes.thumbnail) ? a.sizes.thumbnail.url : a.url;
         $w.find('.jprm-icon-id').val(a.id);
-        $w.find('.jprm-icon-preview').html('<img src=\"'+url+'\" style=\"height:40px;width:auto;border-radius:3px\" />');
+        $w.find('.jprm-icon-preview').html('<img src="'+url+'" style="height:40px;width:auto;border-radius:3px" />');
         $w.find('.jprm-remove-icon').show();
       });
       frame.open();
@@ -789,8 +790,6 @@ JS;
         $css = '.column-jprm_label_icon{width:70px}.jprm-term-meta .jprm-icon-preview img{height:40px;width:auto;border-radius:3px}';
         wp_add_inline_style( 'common', $css );
     }
-
-    
 
     public function label_add_fields() {
         ?>
