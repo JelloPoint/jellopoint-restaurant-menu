@@ -25,6 +25,7 @@ final class Plugin {
     private function __construct() {
         add_action( 'plugins_loaded', [ $this, 'i18n' ] );
         add_action( 'init', [ $this, 'register_post_type_and_tax' ], 9 );
+        add_action( 'init', [ $this, 'ensure_shortcode' ], 20 );
 
         // Admin menu (curated)
         add_action( 'admin_menu', [ $this, 'register_admin_menu' ] );
@@ -621,6 +622,179 @@ JS;
             if ( is_subclass_of( $fqcn, '\\Elementor\\Widget_Base' ) ) $found[] = $fqcn;
         }
         return $found;
+    }
+
+
+    /** Ensure the [jprm_menu] shortcode exists in admin/editor so Elementor preview renders. */
+    public function ensure_shortcode() {
+        if ( shortcode_exists( 'jprm_menu' ) ) {
+            return;
+        }
+        add_shortcode( 'jprm_menu', [ $this, 'render_shortcode' ] );
+    }
+
+    /** Minimal renderer for [jprm_menu] to support editor preview if original handler isn't loaded. */
+    public function render_shortcode( $atts ) {
+        $atts = shortcode_atts( [
+            'menu' => '',
+            'sections' => '',
+            'show_section_headings' => 'yes',
+            'show_hierarchy' => 'yes',
+            'section_mode' => 'include', // include|exclude
+        ], $atts, 'jprm_menu' );
+
+        $menu_term = isset( $atts['menu'] ) ? trim( (string) $atts['menu'] ) : '';
+        if ( '' === $menu_term ) {
+            if ( is_admin() ) {
+                return '<div class="notice inline notice-warning"><p>'. esc_html__( 'Select a Menu in the widget settings to preview.', 'jellopoint-restaurant-menu' ) .'</p></div>';
+            }
+            return '';
+        }
+
+        // Parse sections
+        $sections = array_filter( array_map( 'trim', explode( ',', (string) $atts['sections'] ) ) );
+        $section_mode = ( $atts['section_mode'] === 'exclude' ) ? 'exclude' : 'include';
+        $show_heads = ( $atts['show_section_headings'] === 'yes' );
+        $show_hier  = ( $atts['show_hierarchy'] === 'yes' );
+
+        // Build base tax query with selected menu
+        $tax_query = [
+            'relation' => 'AND',
+            [
+                'taxonomy' => 'jprm_menu',
+                'field'    => is_numeric( $menu_term ) ? 'term_id' : 'slug',
+                'terms'    => [ is_numeric( $menu_term ) ? (int) $menu_term : $menu_term ],
+            ],
+        ];
+
+        $args = [
+            'post_type'      => 'jprm_menu_item',
+            'posts_per_page' => -1,
+            'orderby'        => [ 'menu_order' => 'ASC', 'title' => 'ASC' ],
+            'tax_query'      => $tax_query,
+            'no_found_rows'  => true,
+        ];
+
+        // If sections provided, we will filter when not showing headings. If showing headings, we group by section later.
+        if ( ! $show_heads && ! empty( $sections ) ) {
+            $args['tax_query'][] = [
+                'taxonomy' => 'jprm_section',
+                'field'    => 'term_id',
+                'terms'    => array_map( 'intval', $sections ),
+                'operator' => ( $section_mode === 'exclude' ) ? 'NOT IN' : 'IN',
+            ];
+        }
+
+        $q = new \WP_Query( $args );
+
+        ob_start();
+        echo '<div class="jp-menu">';
+        if ( ! $show_heads ) {
+            // flat list
+            while ( $q->have_posts() ) { $q->the_post();
+                $this->render_item_card( get_the_ID() );
+            }
+            \wp_reset_postdata();
+        } else {
+            // Group by sections (respecting hierarchy if possible)
+            $terms = get_terms( [ 'taxonomy' => 'jprm_section', 'hide_empty' => false ] );
+            $by_id = [];
+            foreach ( $terms as $t ) { $by_id[ $t->term_id ] = $t; }
+            // Build hierarchy
+            $children = [];
+            foreach ( $terms as $t ) {
+                $p = (int) $t->parent;
+                if ( ! isset( $children[ $p ] ) ) $children[ $p ] = [];
+                $children[ $p ][] = $t->term_id;
+            }
+            // Filter top-level terms if a sections filter is provided
+            $start_nodes = isset( $children[0] ) ? $children[0] : [];
+            if ( ! empty( $sections ) ) {
+                $set = array_map( 'intval', $sections );
+                if ( $section_mode === 'include' ) {
+                    $start_nodes = array_values( array_intersect( $start_nodes, $set ) );
+                } else {
+                    $start_nodes = array_values( array_diff( $start_nodes, $set ) );
+                }
+            }
+            // Render recursively
+            $render_section = function( $term_id, $depth ) use ( &$render_section, &$children, $menu_term ) {
+                $term = get_term( $term_id, 'jprm_section' );
+                if ( ! $term || $term instanceof \WP_Error ) return;
+                echo '<h3 class="jp-menu__section-title">'. esc_html( $term->name ) .'</h3>';
+                // Query items in this section + menu
+                $q2 = new \WP_Query( [
+                    'post_type' => 'jprm_menu_item',
+                    'posts_per_page' => -1,
+                    'orderby' => [ 'menu_order' => 'ASC', 'title' => 'ASC' ],
+                    'tax_query' => [
+                        'relation' => 'AND',
+                        [
+                            'taxonomy' => 'jprm_menu',
+                            'field'    => is_numeric( $menu_term ) ? 'term_id' : 'slug',
+                            'terms'    => [ is_numeric( $menu_term ) ? (int) $menu_term : $menu_term ],
+                        ],
+                        [
+                            'taxonomy' => 'jprm_section',
+                            'field'    => 'term_id',
+                            'terms'    => [ (int) $term_id ],
+                            'include_children' => false,
+                        ]
+                    ],
+                    'no_found_rows' => true,
+                ] );
+                while ( $q2->have_posts() ) { $q2->the_post();
+                    $this->render_item_card( get_the_ID() );
+                }
+                \wp_reset_postdata();
+                // children
+                if ( ! empty( $children[ $term_id ] ) ) {
+                    foreach ( $children[ $term_id ] as $child_id ) {
+                        $render_section( $child_id, $depth+1 );
+                    }
+                }
+            };
+            foreach ( $start_nodes as $top_id ) {
+                $render_section( (int) $top_id, 0 );
+            }
+        }
+        echo '</div>';
+
+        return ob_get_clean();
+    }
+
+    /** Render one menu item card based on stored meta. */
+    private function render_item_card( $post_id ) {
+        $title = get_the_title( $post_id );
+        $desc  = get_post_meta( $post_id, '_jprm_desc', true );
+        $price = get_post_meta( $post_id, '_jprm_price', true );
+        $multi = (bool) get_post_meta( $post_id, '_jprm_multi', true );
+        $rows  = get_post_meta( $post_id, '_jprm_multi_rows', true );
+        if ( ! is_array( $rows ) ) {
+            $dec = json_decode( (string) $rows, true );
+            $rows = is_array( $dec ) ? $dec : [];
+        }
+        echo '<div class="jp-menu__item">';
+        echo '<div class="jp-menu__inner">';
+        echo '<div class="jp-box-left">';
+        echo '<div class="jp-menu__title">'. esc_html( $title ) .'</div>';
+        if ( $desc ) echo '<div class="jp-menu__desc">'. wp_kses_post( $desc ) .'</div>';
+        echo '</div>';
+        echo '<div class="jp-box-right">';
+        if ( $multi && ! empty( $rows ) ) {
+            echo '<div class="jp-menu__pricegroup">';
+            foreach ( $rows as $r ) {
+                $label = isset( $r['label_custom'] ) ? $r['label_custom'] : '';
+                $amt   = isset( $r['amount'] ) ? $r['amount'] : '';
+                echo '<div class="jp-menu__price-row"><span class="jp-col jp-col-labelwrap">'. esc_html( $label ) .'</span><span class="jp-col jp-col-price">'. esc_html( $amt ) .'</span></div>';
+            }
+            echo '</div>';
+        } elseif ( $price !== '' ) {
+            echo '<div class="jp-menu__price">'. esc_html( $price ) .'</div>';
+        }
+        echo '</div>'; // right
+        echo '</div>'; // inner
+        echo '</div>'; // item
     }
 }
 
