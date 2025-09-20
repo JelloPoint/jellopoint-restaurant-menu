@@ -26,6 +26,7 @@ final class Plugin {
 
         // Admin menu
         add_action( 'admin_menu', [ $this, 'register_admin_menu' ] );
+        add_action( 'admin_menu', [ $this, 'rename_existing_price_labels_submenu' ], 999 );
         add_action( 'admin_head', [ $this, 'hide_parent_duplicate_submenu' ] );
         add_filter( 'parent_file',  [ $this, 'admin_parent_highlight' ] );
         add_filter( 'submenu_file', [ $this, 'admin_submenu_highlight' ], 10, 2 );
@@ -116,8 +117,7 @@ final class Plugin {
         add_submenu_page( 'jprm_admin', __( 'Menus', 'jellopoint-restaurant-menu' ), __( 'Menus', 'jellopoint-restaurant-menu' ), 'edit_posts', 'edit-tags.php?taxonomy=jprm_menu&post_type=jprm_menu_item' );
         add_submenu_page( 'jprm_admin', __( 'Menu Items', 'jellopoint-restaurant-menu' ), __( 'Menu Items', 'jellopoint-restaurant-menu' ), 'edit_posts', 'edit.php?post_type=jprm_menu_item' );
         add_submenu_page( 'jprm_admin', __( 'Sections', 'jellopoint-restaurant-menu' ), __( 'Sections', 'jellopoint-restaurant-menu' ), 'edit_posts', 'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item' );
-        add_submenu_page( 'jprm_admin', __( 'Price Labels', 'jellopoint-restaurant-menu' ), __( 'Price Labels', 'jellopoint-restaurant-menu' ), 'edit_posts', 'edit-tags.php?taxonomy=jprm_label&post_type=jprm_menu_item' );
-    }
+}
 
     public function render_admin_page() {
         echo '<div class="wrap"><h1>'. esc_html__( 'JelloPoint Menu', 'jellopoint-restaurant-menu' ) .'</h1><p>'. esc_html__( 'Manage Menus, Menu Items, Sections and Price Labels.', 'jellopoint-restaurant-menu' ) .'</p></div>';
@@ -259,6 +259,24 @@ JS;
             return '—';
         }
         return $content;
+    }
+
+
+    /** Rename any existing "Restaurant Menu - Price Labels" submenu to "Price Labels" */
+    public function rename_existing_price_labels_submenu() {
+        if ( ! is_admin() ) return;
+        global $submenu;
+        if ( empty( $submenu ) || empty( $submenu['jprm_admin'] ) ) return;
+        foreach ( $submenu['jprm_admin'] as $idx => $row ) {
+            $label = isset( $row[0] ) ? wp_strip_all_tags( $row[0] ) : '';
+            $slug  = isset( $row[2] ) ? (string) $row[2] : '';
+            if ( false !== strpos( $slug, 'taxonomy=jprm_label' ) || stripos( $label, 'Restaurant Menu - Price Labels' ) !== false ) {
+                $submenu['jprm_admin'][ $idx ][0] = __( 'Price Labels', 'jellopoint-restaurant-menu' );
+                if ( isset( $submenu['jprm_admin'][ $idx ][3] ) ) {
+                    $submenu['jprm_admin'][ $idx ][3] = __( 'Price Labels', 'jellopoint-restaurant-menu' );
+                }
+            }
+        }
     }
 }
 
