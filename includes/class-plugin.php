@@ -1,14 +1,10 @@
 <?php
 /**
- * JelloPoint Restaurant Menu – main plugin class (v3+ with Menus as TAXONOMY)
- * Admin structure:
- * JelloPoint Menu (cutlery)
- * ├─ Menus
- * ├─ Menu Items
- * ├─ Sections
- * └─ Price Labels
- *
- * NOTE: 'jprm_menu' is a TAXONOMY on 'jprm_menu_item' so items can belong to multiple Menus.
+ * JelloPoint Restaurant Menu – main plugin class
+ * - Keeps Menus as TAXONOMY (so items can belong to multiple menus)
+ * - Restores FULL Menu Item meta boxes (Price, Multiple Prices, Labels, Badge, etc.)
+ * - Admin left menu (cutlery):
+ *   Menus, Menu Items, Sections, Price Labels
  */
 
 namespace JelloPoint\RestaurantMenu;
@@ -17,10 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 final class Plugin {
     private static $instance = null;
-    public static function instance() {
-        if ( null === self::$instance ) self::$instance = new self();
-        return self::$instance;
-    }
+    public static function instance() { if ( null === self::$instance ) self::$instance = new self(); return self::$instance; }
 
     private function __construct() {
         if ( isset( $GLOBALS['jprm_plugin_booted'] ) ) return;
@@ -38,6 +31,10 @@ final class Plugin {
         add_filter( 'parent_file',  [ $this, 'admin_parent_highlight' ] );
         add_filter( 'submenu_file', [ $this, 'admin_submenu_highlight' ], 10, 2 );
 
+        // Full meta boxes for Menu Items
+        add_action( 'add_meta_boxes', [ $this, 'add_meta_boxes' ] );
+        add_action( 'save_post',      [ $this, 'save_meta' ], 10, 2 );
+
         // Elementor (deferred)
         add_action( 'elementor/init', function () {
             add_action( 'elementor/elements/categories_registered', [ $this, 'register_category' ] );
@@ -50,7 +47,6 @@ final class Plugin {
 
     /* ===== CPTs ===== */
     public function register_cpts() {
-        // Menu Items CPT
         register_post_type( 'jprm_menu_item', [
             'label'        => __( 'Menu Items', 'jellopoint-restaurant-menu' ),
             'labels'       => [
@@ -72,7 +68,7 @@ final class Plugin {
 
     /* ===== Taxonomies (Menus as TAXONOMY) ===== */
     public function register_taxonomies() {
-        // Menus (non-hierarchical taxonomy so an item can be in many menus)
+        // Menus (non-hierarchical)
         if ( ! taxonomy_exists( 'jprm_menu' ) ) {
             register_taxonomy(
                 'jprm_menu',
@@ -93,9 +89,7 @@ final class Plugin {
                     'public'            => false,
                     'show_ui'           => true,
                     'show_admin_column' => true,
-                    'hierarchical'      => false, // like "post tags"
-                    'show_in_nav_menus' => false,
-                    'show_tagcloud'     => false,
+                    'hierarchical'      => false,
                 ]
             );
         } else {
@@ -126,8 +120,6 @@ final class Plugin {
                     'show_ui'           => true,
                     'show_admin_column' => true,
                     'hierarchical'      => true,
-                    'show_in_nav_menus' => false,
-                    'show_tagcloud'     => false,
                 ]
             );
         } else {
@@ -156,8 +148,6 @@ final class Plugin {
                     'show_ui'           => true,
                     'show_admin_column' => true,
                     'hierarchical'      => false,
-                    'show_in_nav_menus' => false,
-                    'show_tagcloud'     => false,
                 ]
             );
         } else {
@@ -197,7 +187,6 @@ final class Plugin {
             $slug = isset( $entry[2] ) ? $entry[2] : '';
             $title = isset( $entry[0] ) ? wp_strip_all_tags( $entry[0] ) : '';
             if ( ! in_array( $slug, $canonical, true ) ) {
-                // Nuke stray "Restaurant Menu - Price Labels" or generic "Labels"
                 if ( is_string( $title ) && ( stripos( $title, 'Restaurant Menu' ) !== false || stripos( $title, 'Price Labels' ) !== false || stripos( $title, 'Labels' ) !== false ) ) {
                     unset( $submenu['jprm_admin'][ $i ] );
                 }
@@ -205,7 +194,6 @@ final class Plugin {
         }
         $submenu['jprm_admin'] = array_values( $submenu['jprm_admin'] );
 
-        // Ensure our four canonical entries exist once
         $this->ensure_submenu( 'jprm_admin', __( 'Menus', 'jellopoint-restaurant-menu' ), $canonical[0] );
         $this->ensure_submenu( 'jprm_admin', __( 'Menu Items', 'jellopoint-restaurant-menu' ), $canonical[1] );
         $this->ensure_submenu( 'jprm_admin', __( 'Sections', 'jellopoint-restaurant-menu' ), $canonical[2] );
@@ -261,6 +249,259 @@ final class Plugin {
         <?php
     }
 
+    /* ===== Meta boxes for Menu Items (FULL) ===== */
+
+    public function add_meta_boxes() {
+        add_meta_box(
+            'jprm_item_meta',
+            __( 'Menu Item Settings', 'jellopoint-restaurant-menu' ),
+            [ $this, 'render_item_metabox' ],
+            'jprm_menu_item',
+            'normal',
+            'high'
+        );
+    }
+
+    public function render_item_metabox( $post ) {
+        wp_nonce_field( 'jprm_save_meta', 'jprm_meta_nonce' );
+
+        $price        = get_post_meta( $post->ID, '_jprm_price', true );
+        $price_label  = get_post_meta( $post->ID, '_jprm_price_label', true );
+        $price_label_custom = get_post_meta( $post->ID, '_jprm_price_label_custom', true );
+        $multi        = (bool) get_post_meta( $post->ID, '_jprm_multi', true );
+        $multi_rows   = get_post_meta( $post->ID, '_jprm_multi_rows', true );
+        $badge        = get_post_meta( $post->ID, '_jprm_badge', true );
+        $badge_pos    = get_post_meta( $post->ID, '_jprm_badge_position', true );
+        $separator    = get_post_meta( $post->ID, '_jprm_separator', true );
+        $visible      = get_post_meta( $post->ID, '_jprm_visible', true );
+        $desc         = get_post_meta( $post->ID, '_jprm_desc', true );
+
+        if ( ! is_array( $multi_rows ) ) {
+            $decoded    = json_decode( (string) $multi_rows, true );
+            $multi_rows = is_array( $decoded ) ? $decoded : [];
+        }
+
+        $preset_map = apply_filters( 'jprm_price_label_full_map', [
+            'small'  => [ 'label_custom' => __( 'Small', 'jellopoint-restaurant-menu' ),  'amount' => '' ],
+            'medium' => [ 'label_custom' => __( 'Medium', 'jellopoint-restaurant-menu' ), 'amount' => '' ],
+            'large'  => [ 'label_custom' => __( 'Large', 'jellopoint-restaurant-menu' ),  'amount' => '' ],
+        ] );
+
+        $badge_options = [
+            'corner-left'  => __( 'Corner (left)', 'jellopoint-restaurant-menu' ),
+            'corner-right' => __( 'Corner (right)', 'jellopoint-restaurant-menu' ),
+            'inline'       => __( 'Inline (next to title)', 'jellopoint-restaurant-menu' ),
+        ];
+        if ( empty( $badge_pos ) ) $badge_pos = 'corner-right';
+        ?>
+        <style>
+            .jprm-table { width:100%; border-collapse: collapse; }
+            .jprm-table th, .jprm-table td { padding:6px 8px; border-bottom:1px solid #e5e5e5; vertical-align: middle; }
+            .jprm-table th { text-align:left; width: 160px; }
+            .jprm-multi-table td{ vertical-align: middle; }
+            .jprm-multi-table input[type="text"]{ width: 100%; }
+            .jprm-badge-pos { min-width:220px; }
+            .jprm-muted { color:#666; }
+        </style>
+
+        <table class="jprm-table">
+            <tbody>
+                <tr>
+                    <th><label for="jprm_price"><?php esc_html_e( 'Price', 'jellopoint-restaurant-menu' ); ?></label></th>
+                    <td>
+                        <input type="text" id="jprm_price" name="jprm_price" value="<?php echo esc_attr( $price ); ?>" placeholder="€ 7,50" />
+                        <span class="jprm-muted"><?php esc_html_e( 'Leave empty if using Multiple Prices.', 'jellopoint-restaurant-menu' ); ?></span>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="jprm_price_label"><?php esc_html_e( 'Price Label', 'jellopoint-restaurant-menu' ); ?></label></th>
+                    <td>
+                        <select id="jprm_price_label" name="jprm_price_label">
+                            <option value=""><?php esc_html_e( 'Select…', 'jellopoint-restaurant-menu' ); ?></option>
+                            <?php
+                            $cur = (string) $price_label;
+                            foreach ( $preset_map as $slug => $row ) {
+                                printf(
+                                    '<option value="%s"%s>%s</option>',
+                                    esc_attr( $slug ),
+                                    selected( $cur, $slug, false ),
+                                    esc_html( isset( $row['label_custom'] ) ? $row['label_custom'] : ucfirst( $slug ) )
+                                );
+                            }
+                            ?>
+                            <option value="custom"<?php selected( $cur, 'custom' ); ?>><?php esc_html_e( 'Custom', 'jellopoint-restaurant-menu' ); ?></option>
+                        </select>
+                        <input type="text" id="jprm_price_label_custom" name="jprm_price_label_custom" value="<?php echo esc_attr( $price_label_custom ); ?>" placeholder="<?php esc_attr_e( 'Custom label', 'jellopoint-restaurant-menu' ); ?>" />
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="jprm_multi"><?php esc_html_e( 'Enable Multiple Prices', 'jellopoint-restaurant-menu' ); ?></label></th>
+                    <td>
+                        <label>
+                            <input type="checkbox" id="jprm_multi" name="jprm_multi" value="1" <?php checked( $multi ); ?> />
+                            <?php esc_html_e( 'Enable multiple prices (enter rows below)', 'jellopoint-restaurant-menu' ); ?>
+                        </label>
+
+                        <div id="jprm_multi_wrap" style="<?php echo $multi ? '' : 'display:none;'; ?>margin-top:10px;">
+                            <table class="widefat fixed striped jprm-multi-table" id="jprm_multi_table">
+                                <thead>
+                                    <tr>
+                                        <th style="width:25%"><?php esc_html_e( 'Label', 'jellopoint-restaurant-menu' ); ?></th>
+                                        <th style="width:25%"><?php esc_html_e( 'Amount', 'jellopoint-restaurant-menu' ); ?></th>
+                                        <th style="width:10%"><?php esc_html_e( 'Hide Icon', 'jellopoint-restaurant-menu' ); ?></th>
+                                        <th><?php esc_html_e( 'Actions', 'jellopoint-restaurant-menu' ); ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                <?php
+                                if ( empty( $multi_rows ) ) {
+                                    $multi_rows = [];
+                                }
+                                if ( empty( $multi_rows ) ) :
+                                ?>
+                                    <tr>
+                                        <td><input type="text" class="label-custom regular-text" value="" placeholder="<?php esc_attr_e( 'Small / Glass / etc.', 'jellopoint-restaurant-menu' ); ?>" /></td>
+                                        <td><input type="text" class="amount regular-text" value="" placeholder="€ 7,50" /></td>
+                                        <td><input type="checkbox" class="hide-icon" /></td>
+                                        <td><a href="#" class="button button-secondary jprm-row-remove"><?php esc_html_e( 'Remove', 'jellopoint-restaurant-menu' ); ?></a></td>
+                                    </tr>
+                                <?php
+                                else :
+                                    foreach ( $multi_rows as $row ) {
+                                        $lc = isset( $row['label_custom'] ) ? $row['label_custom'] : '';
+                                        $am = isset( $row['amount'] ) ? $row['amount'] : '';
+                                        $hi = ! empty( $row['hide_icon'] );
+                                        echo '<tr>';
+                                        echo '<td><input type="text" class="label-custom regular-text" value="' . esc_attr( $lc ) . '" /></td>';
+                                        echo '<td><input type="text" class="amount regular-text" value="' . esc_attr( $am ) . '" placeholder="€ 7,50" /></td>';
+                                        echo '<td><input type="checkbox" class="hide-icon" ' . ( $hi ? 'checked' : '' ) . ' /></td>';
+                                        echo '<td><a href="#" class="button button-secondary jprm-row-remove">' . esc_html__( 'Remove', 'jellopoint-restaurant-menu' ) . '</a></td>';
+                                        echo '</tr>';
+                                    }
+                                endif;
+                                ?>
+                                </tbody>
+                            </table>
+                            <p><a href="#" class="button" id="jprm_row_add"><?php esc_html_e( 'Add another price', 'jellopoint-restaurant-menu' ); ?></a></p>
+                            <p class="description"><?php esc_html_e( 'Rows derive their label from preset unless “Custom” is selected.', 'jellopoint-restaurant-menu' ); ?></p>
+                            <input type="hidden" id="jprm_prices_v1" name="jprm_prices_v1" value="<?php echo esc_attr( wp_json_encode( $multi_rows ) ); ?>" />
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="jprm_badge"><?php esc_html_e( 'Badge Text', 'jellopoint-restaurant-menu' ); ?></label></th>
+                    <td>
+                        <input type="text" id="jprm_badge" name="jprm_badge" value="<?php echo esc_attr( $badge ); ?>" placeholder="<?php esc_attr_e( 'e.g. Chef’s choice', 'jellopoint-restaurant-menu' ); ?>" />
+                        <select name="jprm_badge_position" id="jprm_badge_position" class="jprm-badge-pos">
+                            <?php foreach ( $badge_options as $k => $label ) : ?>
+                                <option value="<?php echo esc_attr( $k ); ?>" <?php selected( $badge_pos, $k ); ?>><?php echo esc_html( $label ); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="jprm_separator"><?php esc_html_e( 'Separator', 'jellopoint-restaurant-menu' ); ?></label></th>
+                    <td>
+                        <input type="text" id="jprm_separator" name="jprm_separator" value="<?php echo esc_attr( $separator ); ?>" placeholder="·" />
+                        <span class="jprm-muted"><?php esc_html_e( 'Used between title and price.', 'jellopoint-restaurant-menu' ); ?></span>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="jprm_visible"><?php esc_html_e( 'Visible', 'jellopoint-restaurant-menu' ); ?></label></th>
+                    <td>
+                        <label><input type="checkbox" id="jprm_visible" name="jprm_visible" value="1" <?php checked( (bool) $visible ); ?> /> <?php esc_html_e( 'Show this item on the site', 'jellopoint-restaurant-menu' ); ?></label>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="jprm_desc"><?php esc_html_e( 'Short Description', 'jellopoint-restaurant-menu' ); ?></label></th>
+                    <td>
+                        <textarea id="jprm_desc" name="jprm_desc" rows="3" style="width:100%;"><?php echo esc_textarea( $desc ); ?></textarea>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <script>
+        (function($){
+            function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]});}
+            function syncRows(){
+                var out = [];
+                $('#jprm_multi_table tbody tr').each(function(){
+                    var $tr = $(this);
+                    var row = {
+                        label_custom: $tr.find('input.label-custom').val() || '',
+                        amount: $tr.find('input.amount').val() || '',
+                        hide_icon: $tr.find('input.hide-icon').is(':checked') ? 1 : 0
+                    };
+                    if (row.label_custom.length || row.amount.length) out.push(row);
+                });
+                $('#jprm_prices_v1').val(JSON.stringify(out));
+            }
+            function addRow(data){
+                data = data || {label_custom:'', amount:'', hide_icon:0};
+                var html = '' +
+                    '<tr>' +
+                    '<td><input type="text" class="label-custom regular-text" value="'+esc(data.label_custom)+'" placeholder="<?php echo esc_js( __( 'Small / Glass / etc.', 'jellopoint-restaurant-menu' ) ); ?>" /></td>' +
+                    '<td><input type="text" class="amount regular-text" value="'+esc(data.amount)+'" placeholder="€ 7,50" /></td>' +
+                    '<td><input type="checkbox" class="hide-icon" '+(data.hide_icon ? 'checked' : '')+' /></td>' +
+                    '<td><a href="#" class="button button-secondary jprm-row-remove"><?php echo esc_js( __( 'Remove', 'jellopoint-restaurant-menu' ) ); ?></a></td>' +
+                    '</tr>';
+                $('#jprm_multi_table tbody').append(html);
+                syncRows();
+            }
+
+            $(document).on('change keyup', '#jprm_multi_table input', syncRows);
+            $(document).on('click', '#jprm_row_add', function(e){ e.preventDefault(); addRow(); });
+            $(document).on('click', '.jprm-row-remove', function(e){ e.preventDefault(); $(this).closest('tr').remove(); syncRows(); });
+            $(document).on('change', '#jprm_multi', function(){ $('#jprm_multi_wrap').toggle( this.checked ); });
+
+            try {
+                var seed = JSON.parse($('#jprm_prices_v1').val() || '[]');
+                if (seed && seed.length){
+                    $('#jprm_multi_table tbody').empty();
+                    seed.forEach(function(r){ addRow(r); });
+                }
+            } catch(e){}
+        })(jQuery);
+        </script>
+        <?php
+    }
+
+    public function save_meta( $post_id, $post ) {
+        if ( $post->post_type !== 'jprm_menu_item' ) return;
+        if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
+        if ( ! current_user_can( 'edit_post', $post_id ) ) return;
+        if ( ! isset( $_POST['jprm_meta_nonce'] ) || ! wp_verify_nonce( $_POST['jprm_meta_nonce'], 'jprm_save_meta' ) ) return;
+
+        $get_text = function( $k ) { return isset( $_POST[$k] ) ? wp_kses_post( wp_unslash( $_POST[$k] ) ) : ''; };
+        $get_bool = function( $k ) { return isset( $_POST[$k] ) ? 1 : 0; };
+
+        update_post_meta( $post_id, '_jprm_price',               $get_text( 'jprm_price' ) );
+        update_post_meta( $post_id, '_jprm_price_label',         sanitize_text_field( $get_text( 'jprm_price_label' ) ) );
+        update_post_meta( $post_id, '_jprm_price_label_custom',  sanitize_text_field( $get_text( 'jprm_price_label_custom' ) ) );
+        update_post_meta( $post_id, '_jprm_multi',               $get_bool( 'jprm_multi' ) );
+
+        $rows_json = isset( $_POST['jprm_prices_v1'] ) ? (string) wp_unslash( $_POST['jprm_prices_v1'] ) : '[]';
+        $rows      = json_decode( $rows_json, true );
+        $san_rows  = [];
+        if ( is_array( $rows ) ) {
+            foreach ( $rows as $r ) {
+                $san_rows[] = [
+                    'label_custom' => isset( $r['label_custom'] ) ? sanitize_text_field( $r['label_custom'] ) : '',
+                    'amount'       => isset( $r['amount'] ) ? sanitize_text_field( $r['amount'] ) : '',
+                    'hide_icon'    => ! empty( $r['hide_icon'] ) ? 1 : 0,
+                ];
+            }
+        }
+        update_post_meta( $post_id, '_jprm_multi_rows', $san_rows );
+
+        update_post_meta( $post_id, '_jprm_badge',             sanitize_text_field( $get_text( 'jprm_badge' ) ) );
+        update_post_meta( $post_id, '_jprm_badge_position',    sanitize_text_field( $get_text( 'jprm_badge_position' ) ) );
+        update_post_meta( $post_id, '_jprm_separator',         sanitize_text_field( $get_text( 'jprm_separator' ) ) );
+        update_post_meta( $post_id, '_jprm_visible',           $get_bool( 'jprm_visible' ) );
+        update_post_meta( $post_id, '_jprm_desc',              $get_text( 'jprm_desc' ) );
+    }
+
     /* ===== Elementor ===== */
     public function register_category( $elements_manager ) {
         $slug = 'jellopoint-widgets';
@@ -303,14 +544,11 @@ final class Plugin {
                 $term = get_term( absint( $menu_arg ), 'jprm_menu' );
             } else {
                 $term = get_term_by( 'slug', sanitize_title( (string) $menu_arg ), 'jprm_menu' );
-                if ( ! $term ) {
-                    $term = get_term_by( 'name', (string) $menu_arg, 'jprm_menu' );
-                }
+                if ( ! $term ) { $term = get_term_by( 'name', (string) $menu_arg, 'jprm_menu' ); }
             }
         }
         if ( ! $term || is_wp_error( $term ) ) return '';
 
-        // Minimal output; your existing widget/templating can render full markup.
         ob_start(); ?>
         <div class="jprm-menu" data-menu-term="<?php echo (int) $term->term_id; ?>">
             <div class="jprm-menu__title"><?php echo esc_html( $term->name ); ?></div>
