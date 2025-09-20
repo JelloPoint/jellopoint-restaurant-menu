@@ -29,6 +29,19 @@ class Restaurant_Menu extends Widget_Base {
         $this->add_control( 'query_order', [ 'label'=>__( 'Order','jellopoint-restaurant-menu' ), 'type'=>Controls_Manager::SELECT, 'options'=>[ 'ASC'=>'ASC', 'DESC'=>'DESC' ], 'default'=>'ASC', 'condition'=>[ 'data_source'=>'dynamic' ] ] );
         $this->add_control( 'query_limit', [ 'label'=>__( 'Items to Show','jellopoint-restaurant-menu' ), 'type'=>Controls_Manager::NUMBER, 'default'=>-1, 'condition'=>[ 'data_source'=>'dynamic' ] ] );
         $this->add_control( 'hide_invisible', [ 'label'=>__( 'Hide Invisible Items','jellopoint-restaurant-menu' ), 'type'=>Controls_Manager::SWITCHER, 'label_on'=>__( 'Yes','jellopoint-restaurant-menu' ), 'label_off'=>__( 'No','jellopoint-restaurant-menu' ), 'return_value'=>'yes', 'default'=>'yes', 'condition'=>[ 'data_source'=>'dynamic' ] ] );
+
+        $this->add_control( 'dedupe', [
+            'label' => __( 'De-duplication', 'jellopoint-restaurant-menu' ),
+            'type' => Controls_Manager::SELECT,
+            'options' => [
+                'deepest_only' => __( 'Deepest only (no parent duplicates)', 'jellopoint-restaurant-menu' ),
+                'all_assigned' => __( 'All assigned (allow duplicates)', 'jellopoint-restaurant-menu' ),
+                'topmost_only' => __( 'Topmost only', 'jellopoint-restaurant-menu' ),
+            ],
+            'default' => 'deepest_only',
+            'condition' => [ 'data_source' => 'dynamic' ],
+        ] );
+
         $this->end_controls_section();
 
         /* ===== Static Items ===== */
@@ -518,7 +531,7 @@ echo '<div class="' . $wrapper_class . '">'
         echo '<style>.jp-menu__inner{display:grid;grid-template-columns:1fr auto;align-items:start;gap:1rem}.jp-box-right{display:flex;flex-direction:column;align-items:flex-end}.jp-menu__pricegroup{display:inline-grid;justify-items:end;text-align:right}.jp-menu__price-row{display:flex;align-items:center;justify-content:space-between;gap:.5em;width:100%}.jp-menu__price-row .jp-col{display:block}.jp-menu__price-row .jp-col.jp-col-labelwrap{display:inline-flex;align-items:center;gap:.5em}.jp-menu__price-row.jp-order--price-left .jp-col-price{order:1}.jp-menu__price-row.jp-order--price-left .jp-col-labelwrap{order:2}.jp-menu__price-row.jp-order--label-left .jp-col-labelwrap{order:1}.jp-menu__price-row.jp-order--label-left .jp-col-price{order:2}</style>';
 
         } else {
-            echo do_shortcode( '[jprm_menu' . ' menu="' . esc_attr( implode( ',', (array)($s['query_menus'] ?? []) ) ) . '"' . ' sections="' . esc_attr( implode( ',', (array)($s['query_sections'] ?? []) ) ) . '"' . ' orderby="' . esc_attr( $s['query_orderby'] ?? 'menu_order' ) . '"' . ' order="' . esc_attr( $s['query_order'] ?? 'ASC' ) . '"' . ' limit="' . esc_attr( $s['query_limit'] ?? -1 ) . '"' . ' hide_invisible="' . ( isset($s['hide_invisible']) && $s['hide_invisible']==='yes' ? '1' : '0' ) . '"' . ' row_order="' . esc_attr( isset($s['row_order']) ? $s['row_order'] : 'label_left' ) . '"' . ' label_presentation="' . esc_attr( isset($s['label_presentation']) ? $s['label_presentation'] : 'text' ) . '"' . ' ]' );
+            echo do_shortcode( '[jprm_menu' . ' menu="' . esc_attr( implode( ',', (array)($s['query_menus'] ?? []) ) ) . '"' . ' sections="' . esc_attr( implode( ',', (array)($s['query_sections'] ?? []) ) ) . '"' . ' orderby="' . esc_attr( $s['query_orderby'] ?? 'menu_order' ) . '"' . ' order="' . esc_attr( $s['query_order'] ?? 'ASC' ) . '"' . ' limit="' . esc_attr( $s['query_limit'] ?? -1 ) . '"' . ' hide_invisible="' . ( isset($s['hide_invisible']) && $s['hide_invisible']==='yes' ? '1' : '0' ) . '"' . ' row_order="' . esc_attr( isset($s['row_order']) ? $s['row_order'] : 'label_left' ) . '"' . ' label_presentation="' . esc_attr( isset($s['label_presentation']) ? $s['label_presentation'] : 'text' ) . '"' .  . ' dedupe="' . esc_attr( isset($s['dedupe']) ? $s['dedupe'] : 'deepest_only' ) . '"'' ]' );
         }
     }
 }
