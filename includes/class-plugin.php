@@ -28,6 +28,7 @@ final class Plugin {
         add_action( 'admin_head', [ $this, 'hide_parent_duplicate_submenu' ] );
         add_filter( 'parent_file',  [ $this, 'admin_parent_highlight' ] );
         add_filter( 'submenu_file', [ $this, 'admin_submenu_highlight' ], 10, 2 );
+        add_action( 'admin_menu', [ $this, 'normalize_price_labels_menu' ], 100 );
 
         // Meta boxes for Menu Items
         add_action( 'add_meta_boxes', [ $this, 'add_meta_boxes' ] );
@@ -127,7 +128,7 @@ final class Plugin {
         add_submenu_page( 'jprm_admin', __( 'Menus', 'jellopoint-restaurant-menu' ), __( 'Menus', 'jellopoint-restaurant-menu' ), 'edit_posts', 'edit-tags.php?taxonomy=jprm_menu&post_type=jprm_menu_item' );
         add_submenu_page( 'jprm_admin', __( 'Menu Items', 'jellopoint-restaurant-menu' ), __( 'Menu Items', 'jellopoint-restaurant-menu' ), 'edit_posts', 'edit.php?post_type=jprm_menu_item' );
         add_submenu_page( 'jprm_admin', __( 'Sections', 'jellopoint-restaurant-menu' ), __( 'Sections', 'jellopoint-restaurant-menu' ), 'edit_posts', 'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item' );
-        add_submenu_page( 'jprm_admin', __( 'Price Labels', 'jellopoint-restaurant-menu' ), __( 'Price Labels', 'jellopoint-restaurant-menu' ), 'edit_posts', 'edit-tags.php?taxonomy=jprm_label&post_type=jprm_menu_item' );
+
     }
 
     public function hide_parent_duplicate_submenu() {
@@ -867,6 +868,36 @@ JS;
             return '—';
         }
         return $content;
+    }
+
+
+    /** Normalize/rename the jprm_label submenu entry to "Price Labels" and remove duplicates. */
+    public function normalize_price_labels_menu() {
+        if ( ! is_admin() ) return;
+        global $submenu;
+        if ( empty( $submenu ) || empty( $submenu['jprm_admin'] ) ) return;
+        // Rename any jprm_label taxonomy submenu entry
+        foreach ( $submenu['jprm_admin'] as $idx => $row ) {
+            $slug = isset( $row[2] ) ? $row[2] : '';
+            if ( false !== strpos( $slug, 'edit-tags.php' ) && false !== strpos( $slug, 'taxonomy=jprm_label' ) ) {
+                $submenu['jprm_admin'][ $idx ][0] = __( 'Price Labels', 'jellopoint-restaurant-menu' );
+                if ( isset( $submenu['jprm_admin'][ $idx ][3] ) ) {
+                    $submenu['jprm_admin'][ $idx ][3] = __( 'Price Labels', 'jellopoint-restaurant-menu' );
+                }
+            }
+        }
+        // De-duplicate identical slugs (keep first)
+        $seen = [];
+        foreach ( $submenu['jprm_admin'] as $idx => $row ) {
+            $slug = isset( $row[2] ) ? $row[2] : '';
+            if ( isset( $seen[ $slug ] ) ) {
+                unset( $submenu['jprm_admin'][ $idx ] );
+            } else {
+                $seen[ $slug ] = true;
+            }
+        }
+        // Reindex to avoid holes
+        $submenu['jprm_admin'] = array_values( $submenu['jprm_admin'] );
     }
 }
 
