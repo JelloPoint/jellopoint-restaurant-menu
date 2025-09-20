@@ -1,6 +1,11 @@
 <?php
 /**
- * JelloPoint Restaurant Menu — Core (Admin menu + taxonomies + Price Label term meta + Menu Item metabox)
+ * JelloPoint Restaurant Menu — Core
+ * - Admin menu (no duplicates) + rename legacy "Restaurant Menu - Price Labels" to "Price Labels"
+ * - CPT & Taxonomies
+ * - Menu Item metabox (Price, Multiple Prices, Badge, etc.)
+ * - Price Label term meta (icon uploader + CSS class) and list column
+ * - Elementor widget registration (safe)
  */
 
 namespace JelloPoint\RestaurantMenu;
@@ -18,26 +23,22 @@ final class Plugin {
     }
 
     private function __construct() {
-        // Textdomain
         add_action( 'plugins_loaded', [ $this, 'i18n' ] );
-
-        // Content model
         add_action( 'init', [ $this, 'register_post_type_and_tax' ], 9 );
 
-        // Admin menu
+        // Admin menu (curated)
         add_action( 'admin_menu', [ $this, 'register_admin_menu' ] );
         add_action( 'admin_head', [ $this, 'hide_parent_duplicate_submenu' ] );
         add_filter( 'parent_file',  [ $this, 'admin_parent_highlight' ] );
         add_filter( 'submenu_file', [ $this, 'admin_submenu_highlight' ], 10, 2 );
-
-        // Late rename of legacy submenu label (prevents duplicate + wrong label)
+        // Late rename of legacy submenu label
         add_action( 'admin_menu', [ $this, 'rename_existing_price_labels_submenu' ], 999 );
 
         // Menu Item metabox
         add_action( 'add_meta_boxes', [ $this, 'add_meta_boxes' ] );
         add_action( 'save_post',      [ $this, 'save_meta' ], 10, 2 );
 
-        // Price Label term meta + list column
+        // Price Labels term meta + list column
         add_action( 'jprm_label_add_form_fields',  [ $this, 'label_add_fields' ] );
         add_action( 'jprm_label_edit_form_fields', [ $this, 'label_edit_fields' ], 10, 2 );
         add_action( 'created_jprm_label',          [ $this, 'save_label_meta' ] );
@@ -46,8 +47,15 @@ final class Plugin {
         add_filter( 'manage_jprm_label_custom_column', [ $this, 'label_column_content' ], 10, 3 );
         add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_media_for_label' ] );
 
-        // Small CSS fixes for layout parity on front-end (safe to inline)
+        // Front-end tiny CSS helpers for alignment parity
         add_action( 'wp_head', [ $this, 'output_alignment_css' ] );
+
+        // Elementor: register category and widgets only when Elementor is present
+        add_action( 'elementor/init', function () {
+            add_action( 'elementor/elements/categories_registered', [ $this, 'register_category' ] );
+            add_action( 'elementor/widgets/register',               [ $this, 'register_widgets_autoload' ] );
+            add_action( 'elementor/widgets/widgets_registered',     [ $this, 'register_widgets_autoload_legacy' ] );
+        }, 1 );
     }
 
     public function i18n() {
@@ -69,7 +77,7 @@ final class Plugin {
             ],
             'public'       => false,
             'show_ui'      => true,
-            // keep duplicates out; we add curated submenu instead
+            // prevent WordPress from auto-injecting submenus under our top-level
             'show_in_menu' => false,
             'supports'     => [ 'title', 'editor', 'thumbnail', 'page-attributes' ],
             'map_meta_cap' => true,
@@ -112,7 +120,7 @@ final class Plugin {
         ] );
     }
 
-    /** Admin menu: curated, no duplicates (we do NOT add a new "Price Labels" entry here to avoid duplicates) */
+    /** Admin menu: curated (no duplicates) */
     public function register_admin_menu() {
         add_menu_page(
             __( 'JelloPoint Menu', 'jellopoint-restaurant-menu' ),
@@ -126,7 +134,7 @@ final class Plugin {
         add_submenu_page( 'jprm_admin', __( 'Menus', 'jellopoint-restaurant-menu' ), __( 'Menus', 'jellopoint-restaurant-menu' ), 'edit_posts', 'edit-tags.php?taxonomy=jprm_menu&post_type=jprm_menu_item' );
         add_submenu_page( 'jprm_admin', __( 'Menu Items', 'jellopoint-restaurant-menu' ), __( 'Menu Items', 'jellopoint-restaurant-menu' ), 'edit_posts', 'edit.php?post_type=jprm_menu_item' );
         add_submenu_page( 'jprm_admin', __( 'Sections', 'jellopoint-restaurant-menu' ), __( 'Sections', 'jellopoint-restaurant-menu' ), 'edit_posts', 'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item' );
-        // Do NOT add Price Labels here (another component already adds it under jprm_admin with legacy label).
+        // Do NOT add a Price Labels submenu here to avoid duplicates; we rename the legacy one instead.
     }
 
     public function rename_existing_price_labels_submenu() {
@@ -427,7 +435,6 @@ final class Plugin {
         $san_rows  = [];
         if ( is_array( $rows ) ) {
             foreach ( $rows as $r ) {
-                $san_rows.append ?? None
                 $san_rows[] = [
                     'label_custom' => isset( $r['label_custom'] ) ? sanitize_text_field( $r['label_custom'] ) : '',
                     'amount'       => isset( $r['amount'] ) ? sanitize_text_field( $r['amount'] ) : '',
@@ -568,6 +575,52 @@ JS;
         .jp-menu__price-row .jp-col{display:block}
         .jp-menu__price-row .jp-col.jp-col-labelwrap{display:inline-flex;align-items:center;gap:.5rem}
         </style>';
+    }
+
+    /* === Elementor integration === */
+    public function register_category( $elements_manager ) {
+        $slug = 'jellopoint-widgets';
+        if ( method_exists( $elements_manager, 'get_categories' ) ) {
+            $cats = $elements_manager->get_categories();
+            if ( ! isset( $cats[ $slug ] ) ) {
+                $elements_manager->add_category( $slug, [ 'title' => __( 'JelloPoint Widgets', 'jellopoint-restaurant-menu' ), 'icon' => 'fa fa-plug' ] );
+            }
+        } else {
+            // Fallback: add anyway
+            $elements_manager->add_category( $slug, [ 'title' => __( 'JelloPoint Widgets', 'jellopoint-restaurant-menu' ), 'icon' => 'fa fa-plug' ] );
+        }
+    }
+
+    public function register_widgets_autoload( $widgets_manager ) {
+        $classes = $this->autoload_widgets();
+        foreach ( $classes as $class ) {
+            $widgets_manager->register( new $class() );
+        }
+    }
+
+    public function register_widgets_autoload_legacy() {
+        if ( ! class_exists( '\\Elementor\\Plugin' ) ) return;
+        $classes = $this->autoload_widgets();
+        foreach ( $classes as $class ) {
+            \Elementor\Plugin::instance()->widgets_manager->register_widget_type( new $class() );
+        }
+    }
+
+    private function autoload_widgets() {
+        if ( ! class_exists( '\\Elementor\\Widget_Base' ) ) return [];
+        $widgets_dir = plugin_dir_path( __FILE__ ) . 'widgets/';
+        if ( ! is_dir( $widgets_dir ) ) return [];
+        $before = get_declared_classes();
+        foreach ( glob( $widgets_dir . '*.php' ) as $file ) {
+            if ( is_readable( $file ) ) require_once $file;
+        }
+        $after = get_declared_classes();
+        $new = array_diff( $after, $before );
+        $found = [];
+        foreach ( $new as $fqcn ) {
+            if ( is_subclass_of( $fqcn, '\\Elementor\\Widget_Base' ) ) $found[] = $fqcn;
+        }
+        return $found;
     }
 }
 
