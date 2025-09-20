@@ -789,11 +789,7 @@ JS;
         $css = '.column-jprm_label_icon{width:70px}.jprm-term-meta .jprm-icon-preview img{height:40px;width:auto;border-radius:3px}';
         wp_add_inline_style( 'common', $css );
     }
-});frame.on('select',function(){var a=frame.state().get('selection').first().toJSON();var url=(a.sizes&&a.sizes.thumbnail)?a.sizes.thumbnail.url:a.url;$w.find('.jprm-icon-id').val(a.id);$w.find('.jprm-icon-preview').html('<img src=\\''+url+'\\' style=\\'height:40px;width:auto;border-radius:3px\\' />');$w.find('.jprm-remove-icon').show();});frame.open();});$(document).on('click','.jprm-remove-icon',function(e){e.preventDefault();var $w=$(this).closest('.form-field, .jprm-term-meta, tr');$w.find('.jprm-icon-id').val('');$w.find('.jprm-icon-preview').empty();$(this).hide();});})(jQuery);";
-        wp_add_inline_script( 'jquery-core', $js );
-        $css = '.column-jprm_label_icon{width:70px}.jprm-term-meta .jprm-icon-preview img{height:40px;width:auto;border-radius:3px}';
-        wp_add_inline_style( 'common', $css );
-    }
+
     
 
     public function label_add_fields() {
