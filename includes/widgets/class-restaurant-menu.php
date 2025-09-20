@@ -219,6 +219,21 @@ $repeater->add_control( 'item_badge', [ 'label'=>__( 'Badge','jellopoint-restaur
             'default' => 'text',
         ] );
 
+        
+        $this->add_control(
+            'dedupe',
+            [
+                'label'       => __( 'De-duplication', 'jellopoint-restaurant-menu' ),
+                'type'        => Controls_Manager::SELECT,
+                'options'     => [
+                    'deepest_only' => __( 'Deepest only (recommended)', 'jellopoint-restaurant-menu' ),
+                    'all_assigned' => __( 'All assigned (parent + child)', 'jellopoint-restaurant-menu' ),
+                    'topmost_only' => __( 'Topmost only', 'jellopoint-restaurant-menu' ),
+                ],
+                'default'     => 'deepest_only',
+                'description' => __( 'When an item is tagged to both a parent and a child section, choose where it should appear.', 'jellopoint-restaurant-menu' ),
+            ]
+        );
         $this->end_controls_section();
 
         /* ===== Style: Row ===== */
