@@ -280,7 +280,7 @@ final class Plugin {
                                     }
                                 }
                                 if ( empty( $prefill ) ) {
-                                    $prefill = [ [ 'enable'=>0,'label_select'=>'','label_custom':'','amount':'','hide_icon':0 ] ];
+                                    $prefill = [ [ 'enable'=>0,'label_select'=>'','label_custom'=>'','amount'=>'','hide_icon'=>0 ] ];
                                 }
                                 $row_index = 0;
                                 foreach ( $prefill as $r ) {
