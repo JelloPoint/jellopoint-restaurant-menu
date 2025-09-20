@@ -142,10 +142,7 @@ add_action( 'add_meta_boxes', [ $this, 'register_metaboxes' ] );
 
     public function ensure_admin_menu() {
         add_menu_page( __( 'JelloPoint', 'jellopoint-restaurant-menu' ), __( 'JelloPoint', 'jellopoint-restaurant-menu' ), 'edit_posts', 'jellopoint-root', [ $this, 'render_root' ], 'dashicons-carrot', 56 );
-        add_submenu_page( 'jellopoint-root', __( 'Menus', 'jellopoint-restaurant-menu' ), __( 'Menus', 'jellopoint-restaurant-menu' ), 'manage_options', 'edit-tags.php?taxonomy=jprm_menu&post_type=jprm_menu_item' );
-        add_submenu_page( 'jellopoint-root', __( 'Sections', 'jellopoint-restaurant-menu' ), __( 'Sections', 'jellopoint-restaurant-menu' ), 'manage_options', 'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item' );
-        add_submenu_page( 'jellopoint-root', __( 'Help / Diagnostics', 'jellopoint-restaurant-menu' ), __( 'Help / Diagnostics', 'jellopoint-restaurant-menu' ), 'manage_options', 'jprm-help', [ $this, 'render_help' ] );
-    }
+        }
 
     public function render_root() { echo '<div class="wrap"><h1>JelloPoint</h1><p>Use the submenu to manage Menu Items.</p></div>'; }
 
