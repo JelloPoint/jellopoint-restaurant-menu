@@ -4,7 +4,7 @@
  *
  * - Dynamic mode: renders via [jprm_menu] shortcode (Menus taxonomy + Sections)
  * - Static mode: simple repeater (unchanged minimal)
- * - Adds "De-duplication" control passed to shortcode: deepest_only (default) | all_assigned | topmost_only
+ * - Adds "De-duplication"  control passed to shortcode: deepest_only (default) | all_assigned | topmost_only
  */
 
 namespace JelloPoint\RestaurantMenu\Widgets;
