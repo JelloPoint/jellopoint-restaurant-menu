@@ -220,7 +220,7 @@ function jprm_render_price_labels_page() {
 
 
 add_action('admin_menu', function() {
-    // Always add a  Settings submenu as a reliable entry point
+    // Always add a Settings submenu as a reliable entry point
     add_options_page(
         __('Restaurant Menu – Price Labels','jellopoint-restaurant-menu'),
         __('Price Labels (Restaurant Menu)','jellopoint-restaurant-menu'),

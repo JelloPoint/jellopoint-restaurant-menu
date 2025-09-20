@@ -140,11 +140,11 @@ add_action( 'add_meta_boxes', [ $this, 'register_metaboxes' ] );
         ] );
     }
 
-    public function ensure_admin_menu() {
-        add_menu_page( __( 'JelloPoint', 'jellopoint-restaurant-menu' ), __( 'JelloPoint', 'jellopoint-restaurant-menu' ), 'edit_posts', 'jellopoint-root', [ $this, 'render_root' ], 'dashicons-food', 56 );
-        add_submenu_page( 'jellopoint-root', __( 'Menus', 'jellopoint-restaurant-menu' ), __( 'Menus', 'jellopoint-restaurant-menu' ), 'manage_options', 'edit-tags.php?taxonomy=jprm_menu&post_type=jprm_menu_item' );
-        add_submenu_page( 'jellopoint-root', __( 'Sections', 'jellopoint-restaurant-menu' ), __( 'Sections', 'jellopoint-restaurant-menu' ), 'manage_options', 'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item' );
-        
+    public function ensure_admin_menu() {add_menu_page( __( 'JelloPoint Menu', 'jellopoint-restaurant-menu' ), __( 'JelloPoint Menu', 'jellopoint-restaurant-menu' ), 'manage_options', 'jellopoint-root', [ $this, 'render_root' ], 'dashicons-food', 56 );
+        add_submenu_page( 'jellopoint-root', __( 'Menus', 'jellopoint-restaurant-menu' ), __( 'Menus', 'jellopoint-restaurant-menu' ), 'manage_options', 'edit-tags.php?taxonomy=jprm_menu&post_type=jprm_menu_item', '', 10 );
+        add_submenu_page( 'jellopoint-root', __( 'Menu Items', 'jellopoint-restaurant-menu' ), __( 'Menu Items', 'jellopoint-restaurant-menu' ), 'edit_posts', 'edit.php?post_type=jprm_menu_item', '', 20 );
+        add_submenu_page( 'jellopoint-root', __( 'Sections', 'jellopoint-restaurant-menu' ), __( 'Sections', 'jellopoint-restaurant-menu' ), 'manage_options', 'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item', '', 30 );
+        add_submenu_page( 'jellopoint-root', __( 'Restaurant Menu – Price Labels', 'jellopoint-restaurant-menu' ), __( 'Price Labels', 'jellopoint-restaurant-menu' ), 'manage_options', 'jprm-price-labels', 'jprm_render_price_labels_page', 40 );
         add_submenu_page( 'jellopoint-root', __( 'Help / Diagnostics', 'jellopoint-restaurant-menu' ), __( 'Help / Diagnostics', 'jellopoint-restaurant-menu' ), 'manage_options', 'jprm-help', [ $this, 'render_help' ], 50 );
     }
 
@@ -548,3 +548,5 @@ echo '</li>';
 }
 
 add_action('admin_menu', function(){ remove_submenu_page('jellopoint-root','jellopoint-root'); }, 999);
+
+add_action('admin_menu', function(){ remove_menu_page('jellopoint-admin'); }, 999);
