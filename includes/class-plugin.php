@@ -28,7 +28,7 @@ final class Plugin {
         add_action( 'admin_head', [ $this, 'hide_parent_duplicate_submenu' ] );
         add_filter( 'parent_file',  [ $this, 'admin_parent_highlight' ] );
         add_filter( 'submenu_file', [ $this, 'admin_submenu_highlight' ], 10, 2 );
-        add_action( 'admin_menu', [ $this, 'normalize_price_labels_menu' ], 999 );
+        
 
         // Meta boxes for Menu Items
         add_action( 'add_meta_boxes', [ $this, 'add_meta_boxes' ] );
