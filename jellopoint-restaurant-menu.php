@@ -235,7 +235,13 @@ add_action('admin_enqueue_scripts', function($hook){
     if ( function_exists('get_current_screen') ) {
         $screen = get_current_screen();
         $id = $screen ? $screen->id : '';
-        if ( $id === 'settings_page_jprm-price-labels' || $id === 'jprm_admin_page_jprm-price-labels' || $id === 'jellopoint-root_page_jprm-price-labels' || $id === 'jellopoint-admin_page_jprm-price-labels' ) {
+        if (
+    $id === 'settings_page_jprm-price-labels' ||
+    $id === 'jellopoint-root_page_jprm-price-labels' ||
+    $id === 'jellopoint-admin_page_jprm-price-labels' ||
+    $id === 'toplevel_page_jprm-price-labels' ||
+    ( isset($_GET['page']) && sanitize_key($_GET['page']) === 'jprm-price-labels' )
+) {
             wp_enqueue_media();
             wp_enqueue_script('jquery');
             wp_enqueue_script('jquery-ui-sortable');
