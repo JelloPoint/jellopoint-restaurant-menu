@@ -235,13 +235,7 @@ add_action('admin_enqueue_scripts', function($hook){
     if ( function_exists('get_current_screen') ) {
         $screen = get_current_screen();
         $id = $screen ? $screen->id : '';
-        if (
-    $id === 'settings_page_jprm-price-labels' ||
-    $id === 'jellopoint-root_page_jprm-price-labels' ||
-    $id === 'jellopoint-admin_page_jprm-price-labels' ||
-    $id === 'toplevel_page_jprm-price-labels' ||
-    ( isset($_GET['page']) && sanitize_key($_GET['page']) === 'jprm-price-labels' )
-) {
+        if ( $id === 'settings_page_jprm-price-labels' || $id === 'jprm_admin_page_jprm-price-labels' || $id === 'jellopoint-root_page_jprm-price-labels' || $id === 'jellopoint-admin_page_jprm-price-labels' ) {
             wp_enqueue_media();
             wp_enqueue_script('jquery');
             wp_enqueue_script('jquery-ui-sortable');
@@ -352,3 +346,110 @@ function jprm_get_price_label_full_map() {
     $map = jprm_get_price_label_map();
     return apply_filters( 'jprm_price_label_full_map', $map );
 }
+
+
+// JPRM shim: enable sortable + buttons on jprm_menu_item edit screen
+add_action('admin_footer', function(){
+    if ( ! function_exists('get_current_screen') ) return;
+    $screen = get_current_screen();
+    if ( ! $screen || ( isset($screen->post_type) ? $screen->post_type : '' ) !== 'jprm_menu_item' ) return;
+
+    // Ensure required core deps
+    wp_enqueue_script('jquery');
+    wp_enqueue_script('jquery-ui-sortable');
+    if ( function_exists('wp_enqueue_media') ) { wp_enqueue_media(); }
+
+    ?>
+    <script type="text/javascript">
+    (function($){
+        function initSortable(context){
+            var $roots = $(context).find('#jprm-prices, #jprm-multiprice-table, table[data-jprm="prices"], .jprm-sortable');
+            $roots.each(function(){
+                var $root = $(this);
+                var $tb = $root.is('table') ? $root.find('tbody') : $root;
+                if ($tb.data('jprm-sorted')) return;
+                try {
+                    $tb.sortable({
+                        handle: '.drag, .jprm-drag, .dashicons-move, .row-handle',
+                        items: '> tr',
+                        axis: 'y',
+                        helper: function(e, ui){
+                            ui.children().each(function(){ $(this).width($(this).width()); });
+                            return ui;
+                        },
+                        stop: function(){
+                            $tb.children('tr').each(function(i){
+                                $(this).find('input.order, input[name$="[order]"]').val(i);
+                            });
+                            $tb.trigger('jprm:rows-reordered');
+                        }
+                    });
+                    $tb.data('jprm-sorted', true);
+                } catch(e){ /* be resilient */ }
+            });
+        }
+
+        function initButtons(context){
+            var $doc = $(context);
+            $doc.off('click.jprmAdd', '.jprm-add-row').on('click.jprmAdd', '.jprm-add-row', function(e){
+                e.preventDefault();
+                var $btn = $(this);
+                var tmplSel   = $btn.data('template') || '#jprm-price-row-template';
+                var targetSel = $btn.data('target')   || '#jprm-prices tbody, .jprm-sortable tbody';
+                var $tmpl = $(tmplSel);
+                var $target = $(targetSel).first();
+                if ($tmpl.length && $target.length){
+                    var html = $tmpl.html();
+                    var uid  = ('pl-' + Math.random().toString(36).slice(2,9));
+                    html = html.replace(/__ID__/g, uid);
+                    var $row = $(html);
+                    $target.append($row);
+                    $target.trigger('jprm:row-added', [$row]);
+                }
+            });
+
+            $doc.off('click.jprmDup', '.jprm-dup-row').on('click.jprmDup', '.jprm-dup-row', function(e){
+                e.preventDefault();
+                var $row = $(this).closest('tr');
+                var $clone = $row.clone(true, true);
+                $clone.find('input,select,textarea').each(function(){
+                    if (this.name){
+                        this.name = this.name.replace(/\[(\d+)\]/, function(_,n){ return '[' + (parseInt(n,10)+1) + ']'; });
+                    }
+                });
+                $row.after($clone);
+                $row.parent().trigger('jprm:row-duplicated', [$clone]);
+            });
+
+            $doc.off('click.jprmDel', '.jprm-del-row').on('click.jprmDel', '.jprm-del-row', function(e){
+                e.preventDefault();
+                $(this).closest('tr').remove();
+                $doc.trigger('jprm:row-deleted');
+            });
+
+            $doc.off('click.jprmMedia', '.jprm-select-media').on('click.jprmMedia', '.jprm-select-media', function(e){
+                e.preventDefault();
+                if (typeof wp === 'undefined' || !wp.media) return;
+                var $btn = $(this);
+                var $prev = $btn.closest('td, .cell, .field').find('.jprm-icon-preview');
+                var frame = wp.media({ multiple:false });
+                frame.on('select', function(){
+                    var a = frame.state().get('selection').first().toJSON();
+                    $btn.prev('input[type="hidden"]').val(a.id).trigger('change');
+                    if ($prev.length){ $prev.empty().append($('<img/>',{src:a.url, alt:a.alt||''})); }
+                });
+                frame.open();
+            });
+        }
+
+        function boot(){
+            initSortable(document);
+            initButtons(document);
+        }
+        $(document).on('ready', boot);
+        $(document).on('ajaxComplete', boot);
+    })(jQuery);
+    </script>
+    <?php
+}, 20);
+
