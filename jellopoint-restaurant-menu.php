@@ -235,13 +235,7 @@ add_action('admin_enqueue_scripts', function($hook){
     if ( function_exists('get_current_screen') ) {
         $screen = get_current_screen();
         $id = $screen ? $screen->id : '';
-        if (
-    $id === 'settings_page_jprm-price-labels' ||
-    $id === 'jellopoint-root_page_jprm-price-labels' ||
-    $id === 'jellopoint-admin_page_jprm-price-labels' ||
-    $id === 'toplevel_page_jprm-price-labels' ||
-    ( isset($_GET['page']) && sanitize_key($_GET['page']) === 'jprm-price-labels' )
-) {
+        if ( $id === 'settings_page_jprm-price-labels' || $id === 'jprm_admin_page_jprm-price-labels' || $id === 'jellopoint-root_page_jprm-price-labels' || $id === 'jellopoint-admin_page_jprm-price-labels' ) {
             wp_enqueue_media();
             wp_enqueue_script('jquery');
             wp_enqueue_script('jquery-ui-sortable');
@@ -354,154 +348,78 @@ function jprm_get_price_label_full_map() {
 }
 
 
-// JPRM shim: enable sortable + buttons on jprm_menu_item edit screen
+// JPRM shim: buttons for jprm_menu_item edit screen (no sorting)
 add_action('admin_footer', function(){
     if ( ! function_exists('get_current_screen') ) return;
     $screen = get_current_screen();
     if ( ! $screen || ( isset($screen->post_type) ? $screen->post_type : '' ) !== 'jprm_menu_item' ) return;
 
-    // Ensure required core deps
     wp_enqueue_script('jquery');
-    wp_enqueue_script('jquery-ui-sortable');
-    if ( function_exists('wp_enqueue_media') ) { wp_enqueue_media(); }
-
     ?>
     <script type="text/javascript">
     (function($){
-        function initSortable(context){
-            var $roots = $(context).find('#jprm-prices, #jprm-multiprice-table, table[data-jprm="prices"], .jprm-sortable, tbody.jprm-rows, .jprm-rows, .jprm-repeater');
-            $roots.each(function(){
-                var $root = $(this);
-                var $tb = $root.is('table') ? $root.find('tbody') : $root;
-                if ($tb.data('jprm-sorted')) return;
-                try {
-                    $tb.sortable({
-                        handle: '.drag, .jprm-drag, .dashicons-move, .row-handle',
-                        items: '> tr',
-                        axis: 'y',
-                        helper: function(e, ui){
-                            ui.children().each(function(){ $(this).width($(this).width()); });
-                            return ui;
-                        },
-                        stop: function(){
-                            $tb.children('tr').each(function(i){
-                                $(this).find('input.order, input[name$="[order]"]').val(i);
-                            });
-                            $tb.trigger('jprm:rows-reordered');
-                        }
-                    });
-                    $tb.data('jprm-sorted', true);
-                } catch(e){ /* be resilient */ }
+        // Helpers mirrored from your current inline script
+        function syncRow($tr){
+            var isCustom = $tr.find('select.label-select').val() === 'custom';
+            $tr.find('input.label-custom').closest('td').toggle(isCustom);
+            var en = $tr.find('input.enable').is(':checked');
+            if(!en && $tr.index()>0){ $tr.addClass('jp-hidden'); } else { $tr.removeClass('jp-hidden'); }
+        }
+        function collect(){
+            var out = [];
+            var $tbody = $('#jprm-prices-table tbody');
+            $tbody.find('tr').each(function(){
+                var $tr = $(this);
+                var row = {
+                    label_custom: $tr.find('input.label-custom').val() || '',
+                    amount: $tr.find('input.amount').val() || '',
+                    hide_icon: $tr.find('input.hide-icon').is(':checked') ? 1 : 0
+                };
+                if (row.label_custom.length || row.amount.length){ out.push(row); }
             });
+            $('#jprm_prices_v1').val(JSON.stringify(out));
         }
 
-        function initButtons(context){
-            var $doc = $(context);
-            $doc.off('click.jprmAdd', '.jprm-add-row').on('click.jprmAdd', '.jprm-add-row', function(e){
-                e.preventDefault();
-                var $btn = $(this);
-                var tmplSel   = $btn.data('template') || '#jprm-price-row-template';
-                var targetSel = $btn.data('target')   || '#jprm-prices tbody, .jprm-sortable tbody, tbody.jprm-rows, .jprm-rows';
-                var $tmpl = $(tmplSel);
-                var $target = $(targetSel).first();
-                if ($tmpl.length && $target.length){
-                    var html = $tmpl.html();
-                    var uid  = ('pl-' + Math.random().toString(36).slice(2,9));
-                    html = html.replace(/__ID__/g, uid);
-                    var $row = $(html);
-                    $target.append($row);
-                    $target.trigger('jprm:row-added', [$row]);
-                }
-            });
+        // Initialize existing rows once
+        $(function(){
+            var $tbody = $('#jprm-prices-table tbody');
+            if ($tbody.length){
+                $tbody.find('tr').each(function(){ syncRow($(this)); });
+                collect();
+            }
+        });
 
-            $doc.off('click.jprmDup', '.jprm-dup-row').on('click.jprmDup', '.jprm-dup-row', function(e){
+        // Rebind using delegated events so other scripts can't break them
+        $(document)
+            .off('change.jprmFix', '#jprm-prices-table select.label-select')
+            .on('change.jprmFix', '#jprm-prices-table select.label-select', function(){
+                syncRow($(this).closest('tr')); collect();
+            })
+            .off('change.jprmFix keyup.jprmFix', '#jprm-prices-table input')
+            .on('change.jprmFix keyup.jprmFix', '#jprm-prices-table input', function(){ collect(); })
+            .off('click.jprmFix', '#jprm-row-add')
+            .on('click.jprmFix', '#jprm-row-add', function(e){
                 e.preventDefault();
-                var $row = $(this).closest('tr');
-                var $clone = $row.clone(true, true);
-                $clone.find('input,select,textarea').each(function(){
-                    if (this.name){
-                        this.name = this.name.replace(/\[(\d+)\]/, function(_,n){ return '[' + (parseInt(n,10)+1) + ']'; });
-                    }
-                });
-                $row.after($clone);
-                $row.parent().trigger('jprm:row-duplicated', [$clone]);
-            });
-
-            $doc.off('click.jprmDel', '.jprm-del-row').on('click.jprmDel', '.jprm-del-row', function(e){
+                var html = '<tr>'
+                    + '<td><input type="checkbox" class="enable" checked /></td>'
+                    + '<td class="label-td"><select class="label-select"><option value="">Select…</option><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option><option value="custom">Custom</option></select> <input type="text" class="label-custom regular-text" value="" placeholder="Custom label" /></td>'
+                    + '<td><input type="text" class="amount regular-text" value="" placeholder="€ 7,50" /></td>'
+                    + '<td><input type="checkbox" class="hide-icon" /></td>'
+                    + '<td><a href="#" class="button button-secondary jprm-row-remove">Remove</a></td>'
+                    + '</tr>';
+                var $tbody = $('#jprm-prices-table tbody');
+                $tbody.append(html);
+                var $last = $tbody.find('tr:last');
+                syncRow($last); collect();
+            })
+            .off('click.jprmFix', '.jprm-row-remove')
+            .on('click.jprmFix', '.jprm-row-remove', function(e){
                 e.preventDefault();
                 $(this).closest('tr').remove();
-                $doc.trigger('jprm:row-deleted');
+                collect();
             });
-
-            $doc.off('click.jprmMedia', '.jprm-select-media').on('click.jprmMedia', '.jprm-select-media', function(e){
-                e.preventDefault();
-                if (typeof wp === 'undefined' || !wp.media) return;
-                var $btn = $(this);
-                var $prev = $btn.closest('td, .cell, .field').find('.jprm-icon-preview');
-                var frame = wp.media({ multiple:false });
-                frame.on('select', function(){
-                    var a = frame.state().get('selection').first().toJSON();
-                    $btn.prev('input[type="hidden"]').val(a.id).trigger('change');
-                    if ($prev.length){ $prev.empty().append($('<img/>',{src:a.url, alt:a.alt||''})); }
-                });
-                frame.open();
-            });
-        }
-
-        function boot(){
-            initSortable(document);
-            initButtons(document);
-        }
-        $(document).on('ready', boot);
-        $(document).on('ajaxComplete', boot);
-    })(jQuery);
-    </script>
-    <?php
-}, 20);
-
-
-// JPRM shim: sortable for Menu Item edit (safe, minimal)
-add_action('admin_footer', function(){
-    if ( ! function_exists('get_current_screen') ) return;
-    $screen = get_current_screen();
-    if ( ! $screen || ( isset($screen->post_type) ? $screen->post_type : '' ) !== 'jprm_menu_item' ) return;
-
-    // Ensure Sortable is available
-    wp_enqueue_script('jquery');
-    wp_enqueue_script('jquery-ui-sortable');
-
-    ?>
-    <script type="text/javascript">
-    (function($){
-        function fixHelper(e, ui){
-            ui.children().each(function(){ $(this).width($(this).width()); });
-            return ui;
-        }
-        function initSortable(){
-            var $tbody = $('#jprm-prices-table tbody');
-            if(!$tbody.length || $tbody.data('jprm-sorted')) return;
-            try{
-                $tbody.sortable({
-                    items: '> tr',
-                    axis: 'y',
-                    handle: 'td:first', // drag from the first column (checkbox)
-                    helper: fixHelper,
-                    stop: function(){
-                        // Trigger the existing collector in your inline script
-                        $(document).trigger('change'); // ensures keyup/change handlers run
-                    }
-                });
-                $tbody.data('jprm-sorted', true);
-            }catch(e){ /* keep resilient */ }
-        }
-        $(document).on('ready', initSortable);
-        $(document).on('ajaxComplete', initSortable);
-        // After adding/removing rows, refresh sortable
-        $(document).on('click.jprmSort', '#jprm-row-add, .jprm-row-remove', function(){
-            var $tb = $('#jprm-prices-table tbody');
-            if ($tb.data('ui-sortable')) { $tb.sortable('refresh'); }
-        });
     })(jQuery);
     </script>
     <?php
 }, 22);
+
