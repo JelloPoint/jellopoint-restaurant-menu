@@ -363,7 +363,7 @@ add_action('admin_footer', function(){
     <script type="text/javascript">
     (function($){
         function initSortable(context){
-            var $roots = $(context).find('#jprm-prices, #jprm-multiprice-table, table[data-jprm="prices"], .jprm-sortable');
+            var $roots = $(context).find('#jprm-prices, #jprm-multiprice-table, table[data-jprm="prices"], .jprm-sortable, tbody.jprm-rows, .jprm-rows, .jprm-repeater');
             $roots.each(function(){
                 var $root = $(this);
                 var $tb = $root.is('table') ? $root.find('tbody') : $root;
@@ -395,7 +395,7 @@ add_action('admin_footer', function(){
                 e.preventDefault();
                 var $btn = $(this);
                 var tmplSel   = $btn.data('template') || '#jprm-price-row-template';
-                var targetSel = $btn.data('target')   || '#jprm-prices tbody, .jprm-sortable tbody';
+                var targetSel = $btn.data('target')   || '#jprm-prices tbody, .jprm-sortable tbody, tbody.jprm-rows, .jprm-rows';
                 var $tmpl = $(tmplSel);
                 var $target = $(targetSel).first();
                 if ($tmpl.length && $target.length){
