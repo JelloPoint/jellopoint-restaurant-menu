@@ -443,7 +443,9 @@ add_action('admin_footer', function(){
         /* Keep space reserved for the icon so the Upload button doesn't shift */
         .jprm-icon-preview{ display:inline-block; width:48px; min-height:48px; margin-right:8px; vertical-align:middle; }
         .jprm-label-select, .jprm-label-remove{ vertical-align:middle; }
-    </style>
+    
+    .jprm-label-remove { display:none; }  /* default hidden; JS shows when icon exists */
+</style>
     <script type="text/javascript">
     (function($){
         function findIconInput($row){
