@@ -459,3 +459,49 @@ add_action('admin_footer', function(){
     <?php
 }, 20);
 
+
+// JPRM shim: sortable for Menu Item edit (safe, minimal)
+add_action('admin_footer', function(){
+    if ( ! function_exists('get_current_screen') ) return;
+    $screen = get_current_screen();
+    if ( ! $screen || ( isset($screen->post_type) ? $screen->post_type : '' ) !== 'jprm_menu_item' ) return;
+
+    // Ensure Sortable is available
+    wp_enqueue_script('jquery');
+    wp_enqueue_script('jquery-ui-sortable');
+
+    ?>
+    <script type="text/javascript">
+    (function($){
+        function fixHelper(e, ui){
+            ui.children().each(function(){ $(this).width($(this).width()); });
+            return ui;
+        }
+        function initSortable(){
+            var $tbody = $('#jprm-prices-table tbody');
+            if(!$tbody.length || $tbody.data('jprm-sorted')) return;
+            try{
+                $tbody.sortable({
+                    items: '> tr',
+                    axis: 'y',
+                    handle: 'td:first', // drag from the first column (checkbox)
+                    helper: fixHelper,
+                    stop: function(){
+                        // Trigger the existing collector in your inline script
+                        $(document).trigger('change'); // ensures keyup/change handlers run
+                    }
+                });
+                $tbody.data('jprm-sorted', true);
+            }catch(e){ /* keep resilient */ }
+        }
+        $(document).on('ready', initSortable);
+        $(document).on('ajaxComplete', initSortable);
+        // After adding/removing rows, refresh sortable
+        $(document).on('click.jprmSort', '#jprm-row-add, .jprm-row-remove', function(){
+            var $tb = $('#jprm-prices-table tbody');
+            if ($tb.data('ui-sortable')) { $tb.sortable('refresh'); }
+        });
+    })(jQuery);
+    </script>
+    <?php
+}, 22);
