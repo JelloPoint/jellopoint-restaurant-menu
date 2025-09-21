@@ -20,7 +20,7 @@ class Restaurant_Menu extends Widget_Base {
     public function get_keywords() { return [ 'menu','restaurant','price list','list','food','drink' ]; }
 
     protected function register_controls() {
-        /* ===== Source ===== */
+        /*  ===== Source ===== */
         $this->start_controls_section( 'section_source', [ 'label'=>__( 'Data Source', 'jellopoint-restaurant-menu' ), 'tab'=>Controls_Manager::TAB_CONTENT ] );
         $this->add_control( 'data_source', [ 'label'=>__( 'Source','jellopoint-restaurant-menu' ), 'type'=>Controls_Manager::SELECT, 'options'=>[ 'static'=>__( 'Static (manual items)', 'jellopoint-restaurant-menu' ), 'dynamic'=>__( 'Dynamic (Menu Items CPT)', 'jellopoint-restaurant-menu' ) ], 'default'=>'dynamic' ] );
         $this->add_control( 'query_menus', [ 'label'=>__( 'Menus','jellopoint-restaurant-menu' ), 'type'=>Controls_Manager::SELECT2, 'options'=>$this->get_tax_options('jprm_menu'), 'multiple'=>true, 'label_block'=>true, 'condition'=>[ 'data_source'=>'dynamic' ] ] );
