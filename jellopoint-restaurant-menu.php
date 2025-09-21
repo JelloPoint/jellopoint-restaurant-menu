@@ -429,6 +429,9 @@ add_action('admin_footer', function(){
     <?php
 }, 22);
 
+
+// JPRM: Price Labels UI enhancements (preview + remove toggle + button alignment)
+
 // JPRM: Price Labels UI enhancements (preview + remove toggle + button alignment)
 add_action('admin_footer', function(){
     // Only on Price Labels page (do NOT change detection elsewhere)
@@ -443,46 +446,62 @@ add_action('admin_footer', function(){
         /* Keep space reserved for the icon so the Upload button doesn't shift */
         .jprm-icon-preview{ display:inline-block; width:48px; min-height:48px; margin-right:8px; vertical-align:middle; }
         .jprm-label-select, .jprm-label-remove{ vertical-align:middle; }
-    
-    .jprm-label-remove { display:none; }  /* default hidden; JS shows when icon exists */
-</style>
+        .jprm-label-remove { display:none; }  /* default hidden; JS shows when icon exists */
+    </style>
     <script type="text/javascript">
     (function($){
         function findIconInput($row){
-            // Support both legacy and new class names + generic hidden input ending in [icon_id]
+            // Support common variants and legacy names
             var $hid = $row.find('input.icon-id, input.icon_id');
             if (!$hid.length) $hid = $row.find('input[type="hidden"][name$="[icon_id]"]');
+            if (!$hid.length) $hid = $row.find('input[type="hidden"][name$="[icon]"]');
             return $hid;
-        }
-        function getIconId($row){
-            var $hid = findIconInput($row);
-            var v = ($hid.val() || '').trim();
-            var n = parseInt(v, 10);
-            if (isNaN(n)) { n = v ? 1 : 0; } // in case value is non-numeric but truthy
-            return n;
         }
         function ensurePreview($row){
             var $prev = $row.find('.jprm-icon-preview');
             if (!$prev.length){
-                // Fallback: create preview span at head of the icon cell
                 var $cell = $row.find('td.icon-cell, td').last();
                 $prev = $('<span class="jprm-icon-preview"></span>');
                 $cell.prepend($prev);
             }
             return $prev;
         }
-        function updateRowUI($row, url){
-            var has = getIconId($row) > 0;
+        function setPreview($prev, url){
+            $prev.empty();
+            if (url){
+                $prev.append($('<img/>',{src:url, alt:''}).css({maxWidth:'48px', height:'auto'}));
+            }
+        }
+        function getHasIcon($row){
+            var $hid = findIconInput($row);
+            var v = ($hid.val() || '').toString().trim();
+            if (v === '' || v === '0') return false;
+            var n = parseInt(v, 10);
+            return isNaN(n) ? !!v : n > 0;
+        }
+        function updateRowUI($row, urlIfKnown){
+            var has = getHasIcon($row);
             var $prev = ensurePreview($row);
             var $rm = $row.find('.jprm-label-remove');
+
             if (has){
-                if (url){
-                    $prev.empty().append($('<img/>',{src:url, alt:''}).css({maxWidth:'48px', height:'auto'}));
+                if (urlIfKnown){
+                    setPreview($prev, urlIfKnown);
+                } else if (window.wp && wp.media && typeof wp.media.attachment === 'function'){
+                    var id = parseInt(findIconInput($row).val(), 10);
+                    if (id > 0){
+                        var att = wp.media.attachment(id);
+                        if (att){
+                            att.fetch().done(function(){
+                                var url = att.get('url') || (att.attributes && (att.attributes.url || (att.attributes.sizes && att.attributes.sizes.thumbnail && att.attributes.sizes.thumbnail.url)));
+                                setPreview($prev, url || '');
+                            });
+                        }
+                    }
                 }
                 $rm.show();
             } else {
-                // No icon: empty preview and hide Remove
-                $prev.empty();
+                setPreview($prev, '');
                 $rm.hide();
             }
         }
@@ -514,6 +533,82 @@ add_action('admin_footer', function(){
                 var $hid = findIconInput($row);
                 $hid.val('0').trigger('change');
                 updateRowUI($row); // reflect removal
+            });
+        }
+        $(document).on('ready', init);
+        $(document).on('ajaxComplete', init);
+    })(jQuery);
+    </script>
+    <?php
+}, 24);
+}
+    wp_enqueue_script('jquery');
+    ?>
+    <style>
+        /* Keep space reserved for the icon so the Upload button doesn't shift */
+        .jprm-icon-preview{ display:inline-block; width:48px; min-height:48px; margin-right:8px; vertical-align:middle; }
+        .jprm-label-select, .jprm-label-remove{ vertical-align:middle; }
+    </style>
+    <script type="text/javascript">
+    (function($){
+        function findIconInput($row){
+            var $hid = $row.find('input.icon_id');
+            if (!$hid.length) $hid = $row.find('input[type="hidden"][name$="[icon_id]"]');
+            return $hid;
+        }
+        function ensurePreview($row){
+            var $prev = $row.find('.jprm-icon-preview');
+            if (!$prev.length){
+                $prev = $('<span class="jprm-icon-preview"></span>');
+                // Try to place it before the buttons if there's a .actions cell; else prepend to row cell
+                var $cell = $row.find('td').last();
+                $cell.prepend($prev);
+            }
+            return $prev;
+        }
+        function updateRowUI($row, url){
+            var $hid = findIconInput($row);
+            var has = parseInt($hid.val()||'0', 10) > 0;
+            var $prev = ensurePreview($row);
+            var $rm = $row.find('.jprm-label-remove');
+            if (has){
+                if (url){
+                    $prev.empty().append($('<img/>',{src:url, alt:''}));
+                }
+                $rm.show();
+            } else {
+                $prev.empty();
+                $rm.hide();
+            }
+        }
+        function init(){
+            var $tb = $('#jprm-labels-table tbody');
+            if (!$tb.length) return;
+
+            // Initial pass: toggle remove button based on existing value
+            $tb.find('tr').each(function(){ updateRowUI($(this)); });
+
+            // Select icon
+            $(document).off('click.jprmLblMedia','.jprm-label-select').on('click.jprmLblMedia','.jprm-label-select',function(e){
+                e.preventDefault();
+                var $row = $(this).closest('tr');
+                var $hid = findIconInput($row);
+                var frame = wp.media({ multiple:false });
+                frame.on('select', function(){
+                    var att = frame.state().get('selection').first().toJSON();
+                    $hid.val(att.id).trigger('change');
+                    updateRowUI($row, att.url);
+                });
+                frame.open();
+            });
+
+            // Remove icon
+            $(document).off('click.jprmLblRemove','.jprm-label-remove').on('click.jprmLblRemove','.jprm-label-remove',function(e){
+                e.preventDefault();
+                var $row = $(this).closest('tr');
+                var $hid = findIconInput($row);
+                $hid.val('0').trigger('change');
+                updateRowUI($row);
             });
         }
         $(document).on('ready', init);
