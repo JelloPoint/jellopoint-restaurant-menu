@@ -10,10 +10,6 @@
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-// Load scope-limited admin assets (Menu Item edit + Price Labels only)
-require_once __DIR__ . '/includes/admin-assets.php';
-
-
 if ( ! defined( 'JPRM_VERSION' ) ) define( 'JPRM_VERSION', '2.0.1' );
 if ( ! defined( 'JPRM_PLUGIN_FILE' ) ) define( 'JPRM_PLUGIN_FILE', __FILE__ );
 if ( ! defined( 'JPRM_PLUGIN_PATH' ) ) define( 'JPRM_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
