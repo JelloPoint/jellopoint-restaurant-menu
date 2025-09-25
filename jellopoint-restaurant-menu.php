@@ -440,7 +440,7 @@ add_action('admin_footer', function(){
     ?>
     <style>
         .jprm-icon-preview{ display:inline-block; width:48px; min-height:48px; margin-right:8px; vertical-align:middle; }
-        .jprm-icon-select, .jprm-icon-clear{ vertical-align:middle; }
+        .jprm-icon-select, .jprm-icon-clear, .jprm-label-copy{ vertical-align:middle; }
         .jprm-icon-clear{ display:none; } /* hidden by default; JS shows when icon exists */
     </style>
     <script>
@@ -493,6 +493,10 @@ add_action('admin_footer', function(){
       function refreshRow($row, knownUrl){
         var $prev = ensurePreview($row);
         var $clr  = $row.find('.jprm-icon-clear');
+        // Ensure Copy button exists once at end of row
+        if (!$row.find('.jprm-label-copy').length){
+          $('<button type="button" class="button-link jprm-label-copy">Copy</button>').appendTo($row.find('td').last());
+        }
         if (hasIcon($row)){
           if (knownUrl) setPreview($prev, knownUrl); else restoreFromId($row);
           $clr.show();
@@ -507,19 +511,37 @@ add_action('admin_footer', function(){
         if (!$tb.length) return;
         $tb.find('tr').each(function(){ refreshRow($(this)); });
 
+        // Reusable, correctly configured media frame
+        var frame;
+        function getFrame(){
+          if (frame && frame.state()){
+            // Reconfigure title/button on reuse
+            frame.options.title = 'Select Icon';
+            if (frame.options.button) frame.options.button.text = 'Select Icon';
+            return frame;
+          }
+          frame = wp.media({
+            title: 'Select Icon',
+            button: { text: 'Select Icon' },
+            library: { type: 'image' },
+            multiple: false
+          });
+          return frame;
+        }
+
         // Select
         $(document).on('click.jprmIconSel', '.jprm-icon-select', function(e){
           e.preventDefault();
           var $row = $(this).closest('tr');
           var $hid = getHidden($row);
-          var frame = wp.media({ multiple:false });
-          frame.on('select', function(){
-            var att = frame.state().get('selection').first().toJSON();
+          var f = getFrame();
+          f.off('select').once('select', function(){
+            var att = f.state().get('selection').first().toJSON();
             $hid.val(att.id).trigger('change');
             if (att.url){ CACHE[parseInt(att.id,10)] = att.url; }
             refreshRow($row, att.url);
           });
-          frame.open();
+          f.open();
         });
 
         // Clear
@@ -529,6 +551,16 @@ add_action('admin_footer', function(){
           var $hid = getHidden($row);
           $hid.val('0').trigger('change');
           refreshRow($row);
+        });
+
+        // Copy (duplicate current row)
+        $(document).on('click.jprmLblCopy', '.jprm-label-copy', function(e){
+          e.preventDefault();
+          var $row = $(this).closest('tr');
+          var $clone = $row.clone(true, true);
+          // Keep hidden id and inputs as-is (true copy). Preview will refresh from id/cache.
+          $row.after($clone);
+          refreshRow($clone);
         });
       }
 
