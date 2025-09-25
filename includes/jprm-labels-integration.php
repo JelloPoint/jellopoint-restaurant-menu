@@ -138,6 +138,7 @@ add_action('admin_enqueue_scripts', function(){
     wp_enqueue_script('jquery');
 });
 
+
 add_action('admin_footer', function(){
     $screen = function_exists('get_current_screen') ? get_current_screen() : null;
     if ( ! $screen || $screen->post_type !== 'jprm_menu_item' ) return;
@@ -150,23 +151,18 @@ add_action('admin_footer', function(){
     $ref_id   = get_post_meta( $post->ID, 'jprm_price_label_ref', true );
 
     ?>
+    <style>
+      .jprm-mode-row { margin: 10px 0; padding: 8px 10px; background:#fafafa; border:1px solid #e3e3e3; display:inline-block; border-radius:4px; }
+      .jprm-icon-preview{ display:inline-block; width:48px; min-height:24px; margin-right:8px; vertical-align:middle; }
+      .jprm-label-copy { margin-left:6px; }
+    </style>
     <script>
     (function($){
       var JPRM_LABELS = <?php echo wp_json_encode( $labels ); ?> || [];
       var CURRENT_TEXT = <?php echo wp_json_encode( (string) $selected ); ?>;
       var CURRENT_REF  = <?php echo wp_json_encode( (string) $ref_id ); ?>;
 
-      function buildOptions(){
-        var opts = [];
-        opts.push({value:'', text:'Select…', id:''});
-        for (var i=0; i<JPRM_LABELS.length; i++){
-          var L = JPRM_LABELS[i];
-          opts.push({value: L.name, text: L.name, id: String(L.id||'')});
-        }
-        opts.push({value:'custom', text:'Custom', id:''});
-        return opts;
-      }
-
+      // ---------- Helpers ----------
       function ensureHiddenRef($sel){
         var $hidden = $('#jprm_price_label_ref');
         if (!$hidden.length){
@@ -175,65 +171,126 @@ add_action('admin_footer', function(){
         }
         return $hidden;
       }
-
       function updateHiddenRefFromSelection($sel){
         var val = $sel.val();
         var ref = '';
         if (val && val !== 'custom'){
           for (var i=0;i<JPRM_LABELS.length;i++){
-            if (JPRM_LABELS[i].name === val){
-              ref = String(JPRM_LABELS[i].id||'');
-              break;
-            }
+            if (JPRM_LABELS[i].name === val){ ref = String(JPRM_LABELS[i].id||''); break; }
           }
         }
         ensureHiddenRef($sel).val(ref);
         var isCustom = (val === 'custom');
         $('#jprm_price_label_custom')[isCustom ? 'show' : 'hide']();
       }
-
-      function rebuildSelect(){
-        var $sel = $('#jprm_price_label');
-        if (!$sel.length) return;
-
-        var current = CURRENT_TEXT || $sel.val() || '';
-        var options = buildOptions();
-        $sel.empty();
-        for (var i=0;i<options.length;i++){
-          var o = options[i];
-          var $opt = $('<option>').attr('value', o.value).text(o.text);
-          if (o.id) $opt.attr('data-id', o.id);
-          $sel.append($opt);
-        }
-
-        if (current){
-          $sel.val(current);
-        } else if (CURRENT_REF){
-          for (var i=0;i<JPRM_LABELS.length;i++){
-            if (String(JPRM_LABELS[i].id||'') === String(CURRENT_REF)){
-              $sel.val(JPRM_LABELS[i].name);
-              break;
-            }
-          }
-        }
-        updateHiddenRefFromSelection($sel);
-
-        if (JPRM_LABELS.length === 0){
-          console.warn('JPRM: No Price Labels found in jprm_price_labels_v2 (or other fallbacks).');
-        }
+      function buildMainOptions(){
+        var opts = [];
+        opts.push({value:'', text:'Select…'});
+        for (var i=0; i<JPRM_LABELS.length; i++){ opts.push({value:JPRM_LABELS[i].name, text:JPRM_LABELS[i].name}); }
+        opts.push({value:'custom', text:'Custom'});
+        return opts;
       }
-
-      function bind(){
+      function buildRowOptions(){
+        // For multiple prices rows
+        return buildMainOptions();
+      }
+      function rebuildMainSelect(){
         var $sel = $('#jprm_price_label');
         if (!$sel.length) return;
-        $sel.off('change.jprmLab').on('change.jprmLab', function(){
-          updateHiddenRefFromSelection($sel);
+        var current = CURRENT_TEXT || $sel.val() || '';
+        var options = buildMainOptions();
+        $sel.empty();
+        options.forEach(function(o){
+          var $opt = $('<option>').attr('value', o.value).text(o.text);
+          $sel.append($opt);
+        });
+        if (current){ $sel.val(current); }
+        updateHiddenRefFromSelection($sel);
+      }
+      function syncRow($tr){
+        var isCustom = $tr.find('select.label-select').val() === 'custom';
+        $tr.find('input.label-custom')[isCustom ? 'show' : 'hide']();
+      }
+      function rebuildRowSelects($scope){
+        var $tbody = ($scope && $scope.length) ? $scope : $('#jprm-prices-table tbody');
+        if (!$tbody.length) return;
+        var options = buildRowOptions();
+        $tbody.find('select.label-select').each(function(){
+          var $sel = $(this);
+          var prev = $sel.val();
+          $sel.empty();
+          options.forEach(function(o){
+            var $opt = $('<option>').attr('value', o.value).text(o.text);
+            $sel.append($opt);
+          });
+          if (prev){ $sel.val(prev); }
+          syncRow($sel.closest('tr'));
         });
       }
 
+      // ---------- Mode toggle (Single vs Multiple) ----------
+      function ensureModeToggle(){
+        var $chk = $('#jprm_multi'); // existing checkbox
+        var $row = $chk.closest('tr');
+        if (! $row.length) return;
+
+        if ($('.jprm-mode-row').length) return; // already inserted
+
+        var $mode = $('<div class="jprm-mode-row">'+
+                      '<label><input type="radio" name="jprm_price_mode" value="single"> Single Price</label> &nbsp; '+
+                      '<label><input type="radio" name="jprm_price_mode" value="multi"> Multiple Prices</label>'+
+                      '</div>');
+
+        // Insert above the checkbox row
+        $row.before( $('<tr><th>Price Mode</th><td></td></tr>') );
+        $row.prev().find('td').append($mode);
+
+        function apply(mode){
+          var isMulti = (mode === 'multi');
+          // keep checkbox in sync for back-compat
+          $chk.prop('checked', isMulti).trigger('change');
+
+          // Single fields
+          var $rowPrice  = $('#jprm_price').closest('tr');
+          var $rowLabel  = $('#jprm_price_label').closest('tr');
+          var $rowBadge  = $('#jprm_badge').closest('tr');
+          // Multiple block
+          var $multiBlk  = $('#jprm-multi-admin');
+
+          if (isMulti){
+            $multiBlk.show();
+            $rowPrice.hide();
+            $rowLabel.show(); // keep label visible? if you want it hidden in multi, set hide()
+          } else {
+            $multiBlk.hide();
+            $rowPrice.show();
+            $rowLabel.show();
+          }
+        }
+
+        // Initial mode from checkbox
+        apply( $chk.is(':checked') ? 'multi' : 'single' );
+
+        // Bind radios
+        $mode.find('input[type=radio]').on('change', function(){
+          apply( this.value );
+        });
+
+        // Keep in sync if user toggles the legacy checkbox
+        $chk.on('change', function(){
+          $mode.find('input[value="'+( $chk.is(':checked') ? 'multi' : 'single')+'"]').prop('checked', true);
+          apply( $chk.is(':checked') ? 'multi' : 'single' );
+        });
+
+        // Set initial checked radio
+        $mode.find('input[value="'+( $chk.is(':checked') ? 'multi' : 'single')+'"]').prop('checked', true);
+      }
+
+      // ---------- Boot ----------
       function boot(){
-        rebuildSelect();
-        bind();
+        rebuildMainSelect();       // single price select
+        ensureModeToggle();        // radio Single/Multiple + sync with checkbox
+        rebuildRowSelects();       // multiple prices row label selects
       }
 
       $(boot);
@@ -241,6 +298,7 @@ add_action('admin_footer', function(){
     </script>
     <?php
 }, 20);
+
 
 /**
  * Save the numeric label reference alongside the existing text value.
