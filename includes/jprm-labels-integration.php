@@ -4,88 +4,118 @@
  * JPRM Labels ↔ Menu Items integration (admin-only, safe, additive).
  * Place this file at: wp-content/plugins/jellopoint-restaurant-menu/includes/jprm-labels-integration.php
  * Then add ONE line in your main plugin file:
+ *   require_once JPRM_PLUGIN_PATH . 'includes/jprm-labels-integration.php';
+ * or, if you prefer, using __DIR__:
  *   require_once __DIR__ . '/includes/jprm-labels-integration.php';
- *
- * This does NOT modify admin menus or existing screens. It only augments the
- * Menu Item edit screen to use the predefined Price Labels list and stores a
- * numeric reference alongside the existing text value for backward compatibility.
  */
 
 if ( ! defined('ABSPATH') ) { exit; }
 
 /**
+ * Normalize one label row to a common shape.
+ */
+if ( ! function_exists('jprm_li_norm') ) {
+    function jprm_li_norm( $id, $name, $icon_id = 0, $icon_url = '' ) : array {
+        $iid = intval($icon_id);
+        $url = $icon_url;
+        if ( ! $url && $iid ) {
+            $url = wp_get_attachment_image_url( $iid, 'thumbnail' ) ?: '';
+        }
+        return [
+            'id'       => (string) ( $id !== '' ? $id : sanitize_key($name) ),
+            'name'     => (string) $name,
+            'slug'     => sanitize_key( $name ),
+            'icon_id'  => $iid,
+            'icon_url' => $url ? esc_url_raw($url) : '',
+        ];
+    }
+}
+
+/**
  * Fetch predefined price labels as a normalized list.
  * Tries, in order:
  *  1) An existing helper jprm_get_price_labels() if your plugin already defines it.
- *  2) The stored option 'jprm_price_labels' used by the labels admin page.
- *  3) Fallback to empty array.
- *
- * Each item is returned as:
- *  [ 'id' => int|string, 'name' => string, 'slug' => string, 'icon_id' => int, 'icon_url' => string ]
+ *  2) Various option keys used by the Labels admin page.
+ *  3) A CPT fallback (post_type = jprm_price_label).
  */
 if ( ! function_exists('jprm_li_get_price_labels') ) {
     function jprm_li_get_price_labels() : array {
-        // Case 1: If the plugin already has a canonical getter, use it.
+        // Case 1: Canonical getter present?
         if ( function_exists('jprm_get_price_labels') ) {
             $list = jprm_get_price_labels();
-            $out = [];
-            foreach ( $list as $it ) {
-                // Try to normalize common shapes
-                $id  = isset($it['id']) ? $it['id'] : ( isset($it->id) ? $it->id : ( isset($it['slug']) ? $it['slug'] : null ) );
-                $nm  = isset($it['name']) ? $it['name'] : ( isset($it->name) ? $it->name : ( isset($it['label']) ? $it['label'] : '' ) );
-                $iid = isset($it['icon_id']) ? intval($it['icon_id']) : ( isset($it->icon_id) ? intval($it->icon_id) : 0 );
-                $url = '';
-                if ( $iid ) {
-                    $url = wp_get_attachment_image_url( $iid, 'thumbnail' ) ?: '';
-                } elseif ( isset($it['icon_url']) && $it['icon_url'] ) {
-                    $url = esc_url_raw($it['icon_url']);
-                }
-                if ($id === null) { $id = sanitize_key($nm); }
-                $out[] = [
-                    'id'       => $id,
-                    'name'     => $nm,
-                    'slug'     => sanitize_key( $nm ),
-                    'icon_id'  => $iid,
-                    'icon_url' => $url,
-                ];
+            $out  = [];
+            foreach ( (array) $list as $it ) {
+                $id   = is_array($it) ? ($it['id'] ?? ($it['slug'] ?? null)) : ( is_object($it) ? ($it->id ?? null) : null );
+                $name = is_array($it) ? ($it['name'] ?? ($it['label'] ?? ''))     : ( is_object($it) ? ($it->name ?? ($it->label ?? '')) : '' );
+                $iid  = is_array($it) ? intval($it['icon_id'] ?? 0)               : ( is_object($it) ? intval($it->icon_id ?? 0) : 0 );
+                $url  = is_array($it) ? ($it['icon_url'] ?? '')                    : ( is_object($it) ? ($it->icon_url ?? '') : '' );
+                if ( $name !== '' ) { $out[] = jprm_li_norm( $id ?? '', $name, $iid, $url ); }
             }
             return $out;
         }
 
-        // Case 2: Option-based storage used by the Labels admin page
-        $stored = get_option('jprm_price_labels');
-        $out = [];
-        if ( is_array($stored) ) {
-            foreach ( $stored as $idx => $row ) {
-                $nm  = isset($row['name']) ? $row['name'] : ( isset($row['label']) ? $row['label'] : '' );
-                if ( $nm === '' ) { continue; }
-                $iid = isset($row['icon_id']) ? intval($row['icon_id']) : 0;
-                $url = $iid ? ( wp_get_attachment_image_url($iid, 'thumbnail') ?: '' ) : '';
-                $id  = isset($row['id']) ? $row['id'] : $idx; // keep stable index as id if none provided
-                $out[] = [
-                    'id'       => $id,
-                    'name'     => $nm,
-                    'slug'     => sanitize_key( $nm ),
-                    'icon_id'  => $iid,
-                    'icon_url' => $url,
-                ];
+        // Case 2: Option-based storage (try multiple likely keys)
+        $option_keys = [
+            'jprm_price_labels',
+            'jprm_price_labels_v1',
+            'jprm_labels',
+            'jprm_menu_labels',
+            'jellopoint_price_labels',
+        ];
+        foreach ( $option_keys as $ok ) {
+            $stored = get_option( $ok );
+            if ( is_array($stored) && ! empty($stored) ) {
+                $out = [];
+                foreach ( $stored as $idx => $row ) {
+                    if ( is_string($row) ) {
+                        $name = $row;
+                        $id   = $idx;
+                        $out[] = jprm_li_norm( $id, $name, 0, '' );
+                    } elseif ( is_array($row) ) {
+                        $name = $row['name'] ?? ($row['label'] ?? '');
+                        if ( $name === '' ) continue;
+                        $id   = $row['id'] ?? $idx;
+                        $iid  = intval($row['icon_id'] ?? 0);
+                        $url  = $row['icon_url'] ?? '';
+                        $out[] = jprm_li_norm( $id, $name, $iid, $url );
+                    }
+                }
+                if ( ! empty($out) ) { return $out; }
             }
         }
-        return $out;
+
+        // Case 3: CPT fallback
+        $posts = get_posts([
+            'post_type'      => 'jprm_price_label',
+            'posts_per_page' => -1,
+            'orderby'        => 'menu_order title',
+            'order'          => 'ASC',
+            'suppress_filters' => false,
+            'no_found_rows'  => true,
+        ]);
+        if ( $posts ) {
+            $out = [];
+            foreach ( $posts as $p ) {
+                $name = $p->post_title;
+                $iid  = intval( get_post_meta($p->ID, 'icon_id', true ) );
+                $out[] = jprm_li_norm( $p->ID, $name, $iid, '' );
+            }
+            return $out;
+        }
+
+        return [];
     }
 }
 
 /**
  * Admin-only: augment Menu Item edit screen selector with predefined labels.
- * - Does not remove the existing fields; only enhances them on the client side.
+ * - Does not remove your existing fields; only enhances them on the client side.
  * - Adds a hidden 'jprm_price_label_ref' to capture a stable id for the chosen label.
  * - Keeps the select's posted value as the human-readable name (back-compat).
  */
 add_action('admin_enqueue_scripts', function(){
     $screen = function_exists('get_current_screen') ? get_current_screen() : null;
     if ( ! $screen || $screen->post_type !== 'jprm_menu_item' ) return;
-
-    // Script deps for inline boot
     wp_enqueue_script('jquery');
 });
 
@@ -103,22 +133,17 @@ add_action('admin_footer', function(){
     ?>
     <script>
     (function($){
-      // Provide labels from PHP
       var JPRM_LABELS = <?php echo wp_json_encode( $labels ); ?> || [];
       var CURRENT_TEXT = <?php echo wp_json_encode( (string) $selected ); ?>;
       var CURRENT_REF  = <?php echo wp_json_encode( (string) $ref_id ); ?>;
 
       function buildOptions(){
         var opts = [];
-        // Keep "Select…" placeholder if present
         opts.push({value:'', text:'Select…', id:''});
         for (var i=0; i<JPRM_LABELS.length; i++){
           var L = JPRM_LABELS[i];
-          // value is human-readable name for back-compat;
-          // attach data-id for numeric reference
           opts.push({value: L.name, text: L.name, id: String(L.id||'')});
         }
-        // Custom
         opts.push({value:'custom', text:'Custom', id:''});
         return opts;
       }
@@ -136,7 +161,6 @@ add_action('admin_footer', function(){
         var val = $sel.val();
         var ref = '';
         if (val && val !== 'custom'){
-          // Find matching label by name
           for (var i=0;i<JPRM_LABELS.length;i++){
             if (JPRM_LABELS[i].name === val){
               ref = String(JPRM_LABELS[i].id||'');
@@ -145,7 +169,6 @@ add_action('admin_footer', function(){
           }
         }
         ensureHiddenRef($sel).val(ref);
-        // Toggle custom field
         var isCustom = (val === 'custom');
         $('#jprm_price_label_custom')[isCustom ? 'show' : 'hide']();
       }
@@ -154,22 +177,19 @@ add_action('admin_footer', function(){
         var $sel = $('#jprm_price_label');
         if (!$sel.length) return;
 
-        // Remember current value from DOM if PHP didn't give us one
         var current = CURRENT_TEXT || $sel.val() || '';
-
         var options = buildOptions();
         $sel.empty();
-        options.forEach(function(o){
+        for (var i=0;i<options.length;i++){
+          var o = options[i];
           var $opt = $('<option>').attr('value', o.value).text(o.text);
           if (o.id) $opt.attr('data-id', o.id);
           $sel.append($opt);
-        });
+        }
 
-        // Try to match current selection: prefer name, fallback by ref id
         if (current){
           $sel.val(current);
         } else if (CURRENT_REF){
-          // locate name by id
           for (var i=0;i<JPRM_LABELS.length;i++){
             if (String(JPRM_LABELS[i].id||'') === String(CURRENT_REF)){
               $sel.val(JPRM_LABELS[i].name);
@@ -177,8 +197,12 @@ add_action('admin_footer', function(){
             }
           }
         }
-        // If still empty and there are labels, keep placeholder selected
         updateHiddenRefFromSelection($sel);
+
+        // Debug hint if empty
+        if (JPRM_LABELS.length === 0){
+          console.warn('JPRM: No Price Labels found. Check option keys or CPT presence.');
+        }
       }
 
       function bind(){
@@ -202,8 +226,6 @@ add_action('admin_footer', function(){
 
 /**
  * Save the numeric label reference alongside the existing text value.
- * Does NOT change how the plugin currently saves/uses jprm_price_label.
- * We store our stable id in 'jprm_price_label_ref' for future front-end integration.
  */
 add_action('save_post_jprm_menu_item', function($post_id, $post){
     if ( ! isset($_POST['jprm_meta_nonce']) || ! wp_verify_nonce( $_POST['jprm_meta_nonce'], 'jprm_meta' ) ) return;
@@ -216,6 +238,4 @@ add_action('save_post_jprm_menu_item', function($post_id, $post){
     } else {
         delete_post_meta( $post_id, 'jprm_price_label_ref' );
     }
-
-    // Show/hide of custom field is handled in JS; server keeps back-compat behaviour.
 }, 10, 2);
