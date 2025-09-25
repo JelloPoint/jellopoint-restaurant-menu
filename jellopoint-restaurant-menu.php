@@ -24,6 +24,8 @@ if ( version_compare( PHP_VERSION, JPRM_MIN_PHP, '<' ) ) {
 }
 require_once JPRM_PLUGIN_PATH . '/includes/jprm-labels-integration.php';
 require_once JPRM_PLUGIN_PATH . 'includes/class-plugin.php';
+require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-menuitem-meta.php';
+
 update_option( 'jprm_current_version', JPRM_VERSION );
 
 // Bootstrap safely (supports both Plugin::instance() and jprm_bootstrap())
