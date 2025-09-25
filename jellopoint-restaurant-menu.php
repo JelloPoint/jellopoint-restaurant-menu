@@ -447,6 +447,7 @@ add_action('admin_footer', function(){
     (function($){
       if (window.__JPRM_PL_INIT__) return; window.__JPRM_PL_INIT__ = true;
       var CACHE = {};
+      var frame = null;
 
       function getHidden($row){
         var $hid = $row.find('input.icon-id');
@@ -493,9 +494,9 @@ add_action('admin_footer', function(){
       function refreshRow($row, knownUrl){
         var $prev = ensurePreview($row);
         var $clr  = $row.find('.jprm-icon-clear');
-        // Ensure Copy button exists once at end of row
+        // Ensure Copy button exists and looks like a WP button
         if (!$row.find('.jprm-label-copy').length){
-          $('<button type="button" class="button-link jprm-label-copy">Copy</button>').appendTo($row.find('td').last());
+          $('<button type="button" class="button button-secondary jprm-label-copy">Copy</button>').appendTo($row.find('td').last());
         }
         if (hasIcon($row)){
           if (knownUrl) setPreview($prev, knownUrl); else restoreFromId($row);
@@ -506,32 +507,28 @@ add_action('admin_footer', function(){
         }
       }
 
-      function init(){
-        var $tb = $('#jprm-labels-table tbody');
-        if (!$tb.length) return;
-        $tb.find('tr').each(function(){ refreshRow($(this)); });
-
-        // Reusable, correctly configured media frame
-        var frame;
-        function getFrame(){
-          if (frame && frame.state()){
-            // Reconfigure title/button on reuse
+      function getFrame(){
+        if (frame && frame.state()){
+          // Reconfigure title/button on reuse to avoid stale labels
+          try {
             frame.options.title = 'Select Icon';
             if (frame.options.button) frame.options.button.text = 'Select Icon';
-            return frame;
-          }
-          frame = wp.media({
-            title: 'Select Icon',
-            button: { text: 'Select Icon' },
-            library: { type: 'image' },
-            multiple: false
-          });
+          } catch(e){}
           return frame;
         }
+        frame = wp.media({
+          title: 'Select Icon',
+          button: { text: 'Select Icon' },
+          library: { type: 'image' },
+          multiple: false
+        });
+        return frame;
+      }
 
-        // Select
-        $(document).on('click.jprmIconSel', '.jprm-icon-select', function(e){
-          e.preventDefault();
+      function bindExisting($tb){
+        // Remove any prior click handlers on existing buttons then bind ours
+        $tb.find('.jprm-icon-select').off('click').on('click.jprmIconSel', function(e){
+          e.preventDefault(); e.stopImmediatePropagation();
           var $row = $(this).closest('tr');
           var $hid = getHidden($row);
           var f = getFrame();
@@ -543,29 +540,57 @@ add_action('admin_footer', function(){
           });
           f.open();
         });
-
-        // Clear
-        $(document).on('click.jprmIconClr', '.jprm-icon-clear', function(e){
-          e.preventDefault();
+        $tb.find('.jprm-icon-clear').off('click').on('click.jprmIconClr', function(e){
+          e.preventDefault(); e.stopImmediatePropagation();
           var $row = $(this).closest('tr');
           var $hid = getHidden($row);
           $hid.val('0').trigger('change');
           refreshRow($row);
         });
+      }
 
-        // Copy (duplicate current row)
-        $(document).on('click.jprmLblCopy', '.jprm-label-copy', function(e){
-          e.preventDefault();
+      function bindDelegated(){
+        // Also bind delegated for any rows added later
+        $(document).off('click.jprmIconSel', '.jprm-icon-select').on('click.jprmIconSel', '.jprm-icon-select', function(e){
+          e.preventDefault(); e.stopImmediatePropagation();
+          var $row = $(this).closest('tr');
+          var $hid = getHidden($row);
+          var f = getFrame();
+          f.off('select').once('select', function(){
+            var att = f.state().get('selection').first().toJSON();
+            $hid.val(att.id).trigger('change');
+            if (att.url){ CACHE[parseInt(att.id,10)] = att.url; }
+            refreshRow($row, att.url);
+          });
+          f.open();
+        });
+        $(document).off('click.jprmIconClr', '.jprm-icon-clear').on('click.jprmIconClr', '.jprm-icon-clear', function(e){
+          e.preventDefault(); e.stopImmediatePropagation();
+          var $row = $(this).closest('tr');
+          var $hid = getHidden($row);
+          $hid.val('0').trigger('change');
+          refreshRow($row);
+        });
+        $(document).off('click.jprmLblCopy', '.jprm-label-copy').on('click.jprmLblCopy', '.jprm-label-copy', function(e){
+          e.preventDefault(); e.stopImmediatePropagation();
           var $row = $(this).closest('tr');
           var $clone = $row.clone(true, true);
-          // Keep hidden id and inputs as-is (true copy). Preview will refresh from id/cache.
           $row.after($clone);
           refreshRow($clone);
         });
       }
 
-      $(init); // run once, no ajaxComplete binding
+      function init(){
+        var $tb = $('#jprm-labels-table tbody');
+        if (!$tb.length) return;
+        $tb.find('tr').each(function(){ refreshRow($(this)); });
+        bindExisting($tb);
+        bindDelegated();
+      }
+
+      $(init); // run once
     })(jQuery);
     </script>
     <?php
 }, 24);
+
