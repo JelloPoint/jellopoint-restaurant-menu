@@ -75,4 +75,29 @@
     });
     $tb.find('tr').each(function(){ syncRowUI($(this)); });
     $tb.on('change', 'input,select', collect);
-    $tb.on('click', '.jprm-row-remove', function(e){ e.preventDefault(); $(this).
+    $tb.on('click', '.jprm-row-remove', function(e){ e.preventDefault(); $(this).closest('tr').remove(); collect(); });
+    $('#jprm-row-add').off('click.jprm').on('click.jprm', function(e){
+      e.preventDefault();
+      var $tr = $('<tr/>');
+      $tr.append('<td><input type="checkbox" class="enable" checked /></td>');
+      $tr.append('<td class="label-td"><select class="label-mode"><option value="ref">'+(JPRM_META.i18n.predefined||'Predefined')+'</option><option value="custom">'+JPRM_META.i18n.custom+'</option></select> <select class="label-ref"></select> <input type="text" class="label-custom regular-text" value="" placeholder="'+JPRM_META.i18n.custom+'" /></td>');
+      $tr.append('<td><input type="text" class="amount regular-text" value="" placeholder="€ 7,50" /></td>');
+      $tr.append('<td><input type="checkbox" class="hide-icon" /></td>');
+      $tr.append('<td><a href="#" class="button button-secondary jprm-row-remove">'+JPRM_META.i18n.remove+'</a></td>');
+      $('#jprm-prices-table tbody').append($tr);
+      buildRowSelect($tr.find('select.label-ref'), '');
+      syncRowUI($tr);
+      collect();
+    });
+    collect();
+  }
+
+  function boot(){
+    $('input[name="jprm_price_mode"]').off('change.jprm').on('change.jprm', syncMode);
+    syncMode();
+    initSingle();
+    initRows();
+  }
+
+  $(boot);
+})(jQuery);

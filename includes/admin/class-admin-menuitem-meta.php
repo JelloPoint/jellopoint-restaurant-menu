@@ -21,12 +21,15 @@ class JPRM_Admin_MenuItem_Meta {
         wp_enqueue_script('jquery');
         if ( function_exists('wp_enqueue_media') ) wp_enqueue_media();
 
-        $handle = 'jprm-menu-item-meta';
-        $src    = plugins_url('assets/admin/menu-item-meta.js', dirname(__FILE__));
-        wp_enqueue_script($handle, $src, ['jquery'], '1.0', true);
+        // Build script URL relative to plugin root
+        $plugin_root_dir = dirname(dirname(__FILE__)); // .../includes
+        $plugin_url      = plugin_dir_url($plugin_root_dir); // URL to plugin root
+        $src             = $plugin_url . 'assets/admin/menu-item-meta.js';
+
+        wp_enqueue_script('jprm-menu-item-meta', $src, ['jquery'], '1.0.2', true);
 
         $labels = class_exists('JPRM_Labels_Store') ? JPRM_Labels_Store::all() : [];
-        wp_localize_script($handle, 'JPRM_META', [
+        wp_localize_script('jprm-menu-item-meta', 'JPRM_META', [
             'labels' => $labels,
             'postId' => get_the_ID(),
             'i18n'   => [
@@ -41,11 +44,15 @@ class JPRM_Admin_MenuItem_Meta {
                 'actions'   => __('Actions', 'jellopoint-restaurant-menu'),
                 'addRow'    => __('Add another price', 'jellopoint-restaurant-menu'),
                 'remove'    => __('Remove', 'jellopoint-restaurant-menu'),
+                'predefined'=> __('Predefined', 'jellopoint-restaurant-menu'),
             ]
         ]);
     }
 
     public static function register_metabox(){
+        // Remove the old box if still present (prevents duplicates while cleaning)
+        remove_meta_box('jprm_menu_item_settings', 'jprm_menu_item', 'normal');
+
         add_meta_box(
             'jprm_price_meta',
             __('Pricing', 'jellopoint-restaurant-menu'),

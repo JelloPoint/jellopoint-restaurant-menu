@@ -11,9 +11,6 @@ class JPRM_Labels_Store {
 
     const OPTION_KEY = 'jprm_price_labels';
 
-    /**
-     * Return array of labels: [ ['id'=>'pl-uuid', 'label'=>'Small', 'slug'=>'small', 'icon_id'=>503, 'active'=>true, 'order'=>0], ... ]
-     */
     public static function all() : array {
         $raw = get_option( self::OPTION_KEY, '' );
         if ( is_array($raw) ) {
