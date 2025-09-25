@@ -443,90 +443,96 @@ add_action('admin_footer', function(){
         .jprm-icon-select, .jprm-icon-clear{ vertical-align:middle; }
         .jprm-icon-clear{ display:none; } /* hidden by default; JS shows when icon exists */
     </style>
-    <script type="text/javascript">
+    <script>
     (function($){
-        function getHidden($row){
-            var $hid = $row.find('input.icon-id');
-            if (!$hid.length) $hid = $row.find('input.icon_id'); // tolerate underscore variant
-            return $hid;
-        }
-        function ensurePreview($row){
-            var $prev = $row.find('.jprm-icon-preview');
-            if (!$prev.length){
-                // Create a DIV to keep layout stable
-                var $cell = $row.find('td.icon-cell, td').last();
-                $prev = $('<div class="jprm-icon-preview"></div>');
-                $cell.prepend($prev);
-            }
-            return $prev;
-        }
-        function setPreview($prev, url){
-            $prev.empty();
-            if (url){ $prev.append($('<img/>',{src:url, alt:''}).css({maxWidth:'48px', height:'auto'})); }
-        }
-        function hasIcon($row){
-            var v = (getHidden($row).val() || '').toString().trim();
-            if (v === '' || v === '0') return false;
-            var n = parseInt(v, 10);
-            return isNaN(n) ? !!v : n > 0;
-        }
-        function refreshRow($row, knownUrl){
-            var $prev = ensurePreview($row);
-            var $hid  = getHidden($row);
-            var $clr  = $row.find('.jprm-icon-clear');
+      if (window.__JPRM_PL_INIT__) return; window.__JPRM_PL_INIT__ = true;
+      var CACHE = {};
 
-            if (hasIcon($row)){
-                if (knownUrl){
-                    setPreview($prev, knownUrl);
-                } else if (window.wp && wp.media && typeof wp.media.attachment === 'function'){
-                    var id = parseInt($hid.val(), 10);
-                    if (id > 0){
-                        var att = wp.media.attachment(id);
-                        if (att){
-                            att.fetch().done(function(){
-                                var sizes = att.get('sizes') || (att.attributes && att.attributes.sizes) || {};
-                                var url = att.get('url') || (sizes.thumbnail && sizes.thumbnail.url) || (sizes.medium && sizes.medium.url) || '';
-                                setPreview($prev, url);
-                            });
-                        }
-                    }
-                }
-                $clr.show();
-            } else {
-                setPreview($prev, '');
-                $clr.hide();
-            }
+      function getHidden($row){
+        var $hid = $row.find('input.icon-id');
+        if (!$hid.length) $hid = $row.find('input.icon_id');
+        if (!$hid.length) $hid = $row.find('input[type="hidden"][name$="[icon_id]"], input[type="hidden"][name$="[icon]"]');
+        return $hid;
+      }
+      function ensurePreview($row){
+        var $prev = $row.find('.jprm-icon-preview');
+        if (!$prev.length){
+          var $cell = $row.find('td.icon-cell, td').last();
+          $prev = $('<div class="jprm-icon-preview"></div>');
+          $cell.prepend($prev);
         }
-        function init(){
-            var $tb = $('#jprm-labels-table tbody');
-            if (!$tb.length) return;
-            $tb.find('tr').each(function(){ refreshRow($(this)); });
-
-            // Select icon
-            $(document).off('click.jprmIconSel', '.jprm-icon-select').on('click.jprmIconSel', '.jprm-icon-select', function(e){
-                e.preventDefault();
-                var $row = $(this).closest('tr');
-                var $hid = getHidden($row);
-                var frame = wp.media({ multiple:false });
-                frame.on('select', function(){
-                    var att = frame.state().get('selection').first().toJSON();
-                    $hid.val(att.id).trigger('change');
-                    refreshRow($row, att.url);
-                });
-                frame.open();
+        return $prev;
+      }
+      function setPreview($prev, url){
+        $prev.empty();
+        if (url) $prev.append($('<img>', {src:url, alt:''}).css({maxWidth:'48px', height:'auto'}));
+      }
+      function hasIcon($row){
+        var v = (getHidden($row).val() || '').toString().trim();
+        if (v === '' || v === '0') return false;
+        var n = parseInt(v, 10);
+        return isNaN(n) ? !!v : n > 0;
+      }
+      function restoreFromId($row){
+        var $hid = getHidden($row), id = parseInt(($hid.val()||'0'),10);
+        if (!(id>0)) return;
+        var $prev = ensurePreview($row);
+        if ($prev.find('img').length) return;         // already visible
+        if (CACHE[id]) { setPreview($prev, CACHE[id]); return; }
+        if (window.wp && wp.media && typeof wp.media.attachment === 'function'){
+          var att = wp.media.attachment(id);
+          if (att){
+            att.fetch().done(function(){
+              var sizes = att.get('sizes') || (att.attributes && att.attributes.sizes) || {};
+              var url = att.get('url') || (sizes.thumbnail && sizes.thumbnail.url) || (sizes.medium && sizes.medium.url) || '';
+              if (url){ CACHE[id] = url; setPreview($prev, url); }
             });
-
-            // Clear icon
-            $(document).off('click.jprmIconClr', '.jprm-icon-clear').on('click.jprmIconClr', '.jprm-icon-clear', function(e){
-                e.preventDefault();
-                var $row = $(this).closest('tr');
-                var $hid = getHidden($row);
-                $hid.val('0').trigger('change');
-                refreshRow($row);
-            });
+          }
         }
-        $(document).on('ready', init);
-        $(document).on('ajaxComplete', init);
+      }
+      function refreshRow($row, knownUrl){
+        var $prev = ensurePreview($row);
+        var $clr  = $row.find('.jprm-icon-clear');
+        if (hasIcon($row)){
+          if (knownUrl) setPreview($prev, knownUrl); else restoreFromId($row);
+          $clr.show();
+        } else {
+          setPreview($prev, '');
+          $clr.hide();
+        }
+      }
+
+      function init(){
+        var $tb = $('#jprm-labels-table tbody');
+        if (!$tb.length) return;
+        $tb.find('tr').each(function(){ refreshRow($(this)); });
+
+        // Select
+        $(document).on('click.jprmIconSel', '.jprm-icon-select', function(e){
+          e.preventDefault();
+          var $row = $(this).closest('tr');
+          var $hid = getHidden($row);
+          var frame = wp.media({ multiple:false });
+          frame.on('select', function(){
+            var att = frame.state().get('selection').first().toJSON();
+            $hid.val(att.id).trigger('change');
+            if (att.url){ CACHE[parseInt(att.id,10)] = att.url; }
+            refreshRow($row, att.url);
+          });
+          frame.open();
+        });
+
+        // Clear
+        $(document).on('click.jprmIconClr', '.jprm-icon-clear', function(e){
+          e.preventDefault();
+          var $row = $(this).closest('tr');
+          var $hid = getHidden($row);
+          $hid.val('0').trigger('change');
+          refreshRow($row);
+        });
+      }
+
+      $(init); // run once, no ajaxComplete binding
     })(jQuery);
     </script>
     <?php
