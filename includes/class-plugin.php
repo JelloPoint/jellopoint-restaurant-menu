@@ -1,6 +1,6 @@
 <?php
 /**
- * JelloPoint Restaurant Menu — Core
+ * JelloPoint Restaurant  Menu — Core
  * - Admin menu (no duplicates) + rename legacy "Restaurant Menu - Price Labels" to "Price Labels"
  * - CPT & Taxonomies
  * - Menu Item metabox (Price, Multiple Prices, Badge, etc.)
