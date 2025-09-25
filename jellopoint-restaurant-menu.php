@@ -235,13 +235,7 @@ add_action('admin_enqueue_scripts', function($hook){
     if ( function_exists('get_current_screen') ) {
         $screen = get_current_screen();
         $id = $screen ? $screen->id : '';
-        if (
-    $id === 'settings_page_jprm-price-labels' ||
-    $id === 'jellopoint-root_page_jprm-price-labels' ||
-    $id === 'jellopoint-admin_page_jprm-price-labels' ||
-    $id === 'toplevel_page_jprm-price-labels' ||
-    ( isset($_GET['page']) && sanitize_key($_GET['page']) === 'jprm-price-labels' )
-) {
+        if ( $id === 'settings_page_jprm-price-labels' || $id === 'jprm_admin_page_jprm-price-labels' || $id === 'jellopoint-root_page_jprm-price-labels' || $id === 'jellopoint-admin_page_jprm-price-labels' ) {
             wp_enqueue_media();
             wp_enqueue_script('jquery');
             wp_enqueue_script('jquery-ui-sortable');
@@ -352,86 +346,6 @@ function jprm_get_price_label_full_map() {
     $map = jprm_get_price_label_map();
     return apply_filters( 'jprm_price_label_full_map', $map );
 }
-
-
-// JPRM shim: buttons for jprm_menu_item edit screen (no sorting)
-add_action('admin_footer', function(){
-    if ( ! function_exists('get_current_screen') ) return;
-    $screen = get_current_screen();
-    if ( ! $screen || ( isset($screen->post_type) ? $screen->post_type : '' ) !== 'jprm_menu_item' ) return;
-
-    wp_enqueue_script('jquery');
-    ?>
-    <script type="text/javascript">
-    (function($){
-        // Helpers mirrored from your current inline script
-        function syncRow($tr){
-            var isCustom = $tr.find('select.label-select').val() === 'custom';
-            $tr.find('input.label-custom').closest('td').toggle(isCustom);
-            var en = $tr.find('input.enable').is(':checked');
-            if(!en && $tr.index()>0){ $tr.addClass('jp-hidden'); } else { $tr.removeClass('jp-hidden'); }
-        }
-        function collect(){
-            var out = [];
-            var $tbody = $('#jprm-prices-table tbody');
-            $tbody.find('tr').each(function(){
-                var $tr = $(this);
-                var row = {
-                    label_custom: $tr.find('input.label-custom').val() || '',
-                    amount: $tr.find('input.amount').val() || '',
-                    hide_icon: $tr.find('input.hide-icon').is(':checked') ? 1 : 0
-                };
-                if (row.label_custom.length || row.amount.length){ out.push(row); }
-            });
-            $('#jprm_prices_v1').val(JSON.stringify(out));
-        }
-
-        // Initialize existing rows once
-        $(function(){
-            var $tbody = $('#jprm-prices-table tbody');
-            if ($tbody.length){
-                $tbody.find('tr').each(function(){ syncRow($(this)); });
-                collect();
-            }
-        });
-
-        // Rebind using delegated events so other scripts can't break them
-        $(document)
-            .off('change.jprmFix', '#jprm-prices-table select.label-select')
-            .on('change.jprmFix', '#jprm-prices-table select.label-select', function(){
-                syncRow($(this).closest('tr')); collect();
-            })
-            .off('change.jprmFix keyup.jprmFix', '#jprm-prices-table input')
-            .on('change.jprmFix keyup.jprmFix', '#jprm-prices-table input', function(){ collect(); })
-            .off('click.jprmFix', '#jprm-row-add')
-            .on('click.jprmFix', '#jprm-row-add', function(e){
-                e.preventDefault();
-                var html = '<tr>'
-                    + '<td><input type="checkbox" class="enable" checked /></td>'
-                    + '<td class="label-td"><select class="label-select"><option value="">Select…</option><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option><option value="custom">Custom</option></select> <input type="text" class="label-custom regular-text" value="" placeholder="Custom label" /></td>'
-                    + '<td><input type="text" class="amount regular-text" value="" placeholder="€ 7,50" /></td>'
-                    + '<td><input type="checkbox" class="hide-icon" /></td>'
-                    + '<td><a href="#" class="button button-secondary jprm-row-remove">Remove</a></td>'
-                    + '</tr>';
-                var $tbody = $('#jprm-prices-table tbody');
-                $tbody.append(html);
-                var $last = $tbody.find('tr:last');
-                syncRow($last); collect();
-            })
-            .off('click.jprmFix', '.jprm-row-remove')
-            .on('click.jprmFix', '.jprm-row-remove', function(e){
-                e.preventDefault();
-                $(this).closest('tr').remove();
-                collect();
-            });
-    })(jQuery);
-    </script>
-    <?php
-}, 22);
-
-
-// JPRM: Price Labels UI enhancements (preview + remove toggle + button alignment)
-
 // JPRM: Price Labels UI enhancements (preview + remove toggle + button alignment)
 add_action('admin_footer', function(){
     // Only on Price Labels page (do NOT change detection elsewhere)
@@ -445,13 +359,12 @@ add_action('admin_footer', function(){
     <style>
         /* Keep space reserved for the icon so the Upload button doesn't shift */
         .jprm-icon-preview{ display:inline-block; width:48px; min-height:48px; margin-right:8px; vertical-align:middle; }
-        .jprm-label-select, .jprm-label-remove{ vertical-align:middle; }
-        .jprm-label-remove { display:none; }  /* default hidden; JS shows when icon exists */
+        .jprm-icon-select, .jprm-icon-remove{ vertical-align:middle; }
+        .jprm-icon-remove { display:none; }  /* default hidden; JS shows when icon exists */
     </style>
     <script type="text/javascript">
     (function($){
         function findIconInput($row){
-            // Support variants
             var $hid = $row.find('input.icon-id, input.icon_id');
             if (!$hid.length) $hid = $row.find('input[type="hidden"][name$="[icon_id]"]');
             if (!$hid.length) $hid = $row.find('input[type="hidden"][name$="[icon]"]');
@@ -460,8 +373,9 @@ add_action('admin_footer', function(){
         function ensurePreview($row){
             var $prev = $row.find('.jprm-icon-preview');
             if (!$prev.length){
-                var $cell = $row.find('td.icon-cell, td').last();
-                $prev = $('<span class="jprm-icon-preview"></span>');
+                var $cell = $row.find('td.icon-cell, td').eq(3); // icon column if structure fixed; else last
+                if (!$cell.length) { $cell = $row.find('td').last(); }
+                $prev = $('<div class="jprm-icon-preview"></div>');
                 $cell.prepend($prev);
             }
             return $prev;
@@ -482,7 +396,7 @@ add_action('admin_footer', function(){
         function updateRowUI($row, urlIfKnown){
             var has = getHasIcon($row);
             var $prev = ensurePreview($row);
-            var $rm = $row.find('.jprm-label-remove');
+            var $rm = $row.find('.jprm-icon-remove');
 
             if (has){
                 if (urlIfKnown){
@@ -514,7 +428,7 @@ add_action('admin_footer', function(){
             $tb.find('tr').each(function(){ updateRowUI($(this)); });
 
             // Select icon handler
-            $(document).off('click.jprmLblMedia','.jprm-label-select').on('click.jprmLblMedia','.jprm-label-select',function(e){
+            $(document).off('click.jprmIconSelect','.jprm-icon-select').on('click.jprmIconSelect','.jprm-icon-select',function(e){
                 e.preventDefault();
                 var $row = $(this).closest('tr');
                 var $hid = findIconInput($row);
@@ -528,7 +442,7 @@ add_action('admin_footer', function(){
             });
 
             // Remove icon handler
-            $(document).off('click.jprmLblRemove','.jprm-label-remove').on('click.jprmLblRemove','.jprm-label-remove',function(e){
+            $(document).off('click.jprmIconRemove','.jprm-icon-remove').on('click.jprmIconRemove','.jprm-icon-remove',function(e){
                 e.preventDefault();
                 var $row = $(this).closest('tr');
                 var $hid = findIconInput($row);
@@ -542,4 +456,3 @@ add_action('admin_footer', function(){
     </script>
     <?php
 }, 24);
-
