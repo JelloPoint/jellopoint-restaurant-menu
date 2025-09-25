@@ -1,5 +1,5 @@
 /**
- * Admin: Menu Item Meta behaviors
+ * Admin: Menu  Item Meta behaviors
  */
 (function($){
   if (!window.JPRM_META) return;

@@ -78,7 +78,7 @@ class JPRM_Admin_MenuItem_Meta {
                 }
             }
         }
-        // Also remove a known legacy id explicitly
+        // Also  remove a known legacy id explicitly
         remove_meta_box('jprm_menu_item_settings', 'jprm_menu_item', 'normal');
     }
 

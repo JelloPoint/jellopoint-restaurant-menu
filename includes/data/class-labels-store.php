@@ -1,6 +1,6 @@
 <?php
 /**
- * Data: Labels Store
+ * Data:  Labels Store
  * Canonical source for reading Price Labels from the option `jprm_price_labels` (JSON array).
  */
 if ( ! defined('ABSPATH') ) { exit; }
