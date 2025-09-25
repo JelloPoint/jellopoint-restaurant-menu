@@ -50,6 +50,8 @@ class JPRM_Admin_MenuItem_Meta {
     }
 
     public static function register_metabox(){
+        // Purge any legacy JPRM boxes to avoid duplicates
+        self::purge_legacy_boxes();
         // Remove the old box if still present (prevents duplicates while cleaning)
         remove_meta_box('jprm_menu_item_settings', 'jprm_menu_item', 'normal');
 
@@ -61,6 +63,23 @@ class JPRM_Admin_MenuItem_Meta {
             'normal',
             'default'
         );
+    }
+
+
+    private static function purge_legacy_boxes(){
+        global $wp_meta_boxes;
+        $contexts = array('normal','advanced','side');
+        foreach ($contexts as $ctx){
+            if ( isset($wp_meta_boxes['jprm_menu_item'][$ctx]['default']) ){
+                foreach ($wp_meta_boxes['jprm_menu_item'][$ctx]['default'] as $box_id => $box ){
+                    if ($box_id !== 'jprm_price_meta' && strpos($box_id, 'jprm_') === 0){
+                        remove_meta_box($box_id, 'jprm_menu_item', $ctx);
+                    }
+                }
+            }
+        }
+        // Also remove a known legacy id explicitly
+        remove_meta_box('jprm_menu_item_settings', 'jprm_menu_item', 'normal');
     }
 
     public static function render($post){
