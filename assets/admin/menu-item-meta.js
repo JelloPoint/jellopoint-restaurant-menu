@@ -1,9 +1,16 @@
 /**
- * Admin: Menu  Item Meta behaviors
+ * Admin: Menu Item Meta behaviors (Single/Multiple + Single icon integration)
  */
 (function($){
   if (!window.JPRM_META) return;
   var LABELS = Array.isArray(JPRM_META.labels) ? JPRM_META.labels : [];
+
+  function labelsMap(){
+    var m = {};
+    LABELS.forEach(function(L){ m[String(L.id||'')] = L; });
+    return m;
+  }
+  var LMAP = labelsMap();
 
   function buildLabelOptions(){
     var $sel = $('<select/>');
@@ -25,6 +32,52 @@
     }
   }
 
+  /* -------- Single Price (labels + icon) -------- */
+
+  var mediaFrame = null;
+  function ensureFrame(){
+    if (mediaFrame) return mediaFrame;
+    mediaFrame = wp.media({
+      title: JPRM_META.i18n.selectIcon || 'Select Icon',
+      multiple: false,
+      library: { type: 'image' },
+      button: { text: JPRM_META.i18n.selectIcon || 'Select Icon' }
+    });
+    mediaFrame.on('select', function(){
+      var file = mediaFrame.state().get('selection').first();
+      if (!file) return;
+      var id  = file.get('id');
+      var url = file.get('url');
+      $('#jprm_price_label_icon_id').val(String(id));
+      $('#jprm_single_icon_preview').html('<img src="'+url+'" style="max-width:48px;height:auto;" alt="" />');
+      $('.jprm-single-icon-clear').show();
+    });
+    return mediaFrame;
+  }
+
+  function singleIconSync(){
+    var mode = $('#jprm_price_label_mode').val();
+    if (mode === 'custom'){
+      // Custom → show upload/remove buttons; preview = custom icon (from hidden)
+      $('#jprm_single_icon_actions').show();
+      var id  = $('#jprm_price_label_icon_id').val();
+      var has = id && String(id) !== '0';
+      $('.jprm-single-icon-clear').toggle(!!has);
+      // (preview is kept as-is; user can set via button)
+    } else {
+      // Predefined → actions hidden; preview from label icon
+      $('#jprm_single_icon_actions').hide();
+      var ref = $('#jprm_price_label_ref').val() || '';
+      var L   = LMAP[ref];
+      var url = (L && L.icon_url) ? L.icon_url : '';
+      if (url){
+        $('#jprm_single_icon_preview').html('<img src="'+url+'" style="max-width:48px;height:auto;" alt="" />');
+      }else{
+        $('#jprm_single_icon_preview').empty();
+      }
+    }
+  }
+
   function initSingle(){
     var $ref = $('#jprm_price_label_ref');
     if ($ref.length){
@@ -32,14 +85,44 @@
       $ref.empty().append( buildLabelOptions() );
       if (current){ $ref.val(String(current)); }
     }
-    function sync(){
+
+    function toggleCustomRef(){
       var mode = $('#jprm_price_label_mode').val();
-      if (mode === 'custom'){ $('#jprm_price_label_custom').show(); $('#jprm_price_label_ref').hide(); }
-      else { $('#jprm_price_label_custom').hide(); $('#jprm_price_label_ref').show(); }
+      if (mode === 'custom'){
+        $('#jprm_price_label_custom').show();
+        $('#jprm_price_label_ref').hide();
+      } else {
+        $('#jprm_price_label_custom').hide();
+        $('#jprm_price_label_ref').show();
+      }
+      singleIconSync();
     }
-    $('#jprm_price_label_mode').off('change.jprm').on('change.jprm', sync);
-    sync();
+
+    $('#jprm_price_label_mode').off('change.jprm').on('change.jprm', toggleCustomRef);
+    $('#jprm_price_label_ref').off('change.jprm').on('change.jprm', singleIconSync);
+
+    // Icon buttons
+    $(document).off('click.jprmIconSel', '.jprm-single-icon-select').on('click.jprmIconSel', '.jprm-single-icon-select', function(e){
+      e.preventDefault();
+      ensureFrame().open();
+    });
+    $(document).off('click.jprmIconClr', '.jprm-single-icon-clear').on('click.jprmIconClr', '.jprm-single-icon-clear', function(e){
+      e.preventDefault();
+      $('#jprm_price_label_icon_id').val('0');
+      $('#jprm_single_icon_preview').empty();
+      $(this).hide();
+    });
+
+    // Initial state
+    // If we have a pre-saved custom icon, render it
+    if (JPRM_META.single && JPRM_META.single.custom_icon_url){
+      $('#jprm_single_icon_preview').html('<img src="'+JPRM_META.single.custom_icon_url+'" style="max-width:48px;height:auto;" alt="" />');
+      $('.jprm-single-icon-clear').show();
+    }
+    toggleCustomRef();
   }
+
+  /* -------- Multiple Prices (unchanged) -------- */
 
   function rowToObj($tr){
     return {
@@ -63,8 +146,9 @@
     if (lm === 'custom'){ $tr.find('input.label-custom').show(); $tr.find('select.label-ref').hide(); }
     else { $tr.find('input.label-custom').hide(); $tr.find('select.label-ref').show(); }
   }
+  function buildLabelOptionsHTML(){ return buildLabelOptions(); }
   function buildRowSelect($sel, current){
-    $sel.empty().append( buildLabelOptions() );
+    $sel.empty().append( buildLabelOptionsHTML() );
     if (current){ $sel.val(String(current)); }
   }
   function initRows(){
