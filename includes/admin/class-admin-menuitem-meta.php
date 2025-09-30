@@ -34,7 +34,7 @@ class JPRM_Admin_MenuItem_Meta {
         $rel  = 'assets/admin/menu-item-meta.js';
         $src  = plugins_url($rel, $plugin_main_file);
         $path = JPRM_PLUGIN_PATH . $rel;
-        $ver  = file_exists($path) ? (string) filemtime($path) : '1.3.3';
+        $ver  = file_exists($path) ? (string) filemtime($path) : '1.3.4';
         wp_enqueue_script('jprm-menu-item-meta', $src, ['jquery'], $ver, true);
     }
 
@@ -109,7 +109,10 @@ class JPRM_Admin_MenuItem_Meta {
 
         echo '<table class="form-table"><tbody>';
 
-        echo '<tr><th style="width:180px;"><label>'.esc_html__('Price Mode','jellopoint-restaurant-menu').'</label></th><td>';
+        // shrink the left column to give the table more space
+        echo '<style>#jprm_price_meta .form-table > tbody > tr > th{width:110px;}</style>';
+
+        echo '<tr><th><label>'.esc_html__('Price Mode','jellopoint-restaurant-menu').'</label></th><td>';
         echo '<label><input type="radio" name="jprm_price_mode" value="single" '.checked($mode,'single',false).'> '.esc_html__('Single Price','jellopoint-restaurant-menu').'</label> &nbsp; ';
         echo '<label><input type="radio" name="jprm_price_mode" value="multi"  '.checked($mode,'multi', false).'> '.esc_html__('Multiple Prices','jellopoint-restaurant-menu').'</label>';
         echo '</td></tr>';
@@ -128,15 +131,15 @@ class JPRM_Admin_MenuItem_Meta {
             .jprm-icon-ph { width:32px; height:32px; border:1px dashed #ccd0d4; border-radius:3px; display:inline-flex; align-items:center; justify-content:center; color:#777; background:#fff; cursor:pointer; }
             .jprm-icon-ph .dashicons { line-height:32px; }
 
-            /* Multiple table layout */
-            #jprm-prices-table { table-layout:fixed; width:100%; }
+            /* Multiple table layout (failsafe) */
             #jprm-prices-wrap { overflow-x:auto; }
+            #jprm-prices-table { table-layout:fixed; width:100%; }
             #jprm-prices-table th, #jprm-prices-table td { vertical-align:middle; }
             #jprm-prices-table .label-cell { width:auto; }
-            #jprm-prices-table .small { width:120px; }
+            #jprm-prices-table .small { width:96px; } /* tighter amount column */
             #jprm-prices-table .icon-col { width:110px; }
-            #jprm-prices-table .hide-col { width:56px; text-align:center; }
-            #jprm-prices-table .act-col  { width:56px; text-align:center; }
+            #jprm-prices-table .hide-col { width:48px; text-align:center; }
+            #jprm-prices-table .act-col  { width:48px; text-align:center; }
 
             .jprm-mode-switch { display:inline-flex; border:1px solid #ccd0d4; border-radius:4px; overflow:hidden; margin-right:6px; }
             .jprm-pill { padding:2px 8px; cursor:pointer; background:#f6f7f7; border-right:1px solid #ccd0d4; user-select:none; }
@@ -152,11 +155,10 @@ class JPRM_Admin_MenuItem_Meta {
             .jprm-icon-ph-sm { width:24px; height:24px; border:1px dashed #ccd0d4; border-radius:3px; display:inline-flex; align-items:center; justify-content:center; color:#777; background:#fff; cursor:pointer; }
             .jprm-icon-ph-sm .dashicons { line-height:24px; }
 
-            .btn-link-icon { border:none; background:transparent; color:#b32d2e; width:28px; height:28px; cursor:pointer; }
-            .btn-link-icon:hover { color:#dc3232; background:#fbeaea; border-radius:3px; }
-
-            .btn-trash { border:none; background:transparent; width:32px; height:32px; color:#646970; cursor:pointer; }
-            .btn-trash:hover { color:#b32d2e; background:#fbeaea; border-radius:3px; }
+            /* keep amount from overflowing its cell */
+            #jprm-prices-table input.amount { width:7.5em !important; max-width:100% !important; }
+            #jprm-prices-table input.regular-text.small { width:7.5em !important; }
+            /* remove default huge width from .regular-text on amount only */
         </style>';
 
         echo '<div class="jprm-inline">';
@@ -198,10 +200,10 @@ class JPRM_Admin_MenuItem_Meta {
             <colgroup>
                 <col style="width:32px" />
                 <col /> <!-- Label auto -->
-                <col style="width:120px" />
+                <col style="width:96px" />
                 <col style="width:110px" />
-                <col style="width:56px" />
-                <col style="width:56px" />
+                <col style="width:48px" />
+                <col style="width:48px" />
             </colgroup>
             <thead>
                 <tr>
