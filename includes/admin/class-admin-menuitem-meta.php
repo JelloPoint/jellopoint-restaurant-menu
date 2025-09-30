@@ -34,12 +34,17 @@ class JPRM_Admin_MenuItem_Meta {
         wp_enqueue_script('jquery');
         if ( function_exists('wp_enqueue_media') ) wp_enqueue_media();
 
-        // Build script URL relative to plugin root
-        $plugin_root_dir = dirname(dirname(__FILE__)); // .../includes
-        $plugin_url      = plugin_dir_url($plugin_root_dir); // URL to plugin root
-        $src             = $plugin_url . 'assets/admin/menu-item-meta.js';
+        // Compute URLs RELIABLY from the plugin's main file.
+        // Assumes your main file lives at: plugin-root/jellopoint-restaurant-menu.php
+        $plugin_root_path = dirname(dirname(__FILE__)); // .../includes -> plugin root
+        $plugin_main_file = $plugin_root_path . '/jellopoint-restaurant-menu.php';
 
-        wp_enqueue_script('jprm-menu-item-meta', $src, ['jquery'], '1.0.4', true);
+        $js_rel   = 'assets/admin/menu-item-meta.js';
+        $js_src   = plugins_url($js_rel, $plugin_main_file);
+        $js_path  = $plugin_root_path . '/' . $js_rel;
+        $js_ver   = file_exists($js_path) ? (string) @filemtime($js_path) : '1.0.6';
+
+        wp_enqueue_script('jprm-menu-item-meta', $js_src, ['jquery'], $js_ver, true);
 
         // Labels with icon URLs for quick preview in Single Price (Predefined)
         $labels = class_exists('JPRM_Labels_Store') ? JPRM_Labels_Store::all() : [];
@@ -141,6 +146,19 @@ class JPRM_Admin_MenuItem_Meta {
         if (is_string($rows) && $rows !== '') $rows = json_decode($rows, true);
         if (!is_array($rows)) $rows = [];
 
+        // Resolve predefined icon URL on the server too (visible immediately)
+        $predef_icon_url = '';
+        if ($lm === 'ref' && $lref){
+            $labels = class_exists('JPRM_Labels_Store') ? JPRM_Labels_Store::all() : [];
+            foreach ($labels as $L){
+                if (isset($L['id']) && (string)$L['id'] === (string)$lref){
+                    $iid = isset($L['icon_id']) ? intval($L['icon_id']) : 0;
+                    if ($iid){ $predef_icon_url = wp_get_attachment_image_url($iid, 'thumbnail'); }
+                    break;
+                }
+            }
+        }
+
         echo '<table class="form-table"><tbody>';
 
         // Price Mode
@@ -183,9 +201,11 @@ class JPRM_Admin_MenuItem_Meta {
             // Icon preview + hidden id
             $custom_icon_id  = $icon;
             $custom_icon_url = $custom_icon_id ? esc_url( wp_get_attachment_image_url($custom_icon_id, 'thumbnail') ) : '';
+            // Prefer predefined icon when in 'ref' mode, else custom
+            $initial_icon_url = $lm === 'ref' ? $predef_icon_url : ($custom_icon_url ?: '');
             echo '<div id="jprm_single_icon_wrap" class="jprm-icon-wrap">';
                 echo '<div id="jprm_single_icon_preview" class="jprm-icon-preview">';
-                if ($custom_icon_url) { echo '<img src="'.$custom_icon_url.'" alt="" />'; }
+                if ($initial_icon_url) { echo '<img src="'.esc_url($initial_icon_url).'" alt="" />'; }
                 echo '</div>';
                 printf('<input type="hidden" id="jprm_price_label_icon_id" name="jprm_price_label_icon_id" value="%d" />', $custom_icon_id);
             echo '</div>';

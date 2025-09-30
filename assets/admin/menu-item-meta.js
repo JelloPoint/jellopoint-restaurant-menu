@@ -107,7 +107,7 @@
       $(this).hide();
     });
 
-    // If we have a pre-saved custom icon URL, render it
+    // If we have a pre-saved custom icon URL, render it (when page loads in custom mode)
     if (JPRM_META.single && JPRM_META.single.custom_icon_url){
       $('#jprm_single_icon_preview').html('<img src="'+JPRM_META.single.custom_icon_url+'" style="max-width:32px;height:auto;" alt="" />');
       $('.jprm-single-icon-clear').show();
