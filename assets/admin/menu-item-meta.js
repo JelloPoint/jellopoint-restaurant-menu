@@ -5,20 +5,16 @@
   if (!window.JPRM_META) return;
   var LABELS = Array.isArray(JPRM_META.labels) ? JPRM_META.labels : [];
 
-  function labelsMap(){
-    var m = {};
-    LABELS.forEach(function(L){ m[String(L.id||'')] = L; });
-    return m;
-  }
-  var LMAP = labelsMap();
+  // Build a map for quick lookups: id -> {label, icon_url, ...}
+  var LMAP = {};
+  LABELS.forEach(function(L){ LMAP[String(L.id||'')] = L; });
 
-  function buildLabelOptions(){
-    var $sel = $('<select/>');
-    $sel.append($('<option/>',{value:'', text:JPRM_META.i18n.select}));
+  function buildLabelOptionsHTML(){
+    var html = '<option value="">' + (JPRM_META.i18n.select || 'Select…') + '</option>';
     LABELS.forEach(function(L){
-      $sel.append($('<option/>',{value:String(L.id||''), text:L.label||''}));
+      html += '<option value="'+ String(L.id||'') +'">'+ (L.label||'') +'</option>';
     });
-    return $sel.html();
+    return html;
   }
 
   function syncMode(){
@@ -32,16 +28,16 @@
     }
   }
 
-  /* -------- Single Price (labels + icon) -------- */
+  /* ---------------- Single Price (labels + icon) ---------------- */
 
   var mediaFrame = null;
   function ensureFrame(){
     if (mediaFrame) return mediaFrame;
     mediaFrame = wp.media({
-      title: JPRM_META.i18n.selectIcon || 'Select Icon',
+      title: (JPRM_META.i18n && JPRM_META.i18n.selectIcon) || 'Select Icon',
       multiple: false,
       library: { type: 'image' },
-      button: { text: JPRM_META.i18n.selectIcon || 'Select Icon' }
+      button: { text: (JPRM_META.i18n && JPRM_META.i18n.selectIcon) || 'Select Icon' }
     });
     mediaFrame.on('select', function(){
       var file = mediaFrame.state().get('selection').first();
@@ -49,7 +45,7 @@
       var id  = file.get('id');
       var url = file.get('url');
       $('#jprm_price_label_icon_id').val(String(id));
-      $('#jprm_single_icon_preview').html('<img src="'+url+'" style="max-width:48px;height:auto;" alt="" />');
+      $('#jprm_single_icon_preview').html('<img src="'+url+'" style="max-width:32px;height:auto;" alt="" />');
       $('.jprm-single-icon-clear').show();
     });
     return mediaFrame;
@@ -58,21 +54,19 @@
   function singleIconSync(){
     var mode = $('#jprm_price_label_mode').val();
     if (mode === 'custom'){
-      // Custom → show upload/remove buttons; preview = custom icon (from hidden)
+      // Show custom controls; keep whatever preview user set
       $('#jprm_single_icon_actions').show();
-      var id  = $('#jprm_price_label_icon_id').val();
-      var has = id && String(id) !== '0';
-      $('.jprm-single-icon-clear').toggle(!!has);
-      // (preview is kept as-is; user can set via button)
+      var idVal = $('#jprm_price_label_icon_id').val();
+      $('.jprm-single-icon-clear').toggle(!!idVal && idVal !== '0' && idVal !== '');
     } else {
-      // Predefined → actions hidden; preview from label icon
+      // Predefined: show icon from selected label; hide custom controls
       $('#jprm_single_icon_actions').hide();
       var ref = $('#jprm_price_label_ref').val() || '';
       var L   = LMAP[ref];
       var url = (L && L.icon_url) ? L.icon_url : '';
       if (url){
-        $('#jprm_single_icon_preview').html('<img src="'+url+'" style="max-width:48px;height:auto;" alt="" />');
-      }else{
+        $('#jprm_single_icon_preview').html('<img src="'+url+'" style="max-width:32px;height:auto;" alt="" />');
+      } else {
         $('#jprm_single_icon_preview').empty();
       }
     }
@@ -82,7 +76,7 @@
     var $ref = $('#jprm_price_label_ref');
     if ($ref.length){
       var current = $ref.data('current') || '';
-      $ref.empty().append( buildLabelOptions() );
+      $ref.html( buildLabelOptionsHTML() );
       if (current){ $ref.val(String(current)); }
     }
 
@@ -101,7 +95,7 @@
     $('#jprm_price_label_mode').off('change.jprm').on('change.jprm', toggleCustomRef);
     $('#jprm_price_label_ref').off('change.jprm').on('change.jprm', singleIconSync);
 
-    // Icon buttons
+    // Icon buttons (Custom mode)
     $(document).off('click.jprmIconSel', '.jprm-single-icon-select').on('click.jprmIconSel', '.jprm-single-icon-select', function(e){
       e.preventDefault();
       ensureFrame().open();
@@ -113,16 +107,17 @@
       $(this).hide();
     });
 
-    // Initial state
-    // If we have a pre-saved custom icon, render it
+    // If we have a pre-saved custom icon URL, render it
     if (JPRM_META.single && JPRM_META.single.custom_icon_url){
-      $('#jprm_single_icon_preview').html('<img src="'+JPRM_META.single.custom_icon_url+'" style="max-width:48px;height:auto;" alt="" />');
+      $('#jprm_single_icon_preview').html('<img src="'+JPRM_META.single.custom_icon_url+'" style="max-width:32px;height:auto;" alt="" />');
       $('.jprm-single-icon-clear').show();
     }
+
+    // Initial state (sets proper visibility AND sets preview for predefined)
     toggleCustomRef();
   }
 
-  /* -------- Multiple Prices (unchanged) -------- */
+  /* ---------------- Multiple Prices (unchanged) ---------------- */
 
   function rowToObj($tr){
     return {
@@ -146,16 +141,14 @@
     if (lm === 'custom'){ $tr.find('input.label-custom').show(); $tr.find('select.label-ref').hide(); }
     else { $tr.find('input.label-custom').hide(); $tr.find('select.label-ref').show(); }
   }
-  function buildLabelOptionsHTML(){ return buildLabelOptions(); }
   function buildRowSelect($sel, current){
-    $sel.empty().append( buildLabelOptionsHTML() );
+    $sel.html( buildLabelOptionsHTML() );
     if (current){ $sel.val(String(current)); }
   }
   function initRows(){
     var $tb = $('#jprm-prices-table tbody');
     $tb.find('select.label-ref').each(function(){
-      var current = $(this).data('current') || '';
-      buildRowSelect($(this), current);
+      buildRowSelect($(this), $(this).data('current') || '');
     });
     $tb.find('tr').each(function(){ syncRowUI($(this)); });
     $tb.on('change', 'input,select', collect);
