@@ -6,9 +6,9 @@
  *      2) Pricing      (middle)
  *      3) Visibility & Badge (bottom)
  *
- * All critical UI (mode toggle, label switch, icon preview, multi rows) is
- * handled by a small inline script at the end of render_pricing(), so this
- * screen works even if the external JS is cached/missing.
+ * Critical UI (mode toggle, label switch, icon preview, multi rows) is handled
+ * by a tiny inline script in render_pricing(), so the screen works even if the
+ * external JS is cached/missing. We still enqueue a placeholder JS to avoid 404s.
  */
 if ( ! defined('ABSPATH') ) { exit; }
 
@@ -139,20 +139,47 @@ class JPRM_Admin_MenuItem_Meta {
 
         // Load labels server-side and build options now (no external JS dependency)
         $labels = class_exists('JPRM_Labels_Store') ? JPRM_Labels_Store::all() : [];
-        $label_options = '<option value="">'.esc_html__('Select…','jellopoint-restaurant-menu').'</option>';
-        $predef_icon_url = '';
-        foreach ($labels as $L){
+
+        // Helper to get a working URL even if thumbnail is missing
+        $get_icon_url = function( $attachment_id ) {
+            $sizes = ['thumbnail', 'medium', 'full'];
+            foreach ( $sizes as $size ) {
+                $src = wp_get_attachment_image_src( (int)$attachment_id, $size );
+                if ( is_array($src) && ! empty($src[0]) ) {
+                    return $src[0];
+                }
+            }
+            return '';
+        };
+
+        $label_options    = '<option value="">'.esc_html__('Select…','jellopoint-restaurant-menu').'</option>';
+        $predef_icon_url  = '';
+
+        foreach ( $labels as $L ) {
             $id   = isset($L['id']) ? (string)$L['id'] : '';
             $text = isset($L['label']) ? (string)$L['label'] : $id;
-            $iid  = isset($L['icon_id']) ? (int)$L['icon_id'] : 0;
-            $iurl = $iid ? wp_get_attachment_image_url($iid, 'thumbnail') : '';
+
+            // accept both icon_id and icon keys (legacy)
+            $iid  = 0;
+            if ( isset($L['icon_id']) ) {
+                $iid = (int)$L['icon_id'];
+            } elseif ( isset($L['icon']) ) {
+                $iid = (int)$L['icon'];
+            }
+
+            $iurl = $iid ? $get_icon_url($iid) : '';
             $sel  = selected($lref, $id, false);
+
+            // data-icon is what the JS reads for the preview
             $label_options .= '<option value="'.esc_attr($id).'" '.$sel.' data-icon="'.esc_attr($iurl).'">'.esc_html($text).'</option>';
-            if ($lm === 'ref' && $lref !== '' && $lref === $id){ $predef_icon_url = $iurl; }
+
+            if ( $lm === 'ref' && $lref !== '' && $lref === $id ) {
+                $predef_icon_url = $iurl;
+            }
         }
 
         // Resolve custom icon URL (if any)
-        $custom_icon_url = $icon ? wp_get_attachment_image_url($icon, 'thumbnail') : '';
+        $custom_icon_url = $icon ? $get_icon_url($icon) : '';
 
         // Prefer predefined preview in 'ref' mode, otherwise use custom (if any)
         $initial_icon_url = $lm === 'ref' ? $predef_icon_url : ($custom_icon_url ?: '');
