@@ -38,11 +38,11 @@ class JPRM_Admin_MenuItem_Meta {
         $rel  = 'assets/admin/menu-item-meta.js';
         $src  = plugins_url($rel, $plugin_main_file);
         $path = JPRM_PLUGIN_PATH . $rel;
-        $ver  = file_exists($path) ? (string) filemtime($path) : '1.1.0';
+        $ver  = file_exists($path) ? (string) filemtime($path) : '1.1.1';
 
         wp_enqueue_script('jprm-menu-item-meta', $src, ['jquery'], $ver, true);
 
-        // Optional localize (not required for inline script)
+        // Optional localize
         $labels = class_exists('JPRM_Labels_Store') ? JPRM_Labels_Store::all() : [];
         foreach ($labels as &$L){
             $iid = isset($L['icon_id']) ? intval($L['icon_id']) : (isset($L['icon']) ? intval($L['icon']) : 0);
@@ -173,7 +173,8 @@ class JPRM_Admin_MenuItem_Meta {
         echo '<style>
             .jprm-inline { display:flex; gap:8px; align-items:center; flex-wrap:nowrap; }
             .jprm-inline select, .jprm-inline input[type="text"] { max-width:220px; }
-            .jprm-inline .jprm-icon-preview img { max-width:32px; height:auto; display:block; }
+            /* IMPORTANT: give SVG a concrete width so it renders */
+            .jprm-inline .jprm-icon-preview img { width:32px; height:auto; display:block; }
             .jprm-inline .button, .jprm-inline .button-link { white-space:nowrap; }
         </style>';
 
@@ -190,7 +191,7 @@ class JPRM_Admin_MenuItem_Meta {
 
             echo '<div id="jprm_single_icon_wrap" class="jprm-icon-wrap">';
                 echo '<div id="jprm_single_icon_preview" class="jprm-icon-preview">';
-                if ($initial_icon_url) { echo '<img src="'.esc_url($initial_icon_url).'" alt="" />'; }
+                if ($initial_icon_url) { echo '<img src="'.esc_url($initial_icon_url).'" alt="" style="width:32px;height:auto;" />'; }
                 echo '</div>';
                 // Pass data-url so JS can render even if server didn’t print <img>
                 printf('<input type="hidden" id="jprm_price_label_icon_id" name="jprm_price_label_icon_id" value="%d" data-url="%s" />',
@@ -280,16 +281,15 @@ class JPRM_Admin_MenuItem_Meta {
                 if (mode === 'custom'){
                     var id  = $('#jprm_price_label_icon_id').val();
                     var url = $('#jprm_price_label_icon_id').data('url') || '';
-                    // If we have an ID and the preview is empty, try to render from data-url
                     if (id && id !== '0' && $('#jprm_single_icon_preview').is(':empty') && url){
-                        $('#jprm_single_icon_preview').html('<img src="'+url+'" style="max-width:32px;height:auto;" alt="" />');
+                        $('#jprm_single_icon_preview').html('<img src="'+url+'" style="width:32px;height:auto;" alt="" />');
                     }
                     $('.jprm-single-icon-clear').toggle(!!id && id !== '0');
                 } else {
                     var $opt = $('#jprm_price_label_ref').find('option:selected');
                     var url  = $opt.data('icon') || '';
                     if (url){
-                        $('#jprm_single_icon_preview').html('<img src="'+url+'" style="max-width:32px;height:auto;" alt="" />');
+                        $('#jprm_single_icon_preview').html('<img src="'+url+'" style="width:32px;height:auto;" alt="" />');
                     } else {
                         $('#jprm_single_icon_preview').empty();
                     }
@@ -310,7 +310,7 @@ class JPRM_Admin_MenuItem_Meta {
                     var id  = file.get('id');
                     var url = (file.get('sizes') && file.get('sizes').thumbnail && file.get('sizes').thumbnail.url) || file.get('url');
                     $('#jprm_price_label_icon_id').val(String(id)).attr('data-url', url || '');
-                    $('#jprm_single_icon_preview').html('<img src="'+(url||'')+'" style="max-width:32px;height:auto;" alt="" />');
+                    $('#jprm_single_icon_preview').html('<img src="'+(url||'')+'" style="width:32px;height:auto;" alt="" />');
                     $('.jprm-single-icon-clear').show();
                 });
                 return mediaFrame;
