@@ -78,7 +78,7 @@ final class Plugin {
             'show_ui'      => true,
             // prevent WordPress from auto-injecting submenus under our top-level
             'show_in_menu' => false,
-            'supports'     => [ 'title', 'editor', 'thumbnail', 'page-attributes' ],
+            'supports' => ['title', 'thumbnail', 'page-attributes'],
             'map_meta_cap' => true,
         ] );
 

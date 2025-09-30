@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin: Menu Item Meta (Price Mode + Single/Multiple UI + saving).
+ * Admin: Menu Item Meta (Pricing + Basics)
  */
 if ( ! defined('ABSPATH') ) { exit; }
 
@@ -12,6 +12,16 @@ class JPRM_Admin_MenuItem_Meta {
         add_action('add_meta_boxes', [__CLASS__, 'register_metabox']);
         add_action('save_post_jprm_menu_item', [__CLASS__, 'save'], 10, 2);
         add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue']);
+        // As a safety net, hide the core editor if CPT still has 'editor' support.
+        add_action('admin_head', [__CLASS__, 'hide_core_editor']);
+    }
+
+    public static function hide_core_editor(){
+        $scr = function_exists('get_current_screen') ? get_current_screen() : null;
+        if ( $scr && $scr->post_type === 'jprm_menu_item' ){
+            // Hide classic editor canvas and "Add Media" if somehow present.
+            echo '<style>#postdivrich, #wp-content-media-buttons{display:none!important;}</style>';
+        }
     }
 
     public static function enqueue($hook){
@@ -21,12 +31,12 @@ class JPRM_Admin_MenuItem_Meta {
         wp_enqueue_script('jquery');
         if ( function_exists('wp_enqueue_media') ) wp_enqueue_media();
 
-        // Build script URL relative to plugin root
+        // Build script URL relative to plugin root (robust if includes/ changes).
         $plugin_root_dir = dirname(dirname(__FILE__)); // .../includes
         $plugin_url      = plugin_dir_url($plugin_root_dir); // URL to plugin root
         $src             = $plugin_url . 'assets/admin/menu-item-meta.js';
 
-        wp_enqueue_script('jprm-menu-item-meta', $src, ['jquery'], '1.0.2', true);
+        wp_enqueue_script('jprm-menu-item-meta', $src, ['jquery'], '1.0.3', true);
 
         $labels = class_exists('JPRM_Labels_Store') ? JPRM_Labels_Store::all() : [];
         wp_localize_script('jprm-menu-item-meta', 'JPRM_META', [
@@ -50,9 +60,7 @@ class JPRM_Admin_MenuItem_Meta {
     }
 
     public static function register_metabox(){
-        // Purge any legacy JPRM boxes to avoid duplicates
-        self::purge_legacy_boxes();
-        // Remove the old box if still present (prevents duplicates while cleaning)
+        // Remove a known legacy box ID if still registered (prevents duplicates).
         remove_meta_box('jprm_menu_item_settings', 'jprm_menu_item', 'normal');
 
         add_meta_box(
@@ -65,26 +73,15 @@ class JPRM_Admin_MenuItem_Meta {
         );
     }
 
-
-    private static function purge_legacy_boxes(){
-        global $wp_meta_boxes;
-        $contexts = array('normal','advanced','side');
-        foreach ($contexts as $ctx){
-            if ( isset($wp_meta_boxes['jprm_menu_item'][$ctx]['default']) ){
-                foreach ($wp_meta_boxes['jprm_menu_item'][$ctx]['default'] as $box_id => $box ){
-                    if ($box_id !== 'jprm_price_meta' && strpos($box_id, 'jprm_') === 0){
-                        remove_meta_box($box_id, 'jprm_menu_item', $ctx);
-                    }
-                }
-            }
-        }
-        // Also  remove a known legacy id explicitly
-        remove_meta_box('jprm_menu_item_settings', 'jprm_menu_item', 'normal');
-    }
-
     public static function render($post){
         wp_nonce_field('jprm_meta', 'jprm_meta_nonce');
 
+        // Basics
+        $desc   = get_post_meta($post->ID, 'jprm_desc', true);
+        $badge  = get_post_meta($post->ID, 'jprm_badge', true);
+        $vis    = get_post_meta($post->ID, 'jprm_visible', true) === 'yes';
+
+        // Pricing
         $mode   = get_post_meta($post->ID, 'jprm_price_mode', true) ?: 'single';
         $amount = get_post_meta($post->ID, 'jprm_price_amount', true);
         $lm     = get_post_meta($post->ID, 'jprm_price_label_mode', true) ?: 'ref';
@@ -96,6 +93,29 @@ class JPRM_Admin_MenuItem_Meta {
 
         echo '<table class="form-table"><tbody>';
 
+        // Short Description
+        echo '<tr><th><label for="jprm_desc">'.esc_html__('Short Description','jellopoint-restaurant-menu').'</label></th><td>';
+        printf('<textarea id="jprm_desc" name="jprm_desc" rows="3" style="width:100%%;">%s</textarea>', esc_textarea($desc));
+        echo '</td></tr>';
+
+        // Badge Text
+        echo '<tr><th><label for="jprm_badge">'.esc_html__('Badge Text','jellopoint-restaurant-menu').'</label></th><td>';
+        printf('<input type="text" id="jprm_badge" name="jprm_badge" value="%s" class="regular-text" placeholder="%s" />',
+            esc_attr($badge), esc_attr__('e.g. Chef’s choice','jellopoint-restaurant-menu'));
+        echo '</td></tr>';
+
+        // Visible
+        echo '<tr><th><label for="jprm_visible">'.esc_html__('Visible','jellopoint-restaurant-menu').'</label></th><td>';
+        printf('<label><input type="checkbox" id="jprm_visible" name="jprm_visible" value="yes" %s> %s</label>',
+            checked($vis, true, false),
+            esc_html__('Show this item on the site','jellopoint-restaurant-menu')
+        );
+        echo '</td></tr>';
+
+        // Divider
+        echo '<tr><td colspan="2"><hr /></td></tr>';
+
+        // Price Mode
         echo '<tr><th><label>'.esc_html__('Price Mode','jellopoint-restaurant-menu').'</label></th><td>';
         echo '<label><input type="radio" name="jprm_price_mode" value="single" '.checked($mode,'single',false).'> '.esc_html__('Single Price','jellopoint-restaurant-menu').'</label> &nbsp; ';
         echo '<label><input type="radio" name="jprm_price_mode" value="multi"  '.checked($mode,'multi', false).'> '.esc_html__('Multiple Prices','jellopoint-restaurant-menu').'</label>';
@@ -166,6 +186,16 @@ class JPRM_Admin_MenuItem_Meta {
         if ( defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) return;
         if ( ! current_user_can('edit_post', $post_id) ) return;
 
+        // Basics
+        $desc  = isset($_POST['jprm_desc']) ? wp_kses_post($_POST['jprm_desc']) : '';
+        $badge = sanitize_text_field( $_POST['jprm_badge'] ?? '' );
+        $vis   = isset($_POST['jprm_visible']) && $_POST['jprm_visible'] === 'yes' ? 'yes' : 'no';
+
+        update_post_meta($post_id, 'jprm_desc', $desc);
+        update_post_meta($post_id, 'jprm_badge', $badge);
+        update_post_meta($post_id, 'jprm_visible', $vis);
+
+        // Pricing
         $mode = ($_POST['jprm_price_mode'] ?? 'single') === 'multi' ? 'multi' : 'single';
         update_post_meta($post_id, 'jprm_price_mode', $mode);
 
@@ -184,6 +214,10 @@ class JPRM_Admin_MenuItem_Meta {
                 $cus = sanitize_text_field( $_POST['jprm_price_label_custom'] ?? '' );
                 update_post_meta($post_id, 'jprm_price_label_custom', $cus );
                 delete_post_meta($post_id, 'jprm_price_label_ref');
+            }
+            // Clean multi if switching from multi to single
+            if ( isset($_POST['jprm_prices']) === false ) {
+                delete_post_meta($post_id, 'jprm_prices');
             }
         } else {
             $json = $_POST['jprm_prices'] ?? '[]';
@@ -205,6 +239,7 @@ class JPRM_Admin_MenuItem_Meta {
                     update_post_meta($post_id, 'jprm_prices', wp_json_encode($out));
                 }
             }
+            // Clean single fields if in multi mode
             delete_post_meta($post_id, 'jprm_price_amount');
             delete_post_meta($post_id, 'jprm_price_label_mode');
             delete_post_meta($post_id, 'jprm_price_label_ref');
