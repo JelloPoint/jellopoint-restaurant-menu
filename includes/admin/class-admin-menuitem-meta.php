@@ -2,15 +2,17 @@
 /**
  * Admin: Menu Item Meta
  *  - Meta boxes:
- *      1) Description  (top)
- *      2) Pricing      (middle)
- *      3) Visibility & Badge (bottom)
+ *      1) Description
+ *      2) Pricing
+ *      3) Visibility & Badge
  *
- * Multiple Prices table:
- *   ✓ compact inline UI
- *   ✓ Predefined/Custom pill switch per row
- *   ✓ 24px icon preview + icon-only Select/Remove buttons
- *   ✓ robust save/load
+ * Multiple Prices (compact):
+ *   - Preset/Custom pill switch per row (inline)
+ *   - 24px icon preview (explicit width → SVG renders)
+ *   - Click preview/placeholder to select icon (Custom mode)
+ *   - Small × clears icon (Custom mode)
+ *   - Trash icon removes row
+ *   - Robust save/load (no losing labels after save)
  */
 if ( ! defined('ABSPATH') ) { exit; }
 
@@ -39,18 +41,17 @@ class JPRM_Admin_MenuItem_Meta {
         wp_enqueue_script('jquery');
         if ( function_exists('wp_enqueue_media') ) wp_enqueue_media();
 
-        // Keep path correct to avoid 404s in console.
+        // Keep your external admin JS enqueued (bump ver to bust cache if needed)
         $plugin_main_file = JPRM_PLUGIN_PATH . 'jellopoint-restaurant-menu.php';
         $rel  = 'assets/admin/menu-item-meta.js';
         $src  = plugins_url($rel, $plugin_main_file);
         $path = JPRM_PLUGIN_PATH . $rel;
-        $ver  = file_exists($path) ? (string) filemtime($path) : '1.3.0';
-
+        $ver  = file_exists($path) ? (string) filemtime($path) : '1.3.2';
         wp_enqueue_script('jprm-menu-item-meta', $src, ['jquery'], $ver, true);
     }
 
     public static function register_metaboxes(){
-        // Prevent legacy duplicates
+        // Remove legacy to avoid duplicates
         remove_meta_box('jprm_menu_item_settings', 'jprm_menu_item', 'normal');
 
         add_meta_box(
@@ -96,7 +97,7 @@ class JPRM_Admin_MenuItem_Meta {
     }
 
     public static function render_pricing($post){
-        // Current values
+        // Current values (single)
         $mode   = get_post_meta($post->ID, 'jprm_price_mode', true) ?: 'single';
         $amount = get_post_meta($post->ID, 'jprm_price_amount', true);
 
@@ -110,9 +111,8 @@ class JPRM_Admin_MenuItem_Meta {
         if (is_string($rows) && $rows !== '') $rows = json_decode($rows, true);
         if (!is_array($rows)) $rows = [];
 
-        // Labels list (server-side)
+        // Labels (predefined)
         $labels = class_exists('JPRM_Labels_Store') ? JPRM_Labels_Store::all() : [];
-        // Build quick lookup maps
         $label_map = []; // id => ['text'=>, 'icon_id'=>]
         foreach ($labels as $L){
             $label_map[ (string)($L['id'] ?? '') ] = [
@@ -121,27 +121,25 @@ class JPRM_Admin_MenuItem_Meta {
             ];
         }
 
-        // Robust URL resolver (handles SVG): thumb → medium → full → attachment_url
+        // SVG-safe URL resolver
         $get_icon_url = function( $attachment_id ) {
             $sizes = ['thumbnail', 'medium', 'full'];
             foreach ( $sizes as $size ) {
                 $src = wp_get_attachment_image_src( (int)$attachment_id, $size );
-                if ( is_array($src) && ! empty($src[0]) ) {
-                    return $src[0];
-                }
+                if ( is_array($src) && ! empty($src[0]) ) return $src[0];
             }
             $fallback = wp_get_attachment_url( (int)$attachment_id );
             return $fallback ? $fallback : '';
         };
 
-        // Predefined options HTML with data-icon
-        $label_options = '<option value="">'.esc_html__('Select…','jellopoint-restaurant-menu').'</option>';
+        // Build options for SINGLE preset select
+        $single_options = '<option value="">'.esc_html__('Select…','jellopoint-restaurant-menu').'</option>';
         $predef_icon_url = '';
         foreach ($label_map as $id => $info){
             $text = $info['text'] ?: $id;
             $iurl = $info['icon_id'] ? $get_icon_url($info['icon_id']) : '';
             $sel  = selected($lref, $id, false);
-            $label_options .= '<option value="'.esc_attr($id).'" '.$sel.' data-icon="'.esc_attr($iurl).'">'.esc_html($text).'</option>';
+            $single_options .= '<option value="'.esc_attr($id).'" '.$sel.' data-icon="'.esc_attr($iurl).'">'.esc_html($text).'</option>';
             if ($lm === 'ref' && $lref === $id) $predef_icon_url = $iurl;
         }
 
@@ -167,26 +165,36 @@ class JPRM_Admin_MenuItem_Meta {
         echo '<tr class="jprm-block-single"><th><label>'.esc_html__('Price Label','jellopoint-restaurant-menu').'</label></th><td>';
 
         echo '<style>
-            .jprm-inline { display:flex; gap:8px; align-items:center; flex-wrap:nowrap; }
+            .jprm-inline { display:inline-flex; gap:8px; align-items:center; flex-wrap:nowrap; }
             .jprm-inline select, .jprm-inline input[type="text"] { max-width:220px; }
             .jprm-inline .jprm-icon-preview img { width:32px; height:auto; display:block; } /* explicit width → SVG ok */
             .jprm-inline .button, .jprm-inline .button-link { white-space:nowrap; }
+
             /* Multiple table compact layout */
             #jprm-prices-table .small { width:110px; }
-            #jprm-prices-table .label-cell { min-width:280px; }
-            #jprm-prices-table .icon-col { width:160px; }
-            .jprm-icon-cell { display:flex; align-items:center; gap:8px; }
-            .jprm-icon-cell .jprm-row-icon-preview img { width:24px; height:auto; display:block; }
+            #jprm-prices-table .label-cell { min-width:360px; }
+            #jprm-prices-table .icon-col { width:150px; }
+            #jprm-prices-table td, #jprm-prices-table th { vertical-align:middle; }
+
             .jprm-mode-switch { display:inline-flex; border:1px solid #ccd0d4; border-radius:4px; overflow:hidden; }
-            .jprm-pill { padding:2px 8px; cursor:pointer; background:#f6f7f7; border-right:1px solid #ccd0d4; }
+            .jprm-pill { padding:2px 8px; cursor:pointer; background:#f6f7f7; border-right:1px solid #ccd0d4; user-select:none; }
             .jprm-pill:last-child { border-right:none; }
             .jprm-pill.active { background:#2271b1; color:#fff; }
-            .jprm-pill:focus { outline:1px solid #2271b1; }
-            .btn-icon { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border:1px solid #ccd0d4; border-radius:3px; background:#fff; }
-            .btn-icon .dashicons { line-height:28px; }
-            .btn-icon:hover { background:#f6f7f7; }
+
+            .label-td .inline-field { display:inline-flex; gap:8px; align-items:center; }
+            .label-td select.label-ref { max-width:220px; }
+            .label-td input.label-custom { max-width:220px; }
+
+            .jprm-icon-cell { display:inline-flex; align-items:center; gap:8px; }
+            .jprm-row-icon-preview img { width:24px; height:auto; display:block; }
+            .jprm-icon-ph { width:24px; height:24px; border:1px dashed #ccd0d4; border-radius:3px; display:inline-flex; align-items:center; justify-content:center; color:#777; background:#fff; cursor:pointer; }
+            .jprm-icon-ph .dashicons { line-height:24px; }
+
             .btn-link-icon { border:none; background:transparent; color:#b32d2e; height:28px; width:28px; }
             .btn-link-icon:hover { color:#dc3232; background:#fbeaea; border-radius:3px; }
+
+            .btn-trash { border:none; background:transparent; width:32px; height:32px; color:#646970; cursor:pointer; }
+            .btn-trash:hover { color:#b32d2e; background:#fbeaea; border-radius:3px; }
         </style>';
 
         echo '<div class="jprm-inline">';
@@ -197,12 +205,12 @@ class JPRM_Admin_MenuItem_Meta {
 
             // Pills
             echo '<div class="jprm-mode-switch" id="jprm_single_mode_switch">';
-            echo '<span class="jprm-pill '.($lm==='ref'?'active':'').'" data-mode="ref">'.esc_html__('Predefined','jellopoint-restaurant-menu').'</span>';
+            echo '<span class="jprm-pill '.($lm==='ref'?'active':'').'" data-mode="ref">'.esc_html__('Preset','jellopoint-restaurant-menu').'</span>';
             echo '<span class="jprm-pill '.($lm==='custom'?'active':'').'" data-mode="custom">'.esc_html__('Custom','jellopoint-restaurant-menu').'</span>';
             echo '</div>';
 
-            // Predefined dropdown
-            echo '<select id="jprm_price_label_ref" name="jprm_price_label_ref">'.$label_options.'</select> ';
+            // Preset dropdown
+            echo '<select id="jprm_price_label_ref" name="jprm_price_label_ref">'.$single_options.'</select> ';
 
             // Custom text
             printf('<input type="text" id="jprm_price_label_custom" name="jprm_price_label_custom" value="%s" class="regular-text" placeholder="%s" />',
@@ -210,16 +218,19 @@ class JPRM_Admin_MenuItem_Meta {
 
             // Icon preview + hidden id
             echo '<div id="jprm_single_icon_wrap" class="jprm-icon-wrap">';
-                echo '<div id="jprm_single_icon_preview" class="jprm-icon-preview">';
-                if ($initial_icon_url) { echo '<img src="'.esc_url($initial_icon_url).'" alt="" style="width:32px;height:auto;" />'; }
+                echo '<div id="jprm_single_icon_preview" class="jprm-icon-preview" title="'.esc_attr__('Change icon','jellopoint-restaurant-menu').'" style="cursor:pointer;">';
+                if ($initial_icon_url) {
+                    echo '<img src="'.esc_url($initial_icon_url).'" alt="" />';
+                } else {
+                    echo '<span class="jprm-icon-ph" title="'.esc_attr__('Select icon','jellopoint-restaurant-menu').'"><span class="dashicons dashicons-format-image"></span></span>';
+                }
                 echo '</div>';
                 printf('<input type="hidden" id="jprm_price_label_icon_id" name="jprm_price_label_icon_id" value="%d" data-url="%s" />',
                     $icon, esc_attr($custom_icon_url));
             echo '</div>';
 
-            // Icon actions (only for Custom)
+            // Clear (only for Custom)
             echo '<div id="jprm_single_icon_actions" class="jprm-icon-actions" style="'.($lm==='custom' ? '' : 'display:none;').'">';
-                echo '<button type="button" class="btn-icon jprm-single-icon-select" aria-label="'.esc_attr__('Select Icon','jellopoint-restaurant-menu').'"><span class="dashicons dashicons-format-image"></span></button> ';
                 echo '<button type="button" class="btn-link-icon jprm-single-icon-clear" aria-label="'.esc_attr__('Remove Icon','jellopoint-restaurant-menu').'" style="'.($icon ? '' : 'display:none;').'"><span class="dashicons dashicons-no-alt"></span></button>';
             echo '</div>';
         echo '</div>';
@@ -232,19 +243,18 @@ class JPRM_Admin_MenuItem_Meta {
         <table class="widefat fixed striped" id="jprm-prices-table">
             <thead>
                 <tr>
-                    <th style="width:4%"></th>
+                    <th style="width:32px;"></th>
                     <th class="label-cell"><?php echo esc_html__('Label','jellopoint-restaurant-menu'); ?></th>
                     <th class="small"><?php echo esc_html__('Amount','jellopoint-restaurant-menu'); ?></th>
                     <th class="icon-col"><?php echo esc_html__('Icon','jellopoint-restaurant-menu'); ?></th>
                     <th style="width:70px;"><?php echo esc_html__('Hide','jellopoint-restaurant-menu'); ?></th>
-                    <th style="width:90px;"><?php echo esc_html__('Actions','jellopoint-restaurant-menu'); ?></th>
+                    <th style="width:60px;"><?php echo esc_html__('Actions','jellopoint-restaurant-menu'); ?></th>
                 </tr>
             </thead>
             <tbody>
                 <?php
-                $row_index = 0;
                 foreach ($rows as $r) :
-                    // Populate defaults for legacy rows
+                    // Defaults for legacy rows
                     $en    = array_key_exists('enabled',$r) ? !empty($r['enabled']) : true;
                     $lmd   = ($r['label_mode'] ?? 'ref') === 'custom' ? 'custom' : 'ref';
                     $lrf   = $r['label_ref']    ?? '';
@@ -253,43 +263,35 @@ class JPRM_Admin_MenuItem_Meta {
                     $hide  = !empty($r['hide_icon']);
                     $rid   = isset($r['icon_id']) ? (int)$r['icon_id'] : 0;
 
-                    // Resolve predefined icon (if any)
+                    // Build options for THIS row (with selected)
+                    $row_options = '<option value="">'.esc_html__('Select…','jellopoint-restaurant-menu').'</option>';
                     $pred_url = '';
-                    if ($lmd === 'ref' && $lrf && isset($label_map[$lrf])) {
-                        $pred_url = $label_map[$lrf]['icon_id'] ? $get_icon_url($label_map[$lrf]['icon_id']) : '';
+                    foreach ($label_map as $id => $info){
+                        $text = $info['text'] ?: $id;
+                        $iurl = $info['icon_id'] ? $get_icon_url($info['icon_id']) : '';
+                        $sel  = selected($lrf, $id, false);
+                        $row_options .= '<option value="'.esc_attr($id).'" '.$sel.' data-icon="'.esc_attr($iurl).'">'.esc_html($text).'</option>';
+                        if ($lmd==='ref' && $lrf === $id) $pred_url = $iurl;
                     }
-                    // Resolve custom icon (if any)
                     $cust_url = $rid ? $get_icon_url($rid) : '';
-
-                    $row_index++;
                 ?>
                 <tr>
                     <td><input type="checkbox" class="enable" <?php checked($en, true); ?> /></td>
 
                     <td class="label-td">
-                        <!-- hidden select keeps data model simple -->
                         <select class="label-mode" style="display:none;">
                             <option value="ref"   <?php selected($lmd,'ref'); ?>>ref</option>
                             <option value="custom"<?php selected($lmd,'custom'); ?>>custom</option>
                         </select>
 
-                        <!-- pills -->
                         <div class="jprm-mode-switch">
-                            <span class="jprm-pill <?php echo $lmd==='ref'?'active':''; ?>" data-mode="ref"><?php echo esc_html__('Predefined','jellopoint-restaurant-menu'); ?></span>
+                            <span class="jprm-pill <?php echo $lmd==='ref'?'active':''; ?>" data-mode="ref"><?php echo esc_html__('Preset','jellopoint-restaurant-menu'); ?></span>
                             <span class="jprm-pill <?php echo $lmd==='custom'?'active':''; ?>" data-mode="custom"><?php echo esc_html__('Custom','jellopoint-restaurant-menu'); ?></span>
                         </div>
 
-                        <!-- inline field area -->
                         <span class="inline-field">
                             <select class="label-ref" <?php echo $lmd==='ref' ? '' : 'style="display:none;"'; ?>>
-                                <?php
-                                // Build options again but ensure current selected
-                                echo str_replace(
-                                    ' value="'.esc_attr($lrf).'" ',
-                                    ' value="'.esc_attr($lrf).'" selected ',
-                                    $label_options
-                                );
-                                ?>
+                                <?php echo $row_options; ?>
                             </select>
                             <input type="text" class="label-custom regular-text" value="<?php echo esc_attr($lct); ?>" placeholder="<?php echo esc_attr__('Custom label','jellopoint-restaurant-menu'); ?>" <?php echo $lmd==='custom' ? '' : 'style="display:none;"'; ?> />
                         </span>
@@ -298,23 +300,24 @@ class JPRM_Admin_MenuItem_Meta {
                     <td><input type="text" class="amount regular-text small" value="<?php echo esc_attr($amt); ?>" placeholder="€ 7,50" /></td>
 
                     <td class="jprm-icon-cell">
-                        <div class="jprm-row-icon-preview">
+                        <div class="jprm-row-icon-preview" title="<?php echo esc_attr__('Change icon','jellopoint-restaurant-menu'); ?>" style="cursor:pointer;">
                             <?php if ($lmd==='ref' && $pred_url): ?>
-                                <img src="<?php echo esc_url($pred_url); ?>" alt="" style="width:24px;height:auto;" />
+                                <img src="<?php echo esc_url($pred_url); ?>" alt="" />
                             <?php elseif ($lmd==='custom' && $cust_url): ?>
-                                <img src="<?php echo esc_url($cust_url); ?>" alt="" style="width:24px;height:auto;" />
+                                <img src="<?php echo esc_url($cust_url); ?>" alt="" />
+                            <?php else: ?>
+                                <span class="jprm-icon-ph" title="<?php echo esc_attr__('Select icon','jellopoint-restaurant-menu'); ?>"><span class="dashicons dashicons-format-image"></span></span>
                             <?php endif; ?>
                         </div>
                         <input type="hidden" class="icon-id" value="<?php echo esc_attr($rid); ?>" data-url="<?php echo esc_attr($cust_url); ?>" />
-                        <div class="jprm-row-icon-actions" <?php echo $lmd==='custom' ? '' : 'style="display:none;"'; ?>>
-                            <button type="button" class="btn-icon jprm-row-icon-select" aria-label="<?php echo esc_attr__('Select Icon','jellopoint-restaurant-menu'); ?>"><span class="dashicons dashicons-format-image"></span></button>
-                            <button type="button" class="btn-link-icon jprm-row-icon-clear" aria-label="<?php echo esc_attr__('Remove Icon','jellopoint-restaurant-menu'); ?>" <?php echo $rid ? '' : 'style="display:none;"'; ?>><span class="dashicons dashicons-no-alt"></span></button>
-                        </div>
+                        <button type="button" class="btn-link-icon jprm-row-icon-clear" aria-label="<?php echo esc_attr__('Remove Icon','jellopoint-restaurant-menu'); ?>" <?php echo ($lmd==='custom' && $rid) ? '' : 'style="display:none;"'; ?>><span class="dashicons dashicons-no-alt"></span></button>
                     </td>
 
                     <td style="text-align:center;"><input type="checkbox" class="hide-icon" <?php checked($hide, true); ?> /></td>
 
-                    <td><a href="#" class="button button-secondary jprm-row-remove"><?php echo esc_html__('Remove','jellopoint-restaurant-menu'); ?></a></td>
+                    <td>
+                        <button type="button" class="btn-trash jprm-row-remove" aria-label="<?php echo esc_attr__('Remove row','jellopoint-restaurant-menu'); ?>"><span class="dashicons dashicons-trash"></span></button>
+                    </td>
                 </tr>
                 <?php endforeach; ?>
             </tbody>
@@ -326,11 +329,11 @@ class JPRM_Admin_MenuItem_Meta {
 
         echo '</tbody></table>';
 
-        // Inline JS
+        // Inline JS (compact + persistent)
         ?>
         <script>
         (function($){
-            /* ---------- Single (unchanged behavior) ---------- */
+            /* ---------- Single (unchanged behavior + pill switch) ---------- */
             function setModeUI(){
                 var mode = $('input[name="jprm_price_mode"]:checked').val() || 'single';
                 if (mode === 'single'){ $('.jprm-block-single').show(); $('.jprm-block-multi').hide(); }
@@ -351,24 +354,22 @@ class JPRM_Admin_MenuItem_Meta {
                 }
                 refreshSingleIcon();
             }
-            function toggleSingleControls(){ setSingleMode($('#jprm_price_label_mode').val()); }
             function refreshSingleIcon(){
                 var mode = $('#jprm_price_label_mode').val();
                 if (mode === 'custom'){
                     var id  = $('#jprm_price_label_icon_id').val();
                     var url = $('#jprm_price_label_icon_id').data('url') || '';
-                    if (id && id !== '0' && $('#jprm_single_icon_preview').is(':empty') && url){
-                        $('#jprm_single_icon_preview').html('<img src="'+url+'" style="width:32px;height:auto;" alt="" />');
+                    if (id && id !== '0' && url){
+                        $('#jprm_single_icon_preview').html('<img src="'+url+'" alt="" />');
+                    } else {
+                        $('#jprm_single_icon_preview').html('<span class="jprm-icon-ph"><span class="dashicons dashicons-format-image"></span></span>');
                     }
                     $('.jprm-single-icon-clear').toggle(!!id && id !== '0');
                 } else {
                     var $opt = $('#jprm_price_label_ref').find('option:selected');
                     var url  = $opt.data('icon') || '';
-                    if (url){
-                        $('#jprm_single_icon_preview').html('<img src="'+url+'" style="width:32px;height:auto;" alt="" />');
-                    } else {
-                        $('#jprm_single_icon_preview').empty();
-                    }
+                    if (url){ $('#jprm_single_icon_preview').html('<img src="'+url+'" alt="" />'); }
+                    else { $('#jprm_single_icon_preview').empty(); }
                 }
             }
             var singleFrame = null;
@@ -380,7 +381,7 @@ class JPRM_Admin_MenuItem_Meta {
                     var id  = file.get('id');
                     var url = (file.get('sizes') && file.get('sizes').thumbnail && file.get('sizes').thumbnail.url) || file.get('url');
                     $('#jprm_price_label_icon_id').val(String(id)).attr('data-url', url || '');
-                    $('#jprm_single_icon_preview').html('<img src="'+(url||'')+'" style="width:32px;height:auto;" alt="" />');
+                    $('#jprm_single_icon_preview').html('<img src="'+(url||'')+'" alt="" />');
                     $('.jprm-single-icon-clear').show();
                 });
                 return singleFrame;
@@ -407,39 +408,47 @@ class JPRM_Admin_MenuItem_Meta {
                 $tr.find('select.label-mode').val(mode);
                 $tr.find('.jprm-pill').removeClass('active');
                 $tr.find('.jprm-pill[data-mode="'+mode+'"]').addClass('active');
+
                 if (mode === 'custom'){
                     $tr.find('input.label-custom').show();
                     $tr.find('select.label-ref').hide();
-                    $tr.find('.jprm-row-icon-actions').show();
-                    // show existing custom icon preview if available
+                    $tr.find('.jprm-row-icon-clear').show();
+                    // Show custom preview or placeholder
                     var id  = $tr.find('input.icon-id').val();
                     var url = $tr.find('input.icon-id').data('url') || '';
-                    if (id && id !== '0' && $tr.find('.jprm-row-icon-preview').is(':empty') && url){
-                        $tr.find('.jprm-row-icon-preview').html('<img src="'+url+'" style="width:24px;height:auto;" alt="" />');
+                    if (id && id !== '0' && url){
+                        $tr.find('.jprm-row-icon-preview').html('<img src="'+url+'" alt="" />');
+                    } else {
+                        $tr.find('.jprm-row-icon-preview').html('<span class="jprm-icon-ph"><span class="dashicons dashicons-format-image"></span></span>');
                     }
-                    $tr.find('.jprm-row-icon-clear').toggle(!!id && id !== '0');
                 } else {
                     $tr.find('input.label-custom').hide();
                     $tr.find('select.label-ref').show();
-                    $tr.find('.jprm-row-icon-actions').hide();
+                    // icon preview from preset (no clear in preset mode)
                     var $opt = $tr.find('select.label-ref option:selected');
                     var url  = $opt.data('icon') || '';
-                    if (url){ $tr.find('.jprm-row-icon-preview').html('<img src="'+url+'" style="width:24px;height:auto;" alt="" />'); }
-                    else { $tr.find('.jprm-row-icon-preview').empty(); }
+                    if (url){ $tr.find('.jprm-row-icon-preview').html('<img src="'+url+'" alt="" />'); }
+                    else { $tr.find('.jprm-row-icon-preview').html(''); }
+                    $tr.find('.jprm-row-icon-clear').hide();
                 }
                 collectMulti();
             }
             function attachRowHandlers($tr){
                 // pill clicks
-                $tr.on('click', '.jprm-pill', function(){
-                    setRowMode($tr, $(this).data('mode'));
-                });
-                // predefined change
+                $tr.on('click', '.jprm-pill', function(){ setRowMode($tr, $(this).data('mode')); });
+                // preset change
                 $tr.on('change', 'select.label-ref', function(){
                     var url  = $(this).find('option:selected').data('icon') || '';
-                    if (url){ $tr.find('.jprm-row-icon-preview').html('<img src="'+url+'" style="width:24px;height:auto;" alt="" />'); }
+                    if (url){ $tr.find('.jprm-row-icon-preview').html('<img src="'+url+'" alt="" />'); }
                     else { $tr.find('.jprm-row-icon-preview').empty(); }
                     collectMulti();
+                });
+                // click preview/placeholder → open media only in custom mode
+                $tr.on('click', '.jprm-row-icon-preview', function(e){
+                    if ($tr.find('select.label-mode').val() !== 'custom') return;
+                    e.preventDefault();
+                    activeRow = $tr;
+                    ensureRowFrame().open();
                 });
                 // any input change
                 $tr.on('change keyup', 'input,select', function(){ collectMulti(); });
@@ -456,7 +465,7 @@ class JPRM_Admin_MenuItem_Meta {
                     var id  = file.get('id');
                     var url = (file.get('sizes') && file.get('sizes').thumbnail && file.get('sizes').thumbnail.url) || file.get('url');
                     activeRow.find('input.icon-id').val(String(id)).attr('data-url', url || '');
-                    activeRow.find('.jprm-row-icon-preview').html('<img src="'+(url||'')+'" style="width:24px;height:auto;" alt="" />');
+                    activeRow.find('.jprm-row-icon-preview').html('<img src="'+(url||'')+'" alt="" />');
                     activeRow.find('.jprm-row-icon-clear').show();
                     collectMulti();
                     activeRow = null;
@@ -464,7 +473,21 @@ class JPRM_Admin_MenuItem_Meta {
                 return rowFrame;
             }
 
-            // Init on ready
+            // Single icon click (only in custom mode)
+            $('#jprm_single_icon_preview').on('click', function(e){
+                if ($('#jprm_price_label_mode').val() !== 'custom') return;
+                e.preventDefault(); ensureSingleFrame().open();
+            });
+
+            // Clear icon (single)
+            $(document).on('click', '.jprm-single-icon-clear', function(e){
+                e.preventDefault();
+                $('#jprm_price_label_icon_id').val('0').attr('data-url','');
+                $('#jprm_single_icon_preview').html('<span class="jprm-icon-ph"><span class="dashicons dashicons-format-image"></span></span>');
+                $(this).hide();
+            });
+
+            // Init editor
             $(function(){
                 // Single
                 $('input[name="jprm_price_mode"]').on('change', setModeUI);
@@ -476,34 +499,20 @@ class JPRM_Admin_MenuItem_Meta {
                 $('#jprm_price_label_ref').on('change', refreshSingleIcon);
                 setSingleMode($('#jprm_price_label_mode').val()); // initial + icon
 
-                $(document).on('click', '.jprm-single-icon-select', function(e){ e.preventDefault(); ensureSingleFrame().open(); });
-                $(document).on('click', '.jprm-single-icon-clear', function(e){
-                    e.preventDefault();
-                    $('#jprm_price_label_icon_id').val('0').attr('data-url','');
-                    $('#jprm_single_icon_preview').empty();
-                    $(this).hide();
-                });
-
-                // Existing multi rows
+                // Multi existing rows
                 var $tb = $('#jprm-prices-table tbody');
                 $tb.find('tr').each(function(){
                     var $tr = $(this);
                     attachRowHandlers($tr);
-                    // initialize mode & preview correctly
                     setRowMode($tr, $tr.find('select.label-mode').val());
                 });
 
-                // Row icon buttons (delegate)
-                $(document).on('click', '.jprm-row-icon-select', function(e){
-                    e.preventDefault();
-                    activeRow = $(this).closest('tr');
-                    ensureRowFrame().open();
-                });
+                // Clear icon (row)
                 $(document).on('click', '.jprm-row-icon-clear', function(e){
                     e.preventDefault();
                     var $tr = $(this).closest('tr');
                     $tr.find('input.icon-id').val('0').attr('data-url','');
-                    $tr.find('.jprm-row-icon-preview').empty();
+                    $tr.find('.jprm-row-icon-preview').html('<span class="jprm-icon-ph"><span class="dashicons dashicons-format-image"></span></span>');
                     $(this).hide();
                     collectMulti();
                 });
@@ -523,29 +532,28 @@ class JPRM_Admin_MenuItem_Meta {
                     $tr.append('<td class="label-td">\
                         <select class="label-mode" style="display:none;"><option value="ref">ref</option><option value="custom">custom</option></select>\
                         <div class="jprm-mode-switch">\
-                            <span class="jprm-pill active" data-mode="ref"><?php echo esc_js(__('Predefined','jellopoint-restaurant-menu')); ?></span>\
+                            <span class="jprm-pill active" data-mode="ref"><?php echo esc_js(__('Preset','jellopoint-restaurant-menu')); ?></span>\
                             <span class="jprm-pill" data-mode="custom"><?php echo esc_js(__('Custom','jellopoint-restaurant-menu')); ?></span>\
                         </div>\
                         <span class="inline-field">\
-                            <select class="label-ref"><?php echo str_replace(array("\n","\r"), '', $label_options); ?></select>\
+                            <select class="label-ref"><?php echo str_replace(array("\n","\r"), '', $single_options); ?></select>\
                             <input type="text" class="label-custom regular-text" value="" placeholder="<?php echo esc_js(__('Custom label','jellopoint-restaurant-menu')); ?>" style="display:none;" />\
                         </span>');
                     $tr.append('<td><input type="text" class="amount regular-text small" value="" placeholder="€ 7,50" /></td>');
                     $tr.append('<td class="jprm-icon-cell">\
-                        <div class="jprm-row-icon-preview"></div>\
+                        <div class="jprm-row-icon-preview" title="<?php echo esc_js(__('Select icon','jellopoint-restaurant-menu')); ?>"><span class="jprm-icon-ph"><span class="dashicons dashicons-format-image"></span></span></div>\
                         <input type="hidden" class="icon-id" value="0" data-url="" />\
-                        <div class="jprm-row-icon-actions" style="display:none;">\
-                            <button type="button" class="btn-icon jprm-row-icon-select" aria-label="<?php echo esc_js(__('Select Icon','jellopoint-restaurant-menu')); ?>"><span class="dashicons dashicons-format-image"></span></button>\
-                            <button type="button" class="btn-link-icon jprm-row-icon-clear" aria-label="<?php echo esc_js(__('Remove Icon','jellopoint-restaurant-menu')); ?>" style="display:none;"><span class="dashicons dashicons-no-alt"></span></button>\
-                        </div>');
+                        <button type="button" class="btn-link-icon jprm-row-icon-clear" style="display:none;" aria-label="<?php echo esc_js(__('Remove Icon','jellopoint-restaurant-menu')); ?>"><span class="dashicons dashicons-no-alt"></span></button>');
                     $tr.append('<td style="text-align:center;"><input type="checkbox" class="hide-icon" /></td>');
-                    $tr.append('<td><a href="#" class="button button-secondary jprm-row-remove"><?php echo esc_js(__('Remove','jellopoint-restaurant-menu')); ?></a></td>');
+                    $tr.append('<td><button type="button" class="btn-trash jprm-row-remove" aria-label="<?php echo esc_js(__('Remove row','jellopoint-restaurant-menu')); ?>"><span class="dashicons dashicons-trash"></span></button></td>');
                     $('#jprm-prices-table tbody').append($tr);
                     attachRowHandlers($tr);
                     setRowMode($tr, 'ref');
                     collectMulti();
                 });
 
+                // Ensure latest state saved on submit (avoids last-change-not-captured)
+                $('#post').on('submit', function(){ collectMulti(); });
                 collectMulti(); // initial
             });
         })(jQuery);
@@ -605,7 +613,7 @@ class JPRM_Admin_MenuItem_Meta {
             if ( $lm === 'ref' ) {
                 $ref = sanitize_text_field( $_POST['jprm_price_label_ref'] ?? '' );
                 update_post_meta($post_id, 'jprm_price_label_ref', $ref );
-                // clear custom fields when switching to predefined
+                // clear custom fields when switching to preset
                 delete_post_meta($post_id, 'jprm_price_label_custom');
                 delete_post_meta($post_id, 'jprm_price_label_icon_id');
             } else {
@@ -613,7 +621,7 @@ class JPRM_Admin_MenuItem_Meta {
                 $icon = isset($_POST['jprm_price_label_icon_id']) ? intval($_POST['jprm_price_label_icon_id']) : 0;
                 update_post_meta($post_id, 'jprm_price_label_custom', $cus );
                 update_post_meta($post_id, 'jprm_price_label_icon_id', $icon );
-                // clear predefined ref when custom
+                // clear preset ref when custom
                 delete_post_meta($post_id, 'jprm_price_label_ref');
             }
 
