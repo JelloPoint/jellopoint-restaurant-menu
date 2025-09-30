@@ -16,6 +16,7 @@ class JPRM_Admin_MenuItem_Meta {
         add_action('add_meta_boxes', [__CLASS__, 'register_metaboxes']);
         add_action('save_post_jprm_menu_item', [__CLASS__, 'save'], 10, 2);
         add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue']);
+        // Safety: hide core editor if CPT still has 'editor' support.
         add_action('admin_head', [__CLASS__, 'hide_core_editor']);
     }
 
@@ -33,14 +34,14 @@ class JPRM_Admin_MenuItem_Meta {
         wp_enqueue_script('jquery');
         if ( function_exists('wp_enqueue_media') ) wp_enqueue_media();
 
-        // Compute plugin URL from .../includes
-        $plugin_root_dir = dirname(dirname(__FILE__));
-        $plugin_url      = plugin_dir_url($plugin_root_dir);
+        // Build script URL relative to plugin root
+        $plugin_root_dir = dirname(dirname(__FILE__)); // .../includes
+        $plugin_url      = plugin_dir_url($plugin_root_dir); // URL to plugin root
         $src             = $plugin_url . 'assets/admin/menu-item-meta.js';
 
         wp_enqueue_script('jprm-menu-item-meta', $src, ['jquery'], '1.0.4', true);
 
-        // Prepare labels with icon URLs for quick preview
+        // Labels with icon URLs for quick preview in Single Price (Predefined)
         $labels = class_exists('JPRM_Labels_Store') ? JPRM_Labels_Store::all() : [];
         foreach ($labels as &$L){
             $iid = isset($L['icon_id']) ? intval($L['icon_id']) : 0;
@@ -48,7 +49,7 @@ class JPRM_Admin_MenuItem_Meta {
         }
         unset($L);
 
-        // Current custom icon (single price custom mode)
+        // Current custom icon for Single Price (Custom mode)
         $post_id = get_the_ID();
         $custom_icon_id  = intval(get_post_meta($post_id, 'jprm_price_label_icon_id', true));
         $custom_icon_url = $custom_icon_id ? wp_get_attachment_image_url($custom_icon_id, 'thumbnail') : '';
@@ -80,8 +81,10 @@ class JPRM_Admin_MenuItem_Meta {
     }
 
     public static function register_metaboxes(){
+        // Remove known legacy id to prevent duplicates while tidying.
         remove_meta_box('jprm_menu_item_settings', 'jprm_menu_item', 'normal');
 
+        // 1) Description (top)
         add_meta_box(
             'jprm_item_desc',
             __('Description', 'jellopoint-restaurant-menu'),
@@ -91,6 +94,7 @@ class JPRM_Admin_MenuItem_Meta {
             'high'
         );
 
+        // 2) Pricing (middle)
         add_meta_box(
             'jprm_price_meta',
             __('Pricing', 'jellopoint-restaurant-menu'),
@@ -100,6 +104,7 @@ class JPRM_Admin_MenuItem_Meta {
             'default'
         );
 
+        // 3) Visibility & Badge (bottom)
         add_meta_box(
             'jprm_item_vis',
             __('Visibility & Badge', 'jellopoint-restaurant-menu'),
@@ -131,7 +136,7 @@ class JPRM_Admin_MenuItem_Meta {
         $lm     = get_post_meta($post->ID, 'jprm_price_label_mode', true) ?: 'ref';
         $lref   = get_post_meta($post->ID, 'jprm_price_label_ref', true);
         $lcus   = get_post_meta($post->ID, 'jprm_price_label_custom', true);
-        $icon   = intval(get_post_meta($post->ID, 'jprm_price_label_icon_id', true)); // CUSTOM icon id for single price (custom mode)
+        $icon   = intval(get_post_meta($post->ID, 'jprm_price_label_icon_id', true)); // custom icon for single price (custom mode)
         $rows   = get_post_meta($post->ID, 'jprm_prices', true);
         if (is_string($rows) && $rows !== '') $rows = json_decode($rows, true);
         if (!is_array($rows)) $rows = [];
@@ -144,38 +149,54 @@ class JPRM_Admin_MenuItem_Meta {
         echo '<label><input type="radio" name="jprm_price_mode" value="multi"  '.checked($mode,'multi', false).'> '.esc_html__('Multiple Prices','jellopoint-restaurant-menu').'</label>';
         echo '</td></tr>';
 
-        // Single Price block
+        // Single Price -> Amount
         echo '<tr class="jprm-block-single"><th><label for="jprm_price_amount">'.esc_html__('Price','jellopoint-restaurant-menu').'</label></th><td>';
         printf('<input type="text" id="jprm_price_amount" name="jprm_price_amount" value="%s" class="regular-text" placeholder="%s" /> ',
             esc_attr($amount), esc_attr('€ 7,50'));
         echo '</td></tr>';
 
+        // Single Price -> Label + Icon (one line)
         echo '<tr class="jprm-block-single"><th><label>'.esc_html__('Price Label','jellopoint-restaurant-menu').'</label></th><td>';
-        echo '<select id="jprm_price_label_mode" name="jprm_price_label_mode">';
-        echo '<option value="ref" '.selected($lm,'ref',false).'>'.esc_html__('Predefined','jellopoint-restaurant-menu').'</option>';
-        echo '<option value="custom" '.selected($lm,'custom',false).'>'.esc_html__('Custom','jellopoint-restaurant-menu').'</option>';
-        echo '</select> ';
-        printf('<select id="jprm_price_label_ref" name="jprm_price_label_ref" data-current="%s"></select> ',
-            esc_attr($lref));
-        printf('<input type="text" id="jprm_price_label_custom" name="jprm_price_label_custom" value="%s" class="regular-text" placeholder="%s" />',
-            esc_attr($lcus), esc_attr__('Custom label','jellopoint-restaurant-menu'));
 
-        // Single Price ICON area:
-        // - For Predefined: show read-only preview from chosen label (JS fills)
-        // - For Custom: show select/remove buttons + preview + hidden field
-        $custom_icon_url = $icon ? esc_url( wp_get_attachment_image_url($icon, 'thumbnail') ) : '';
-        echo '<div id="jprm_single_icon_wrap" style="margin-top:8px;">';
-        echo '  <div id="jprm_single_icon_preview" style="min-height:24px;">';
-        if ($custom_icon_url) {
-            echo '<img src="'.$custom_icon_url.'" style="max-width:48px;height:auto;" alt="" />';
-        }
-        echo '  </div>';
-        printf('<input type="hidden" id="jprm_price_label_icon_id" name="jprm_price_label_icon_id" value="%d" />', $icon);
-        echo '  <div id="jprm_single_icon_actions" style="margin-top:6px;">';
-        echo '      <button type="button" class="button jprm-single-icon-select">'.esc_html__('Select Icon','jellopoint-restaurant-menu').'</button> ';
-        echo '      <button type="button" class="button-link jprm-single-icon-clear" style="'.($icon ? '' : 'display:none;').'">'.esc_html__('Remove Icon','jellopoint-restaurant-menu').'</button>';
-        echo '  </div>';
-        echo '</div>';
+        // One-line layout
+        echo '<style>
+            .jprm-inline { display:flex; gap:8px; align-items:center; flex-wrap:nowrap; }
+            .jprm-inline select, .jprm-inline input[type="text"] { max-width:220px; }
+            .jprm-inline .jprm-icon-preview img { max-width:32px; height:auto; display:block; }
+            .jprm-inline .button, .jprm-inline .button-link { white-space:nowrap; }
+        </style>';
+
+        echo '<div class="jprm-inline">';
+            // Mode (Predefined / Custom)
+            echo '<select id="jprm_price_label_mode" name="jprm_price_label_mode">';
+            echo '<option value="ref" '.selected($lm,'ref',false).'>'.esc_html__('Predefined','jellopoint-restaurant-menu').'</option>';
+            echo '<option value="custom" '.selected($lm,'custom',false).'>'.esc_html__('Custom','jellopoint-restaurant-menu').'</option>';
+            echo '</select>';
+
+            // Predefined dropdown (JS populates with labels)
+            printf('<select id="jprm_price_label_ref" name="jprm_price_label_ref" data-current="%s"></select> ', esc_attr($lref));
+
+            // Custom text
+            printf('<input type="text" id="jprm_price_label_custom" name="jprm_price_label_custom" value="%s" class="regular-text" placeholder="%s" />',
+                esc_attr($lcus), esc_attr__('Custom','jellopoint-restaurant-menu'));
+
+            // Icon preview + hidden id
+            $custom_icon_id  = $icon;
+            $custom_icon_url = $custom_icon_id ? esc_url( wp_get_attachment_image_url($custom_icon_id, 'thumbnail') ) : '';
+            echo '<div id="jprm_single_icon_wrap" class="jprm-icon-wrap">';
+                echo '<div id="jprm_single_icon_preview" class="jprm-icon-preview">';
+                if ($custom_icon_url) { echo '<img src="'.$custom_icon_url.'" alt="" />'; }
+                echo '</div>';
+                printf('<input type="hidden" id="jprm_price_label_icon_id" name="jprm_price_label_icon_id" value="%d" />', $custom_icon_id);
+            echo '</div>';
+
+            // Icon actions (only visible in Custom via JS)
+            echo '<div id="jprm_single_icon_actions" class="jprm-icon-actions">';
+                echo '<button type="button" class="button jprm-single-icon-select">'.esc_html__('Select Icon','jellopoint-restaurant-menu').'</button> ';
+                echo '<button type="button" class="button-link jprm-single-icon-clear" style="'.($custom_icon_id ? '' : 'display:none;').'">'.esc_html__('Remove Icon','jellopoint-restaurant-menu').'</button>';
+            echo '</div>';
+
+        echo '</div>'; // .jprm-inline
 
         echo '</td></tr>';
 
