@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * - Dynamic items (CPT jprm_menu_item) with Menu/Section taxonomy filters
  * - Static items (manual) as fallback
  * - Auto-detect current Menu/Section context (term archive or current post terms)
- * - Robust meta detection for prices/rows and description
+ * - Robust meta detection for prices/rows and description (single + multiple)
  * - Preserves stable HTML wrappers for multiple-price alignment
  */
 class Restaurant_Menu extends Widget_Base {
@@ -326,13 +326,12 @@ class Restaurant_Menu extends Widget_Base {
         }
 
         $label_presentation = isset( $s['label_presentation'] ) ? $s['label_presentation'] : 'text';
-        $label_order_class  = ( isset( $s['label_position'] ) && $s['label_position'] === 'left' )
-            ? 'jp-order--label-left' : 'jp-order--label-right';
+        $label_order_class  = ( isset( $s['label_position'] ) && $s['label_position'] === 'left' ) ? 'jp-order--label-left' : 'jp-order--label-right';
 
         echo '<ul class="jp-menu">';
 
         foreach ( $items as $raw ) {
-            $item = $this->normalize_item( $raw ); // now exists (no-op passthrough)
+            $item = $this->normalize_item( $raw );
 
             $hide_invisible = isset( $s['hide_invisible'] ) && $s['hide_invisible'] === 'yes';
             if ( $hide_invisible && ! empty( $item['invisible'] ) ) {
@@ -363,21 +362,28 @@ class Restaurant_Menu extends Widget_Base {
 
             echo '    <div class="jp-menu__pricegroup">';
 
-            // Single price (only if no multi rows were found)
-            if ( empty( $item['prices'] ) && isset( $item['price'] ) && $item['price'] !== '' ) {
-                echo '      <div class="jp-menu__price">';
-                echo '          <span class="jp-menu__value">' . esc_html( $item['price'] ) . '</span>';
-                echo '      </div>';
+            // Determine if we actually have usable multi rows
+            $has_multi_rows = false;
+            if ( ! empty( $item['prices'] ) && is_array( $item['prices'] ) ) {
+                foreach ( $item['prices'] as $r ) {
+                    if ( ( isset($r['label']) && $r['label'] !== '' ) || ( isset($r['value']) && $r['value'] !== '' ) ) {
+                        $has_multi_rows = true; break;
+                    }
+                }
             }
 
-            // Multiple prices
-            if ( ! empty( $item['prices'] ) && is_array( $item['prices'] ) ) {
+            // Render single price if no usable multi rows
+            if ( ! $has_multi_rows && isset( $item['price'] ) && $item['price'] !== '' ) {
+                echo '      <div class="jp-menu__price"><span class="jp-menu__value">' . esc_html( $item['price'] ) . '</span></div>';
+            }
+
+            // Render multi rows if present
+            if ( $has_multi_rows ) {
                 foreach ( $item['prices'] as $p ) {
                     $label = isset( $p['label'] ) ? $p['label'] : '';
                     $value = isset( $p['value'] ) ? $p['value'] : '';
-                    if ( $label === '' && $value === '' ) {
-                        continue;
-                    }
+                    if ( $label === '' && $value === '' ) continue;
+
                     echo '      <div class="jp-menu__price jp-price-row ' . esc_attr( $label_order_class ) . '">';
                     echo '          <span class="jp-menu__label jp-col-label">';
                     if ( $label_presentation === 'badge' && $label !== '' ) {
@@ -390,16 +396,13 @@ class Restaurant_Menu extends Widget_Base {
                         echo esc_html( $label );
                     }
                     echo '          </span>';
-
                     echo '          <span class="jp-menu__value jp-col-price">' . esc_html( $value ) . '</span>';
-
                     echo '      </div>';
                 }
             }
 
             echo '    </div>'; // .jp-menu__pricegroup
-
-            echo '  </div>'; // .jp-menu__inner
+            echo '  </div>';   // .jp-menu__inner
             echo '</li>';
         }
 
@@ -408,17 +411,10 @@ class Restaurant_Menu extends Widget_Base {
 
     /**
      * Collect dynamic items based on widget settings.
-     * - CPT: jprm_menu_item
-     * - Taxonomies: jprm_menu, jprm_section
-     * - Auto-detect context when enabled and no terms selected
      */
     protected function collect_dynamic_items( array $s ) {
-
-        // Allow a provider to override completely
         $filtered = apply_filters( 'jprm/widget/get_items', null, $s, $this );
-        if ( is_array( $filtered ) ) {
-            return $filtered;
-        }
+        if ( is_array( $filtered ) ) return $filtered;
 
         $menus    = ( ! empty( $s['query_menus'] )    && is_array( $s['query_menus'] ) )    ? $s['query_menus']    : [];
         $sections = ( ! empty( $s['query_sections'] ) && is_array( $s['query_sections'] ) ) ? $s['query_sections'] : [];
@@ -430,15 +426,10 @@ class Restaurant_Menu extends Widget_Base {
         $auto = isset( $s['auto_context'] ) && $s['auto_context'] === 'yes';
         if ( $auto && empty( $menus ) && empty( $sections ) ) {
             $ctx = $this->detect_context_terms();
-            if ( empty( $menus ) && ! empty( $ctx['menus'] ) ) {
-                $menus = $ctx['menus'];
-            }
-            if ( empty( $sections ) && ! empty( $ctx['sections'] ) ) {
-                $sections = $ctx['sections'];
-            }
+            if ( empty( $menus ) && ! empty( $ctx['menus'] ) )       { $menus = $ctx['menus']; }
+            if ( empty( $sections ) && ! empty( $ctx['sections'] ) ) { $sections = $ctx['sections']; }
         }
 
-        // Build tax_query using slug/ID auto-detect
         $tax_query = [];
         if ( ! empty( $menus ) ) {
             $field = $this->guess_tax_field( $menus );
@@ -450,9 +441,7 @@ class Restaurant_Menu extends Widget_Base {
             $vals  = ( $field === 'term_id' ) ? array_map( 'intval', $sections ) : array_map( 'sanitize_title', $sections );
             $tax_query[] = [ 'taxonomy' => 'jprm_section', 'field' => $field, 'terms' => $vals ];
         }
-        if ( count( $tax_query ) > 1 ) {
-            $tax_query['relation'] = 'AND';
-        }
+        if ( count( $tax_query ) > 1 ) $tax_query['relation'] = 'AND';
 
         $args = [
             'post_type'           => 'jprm_menu_item',
@@ -463,16 +452,12 @@ class Restaurant_Menu extends Widget_Base {
             'order'               => $order,
             'ignore_sticky_posts' => true,
         ];
-        if ( ! empty( $tax_query ) ) {
-            $args['tax_query'] = $tax_query;
-        }
+        if ( ! empty( $tax_query ) ) $args['tax_query'] = $tax_query;
 
         $args = apply_filters( 'jprm/widget/query_args', $args, $s, $this );
 
         $q = new \WP_Query( $args );
-        if ( ! $q->have_posts() ) {
-            return [];
-        }
+        if ( ! $q->have_posts() ) return [];
 
         $out = [];
         while ( $q->have_posts() ) {
@@ -505,13 +490,11 @@ class Restaurant_Menu extends Widget_Base {
 
     /**
      * Parse & normalize meta for one item.
-     * - Finds single price
-     * - Finds multiple prices (rows) in many formats
-     * - Finds labels and invisibility flag
-     * - Adds _debug keys (only used when WP_DEBUG to print HTML comments)
+     * - Single price: accepts scalar and array-shaped values
+     * - Multiple prices (rows) in many formats
+     * - Labels and invisibility flag
      */
     protected function parse_item_meta( $post_id ) {
-        $debug = [];
 
         // helper: get first non-empty scalar from keys
         $first_scalar = function( array $keys, &$hit = null ) use ( $post_id ) {
@@ -525,7 +508,7 @@ class Restaurant_Menu extends Widget_Base {
             return '';
         };
 
-        // helper: maybe unserialize/json decode
+        // helper: maybe unserialize/json decode → array
         $to_array = function( $v ) {
             if ( is_array( $v ) ) return $v;
             if ( is_string( $v ) ) {
@@ -537,14 +520,37 @@ class Restaurant_Menu extends Widget_Base {
             return [];
         };
 
-        // Single price candidates (broad)
+        // ---------- SINGLE PRICE (scalar OR array-shaped) ----------
         $single_hit = null;
         $single = $first_scalar( [
             '_jprm_price','jprm_price','price','_price','item_price','price_single','single_price',
             'jprm_item_price','_jprm_price_value','_jprm_single_price','_jp_price'
         ], $single_hit );
 
-        // Multiple prices candidates (broad)
+        if ( $single === '' ) {
+            // Try array-shaped single price under same keys
+            $single_keys = [
+                '_jprm_price','jprm_price','price','_price','item_price','price_single','single_price',
+                'jprm_item_price','_jprm_price_value','_jprm_single_price','_jp_price'
+            ];
+            foreach ( $single_keys as $k ) {
+                $raw = get_post_meta( $post_id, $k, true );
+                if ( empty( $raw ) ) continue;
+                $arr = $to_array( $raw );
+                if ( empty( $arr ) && is_array( $raw ) ) $arr = $raw; // meta might already be array
+                if ( is_array( $arr ) ) {
+                    // Look for common keys in array-shaped single
+                    $cand = '';
+                    if ( isset($arr['value']) )       $cand = (string) $arr['value'];
+                    elseif ( isset($arr['amount']) )  $cand = (string) $arr['amount'];
+                    elseif ( isset($arr['price']) )   $cand = (string) $arr['price'];
+                    elseif ( isset($arr[0]) )         $cand = (string) $arr[0];
+                    if ( $cand !== '' ) { $single = $cand; $single_hit = $k . ' (array)'; break; }
+                }
+            }
+        }
+
+        // ---------- MULTIPLE PRICES ----------
         $multi_hit = null;
         $multi_candidates = [
             '_jprm_prices','jprm_prices','prices','price_rows','multiple_prices',
@@ -577,14 +583,14 @@ class Restaurant_Menu extends Widget_Base {
             }
         }
 
-        // Description candidates (broad)
+        // ---------- DESCRIPTION ----------
         $desc_hit = null;
         $desc = $first_scalar( [
             '_jprm_desc','jprm_desc','description','item_description','_description',
             '_jprm_item_desc','_jp_desc'
         ], $desc_hit );
 
-        // Labels – array or CSV
+        // ---------- LABELS ----------
         $labels = [];
         foreach ( [ '_jprm_labels','jprm_labels','labels','item_labels' ] as $lk ) {
             $lv = get_post_meta( $post_id, $lk, true );
@@ -598,14 +604,14 @@ class Restaurant_Menu extends Widget_Base {
             if ( ! empty( $labels ) ) break;
         }
 
-        // Visibility flag
+        // ---------- VISIBILITY ----------
         $invisible = false;
         foreach ( [ '_jprm_invisible','jprm_invisible','invisible','item_invisible' ] as $ik ) {
             $iv = get_post_meta( $post_id, $ik, true );
             if ( $iv === '1' || $iv === 1 || $iv === true || $iv === 'yes' ) { $invisible = true; break; }
         }
 
-        // Prefer multi rows if present; otherwise use single
+        // Result (prefer multi rows when they have data; otherwise single)
         $result = [
             'price'       => $single,
             'prices'      => $rows,
@@ -620,18 +626,12 @@ class Restaurant_Menu extends Widget_Base {
             ],
         ];
 
-        /**
-         * Final hook to allow custom resolution of prices.
-         * Return a modified $result.
-         */
-        $result = apply_filters( 'jprm/widget/resolve_prices', $result, $post_id, $this );
-
-        return $result;
+        return apply_filters( 'jprm/widget/resolve_prices', $result, $post_id, $this );
     }
 
     /**
      * Normalize arbitrary array of rows into [['label'=>..,'value'=>..], ...].
-     * Accepts many shapes:
+     * Accepts:
      *  - [ ['label'=>'Small','value'=>'7.50'], ... ]
      *  - [ ['title'=>'Small','amount'=>'7.50'], ... ]
      *  - [ ['label'=>'Small','price'=>'7.50'], ... ]
@@ -657,7 +657,6 @@ class Restaurant_Menu extends Widget_Base {
             $label = ''; $value = '';
 
             if ( is_array( $row ) ) {
-                // Common keys
                 if ( isset( $row['label'] ) || isset( $row['value'] ) ) {
                     $label = isset( $row['label'] ) ? (string) $row['label'] : '';
                     $value = isset( $row['value'] ) ? (string) $row['value'] : '';
@@ -665,12 +664,10 @@ class Restaurant_Menu extends Widget_Base {
                     $label = isset( $row['title'] )  ? (string) $row['title']  : '';
                     $value = isset( $row['amount'] ) ? (string) $row['amount'] : ( isset( $row['price'] ) ? (string) $row['price'] : '' );
                 } else {
-                    // Numeric indices
                     $label = isset( $row[0] ) ? (string) $row[0] : ( isset( $row['0'] ) ? (string) $row['0'] : '' );
                     $value = isset( $row[1] ) ? (string) $row[1] : ( isset( $row['1'] ) ? (string) $row['1'] : '' );
                 }
             } elseif ( is_scalar( $row ) ) {
-                // Single scalar row -> treat as value-only (rare)
                 $value = (string) $row;
             }
 
