@@ -119,7 +119,6 @@ class Restaurant_Menu extends Widget_Base {
                 'text'      => __( 'Text', 'jellopoint-restaurant-menu' ),
                 'icon'      => __( 'Icon Only', 'jellopoint-restaurant-menu' ),
                 'icon_text' => __( 'Icon + Text', 'jellopoint-restaurant-menu' ),
-                'badge'     => __( 'Badge (legacy → text)', 'jellopoint-restaurant-menu' ),
             ],
         ] );
 
@@ -127,7 +126,7 @@ class Restaurant_Menu extends Widget_Base {
             'label'   => __( 'Label Position (qty)', 'jellopoint-restaurant-menu' ),
             'type'    => Controls_Manager::SELECT,
             'default' => 'right',
-            'options' => [
+            'options'  => [
                 'left'  => __( 'Left (label | price)', 'jellopoint-restaurant-menu' ),
                 'right' => __( 'Right (price | label)', 'jellopoint-restaurant-menu' ),
             ],
@@ -145,8 +144,6 @@ class Restaurant_Menu extends Widget_Base {
         $repeater->add_control( 'item_title', [ 'label' => __( 'Title', 'jellopoint-restaurant-menu' ), 'type' => Controls_Manager::TEXT, 'default' => __( 'Menu Item', 'jellopoint-restaurant-menu' ) ] );
         $repeater->add_control( 'item_description', [ 'label' => __( 'Description', 'jellopoint-restaurant-menu' ), 'type' => Controls_Manager::TEXTAREA, 'default' => '', 'rows' => 2 ] );
         $repeater->add_control( 'item_price', [ 'label' => __( 'Single Price', 'jellopoint-restaurant-menu' ), 'type' => Controls_Manager::TEXT, 'default' => '' ] );
-        $repeater->add_control( 'use_multi_prices', [ 'label' => __( 'Enable Multiple Prices', 'jellopoint-restaurant-menu' ), 'type' => Controls_Manager::SWITCHER, 'return_value' => 'yes', 'default' => '' ] );
-
         $this->add_control( 'items', [
             'label'       => __( 'Items', 'jellopoint-restaurant-menu' ),
             'type'        => Controls_Manager::REPEATER,
@@ -223,9 +220,9 @@ class Restaurant_Menu extends Widget_Base {
             $this->print_inline_layout_css(true);
         }
 
-        $presentation = isset( $s['label_presentation'] ) ? $s['label_presentation'] : 'text';
+        $presentation    = isset( $s['label_presentation'] ) ? $s['label_presentation'] : 'text';
         if ( $presentation === 'badge' ) $presentation = 'text';
-        $label_order_class = ( isset( $s['label_position'] ) && $s['label_position'] === 'left' )
+        $label_order_cls = ( isset( $s['label_position'] ) && $s['label_position'] === 'left' )
             ? 'jp-order--label-left' : 'jp-order--label-right';
 
         echo '<ul class="jp-menu">';
@@ -259,7 +256,7 @@ class Restaurant_Menu extends Widget_Base {
 
             echo '    <div class="jp-menu__pricegroup">';
 
-            // Do we have multi rows?
+            // Determine if multi rows exist
             $has_multi_rows = false;
             if ( ! empty( $item['prices'] ) && is_array( $item['prices'] ) ) {
                 foreach ( $item['prices'] as $r ) {
@@ -274,7 +271,7 @@ class Restaurant_Menu extends Widget_Base {
                 $hide_icon  = false;
 
                 if ( ! empty( $item['labels'] ) && is_array( $item['labels'] ) ) {
-                    $first = (string) reset( $item['labels'] );
+                    $first    = (string) reset( $item['labels'] );
                     $resolved = $this->resolve_qty_label_via_store( $first );
                     $label_text = $resolved['label_text'];
                     $icon_class = $resolved['icon_class'];
@@ -284,7 +281,7 @@ class Restaurant_Menu extends Widget_Base {
                 if ( $label_text === '' && $icon_class === '' ) {
                     echo '      <div class="jp-menu__price"><span class="jp-menu__value">' . esc_html( $item['price'] ) . '</span></div>';
                 } else {
-                    echo '      <div class="jp-menu__price jp-price-row ' . esc_attr( $label_order_class ) . '">';
+                    echo '      <div class="jp-menu__price jp-price-row ' . esc_attr( $label_order_cls ) . '">';
                     echo '          <span class="jp-menu__label jp-col-label">' . $this->render_label_html( $label_text, $presentation, $icon_class, $hide_icon ) . '</span>';
                     echo '          <span class="jp-menu__value jp-col-price">' . esc_html( $item['price'] ) . '</span>';
                     echo '      </div>';
@@ -294,18 +291,18 @@ class Restaurant_Menu extends Widget_Base {
             // MULTI rows (qty labels per row)
             if ( $has_multi_rows ) {
                 foreach ( $item['prices'] as $p ) {
-                    $label_raw = $this->extract_row_label_reference( $p );
-                    $row_hide_icon = isset( $p['hide_icon'] ) ? (bool)$p['hide_icon'] : null;
+                    $label_raw    = $this->extract_row_label_reference( $p );
+                    $row_hide_icon= isset( $p['hide_icon'] ) ? (bool)$p['hide_icon'] : null;
 
                     $resolved = $this->resolve_qty_label_via_store( $label_raw, $row_hide_icon );
                     $label_txt = $resolved['label_text'];
                     $icon_cls  = $resolved['icon_class'];
                     $hide_icon = $resolved['hide_icon'];
 
-                    $value     = isset( $p['value'] ) ? (string) $p['value'] : '';
+                    $value = isset( $p['value'] ) ? (string) $p['value'] : '';
                     if ( $label_txt === '' && $icon_cls === '' && $value === '' ) continue;
 
-                    echo '      <div class="jp-menu__price jp-price-row ' . esc_attr( $label_order_class ) . '">';
+                    echo '      <div class="jp-menu__price jp-price-row ' . esc_attr( $label_order_cls ) . '">';
                     echo '          <span class="jp-menu__label jp-col-label">' . $this->render_label_html( $label_txt, $presentation, $icon_cls, $hide_icon ) . '</span>';
                     echo '          <span class="jp-menu__value jp-col-price">' . esc_html( $value ) . '</span>';
                     echo '      </div>';
@@ -463,7 +460,7 @@ class Restaurant_Menu extends Widget_Base {
                         $rows[] = [ 'id' => sanitize_title( $v ), 'label' => $v, 'icon' => '' ];
                     } elseif ( is_array( $v ) ) {
                         $id    = isset( $v['id'] )    ? (string)$v['id']    : ( isset($v['slug']) ? (string)$v['slug'] : '' );
-                        $label = isset( $v['label'] ) ? (string) $v['label'] : ( isset($v['name']) ? (string)$v['name'] : '' );
+                        $label = isset( $v['label'] ) ? (string)$v['label'] : ( isset($v['name']) ? (string)$v['name'] : '' );
                         $icon  = isset( $v['icon'] )  ? (string)$v['icon']  : '';
                         if ( $id === '' ) $id = sanitize_title( $label );
                         if ( $label !== '' ) $rows[] = [ 'id' => $id, 'label' => $label, 'icon' => $icon ];
@@ -473,6 +470,38 @@ class Restaurant_Menu extends Widget_Base {
         }
 
         return $rows;
+    }
+
+    /**
+     * Build the inner HTML for a label based on the chosen presentation.
+     * - 'text'      => plain text
+     * - 'icon'      => icon only (with SR-only text fallback)
+     * - 'icon_text' => icon + text (falls back to text if no icon class)
+     */
+    protected function render_label_html( $label_text, $presentation, $icon_class = '', $hide_icon = false ) {
+        $label_text = (string) $label_text;
+        $icon_class = (string) $icon_class;
+
+        if ( $presentation !== 'text' && $presentation !== 'icon' && $presentation !== 'icon_text' ) {
+            $presentation = 'text';
+        }
+        if ( $hide_icon ) $presentation = 'text';
+
+        if ( $presentation === 'icon' ) {
+            if ( $icon_class !== '' ) {
+                return '<i class="' . esc_attr( $icon_class ) . '" aria-hidden="true"></i><span class="screen-reader-text">' . esc_html( $label_text ) . '</span>';
+            }
+            return esc_html( $label_text );
+        }
+
+        if ( $presentation === 'icon_text' ) {
+            if ( $icon_class !== '' ) {
+                return '<i class="' . esc_attr( $icon_class ) . '" aria-hidden="true"></i> ' . esc_html( $label_text );
+            }
+            return esc_html( $label_text );
+        }
+
+        return esc_html( $label_text );
     }
 
     /**
