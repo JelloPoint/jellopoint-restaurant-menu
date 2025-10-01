@@ -249,15 +249,22 @@ class Restaurant_Menu extends Widget_Base {
             // Multi rows?
             $has_multi_rows = ! empty( $item['prices'] ) && is_array( $item['prices'] );
 
-            // SINGLE price (with optional single label from item-level labels)
+            // SINGLE price (now with explicit single label logic)
             if ( ! $has_multi_rows && isset( $item['price'] ) && $item['price'] !== '' ) {
+                // prefer explicit single label ref; fallback to first item-level label id/slug/text
+                $single_ref  = isset($item['single_label_ref']) ? (string)$item['single_label_ref'] : '';
+                $single_hide = isset($item['single_hide_icon']) ? (bool)$item['single_hide_icon'] : null;
+
+                if ( $single_ref === '' && ! empty( $item['labels'] ) && is_array( $item['labels'] ) ) {
+                    $single_ref = (string) reset( $item['labels'] );
+                }
+
                 $label_text = '';
                 $icon_id    = 0;
                 $hide_icon  = false;
 
-                if ( ! empty( $item['labels'] ) && is_array( $item['labels'] ) ) {
-                    $first    = (string) reset( $item['labels'] );
-                    $resolved = $this->resolve_qty_label_via_store( $first );
+                if ( $single_ref !== '' ) {
+                    $resolved   = $this->resolve_qty_label_via_store( $single_ref, $single_hide );
                     $label_text = $resolved['label_text'];
                     $icon_id    = $resolved['icon_id'];
                     $hide_icon  = $resolved['hide_icon'];
@@ -492,6 +499,7 @@ class Restaurant_Menu extends Widget_Base {
     /**
      * Parse & normalize meta for one item.
      * Single price + multi prices + labels array + invisible flag.
+     * Also extracts explicit single-price label reference if present.
      */
     protected function parse_item_meta( $post_id ) {
 
@@ -594,7 +602,28 @@ class Restaurant_Menu extends Widget_Base {
             '_jprm_item_desc','_jp_desc'
         ], $desc_hit );
 
-        // ---------- ITEM-LEVEL LABELS (for single price label)
+        // ---------- SINGLE PRICE LABEL REF (NEW) ----------
+        $single_label_ref = '';
+        foreach ( [
+            '_jprm_single_label','single_label','price_label','jprm_single_label','jprm_price_label',
+            '_jprm_label_single','label_single','_jprm_label_id','_jprm_label_key',
+            'label_id','label_key','label_ref','label','preset','slug'
+        ] as $lk ) {
+            $val = get_post_meta( $post_id, $lk, true );
+            if ( is_string($val) || is_numeric($val) ) {
+                $val = trim( (string)$val );
+                if ( $val !== '' ) { $single_label_ref = $val; break; }
+            }
+        }
+
+        // Optional single hide icon flag
+        $single_hide_icon = false;
+        foreach ( [ '_jprm_single_hide_icon','single_hide_icon','price_hide_icon','_jprm_hide_icon_single' ] as $hk ) {
+            $flag = get_post_meta( $post_id, $hk, true );
+            if ( $flag === '1' || $flag === 1 || $flag === true || $flag === 'yes' ) { $single_hide_icon = true; break; }
+        }
+
+        // ---------- ITEM-LEVEL LABELS ARRAY (legacy / fallback)
         $labels = [];
         foreach ( [ '_jprm_labels','jprm_labels','labels','item_labels' ] as $lk ) {
             $lv = get_post_meta( $post_id, $lk, true );
@@ -616,16 +645,20 @@ class Restaurant_Menu extends Widget_Base {
         }
 
         return [
-            'price'       => $single,
-            'prices'      => $rows,
-            'description' => $desc,
-            'labels'      => $labels,
-            'invisible'   => $invisible,
-            '_debug'      => [
+            'price'            => $single,
+            'prices'           => $rows,
+            'description'      => $desc,
+            'labels'           => $labels,           // legacy array
+            'single_label_ref' => $single_label_ref, // NEW: explicit single label id/slug/text
+            'single_hide_icon' => $single_hide_icon, // NEW
+            'invisible'        => $invisible,
+            '_debug'           => [
                 'single_key'       => $single_hit,
                 'multi_key'        => $multi_hit,
                 'multi_rows_count' => is_array($rows) ? count( $rows ) : 0,
                 'desc_key'         => $desc_hit,
+                'single_label_ref' => $single_label_ref,
+                'single_hide_icon' => $single_hide_icon ? '1':'0',
             ],
         ];
     }
