@@ -14,29 +14,9 @@ if ( ! defined( 'JPRM_VERSION' ) ) define( 'JPRM_VERSION', '2.0.1' );
 if ( ! defined( 'JPRM_PLUGIN_FILE' ) ) define( 'JPRM_PLUGIN_FILE', __FILE__ );
 if ( ! defined( 'JPRM_PLUGIN_PATH' ) ) define( 'JPRM_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 if ( ! defined( 'JPRM_PLUGIN_URL' ) ) define( 'JPRM_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-// Dev mode: follows WP_DEBUG unless you override earlier.
+// Dev mode follows WP_DEBUG unless overridden earlier.
 if ( ! defined( 'JPRM_DEV' ) ) {
-    define( 'JPRM_DEV', ( defined('WP_DEBUG') && WP_DEBUG ) ? true : false );
-}
-
-// Dev-only diagnostics page
-if ( JPRM_DEV ) {
-    $jprm_sys = JPRM_PLUGIN_PATH . 'includes/admin/class-system-check.php';
-    if ( file_exists( $jprm_sys ) ) {
-        require_once $jprm_sys;
-    } else {
-        if ( function_exists('error_log') ) {
-            error_log('[JPRM] Dev mode ON, system-check file not found at: ' . $jprm_sys);
-        }
-    }
-}
-
-if ( JPRM_DEV ) {
-    add_action('admin_notices', function(){
-        if ( current_user_can('manage_options') ) {
-            echo '<div class="notice notice-success"><p>JPRM Dev Mode: <strong>ON</strong></p></div>';
-        }
-    });
+    define( 'JPRM_DEV', ( defined('WP_DEBUG') && WP_DEBUG ) );
 }
 
 if ( ! defined( 'JPRM_MIN_PHP' ) ) define( 'JPRM_MIN_PHP', '7.2' );
@@ -48,6 +28,16 @@ if ( version_compare( PHP_VERSION, JPRM_MIN_PHP, '<' ) ) {
     return;
 }
 require_once JPRM_PLUGIN_PATH . 'includes/class-plugin.php';
+// Dev-only diagnostics page (if present)
+if ( JPRM_DEV ) {
+    $__sys = JPRM_PLUGIN_PATH . 'includes/admin/class-system-check.php';
+    if ( file_exists($__sys) ) {
+        require_once $__sys;
+    } else {
+        if ( function_exists('error_log') ) error_log('[JPRM] Dev mode ON, system-check file missing at ' . $__sys);
+    }
+}
+
 update_option( 'jprm_current_version', JPRM_VERSION );
 
 // Bootstrap safely (supports both Plugin::instance() and jprm_bootstrap())
@@ -618,3 +608,5 @@ add_action('admin_footer', function(){
     <?php
 }, 24);
 
+
+<?php if ( defined('JPRM_DEV') && JPRM_DEV ) { add_action('admin_notices', function(){ if ( current_user_can('manage_options') ) echo '<div class="notice notice-success"><p>JPRM Dev Mode: <strong>ON</strong></p></div>'; }); } ?>
