@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin: Menu Item Meta — compact Multiple Prices table with stable column layout + persistence fixes
+ * Admin: Menu Item Meta — multiple prices UI (no legacy JS), persistence + compact layout
  */
 if ( ! defined('ABSPATH') ) { exit; }
 
@@ -11,7 +11,7 @@ class JPRM_Admin_MenuItem_Meta {
     public static function init(){
         add_action('add_meta_boxes', [__CLASS__, 'register_metaboxes']);
         add_action('save_post_jprm_menu_item', [__CLASS__, 'save'], 10, 2);
-        add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue']);
+        add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue'], 20);
         add_action('admin_head', [__CLASS__, 'hide_core_editor']);
     }
 
@@ -22,20 +22,20 @@ class JPRM_Admin_MenuItem_Meta {
         }
     }
 
-    public static function enqueue($hook){
+    public static function enqueue(){
         $scr = function_exists('get_current_screen') ? get_current_screen() : null;
         if ( ! $scr || $scr->post_type !== 'jprm_menu_item' ) return;
 
+        // Media for icon picker
         wp_enqueue_script('jquery');
         if ( function_exists('wp_enqueue_media') ) wp_enqueue_media();
 
-        // keep your admin JS enqueued (cache-bust if file exists)
-        $plugin_main_file = JPRM_PLUGIN_PATH . 'jellopoint-restaurant-menu.php';
-        $rel  = 'assets/admin/menu-item-meta.js';
-        $src  = plugins_url($rel, $plugin_main_file);
-        $path = JPRM_PLUGIN_PATH . $rel;
-        $ver  = file_exists($path) ? (string) filemtime($path) : '1.3.6';
-        wp_enqueue_script('jprm-menu-item-meta', $src, ['jquery'], $ver, true);
+        // IMPORTANT: prevent legacy JS (older table logic) from running on this screen
+        // It would otherwise rebuild rows and bind another "Add price" handler.
+        if ( wp_script_is('jprm-menu-item-meta', 'enqueued') || wp_script_is('jprm-menu-item-meta', 'registered') ){
+            wp_dequeue_script('jprm-menu-item-meta');
+            wp_deregister_script('jprm-menu-item-meta');
+        }
     }
 
     public static function register_metaboxes(){
@@ -114,7 +114,7 @@ class JPRM_Admin_MenuItem_Meta {
 
         echo '<table class="form-table"><tbody>';
 
-        // grow table area by shrinking left label col in this metabox
+        // give the table more space
         echo '<style>#jprm_price_meta .form-table > tbody > tr > th{width:110px;}</style>';
 
         echo '<tr><th><label>'.esc_html__('Price Mode','jellopoint-restaurant-menu').'</label></th><td>';
@@ -132,7 +132,7 @@ class JPRM_Admin_MenuItem_Meta {
         echo '<style>
             .jprm-inline { display:inline-flex; gap:8px; align-items:center; flex-wrap:nowrap; }
             .jprm-inline select { max-width:220px; }
-            .jprm-inline input[type="text"] { max-width:160px; } /* tighter custom label to avoid overlap */
+            .jprm-inline input[type="text"] { max-width:160px; } /* tighter custom label */
             .jprm-inline .jprm-icon-preview img { width:32px; height:auto; display:block; }
             .jprm-icon-ph { width:32px; height:32px; border:1px dashed #ccd0d4; border-radius:3px; display:inline-flex; align-items:center; justify-content:center; color:#777; background:#fff; cursor:pointer; }
             .jprm-icon-ph .dashicons { line-height:32px; }
@@ -154,8 +154,8 @@ class JPRM_Admin_MenuItem_Meta {
 
             .label-td { white-space:nowrap; }
             .label-td .inline-field { display:inline-flex; gap:8px; align-items:center; }
-            .label-td select.label-ref, .label-td input.label-custom { max-width:180px; } /* smaller custom label */
-            .label-td input.label-custom { width: 160px; }
+            .label-td select.label-ref, .label-td input.label-custom { max-width:180px; }
+            .label-td input.label-custom { width:160px; }
 
             .jprm-icon-cell { display:inline-flex; align-items:center; gap:8px; }
             .jprm-row-icon-preview img { width:24px; height:auto; display:block; }
@@ -383,11 +383,7 @@ class JPRM_Admin_MenuItem_Meta {
                 var out = [];
                 $('#jprm-prices-table tbody tr').each(function(){
                     var r = rowObj($(this));
-                    // normalize to avoid empty arrays on save/load
-                    if (r.label_mode==='ref'){
-                        r.label_custom = '';
-                        r.icon_id = parseInt(r.icon_id,10)||0;
-                    }
+                    if (r.label_mode==='ref'){ r.label_custom = ''; r.icon_id = parseInt(r.icon_id,10)||0; }
                     out.push(r);
                 });
                 $('#jprm_prices').val(JSON.stringify(out));
@@ -464,12 +460,11 @@ class JPRM_Admin_MenuItem_Meta {
                     e.preventDefault(); ensureSingleFrame().open();
                 });
 
-                // Multi existing rows (restore exact UI state)
+                // Multi existing rows
                 var $tb = $('#jprm-prices-table tbody');
                 $tb.find('tr').each(function(){
                     var $tr = $(this);
                     attachRowHandlers($tr);
-                    // use current hidden select value (rendered from saved data)
                     setRowMode($tr, $tr.find('select.label-mode').val());
                 });
 
@@ -487,7 +482,7 @@ class JPRM_Admin_MenuItem_Meta {
                     e.preventDefault(); $(this).closest('tr').remove(); collectMulti();
                 });
 
-                // Add row
+                // Add row (single handler; legacy script disabled)
                 $('#jprm-row-add').on('click', function(e){
                     e.preventDefault();
                     var $tr = $('<tr/>');
@@ -513,7 +508,7 @@ class JPRM_Admin_MenuItem_Meta {
                     attachRowHandlers($tr); setRowMode($tr,'ref'); collectMulti();
                 });
 
-                // Collect once on load and always just before submit (autosave-safe)
+                // Collect once on load and before submit
                 collectMulti();
                 $('#post').on('submit', function(){ collectMulti(); });
             });
