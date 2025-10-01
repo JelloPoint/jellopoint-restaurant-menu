@@ -236,16 +236,6 @@ class Restaurant_Menu extends Widget_Base {
             $title = isset( $item['title'] ) ? $item['title'] : '';
             $desc  = isset( $item['description'] ) ? $item['description'] : '';
 
-            if ( defined('WP_DEBUG') && WP_DEBUG ) {
-                $dbg = $item['_debug'] ?? [];
-                echo "\n<!-- JPRM DEBUG: "
-                   . "single_key=" . ( $dbg['single_key'] ?? '-' )
-                   . " | multi_key=" . ( $dbg['multi_key'] ?? '-' )
-                   . " | multi_rows=" . ( isset($dbg['multi_rows_count']) ? (int)$dbg['multi_rows_count'] : 0 )
-                   . " | desc_key=" . ( $dbg['desc_key'] ?? '-' )
-                   . " -->\n";
-            }
-
             echo '<li class="jp-menu__item">';
             echo '  <div class="jp-menu__inner">';
 
@@ -256,33 +246,28 @@ class Restaurant_Menu extends Widget_Base {
 
             echo '    <div class="jp-menu__pricegroup">';
 
-            // Determine if multi rows exist
-            $has_multi_rows = false;
-            if ( ! empty( $item['prices'] ) && is_array( $item['prices'] ) ) {
-                foreach ( $item['prices'] as $r ) {
-                    if ( ( isset($r['label']) && $r['label'] !== '' ) || ( isset($r['value']) && $r['value'] !== '' ) ) { $has_multi_rows = true; break; }
-                }
-            }
+            // Multi rows?
+            $has_multi_rows = ! empty( $item['prices'] ) && is_array( $item['prices'] );
 
             // SINGLE price (with optional single label from item-level labels)
             if ( ! $has_multi_rows && isset( $item['price'] ) && $item['price'] !== '' ) {
                 $label_text = '';
-                $icon_class = '';
+                $icon_id    = 0;
                 $hide_icon  = false;
 
                 if ( ! empty( $item['labels'] ) && is_array( $item['labels'] ) ) {
                     $first    = (string) reset( $item['labels'] );
                     $resolved = $this->resolve_qty_label_via_store( $first );
                     $label_text = $resolved['label_text'];
-                    $icon_class = $resolved['icon_class'];
+                    $icon_id    = $resolved['icon_id'];
                     $hide_icon  = $resolved['hide_icon'];
                 }
 
-                if ( $label_text === '' && $icon_class === '' ) {
+                if ( $label_text === '' && ! $icon_id ) {
                     echo '      <div class="jp-menu__price"><span class="jp-menu__value">' . esc_html( $item['price'] ) . '</span></div>';
                 } else {
                     echo '      <div class="jp-menu__price jp-price-row ' . esc_attr( $label_order_cls ) . '">';
-                    echo '          <span class="jp-menu__label jp-col-label">' . $this->render_label_html( $label_text, $presentation, $icon_class, $hide_icon ) . '</span>';
+                    echo '          <span class="jp-menu__label jp-col-label">' . $this->render_label_html( $label_text, $presentation, $icon_id, $hide_icon ) . '</span>';
                     echo '          <span class="jp-menu__value jp-col-price">' . esc_html( $item['price'] ) . '</span>';
                     echo '      </div>';
                 }
@@ -291,19 +276,19 @@ class Restaurant_Menu extends Widget_Base {
             // MULTI rows (qty labels per row)
             if ( $has_multi_rows ) {
                 foreach ( $item['prices'] as $p ) {
-                    $label_raw    = $this->extract_row_label_reference( $p );
+                    $label_ref    = isset( $p['label_ref'] ) ? (string)$p['label_ref'] : ( isset($p['label']) ? (string)$p['label'] : '' );
                     $row_hide_icon= isset( $p['hide_icon'] ) ? (bool)$p['hide_icon'] : null;
 
-                    $resolved = $this->resolve_qty_label_via_store( $label_raw, $row_hide_icon );
+                    $resolved = $this->resolve_qty_label_via_store( $label_ref, $row_hide_icon );
                     $label_txt = $resolved['label_text'];
-                    $icon_cls  = $resolved['icon_class'];
+                    $icon_id   = $resolved['icon_id'];
                     $hide_icon = $resolved['hide_icon'];
 
                     $value = isset( $p['value'] ) ? (string) $p['value'] : '';
-                    if ( $label_txt === '' && $icon_cls === '' && $value === '' ) continue;
+                    if ( $label_txt === '' && ! $icon_id && $value === '' ) continue;
 
                     echo '      <div class="jp-menu__price jp-price-row ' . esc_attr( $label_order_cls ) . '">';
-                    echo '          <span class="jp-menu__label jp-col-label">' . $this->render_label_html( $label_txt, $presentation, $icon_cls, $hide_icon ) . '</span>';
+                    echo '          <span class="jp-menu__label jp-col-label">' . $this->render_label_html( $label_txt, $presentation, $icon_id, $hide_icon ) . '</span>';
                     echo '          <span class="jp-menu__value jp-col-price">' . esc_html( $value ) . '</span>';
                     echo '      </div>';
                 }
@@ -318,22 +303,11 @@ class Restaurant_Menu extends Widget_Base {
     }
 
     /**
-     * Extract the label reference from a row supporting multiple admin keys.
-     */
-    protected function extract_row_label_reference( $row ) {
-        if ( ! is_array( $row ) ) return '';
-        foreach ( [ 'label', 'label_key', 'label_id', 'id', 'key', 'preset', 'slug' ] as $k ) {
-            if ( isset( $row[$k] ) && $row[$k] !== '' ) return (string) $row[$k];
-        }
-        return '';
-    }
-
-    /**
      * Resolve a qty label via Labels Store (supports IDs, slugs, or ready text).
-     * Falls back to filter 'jprm/label/icon' if icon not in store.
+     * Returns text + icon_id. Falls back to text if no icon exists.
      */
     protected function resolve_qty_label_via_store( $raw, $row_hide_icon = null ) {
-        $out = [ 'label_text' => '', 'icon_class' => '', 'hide_icon' => false ];
+        $out = [ 'label_text' => '', 'icon_id' => 0, 'hide_icon' => false ];
         $key_or_text = trim( (string) $raw );
         if ( $key_or_text === '' ) return $out;
 
@@ -343,39 +317,45 @@ class Restaurant_Menu extends Widget_Base {
             if ( file_exists( $maybe ) ) { require_once $maybe; }
         }
 
-        $label_map = $this->get_labels_store_map(); // id => row
+        $row = null;
 
-        // Try direct id match
-        if ( isset( $label_map[$key_or_text] ) ) {
-            $meta = (array) $label_map[$key_or_text];
-            $out['label_text'] = (string) ( $meta['label'] ?? ( $meta['name'] ?? $key_or_text ) );
-            $out['icon_class'] = (string) ( $meta['icon']  ?? '' );
+        // Lookup by ID/slug or name (case-insensitive)
+        if ( class_exists( 'JPRM_Labels_Store' ) && method_exists( 'JPRM_Labels_Store', 'map_by_id' ) ) {
+            $map = \JPRM_Labels_Store::map_by_id();
+            if ( isset( $map[ $key_or_text ] ) ) {
+                $row = (array) $map[ $key_or_text ];
+            } else {
+                $needle = strtolower( $key_or_text );
+                foreach ( $map as $r ) {
+                    $id   = strtolower( (string) ( $r['id']    ?? '' ) );
+                    $slug = strtolower( (string) ( $r['slug']  ?? '' ) );
+                    $name = strtolower( (string) ( $r['label'] ?? '' ) );
+                    if ( $needle === $id || $needle === $slug || $needle === $name ) { $row = (array) $r; break; }
+                }
+            }
         } else {
-            // Try slug/name case-insensitive
-            $needle = strtolower( $key_or_text );
-            foreach ( $label_map as $row ) {
-                $slug  = isset( $row['id'] )    ? strtolower( (string) $row['id'] )    : '';
-                $name  = isset( $row['label'] ) ? strtolower( (string) $row['label'] ) : ( isset($row['name']) ? strtolower((string)$row['name']) : '' );
-                if ( $needle === $slug || $needle === $name ) {
-                    $out['label_text'] = (string) ( $row['label'] ?? ( $row['name'] ?? $key_or_text ) );
-                    $out['icon_class'] = (string) ( $row['icon']  ?? '' );
-                    break;
+            // Fallback: read options directly (v2 first)
+            $fallback = get_option( 'jprm_price_labels_v2', [] );
+            $arr      = is_string($fallback) ? json_decode($fallback, true) : (array) $fallback;
+            if ( is_array($arr) ) {
+                $needle = strtolower( $key_or_text );
+                foreach ( $arr as $r ) {
+                    $id   = strtolower( (string) ( $r['id']    ?? '' ) );
+                    $slug = strtolower( (string) ( $r['slug']  ?? '' ) );
+                    $name = strtolower( (string) ( $r['label'] ?? '' ) );
+                    if ( $needle === $id || $needle === $slug || $needle === $name ) { $row = (array) $r; break; }
                 }
             }
         }
 
-        // If still not found, treat raw as ready text
-        if ( $out['label_text'] === '' ) {
+        if ( $row ) {
+            $out['label_text'] = (string) ( $row['label'] ?? $key_or_text );
+            $out['icon_id']    = isset( $row['icon_id'] ) ? (int) $row['icon_id'] : 0;
+        } else {
+            // Treat as ready text
             $out['label_text'] = $key_or_text;
         }
 
-        // External filter can override icon mapping
-        $icon_from_filter = apply_filters( 'jprm/label/icon', '', $out['label_text'] );
-        if ( is_string( $icon_from_filter ) && $icon_from_filter !== '' ) {
-            $out['icon_class'] = $icon_from_filter;
-        }
-
-        // Respect per-row hide flag if provided
         if ( $row_hide_icon !== null ) {
             $out['hide_icon'] = (bool) $row_hide_icon;
         }
@@ -384,119 +364,50 @@ class Restaurant_Menu extends Widget_Base {
     }
 
     /**
-     * Get Labels Store map (id => row) using JPRM_Labels_Store if available,
-     * otherwise parse options (both primary and v2 fallback).
+     * Extract the label reference from a row supporting multiple admin keys.
+     * (Not used directly anymore; we keep a normalized 'label_ref' in rows.)
      */
-    protected function get_labels_store_map() {
-        static $cache = null;
-        if ( $cache !== null ) return $cache;
-
-        if ( class_exists( 'JPRM_Labels_Store' ) && method_exists( 'JPRM_Labels_Store', 'map_by_id' ) ) {
-            $map = \JPRM_Labels_Store::map_by_id();
-            if ( is_array( $map ) && ! empty( $map ) ) {
-                $cache = $map;
-                return $cache;
-            }
+    protected function extract_row_label_reference( $row ) {
+        if ( ! is_array( $row ) ) return '';
+        foreach ( [ 'label_ref', 'label', 'label_key', 'label_id', 'id', 'key', 'preset', 'slug' ] as $k ) {
+            if ( isset( $row[$k] ) && $row[$k] !== '' ) return (string) $row[$k];
         }
-
-        // Fallback: read from options directly (primary + v2)
-        $primary  = get_option( 'jprm_price_labels', [] );
-        $fallback = get_option( 'jprm_price_labels_v2', [] );
-
-        $data = $this->parse_labels_option_to_rows( $primary );
-        if ( empty( $data ) ) $data = $this->parse_labels_option_to_rows( $fallback );
-
-        $map = [];
-        foreach ( $data as $r ) {
-            $id = isset( $r['id'] ) ? (string)$r['id'] : ( isset($r['slug']) ? (string)$r['slug'] : ( isset($r['label']) ? sanitize_title( (string)$r['label'] ) : '' ) );
-            if ( $id === '' ) continue;
-            $map[$id] = $r;
-        }
-        $cache = $map;
-        return $cache;
-    }
-
-    /**
-     * Parse option payload (JSON, array, or newline string) into uniform row arrays.
-     * Each row: [ 'id' => string, 'label' => string, 'icon' => string ]
-     */
-    protected function parse_labels_option_to_rows( $raw ) {
-        $rows = [];
-        if ( empty( $raw ) ) return $rows;
-
-        if ( is_string( $raw ) ) {
-            $decoded = json_decode( $raw, true );
-            if ( json_last_error() === JSON_ERROR_NONE && is_array( $decoded ) ) {
-                $raw = $decoded;
-            } else {
-                // Legacy "Small\nLarge\nBottle"
-                $lines = array_filter( array_map( 'trim', explode( "\n", $raw ) ) );
-                if ( ! empty( $lines ) ) {
-                    foreach ( $lines as $line ) {
-                        $rows[] = [ 'id' => sanitize_title( $line ), 'label' => $line, 'icon' => '' ];
-                    }
-                    return $rows;
-                }
-                $raw = [];
-            }
-        }
-
-        if ( is_array( $raw ) ) {
-            $is_assoc = array_keys( $raw ) !== range( 0, count( $raw ) - 1 );
-            if ( $is_assoc ) {
-                foreach ( $raw as $k => $v ) {
-                    if ( is_string( $v ) ) {
-                        $rows[] = [ 'id' => (string)$k, 'label' => $v, 'icon' => '' ];
-                    } elseif ( is_array( $v ) ) {
-                        $id    = isset( $v['id'] )    ? (string)$v['id']    : ( isset($v['slug']) ? (string)$v['slug'] : (string)$k );
-                        $label = isset( $v['label'] ) ? (string)$v['label'] : ( isset($v['name']) ? (string)$v['name'] : (string)$k );
-                        $icon  = isset( $v['icon'] )  ? (string)$v['icon']  : '';
-                        $rows[] = [ 'id' => $id, 'label' => $label, 'icon' => $icon ];
-                    }
-                }
-            } else {
-                foreach ( $raw as $v ) {
-                    if ( is_string( $v ) ) {
-                        $rows[] = [ 'id' => sanitize_title( $v ), 'label' => $v, 'icon' => '' ];
-                    } elseif ( is_array( $v ) ) {
-                        $id    = isset( $v['id'] )    ? (string)$v['id']    : ( isset($v['slug']) ? (string)$v['slug'] : '' );
-                        $label = isset( $v['label'] ) ? (string)$v['label'] : ( isset($v['name']) ? (string)$v['name'] : '' );
-                        $icon  = isset( $v['icon'] )  ? (string)$v['icon']  : '';
-                        if ( $id === '' ) $id = sanitize_title( $label );
-                        if ( $label !== '' ) $rows[] = [ 'id' => $id, 'label' => $label, 'icon' => $icon ];
-                    }
-                }
-            }
-        }
-
-        return $rows;
+        return '';
     }
 
     /**
      * Build the inner HTML for a label based on the chosen presentation.
      * - 'text'      => plain text
      * - 'icon'      => icon only (with SR-only text fallback)
-     * - 'icon_text' => icon + text (falls back to text if no icon class)
+     * - 'icon_text' => icon + text (falls back to text if no icon)
      */
-    protected function render_label_html( $label_text, $presentation, $icon_class = '', $hide_icon = false ) {
+    protected function render_label_html( $label_text, $presentation, $icon_id = 0, $hide_icon = false ) {
         $label_text = (string) $label_text;
-        $icon_class = (string) $icon_class;
-
         if ( $presentation !== 'text' && $presentation !== 'icon' && $presentation !== 'icon_text' ) {
             $presentation = 'text';
         }
         if ( $hide_icon ) $presentation = 'text';
 
+        // Helper: build icon img if available
+        $icon_html = '';
+        if ( $icon_id ) {
+            $img = wp_get_attachment_image( $icon_id, 'thumbnail', false, [
+                'class' => 'jp-menu__icon',
+                'alt'   => $label_text !== '' ? $label_text : '',
+            ] );
+            if ( is_string( $img ) && $img !== '' ) $icon_html = $img;
+        }
+
         if ( $presentation === 'icon' ) {
-            if ( $icon_class !== '' ) {
-                return '<i class="' . esc_attr( $icon_class ) . '" aria-hidden="true"></i><span class="screen-reader-text">' . esc_html( $label_text ) . '</span>';
+            if ( $icon_html !== '' ) {
+                return $icon_html . '<span class="screen-reader-text">' . esc_html( $label_text ) . '</span>';
             }
-            return esc_html( $label_text );
+            return esc_html( $label_text ); // fallback
         }
 
         if ( $presentation === 'icon_text' ) {
-            if ( $icon_class !== '' ) {
-                return '<i class="' . esc_attr( $icon_class ) . '" aria-hidden="true"></i> ' . esc_html( $label_text );
+            if ( $icon_html !== '' ) {
+                return $icon_html . ' ' . esc_html( $label_text );
             }
             return esc_html( $label_text );
         }
@@ -569,9 +480,6 @@ class Restaurant_Menu extends Widget_Base {
                 $desc = get_the_excerpt();
                 if ( empty( $desc ) ) $desc = wp_trim_words( wp_strip_all_tags( get_post_field( 'post_content', $post_id ) ), 40, '' );
                 $parsed['description'] = (string) $desc;
-                if ( defined('WP_DEBUG') && WP_DEBUG ) {
-                    $parsed['_debug']['desc_key'] = $parsed['_debug']['desc_key'] ?? 'excerpt/content';
-                }
             }
 
             $out[] = $parsed;
@@ -640,7 +548,7 @@ class Restaurant_Menu extends Widget_Base {
                     $lbl = isset( $labels_arr[$i] ) ? (string) $labels_arr[$i] : '';
                     $val = isset( $amounts_arr[$i] ) ? (string) $amounts_arr[$i] : '';
                     $hid = isset( $hide_arr[$i] ) ? (bool) $hide_arr[$i] : false;
-                    if ( $lbl !== '' || $val !== '' ) $rows[] = [ 'label' => $lbl, 'value' => $val, 'hide_icon' => $hid ];
+                    $rows[] = [ 'label' => $lbl, 'label_ref' => $lbl, 'value' => $val, 'hide_icon' => $hid ];
                 }
                 if ( ! empty( $rows ) ) { $multi_hit = '_jprm_price_labels/_jprm_price_amounts'; }
             }
@@ -716,7 +624,7 @@ class Restaurant_Menu extends Widget_Base {
             '_debug'      => [
                 'single_key'       => $single_hit,
                 'multi_key'        => $multi_hit,
-                'multi_rows_count' => count( $rows ),
+                'multi_rows_count' => is_array($rows) ? count( $rows ) : 0,
                 'desc_key'         => $desc_hit,
             ],
         ];
@@ -771,8 +679,13 @@ class Restaurant_Menu extends Widget_Base {
     }
 
     /**
-     * Normalize rows from admin into [['label'=>..., 'value'=>..., 'hide_icon'=>bool], ...]
-     * Supports per-row variants and keeps label raw value (id/slug/text) for later store resolution.
+     * Normalize rows from admin into a stable shape, but **preserve label reference**.
+     * Result rows contain:
+     *   - label       (display text if provided in row; else empty)
+     *   - label_ref   (id/slug/key used to resolve against Labels Store)
+     *   - value       (price)
+     *   - hide_icon   (bool)
+     * Any unknown keys are preserved to not lose data.
      */
     protected function normalize_price_rows( $val ) {
         $out = [];
@@ -781,44 +694,50 @@ class Restaurant_Menu extends Widget_Base {
         $is_assoc_map = array_keys( $val ) !== range( 0, count( $val ) - 1 );
         if ( $is_assoc_map ) {
             foreach ( $val as $k => $v ) {
-                $label = (string) $k;
-                $value = is_scalar( $v ) ? (string) $v : '';
-                if ( $label !== '' || $value !== '' ) $out[] = [ 'label' => $label, 'value' => $value ];
+                $row = [ 'label' => (string) $k, 'label_ref' => (string) $k, 'value' => is_scalar($v) ? (string)$v : '' ];
+                $out[] = $row;
             }
             return $out;
         }
 
         foreach ( $val as $row ) {
-            $label = ''; $value = ''; $hide_icon = false;
-
             if ( is_array( $row ) ) {
-                if ( isset( $row['label'] ) || isset( $row['value'] ) ) {
-                    $label = isset( $row['label'] ) ? (string) $row['label'] : '';
-                    $value = isset( $row['value'] ) ? (string) $row['value'] : '';
-                } elseif ( isset( $row['title'] ) || isset( $row['amount'] ) || isset( $row['price'] ) ) {
-                    $label = isset( $row['title'] )  ? (string) $row['title']  : '';
-                    $value = isset( $row['amount'] ) ? (string) $row['amount'] : ( isset( $row['price'] ) ? (string) $row['price'] : '' );
+                $r = $row; // preserve unknown keys
+
+                // Value
+                if ( ! isset($r['value']) ) {
+                    if ( isset($r['amount']) ) $r['value'] = (string) $r['amount'];
+                    elseif ( isset($r['price']) ) $r['value'] = (string) $r['price'];
+                    elseif ( isset($r[1]) ) $r['value'] = (string) $r[1];
+                    else $r['value'] = '';
                 } else {
-                    $label = isset( $row[0] ) ? (string) $row[0] : ( isset( $row['0'] ) ? (string) $row['0'] : '' );
-                    $value = isset( $row[1] ) ? (string) $row[1] : ( isset( $row['1'] ) ? (string) $row['1'] : '' );
+                    $r['value'] = (string) $r['value'];
                 }
 
-                // Extended keys common in admin
-                if ( $label === '' ) {
-                    foreach ( [ 'label_key', 'label_id', 'id', 'key', 'preset', 'slug' ] as $k ) {
-                        if ( isset( $row[$k] ) && $row[$k] !== '' ) { $label = (string) $row[$k]; break; }
-                    }
+                // Label text (if any direct)
+                if ( ! isset($r['label']) ) {
+                    if ( isset($r['title']) ) $r['label'] = (string) $r['title'];
+                    elseif ( isset($r[0]) ) $r['label'] = (string) $r[0];
+                    else $r['label'] = '';
+                } else {
+                    $r['label'] = (string) $r['label'];
                 }
 
-                if ( isset( $row['hide_icon'] ) ) {
-                    $hide_icon = (bool) $row['hide_icon'];
+                // Label ref (id/slug/key)
+                $ref = '';
+                foreach ( [ 'label_ref','label_key','label_id','id','key','preset','slug' ] as $k ) {
+                    if ( isset( $row[$k] ) && $row[$k] !== '' ) { $ref = (string) $row[$k]; break; }
                 }
+                if ( $ref === '' ) $ref = $r['label'];
+                $r['label_ref'] = $ref;
+
+                // Hide icon normalize
+                $r['hide_icon'] = isset($r['hide_icon']) ? (bool)$r['hide_icon'] : false;
+
+                $out[] = $r;
+
             } elseif ( is_scalar( $row ) ) {
-                $value = (string) $row;
-            }
-
-            if ( $label !== '' || $value !== '' ) {
-                $out[] = [ 'label' => $label, 'value' => $value, 'hide_icon' => $hide_icon ];
+                $out[] = [ 'label' => '', 'label_ref' => '', 'value' => (string)$row, 'hide_icon' => false ];
             }
         }
         return $out;
@@ -892,6 +811,7 @@ class Restaurant_Menu extends Widget_Base {
              . '.jp-menu__pricegroup{display:flex;flex-direction:column;gap:.25rem;text-align:right}'
              . '.jp-menu__price{display:flex;gap:.5rem;justify-content:flex-end;line-height:1.2}'
              . '.jp-menu__label{opacity:.9;white-space:nowrap}'
+             . '.jp-menu__icon{width:1.1em;height:1.1em;vertical-align:-0.15em;border-radius:2px;display:inline-block}'
              . '.jp-menu__value{font-weight:600;white-space:nowrap}'
              . '.jp-price-row{display:grid;grid-template-columns:auto auto;gap:.5rem;align-items:center}'
              . '.jp-col-label{justify-self:end}'
