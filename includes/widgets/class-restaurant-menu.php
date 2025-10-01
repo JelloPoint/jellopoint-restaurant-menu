@@ -332,7 +332,7 @@ class Restaurant_Menu extends Widget_Base {
         echo '<ul class="jp-menu">';
 
         foreach ( $items as $raw ) {
-            $item = $this->normalize_item( $raw );
+            $item = $this->normalize_item( $raw ); // now exists (no-op passthrough)
 
             $hide_invisible = isset( $s['hide_invisible'] ) && $s['hide_invisible'] === 'yes';
             if ( $hide_invisible && ! empty( $item['invisible'] ) ) {
@@ -735,5 +735,13 @@ class Restaurant_Menu extends Widget_Base {
             $opts[ $t->slug ] = $t->name;
         }
         return apply_filters( 'jprm/widget/term_options', $opts, $taxonomy, $this );
+    }
+
+    /**
+     * No-op normalizer to keep the render pipeline stable.
+     * Items coming from collect_dynamic_items() are already normalized.
+     */
+    protected function normalize_item( array $item ) {
+        return $item;
     }
 }
