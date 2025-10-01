@@ -47,7 +47,6 @@ if ( version_compare( PHP_VERSION, JPRM_MIN_PHP, '<' ) ) {
     });
     return;
 }
-require_once JPRM_PLUGIN_PATH . '/includes/jprm-labels-integration.php';
 require_once JPRM_PLUGIN_PATH . 'includes/class-plugin.php';
 update_option( 'jprm_current_version', JPRM_VERSION );
 
