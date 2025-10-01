@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin: Menu Item Meta — multiple prices UI (no legacy JS), persistence + compact layout
+ * Admin: Menu Item Meta — multiple prices UI (blocks legacy JS), persistence + compact layout
  */
 if ( ! defined('ABSPATH') ) { exit; }
 
@@ -11,7 +11,7 @@ class JPRM_Admin_MenuItem_Meta {
     public static function init(){
         add_action('add_meta_boxes', [__CLASS__, 'register_metaboxes']);
         add_action('save_post_jprm_menu_item', [__CLASS__, 'save'], 10, 2);
-        add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue'], 20);
+        add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue'], 100); // run late
         add_action('admin_head', [__CLASS__, 'hide_core_editor']);
     }
 
@@ -26,20 +26,24 @@ class JPRM_Admin_MenuItem_Meta {
         $scr = function_exists('get_current_screen') ? get_current_screen() : null;
         if ( ! $scr || $scr->post_type !== 'jprm_menu_item' ) return;
 
-        // Media for icon picker
+        // Load dependencies we do want
         wp_enqueue_script('jquery');
         if ( function_exists('wp_enqueue_media') ) wp_enqueue_media();
 
-        // IMPORTANT: prevent legacy JS (older table logic) from running on this screen
-        // It would otherwise rebuild rows and bind another "Add price" handler.
-        if ( wp_script_is('jprm-menu-item-meta', 'enqueued') || wp_script_is('jprm-menu-item-meta', 'registered') ){
-            wp_dequeue_script('jprm-menu-item-meta');
-            wp_deregister_script('jprm-menu-item-meta');
+        // HARD BLOCK any legacy scripts that rebuild the old table / add duplicate handlers
+        foreach ([
+            'jprm-menu-item-meta',
+            'jprm_admin_menuitem',
+            'jprm-admin',
+            'jprm-metabox',
+        ] as $h) {
+            if ( wp_script_is($h, 'enqueued') )  wp_dequeue_script($h);
+            if ( wp_script_is($h, 'registered') ) wp_deregister_script($h);
         }
     }
 
     public static function register_metaboxes(){
-        // remove legacy duplicate metabox
+        // remove legacy duplicate metabox if present
         remove_meta_box('jprm_menu_item_settings', 'jprm_menu_item', 'normal');
 
         add_meta_box('jprm_item_desc', __('Description','jellopoint-restaurant-menu'),
@@ -341,6 +345,7 @@ class JPRM_Admin_MenuItem_Meta {
                     else { $('#jprm_single_icon_preview').empty(); }
                 }
             }
+
             var singleFrame = null;
             function ensureSingleFrame(){
                 if (singleFrame) return singleFrame;
@@ -355,16 +360,6 @@ class JPRM_Admin_MenuItem_Meta {
                 });
                 return singleFrame;
             }
-            $('#jprm_single_icon_preview').on('click', function(e){
-                if ($('#jprm_price_label_mode').val() !== 'custom') return;
-                e.preventDefault(); ensureSingleFrame().open();
-            });
-            $(document).on('click', '.jprm-single-icon-clear', function(e){
-                e.preventDefault();
-                $('#jprm_price_label_icon_id').val('0').attr('data-url','');
-                $('#jprm_single_icon_preview').html('<span class="jprm-icon-ph"><span class="dashicons dashicons-format-image"></span></span>');
-                $(this).hide();
-            });
 
             /* ---------------- MULTI ---------------- */
             function norm(val){ return (val==null?'':String(val)).trim(); }
@@ -415,18 +410,18 @@ class JPRM_Admin_MenuItem_Meta {
                 collectMulti();
             }
             function attachRowHandlers($tr){
-                $tr.on('click', '.jprm-pill', function(){ setRowMode($tr, $(this).data('mode')); });
-                $tr.on('change', 'select.label-ref', function(){
+                $tr.off('click', '.jprm-pill').on('click', '.jprm-pill', function(){ setRowMode($tr, $(this).data('mode')); });
+                $tr.off('change', 'select.label-ref').on('change', 'select.label-ref', function(){
                     var url = $(this).find('option:selected').data('icon') || '';
                     if (url){ $tr.find('.jprm-row-icon-preview').html('<img src="'+url+'" alt="" />'); }
                     else { $tr.find('.jprm-row-icon-preview').empty(); }
                     collectMulti();
                 });
-                $tr.on('click', '.jprm-row-icon-preview', function(e){
+                $tr.off('click', '.jprm-row-icon-preview').on('click', '.jprm-row-icon-preview', function(e){
                     if ($tr.find('select.label-mode').val() !== 'custom') return;
                     e.preventDefault(); activeRow = $tr; ensureRowFrame().open();
                 });
-                $tr.on('change keyup', 'input,select', function(){ collectMulti(); });
+                $tr.off('change keyup', 'input,select').on('change keyup', 'input,select', function(){ collectMulti(); });
             }
 
             var rowFrame = null, activeRow = null;
@@ -448,14 +443,20 @@ class JPRM_Admin_MenuItem_Meta {
             }
 
             $(function(){
+                // SAFETY: remove any legacy bindings that might still exist
+                $(document).off('click', '#jprm-row-add');
+                $(document).off('click', '.jprm-row-remove');
+                $(document).off('change', '#jprm-prices-table select.label-ref');
+                $(document).off('click',  '#jprm-prices-table .jprm-row-icon-preview');
+
                 // Single
-                $('input[name="jprm_price_mode"]').on('change', setModeUI);
+                $('input[name="jprm_price_mode"]').off('change').on('change', setModeUI);
                 setModeUI();
 
-                $('#jprm_single_mode_switch .jprm-pill').on('click', function(){ setSingleMode($(this).data('mode')); });
-                $('#jprm_price_label_ref').on('change', refreshSingleIcon);
+                $('#jprm_single_mode_switch .jprm-pill').off('click').on('click', function(){ setSingleMode($(this).data('mode')); });
+                $('#jprm_price_label_ref').off('change').on('change', refreshSingleIcon);
                 setSingleMode($('#jprm_price_label_mode').val());
-                $('#jprm_single_icon_preview').on('click', function(e){
+                $('#jprm_single_icon_preview').off('click').on('click', function(e){
                     if ($('#jprm_price_label_mode').val() !== 'custom') return;
                     e.preventDefault(); ensureSingleFrame().open();
                 });
@@ -469,7 +470,7 @@ class JPRM_Admin_MenuItem_Meta {
                 });
 
                 // Clear icon (row)
-                $(document).on('click', '.jprm-row-icon-clear', function(e){
+                $(document).off('click', '.jprm-row-icon-clear').on('click', '.jprm-row-icon-clear', function(e){
                     e.preventDefault();
                     var $tr = $(this).closest('tr');
                     $tr.find('input.icon-id').val('0').attr('data-url','');
@@ -478,12 +479,12 @@ class JPRM_Admin_MenuItem_Meta {
                 });
 
                 // Remove row
-                $tb.on('click', '.jprm-row-remove', function(e){
+                $tb.off('click', '.jprm-row-remove').on('click', '.jprm-row-remove', function(e){
                     e.preventDefault(); $(this).closest('tr').remove(); collectMulti();
                 });
 
-                // Add row (single handler; legacy script disabled)
-                $('#jprm-row-add').on('click', function(e){
+                // Add row – ensure single handler
+                $('#jprm-row-add').off('click').on('click', function(e){
                     e.preventDefault();
                     var $tr = $('<tr/>');
                     $tr.append('<td><input type="checkbox" class="enable" checked /></td>');
@@ -510,7 +511,7 @@ class JPRM_Admin_MenuItem_Meta {
 
                 // Collect once on load and before submit
                 collectMulti();
-                $('#post').on('submit', function(){ collectMulti(); });
+                $('#post').off('submit').on('submit', function(){ collectMulti(); });
             });
         })(jQuery);
         </script>
@@ -520,7 +521,7 @@ class JPRM_Admin_MenuItem_Meta {
     public static function render_visibility($post){
         $badge  = get_post_meta($post->ID, 'jprm_badge', true);
         $vis    = get_post_meta($post->ID, 'jprm_visible', true) === 'yes';
-        echo '<table class="form-table"><tbody>';
+        echo '<table class="form-table'><tbody>';
         echo '<tr><th style="width:180px;"><label for="jprm_visible">'.esc_html__('Visible','jellopoint-restaurant-menu').'</label></th><td>';
         printf('<label><input type="checkbox" id="jprm_visible" name="jprm_visible" value="yes" %s> %s</label>',
             checked($vis, true, false), esc_html__('Show this item on the site','jellopoint-restaurant-menu'));
