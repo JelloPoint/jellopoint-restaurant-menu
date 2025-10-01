@@ -15,22 +15,29 @@ class JPRM_Admin_MenuItem_Meta {
         $s = function_exists('get_current_screen') ? get_current_screen() : null;
         if ($s && $s->post_type==='jprm_menu_item'){
             echo '<style>
-/* --- JPRM safety: keep label row from overlapping the Price column --- */
-#jprm2-prices-table { table-layout: fixed; width: 100%; }
-#jprm2-prices-table th, #jprm2-prices-table td { vertical-align: middle; }
 
-/* The label cell should not overflow into the next cells */
-#jprm2-prices-table td.label-td { overflow: hidden; }
+/* --- JPRM hard column locks to keep cells aligned --- */
+#jprm2-prices-table { table-layout: fixed; width: 100%; border-collapse: collapse; }
+#jprm2-prices-table th, #jprm2-prices-table td { vertical-align: middle; box-sizing: border-box; }
 
-/* Allow flex children to shrink within the cell */
-.label-td .label-row { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; min-width: 0; }
-.label-td .inline-field { display: inline-flex; gap: 8px; align-items: center; min-width: 0; }
+/* Lock widths by column index (header + body) */
+#jprm2-prices-table th:nth-child(1), #jprm2-prices-table td:nth-child(1) { width: 32px; }
+#jprm2-prices-table th:nth-child(3), #jprm2-prices-table td:nth-child(3) { width: 110px; }
+#jprm2-prices-table th:nth-child(4), #jprm2-prices-table td:nth-child(4) { width: 110px; }
+#jprm2-prices-table th:nth-child(5), #jprm2-prices-table td:nth-child(5) { width: 44px; text-align: center; }
+#jprm2-prices-table th:nth-child(6), #jprm2-prices-table td:nth-child(6) { width: 44px; text-align: center; }
 
-/* Tighter widths so everything fits on one line */
-.label-td .inline-field select.label-ref { max-width: 160px; }
-.label-td .inline-field input.label-custom { width: 120px; max-width: 140px; }
+/* Prevent label cell from spilling into the next columns */
+#jprm2-prices-table td.label-td { overflow: hidden; min-width: 0; }
 
-/* Keep the amount field clearly visible */
+/* Keep the label UI on one line but allow shrinking inside the cell */
+.label-td .label-row { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; }
+.label-td .jprm-mode-switch { flex: 0 0 auto; }
+.label-td .inline-field { display: inline-flex; gap: 8px; align-items: center; flex: 1 1 auto; min-width: 0; }
+.label-td .inline-field > select.label-ref { max-width: 160px; flex: 0 0 auto; }
+.label-td .inline-field > input.label-custom { width: 120px; max-width: 140px; flex: 0 0 auto; }
+
+/* Keep the amount input clearly visible */
 #jprm2-prices-table input.amount { width: 7.2em !important; }
 
 /* Icon + remove X inline without breaking table layout */
@@ -145,7 +152,7 @@ class JPRM_Admin_MenuItem_Meta {
 
             .label-td .label-row{display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
             .label-td .inline-field{display:inline-flex;gap:8px;align-items:center}
-            .label-td input.label-custom{width:120px;max-width:140px}
+            .label-td input.label-custom{width:160px;max-width:180px}
             .jprm-row-icon-preview img{width:24px;height:auto;display:block}
             .jprm-icon-ph-sm{width:24px;height:24px;border:1px dashed #ccd0d4;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;color:#777;background:#fff}
 
