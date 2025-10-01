@@ -249,20 +249,31 @@ class Restaurant_Menu extends Widget_Base {
             // Multi rows?
             $has_multi_rows = ! empty( $item['prices'] ) && is_array( $item['prices'] );
 
-            // SINGLE price (now with explicit single label logic)
+            // SINGLE price (with explicit single label logic + multiple fallbacks)
             if ( ! $has_multi_rows && isset( $item['price'] ) && $item['price'] !== '' ) {
-                // prefer explicit single label ref; fallback to first item-level label id/slug/text
-                $single_ref  = isset($item['single_label_ref']) ? (string)$item['single_label_ref'] : '';
-                $single_hide = isset($item['single_hide_icon']) ? (bool)$item['single_hide_icon'] : null;
-
-                if ( $single_ref === '' && ! empty( $item['labels'] ) && is_array( $item['labels'] ) ) {
-                    $single_ref = (string) reset( $item['labels'] );
-                }
-
                 $label_text = '';
                 $icon_id    = 0;
                 $hide_icon  = false;
 
+                // prefer explicit single label ref; fallback to item-level labels; final fallback: scan meta
+                $single_ref  = isset($item['single_label_ref']) ? (string)$item['single_label_ref'] : '';
+                $single_hide = isset($item['single_hide_icon']) ? (bool)$item['single_hide_icon'] : null;
+
+                // If not set, try legacy item labels
+                if ( $single_ref === '' && ! empty( $item['labels'] ) && is_array( $item['labels'] ) ) {
+                    $single_ref = (string) reset( $item['labels'] );
+                }
+
+                // If still empty, try to discover from all meta (regex scan)
+                if ( $single_ref === '' && ! empty( $item['ID'] ) ) {
+                    $auto = $this->find_single_label_ref_from_all_meta( (int)$item['ID'], $item['_debug']['single_key'] ?? null );
+                    if ( $auto ) {
+                        $single_ref  = $auto['ref'];
+                        $single_hide = $auto['hide'];
+                    }
+                }
+
+                // Resolve via Labels Store
                 if ( $single_ref !== '' ) {
                     $resolved   = $this->resolve_qty_label_via_store( $single_ref, $single_hide );
                     $label_text = $resolved['label_text'];
@@ -273,8 +284,10 @@ class Restaurant_Menu extends Widget_Base {
                 if ( $label_text === '' && ! $icon_id ) {
                     echo '      <div class="jp-menu__price"><span class="jp-menu__value">' . esc_html( $item['price'] ) . '</span></div>';
                 } else {
+                    $presentation2 = $presentation;
+                    if ( $hide_icon ) $presentation2 = 'text';
                     echo '      <div class="jp-menu__price jp-price-row ' . esc_attr( $label_order_cls ) . '">';
-                    echo '          <span class="jp-menu__label jp-col-label">' . $this->render_label_html( $label_text, $presentation, $icon_id, $hide_icon ) . '</span>';
+                    echo '          <span class="jp-menu__label jp-col-label">' . $this->render_label_html( $label_text, $presentation2, $icon_id, $hide_icon ) . '</span>';
                     echo '          <span class="jp-menu__value jp-col-price">' . esc_html( $item['price'] ) . '</span>';
                     echo '      </div>';
                 }
@@ -283,8 +296,8 @@ class Restaurant_Menu extends Widget_Base {
             // MULTI rows (qty labels per row)
             if ( $has_multi_rows ) {
                 foreach ( $item['prices'] as $p ) {
-                    $label_ref    = isset( $p['label_ref'] ) ? (string)$p['label_ref'] : ( isset($p['label']) ? (string)$p['label'] : '' );
-                    $row_hide_icon= isset( $p['hide_icon'] ) ? (bool)$p['hide_icon'] : null;
+                    $label_ref     = isset( $p['label_ref'] ) ? (string)$p['label_ref'] : ( isset($p['label']) ? (string)$p['label'] : '' );
+                    $row_hide_icon = isset( $p['hide_icon'] ) ? (bool)$p['hide_icon'] : null;
 
                     $resolved = $this->resolve_qty_label_via_store( $label_ref, $row_hide_icon );
                     $label_txt = $resolved['label_text'];
@@ -294,8 +307,11 @@ class Restaurant_Menu extends Widget_Base {
                     $value = isset( $p['value'] ) ? (string) $p['value'] : '';
                     if ( $label_txt === '' && ! $icon_id && $value === '' ) continue;
 
+                    $presentation2 = $presentation;
+                    if ( $hide_icon ) $presentation2 = 'text';
+
                     echo '      <div class="jp-menu__price jp-price-row ' . esc_attr( $label_order_cls ) . '">';
-                    echo '          <span class="jp-menu__label jp-col-label">' . $this->render_label_html( $label_txt, $presentation, $icon_id, $hide_icon ) . '</span>';
+                    echo '          <span class="jp-menu__label jp-col-label">' . $this->render_label_html( $label_txt, $presentation2, $icon_id, $hide_icon ) . '</span>';
                     echo '          <span class="jp-menu__value jp-col-price">' . esc_html( $value ) . '</span>';
                     echo '      </div>';
                 }
@@ -307,6 +323,58 @@ class Restaurant_Menu extends Widget_Base {
         }
 
         echo '</ul>';
+    }
+
+    /**
+     * Try to discover a single-price label ref from all meta if not explicitly set.
+     * - Searches keys like: single_*label*, price_*label*, *_label_single*, *_single_label*, *_price_label*
+     * - Also inspects the single price field (if array) for label keys.
+     */
+    protected function find_single_label_ref_from_all_meta( $post_id, $single_hit_key = null ) {
+        $result = [ 'ref' => '', 'hide' => null ];
+
+        // 1) Inspect the single price field itself if it was found and is array-like
+        if ( $single_hit_key ) {
+            $raw = get_post_meta( $post_id, $single_hit_key, true );
+            if ( is_array( $raw ) ) {
+                // common keys in array-shaped single price
+                foreach ( [ 'label_ref','label','label_key','label_id','id','key','preset','slug' ] as $k ) {
+                    if ( isset( $raw[$k] ) && $raw[$k] !== '' ) {
+                        $result['ref'] = (string)$raw[$k];
+                        break;
+                    }
+                }
+                if ( isset($raw['hide_icon']) ) $result['hide'] = (bool)$raw['hide_icon'];
+                if ( $result['ref'] !== '' ) return $result;
+            }
+        }
+
+        // 2) Regex scan on all meta keys for likely single-label fields
+        $all = get_post_meta( $post_id );
+        if ( is_array( $all ) ) {
+            foreach ( $all as $key => $values ) {
+                $lk = strtolower( (string) $key );
+                $is_labelish = (bool) preg_match( '/(single.*label|label.*single|price.*label|label.*price|single_label|price_label)/', $lk );
+                if ( ! $is_labelish ) continue;
+
+                $val = get_post_meta( $post_id, $key, true );
+                if ( is_string( $val ) || is_numeric( $val ) ) {
+                    $sv = trim( (string) $val );
+                    if ( $sv !== '' ) return [ 'ref' => $sv, 'hide' => null ];
+                } elseif ( is_array( $val ) ) {
+                    foreach ( [ 'label_ref','label','label_key','label_id','id','key','preset','slug' ] as $k ) {
+                        if ( isset( $val[$k] ) && $val[$k] !== '' ) {
+                            $result['ref'] = (string)$val[$k];
+                            break;
+                        }
+                    }
+                    if ( isset($val['hide_icon']) ) $result['hide'] = (bool)$val['hide_icon'];
+                    if ( $result['ref'] !== '' ) return $result;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -368,18 +436,6 @@ class Restaurant_Menu extends Widget_Base {
         }
 
         return $out;
-    }
-
-    /**
-     * Extract the label reference from a row supporting multiple admin keys.
-     * (Not used directly anymore; we keep a normalized 'label_ref' in rows.)
-     */
-    protected function extract_row_label_reference( $row ) {
-        if ( ! is_array( $row ) ) return '';
-        foreach ( [ 'label_ref', 'label', 'label_key', 'label_id', 'id', 'key', 'preset', 'slug' ] as $k ) {
-            if ( isset( $row[$k] ) && $row[$k] !== '' ) return (string) $row[$k];
-        }
-        return '';
     }
 
     /**
@@ -602,7 +658,7 @@ class Restaurant_Menu extends Widget_Base {
             '_jprm_item_desc','_jp_desc'
         ], $desc_hit );
 
-        // ---------- SINGLE PRICE LABEL REF (NEW) ----------
+        // ---------- SINGLE PRICE LABEL REF (explicit if present)
         $single_label_ref = '';
         foreach ( [
             '_jprm_single_label','single_label','price_label','jprm_single_label','jprm_price_label',
@@ -645,12 +701,13 @@ class Restaurant_Menu extends Widget_Base {
         }
 
         return [
+            'ID'               => $post_id,
             'price'            => $single,
             'prices'           => $rows,
             'description'      => $desc,
             'labels'           => $labels,           // legacy array
-            'single_label_ref' => $single_label_ref, // NEW: explicit single label id/slug/text
-            'single_hide_icon' => $single_hide_icon, // NEW
+            'single_label_ref' => $single_label_ref, // explicit single label id/slug/text
+            'single_hide_icon' => $single_hide_icon, // explicit hide flag
             'invisible'        => $invisible,
             '_debug'           => [
                 'single_key'       => $single_hit,
