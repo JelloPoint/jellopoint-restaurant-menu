@@ -7,12 +7,38 @@
  * Text Domain: jellopoint-restaurant-menu
  * Domain Path: /languages
  */
+
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 if ( ! defined( 'JPRM_VERSION' ) ) define( 'JPRM_VERSION', '2.0.1' );
 if ( ! defined( 'JPRM_PLUGIN_FILE' ) ) define( 'JPRM_PLUGIN_FILE', __FILE__ );
 if ( ! defined( 'JPRM_PLUGIN_PATH' ) ) define( 'JPRM_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 if ( ! defined( 'JPRM_PLUGIN_URL' ) ) define( 'JPRM_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+// Dev mode: follows WP_DEBUG unless you override earlier.
+if ( ! defined( 'JPRM_DEV' ) ) {
+    define( 'JPRM_DEV', ( defined('WP_DEBUG') && WP_DEBUG ) ? true : false );
+}
+
+// Dev-only diagnostics page
+if ( JPRM_DEV ) {
+    $jprm_sys = JPRM_PLUGIN_PATH . 'includes/admin/class-system-check.php';
+    if ( file_exists( $jprm_sys ) ) {
+        require_once $jprm_sys;
+    } else {
+        if ( function_exists('error_log') ) {
+            error_log('[JPRM] Dev mode ON, system-check file not found at: ' . $jprm_sys);
+        }
+    }
+}
+
+if ( JPRM_DEV ) {
+    add_action('admin_notices', function(){
+        if ( current_user_can('manage_options') ) {
+            echo '<div class="notice notice-success"><p>JPRM Dev Mode: <strong>ON</strong></p></div>';
+        }
+    });
+}
+
 if ( ! defined( 'JPRM_MIN_PHP' ) ) define( 'JPRM_MIN_PHP', '7.2' );
 
 if ( version_compare( PHP_VERSION, JPRM_MIN_PHP, '<' ) ) {
@@ -21,23 +47,8 @@ if ( version_compare( PHP_VERSION, JPRM_MIN_PHP, '<' ) ) {
     });
     return;
 }
-require_once JPRM_PLUGIN_PATH . 'includes/data/class-labels-store.php';
+require_once JPRM_PLUGIN_PATH . '/includes/jprm-labels-integration.php';
 require_once JPRM_PLUGIN_PATH . 'includes/class-plugin.php';
-require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-menuitem-meta.php';
-if ( JPRM_DEV ) {
-    require_once JPRM_PLUGIN_PATH . 'includes/admin/class-system-check.php';
-}
-if ( class_exists('JPRM_Admin_MenuItem_Meta') ) {
-    $ref = new \ReflectionClass('JPRM_Admin_MenuItem_Meta');
-    $expected = JPRM_PLUGIN_PATH . 'includes/admin/class-admin-menuitem-meta.php';
-    if ( wp_normalize_path($ref->getFileName()) !== wp_normalize_path($expected) ) {
-        // stop early in dev so we don't debug the wrong file
-        if ( JPRM_DEV ) {
-            wp_die('JPRM dev guard: Admin meta loaded from unexpected path: <code>'.$ref->getFileName().'</code>');
-        }
-    }
-}
-
 update_option( 'jprm_current_version', JPRM_VERSION );
 
 // Bootstrap safely (supports both Plugin::instance() and jprm_bootstrap())
