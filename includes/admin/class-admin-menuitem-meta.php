@@ -14,7 +14,31 @@ class JPRM_Admin_MenuItem_Meta {
     public static function hide_core_editor(){
         $s = function_exists('get_current_screen') ? get_current_screen() : null;
         if ($s && $s->post_type==='jprm_menu_item'){
-            echo '<style>#postdivrich,#wp-content-media-buttons{display:none!important;}</style>';
+            echo '<style>
+/* --- JPRM safety: keep label row from overlapping the Price column --- */
+#jprm2-prices-table { table-layout: fixed; width: 100%; }
+#jprm2-prices-table th, #jprm2-prices-table td { vertical-align: middle; }
+
+/* The label cell should not overflow into the next cells */
+#jprm2-prices-table td.label-td { overflow: hidden; }
+
+/* Allow flex children to shrink within the cell */
+.label-td .label-row { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; min-width: 0; }
+.label-td .inline-field { display: inline-flex; gap: 8px; align-items: center; min-width: 0; }
+
+/* Tighter widths so everything fits on one line */
+.label-td .inline-field select.label-ref { max-width: 160px; }
+.label-td .inline-field input.label-custom { width: 120px; max-width: 140px; }
+
+/* Keep the amount field clearly visible */
+#jprm2-prices-table input.amount { width: 7.2em !important; }
+
+/* Icon + remove X inline without breaking table layout */
+#jprm2-prices-table td.jprm-icon-cell { vertical-align: middle; }
+.jprm-icon-inline { display: inline-flex; align-items: center; gap: 8px; }
+#jprm2-prices-table .jprm-row-icon-clear { margin: 0; }
+
+#postdivrich,#wp-content-media-buttons{display:none!important;}</style>';
         }
     }
 
@@ -121,7 +145,7 @@ class JPRM_Admin_MenuItem_Meta {
 
             .label-td .label-row{display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
             .label-td .inline-field{display:inline-flex;gap:8px;align-items:center}
-            .label-td input.label-custom{width:160px;max-width:180px}
+            .label-td input.label-custom{width:120px;max-width:140px}
             .jprm-row-icon-preview img{width:24px;height:auto;display:block}
             .jprm-icon-ph-sm{width:24px;height:24px;border:1px dashed #ccd0d4;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;color:#777;background:#fff}
 
