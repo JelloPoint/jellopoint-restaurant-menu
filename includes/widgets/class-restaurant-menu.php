@@ -12,6 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * - Dynamic items (CPT jprm_menu_item) with Menu/Section taxonomy filters
  * - Static items (manual) as fallback
  * - Auto-detect current Menu/Section context when not explicitly selected
+ * - Robust meta resolution for NEW admin storage (multiple candidate keys + JSON/serialized support)
  * - Preserves stable HTML wrappers for multiple-price alignment
  */
 class Restaurant_Menu extends Widget_Base {
@@ -20,10 +21,10 @@ class Restaurant_Menu extends Widget_Base {
      * Widget meta
      * ========================= */
     public function get_name() { return 'jprm-restaurant-menu'; }
-    public function get_title() { return __( 'Restaurant Menu', 'jellopoint-restaurant-menu' ); }
-    public function get_icon() { return 'eicon-menu-card'; }
+    public function get_title() { return __( 'JelloPoint Restaurant Menu', 'jellopoint-restaurant-menu' ); }
+    public function get_icon() { return 'eicon-price-list'; }
     public function get_categories() { return [ 'jellopoint-widgets' ]; }
-    public function get_keywords() { return [ 'menu', 'restaurant', 'card', 'food', 'price', 'prices', 'items' ]; }
+    public function get_keywords() { return [ 'menu','restaurant','price list','list','food','drink' ]; }
 
     /* =========================
      * Controls
@@ -35,7 +36,10 @@ class Restaurant_Menu extends Widget_Base {
         $section_options = $this->get_terms_options( 'jprm_section' );
 
         /*  ===== Source ===== */
-        $this->start_controls_section( 'section_source', [ 'label' => __( 'Data Source', 'jellopoint-restaurant-menu' ) ] );
+        $this->start_controls_section( 'section_source', [
+            'label' => __( 'Data Source', 'jellopoint-restaurant-menu' ),
+            'tab'   => Controls_Manager::TAB_CONTENT,
+        ] );
 
         $this->add_control( 'data_source', [
             'label'   => __( 'Source', 'jellopoint-restaurant-menu' ),
@@ -47,7 +51,6 @@ class Restaurant_Menu extends Widget_Base {
             ],
         ] );
 
-        // Auto-detect context (term archive / current post terms) if user didn't select anything
         $this->add_control( 'auto_context', [
             'label'        => __( 'Auto-detect current Menu/Section', 'jellopoint-restaurant-menu' ),
             'type'         => Controls_Manager::SWITCHER,
@@ -105,10 +108,10 @@ class Restaurant_Menu extends Widget_Base {
         ] );
 
         $this->add_control( 'query_limit', [
-            'label'     => __( 'Limit', 'jellopoint-restaurant-menu' ),
+            'label'     => __( 'Items Limit', 'jellopoint-restaurant-menu' ),
             'type'      => Controls_Manager::NUMBER,
-            'default'   => '',
-            'min'       => 1,
+            'default'   => -1,
+            'min'       => -1,
             'step'      => 1,
             'condition' => [ 'data_source' => 'dynamic' ],
         ] );
@@ -150,6 +153,7 @@ class Restaurant_Menu extends Widget_Base {
         /* ====== Static Items ====== */
         $this->start_controls_section( 'section_static', [
             'label'     => __( 'Static Items', 'jellopoint-restaurant-menu' ),
+            'tab'       => Controls_Manager::TAB_CONTENT,
             'condition' => [ 'data_source' => 'static' ],
         ] );
 
@@ -179,11 +183,11 @@ class Restaurant_Menu extends Widget_Base {
             'default'      => '',
         ] );
 
-        // Preset map (optional, if provided by your plugin)
+        // Preset maps if provided by plugin (optional)
         $preset_map  = function_exists( 'jprm_get_price_label_map' ) ? (array) jprm_get_price_label_map() : [];
         $preset_full = function_exists( 'jprm_get_price_label_full_map' ) ? (array) jprm_get_price_label_full_map() : [];
 
-        // Fixed 6 multiple-price rows to avoid nested repeater issues
+        // Fixed 6 multiple-price rows
         for ( $i = 1; $i <= 6; $i++ ) {
             $repeater->add_control( "price{$i}_enable", [
                 'label'        => sprintf( __( 'Enable Row %d', 'jellopoint-restaurant-menu' ), $i ),
@@ -234,8 +238,11 @@ class Restaurant_Menu extends Widget_Base {
 
         $this->end_controls_section();
 
-        /*  ===== Style (minimal – keep your theme/CSS for deep styling) ===== */
-        $this->start_controls_section( 'section_style', [ 'label' => __( 'Style', 'jellopoint-restaurant-menu' ), 'tab' => Controls_Manager::TAB_STYLE ] );
+        /*  ===== Style (minimal – keep deep styling in theme/CSS) ===== */
+        $this->start_controls_section( 'section_style', [
+            'label' => __( 'Style', 'jellopoint-restaurant-menu' ),
+            'tab'   => Controls_Manager::TAB_STYLE,
+        ] );
         $this->add_control( 'style_note', [
             'type' => Controls_Manager::RAW_HTML,
             'raw'  => __( 'Core layout uses stable HTML wrappers; adjust CSS in your theme if needed.', 'jellopoint-restaurant-menu' ),
@@ -355,8 +362,8 @@ class Restaurant_Menu extends Widget_Base {
                    . '.jp-menu__label{opacity:.8;white-space:nowrap}'
                    . '.jp-menu__value{font-weight:600;white-space:nowrap}'
                    . '.jp-price-row{display:grid;grid-template-columns:auto auto;gap:.5rem;align-items:center}'
-                   . '.jp-col-label{justify-self=end}'
-                   . '.jp-col-price{justify-self=end}'
+                   . '.jp-col-label{justify-self:end}'
+                   . '.jp-col-price{justify-self:end}'
                    . '.jp-price-row.jp-order--label-right .jp-col-label{order:2}'
                    . '.jp-price-row.jp-order--label-right .jp-col-price{order:1}'
                    . '.jp-price-row.jp-order--label-left .jp-col-label{order:1}'
@@ -474,6 +481,7 @@ class Restaurant_Menu extends Widget_Base {
      * - CPT: jprm_menu_item
      * - Taxonomies: jprm_menu, jprm_section
      * - Auto-detect context when enabled and no terms selected
+     * - Robust meta resolution for new admin keys/structures
      */
     protected function collect_dynamic_items( array $s ) {
 
@@ -544,25 +552,44 @@ class Restaurant_Menu extends Widget_Base {
             $q->the_post();
             $post_id = get_the_ID();
 
+            // title
             $title = get_the_title();
-            $desc  = get_the_excerpt();
-            if ( ! $desc ) {
-                $desc = get_post_meta( $post_id, '_jprm_desc', true );
+
+            // description (meta candidates -> excerpt -> clean content)
+            $description = $this->read_first_nonempty_meta( $post_id, [
+                '_jprm_desc','jprm_desc','_jprm_description','jprm_description','_description','description',
+            ] );
+            if ( $description === '' ) {
+                $description = get_the_excerpt();
+            }
+            if ( $description === '' ) {
+                $description = $this->clean_content_as_excerpt( get_post_field( 'post_content', $post_id ), 220 );
             }
 
-            $single_price = get_post_meta( $post_id, '_jprm_price', true );
-            $multi_prices = get_post_meta( $post_id, '_jprm_prices', true );
-            if ( ! is_array( $multi_prices ) ) $multi_prices = [];
+            // single price (meta candidates)
+            $single_price = $this->read_first_nonempty_meta( $post_id, [
+                '_jprm_price','jprm_price','_price','price','_jprm_single_price','jprm_single_price',
+            ] );
 
-            $labels = get_post_meta( $post_id, '_jprm_labels', true );
-            if ( ! is_array( $labels ) ) $labels = [];
+            // multiple prices (meta candidates; accept serialized/json/array)
+            $multi_prices = $this->read_prices_array( $post_id, [
+                '_jprm_prices','jprm_prices','_prices','prices','_jprm_price_rows','jprm_price_rows','_jprm_multi_prices','jprm_multi_prices',
+            ] );
 
-            $invisible = (bool) get_post_meta( $post_id, '_jprm_invisible', false );
+            // labels (optional, various keys)
+            $labels = $this->read_labels_array( $post_id, [
+                '_jprm_labels','jprm_labels','_labels','labels','_jprm_item_labels','jprm_item_labels',
+            ] );
+
+            // invisible flag (bool-ish)
+            $invisible = $this->read_boolish_meta( $post_id, [
+                '_jprm_invisible','jprm_invisible','_invisible','invisible','_jprm_hidden','jprm_hidden',
+            ] );
 
             $out[] = [
                 'ID'          => $post_id,
                 'title'       => $title,
-                'description' => $desc,
+                'description' => $description,
                 'price'       => $single_price,
                 'prices'      => $multi_prices,
                 'labels'      => $labels,
@@ -592,27 +619,18 @@ class Restaurant_Menu extends Widget_Base {
             }
         }
 
-        // If we're on a single post/page with attached terms, include them
         $post_id = get_the_ID();
         if ( $post_id ) {
             $terms_menu    = get_the_terms( $post_id, 'jprm_menu' );
             $terms_section = get_the_terms( $post_id, 'jprm_section' );
-            if ( is_array( $terms_menu ) ) {
-                foreach ( $terms_menu as $t ) { $out['menus'][] = (int) $t->term_id; }
-            }
-            if ( is_array( $terms_section ) ) {
-                foreach ( $terms_section as $t ) { $out['sections'][] = (int) $t->term_id; }
-            }
+            if ( is_array( $terms_menu ) )    foreach ( $terms_menu as $t )    { $out['menus'][]    = (int) $t->term_id; }
+            if ( is_array( $terms_section ) ) foreach ( $terms_section as $t ) { $out['sections'][] = (int) $t->term_id; }
         }
 
-        // De-duplicate
         $out['menus']    = array_values( array_unique( $out['menus'] ) );
         $out['sections'] = array_values( array_unique( $out['sections'] ) );
 
-        // Let the plugin override/augment detection if desired
-        $out = apply_filters( 'jprm/widget/detected_terms', $out, $this );
-
-        return $out;
+        return apply_filters( 'jprm/widget/detected_terms', $out, $this );
     }
 
     /**
@@ -666,30 +684,170 @@ class Restaurant_Menu extends Widget_Base {
      */
     protected function get_terms_options( $taxonomy ) {
         $opts = [];
-
-        if ( ! taxonomy_exists( $taxonomy ) ) {
-            return $opts;
-        }
-
+        if ( ! taxonomy_exists( $taxonomy ) ) return $opts;
         $terms = get_terms( [
             'taxonomy'   => $taxonomy,
             'hide_empty' => false,
         ] );
-
-        if ( is_wp_error( $terms ) || empty( $terms ) ) {
-            return $opts;
-        }
-
+        if ( is_wp_error( $terms ) || empty( $terms ) ) return $opts;
         foreach ( $terms as $t ) {
             $opts[ (int) $t->term_id ] = $t->name;
         }
-
-        /**
-         * Allow plugin to adjust term options.
-         * @param array $opts id => label
-         * @param string $taxonomy
-         * @param self $this
-         */
         return apply_filters( 'jprm/widget/term_options', $opts, $taxonomy, $this );
+    }
+
+    /* =========================
+     * Meta helpers (robust readers)
+     * ========================= */
+
+    /**
+     * Read first non-empty meta among candidate keys.
+     * Accepts scalars/strings. If array/JSON/serialized is encountered for a scalar,
+     * returns empty string (use dedicated readers for arrays).
+     */
+    protected function read_first_nonempty_meta( $post_id, array $candidates ) {
+        foreach ( $candidates as $key ) {
+            $val = get_post_meta( $post_id, $key, true );
+            if ( $val === '' || $val === null ) continue;
+            if ( is_scalar( $val ) ) {
+                $s = (string) $val;
+                if ( trim( $s ) !== '' ) return $s;
+            }
+        }
+        return '';
+    }
+
+    /**
+     * Read a boolean-ish meta among candidate keys.
+     * Accepts '1','yes','true',1,true as truthy.
+     */
+    protected function read_boolish_meta( $post_id, array $candidates ) {
+        foreach ( $candidates as $key ) {
+            $val = get_post_meta( $post_id, $key, true );
+            if ( $val === '' || $val === null ) continue;
+            if ( is_bool( $val ) ) return $val;
+            $s = strtolower( trim( (string) $val ) );
+            if ( $s === '1' || $s === 'yes' || $s === 'true' ) return true;
+            if ( $s === '0' || $s === 'no'  || $s === 'false' ) return false;
+        }
+        return false;
+    }
+
+    /**
+     * Read labels array (flexible).
+     * Accepts:
+     *  - array of strings
+     *  - array of arrays with 'label'
+     *  - JSON string
+     *  - serialized PHP
+     */
+    protected function read_labels_array( $post_id, array $candidates ) {
+        $raw = $this->read_any_array_like_meta( $post_id, $candidates );
+        if ( empty( $raw ) ) return [];
+        $out = [];
+        foreach ( $raw as $row ) {
+            if ( is_array( $row ) ) {
+                if ( isset( $row['label'] ) && $row['label'] !== '' ) {
+                    $out[] = (string) $row['label'];
+                } elseif ( isset( $row[0] ) && $row[0] !== '' ) {
+                    $out[] = (string) $row[0];
+                }
+            } elseif ( is_scalar( $row ) && trim( (string) $row ) !== '' ) {
+                $out[] = (string) $row;
+            }
+        }
+        return array_values( array_filter( $out, static function( $v ){ return $v !== ''; } ) );
+    }
+
+    /**
+     * Read prices array (flexible).
+     * Accepts:
+     *  - array of ['label'=>..,'value'=>..]
+     *  - array of [label,value]
+     *  - JSON string
+     *  - serialized PHP
+     */
+    protected function read_prices_array( $post_id, array $candidates ) {
+        $raw = $this->read_any_array_like_meta( $post_id, $candidates );
+        if ( empty( $raw ) ) return [];
+
+        $out = [];
+        foreach ( $raw as $row ) {
+            if ( is_array( $row ) ) {
+                $label = '';
+                $value = '';
+                if ( array_key_exists( 'label', $row ) || array_key_exists( 'value', $row ) ) {
+                    $label = isset( $row['label'] ) ? (string) $row['label'] : '';
+                    $value = isset( $row['value'] ) ? (string) $row['value'] : '';
+                } else {
+                    $label = isset( $row[0] ) ? (string) $row[0] : '';
+                    $value = isset( $row[1] ) ? (string) $row[1] : '';
+                }
+                if ( $label !== '' || $value !== '' ) {
+                    $out[] = [ 'label' => $label, 'value' => $value ];
+                }
+            } elseif ( is_scalar( $row ) && trim( (string) $row ) !== '' ) {
+                // A single scalar “price” without label -> treat as single price line with empty label
+                $out[] = [ 'label' => '', 'value' => (string) $row ];
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Generic reader that understands array-like meta:
+     * - returns array
+     * - accepts real arrays, JSON arrays, serialized arrays
+     * - ignores scalars
+     */
+    protected function read_any_array_like_meta( $post_id, array $candidates ) {
+        foreach ( $candidates as $key ) {
+            $val = get_post_meta( $post_id, $key, true );
+            if ( $val === '' || $val === null ) continue;
+
+            // Already an array saved by update_post_meta
+            if ( is_array( $val ) ) {
+                return $val;
+            }
+
+            // Serialized PHP?
+            if ( is_string( $val ) && strpos( $val, 'a:' ) === 0 ) {
+                $maybe = @unserialize( $val );
+                if ( is_array( $maybe ) ) return $maybe;
+            }
+
+            // JSON?
+            if ( is_string( $val ) ) {
+                $trim = trim( $val );
+                if ( ( strlen( $trim ) > 1 ) && ( $trim[0] === '[' || $trim[0] === '{' ) ) {
+                    $maybe = json_decode( $trim, true );
+                    if ( json_last_error() === JSON_ERROR_NONE && is_array( $maybe ) ) {
+                        // If object with rows property
+                        if ( isset( $maybe['rows'] ) && is_array( $maybe['rows'] ) ) {
+                            return $maybe['rows'];
+                        }
+                        return $maybe;
+                    }
+                }
+            }
+        }
+        return [];
+    }
+
+    /**
+     * Clean content → strip shortcodes/tags and trim to length.
+     */
+    protected function clean_content_as_excerpt( $content, $max_len = 220 ) {
+        $content = (string) $content;
+        if ( $content === '' ) return '';
+        $content = strip_shortcodes( $content );
+        $content = wp_strip_all_tags( $content, true );
+        $content = preg_replace( '/\s+/', ' ', $content );
+        $content = trim( $content );
+        if ( $max_len > 0 && strlen( $content ) > $max_len ) {
+            $content = mb_substr( $content, 0, $max_len ) . '…';
+        }
+        return $content;
     }
 }
