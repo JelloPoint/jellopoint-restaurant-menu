@@ -294,8 +294,7 @@ class Restaurant_Menu extends Widget_Base {
             // MULTI rows (qty labels per row)
             if ( $has_multi_rows ) {
                 foreach ( $item['prices'] as $p ) {
-                    $label_raw = isset( $p['label'] ) ? (string)$p['label'] : '';
-                    // per-row hide toggle if present
+                    $label_raw = $this->extract_row_label_reference( $p );
                     $row_hide_icon = isset( $p['hide_icon'] ) ? (bool)$p['hide_icon'] : null;
 
                     $resolved = $this->resolve_qty_label_via_store( $label_raw, $row_hide_icon );
@@ -322,6 +321,17 @@ class Restaurant_Menu extends Widget_Base {
     }
 
     /**
+     * Extract the label reference from a row supporting multiple admin keys.
+     */
+    protected function extract_row_label_reference( $row ) {
+        if ( ! is_array( $row ) ) return '';
+        foreach ( [ 'label', 'label_key', 'label_id', 'id', 'key', 'preset', 'slug' ] as $k ) {
+            if ( isset( $row[$k] ) && $row[$k] !== '' ) return (string) $row[$k];
+        }
+        return '';
+    }
+
+    /**
      * Resolve a qty label via Labels Store (supports IDs, slugs, or ready text).
      * Falls back to filter 'jprm/label/icon' if icon not in store.
      */
@@ -330,15 +340,21 @@ class Restaurant_Menu extends Widget_Base {
         $key_or_text = trim( (string) $raw );
         if ( $key_or_text === '' ) return $out;
 
+        // Ensure the Labels Store class is available; if not, include it.
+        if ( ! class_exists( 'JPRM_Labels_Store' ) ) {
+            $maybe = dirname( __DIR__ ) . '/data/class-labels-store.php';
+            if ( file_exists( $maybe ) ) { require_once $maybe; }
+        }
+
         $label_map = $this->get_labels_store_map(); // id => row
 
-        // Try exact ID match first (IDs are stored as strings in map_by_id()).
+        // Try direct id match
         if ( isset( $label_map[$key_or_text] ) ) {
             $meta = (array) $label_map[$key_or_text];
             $out['label_text'] = (string) ( $meta['label'] ?? ( $meta['name'] ?? $key_or_text ) );
             $out['icon_class'] = (string) ( $meta['icon']  ?? '' );
         } else {
-            // Try slug/name match (case-insensitive)
+            // Try slug/name case-insensitive
             $needle = strtolower( $key_or_text );
             foreach ( $label_map as $row ) {
                 $slug  = isset( $row['id'] )    ? strtolower( (string) $row['id'] )    : '';
@@ -378,10 +394,12 @@ class Restaurant_Menu extends Widget_Base {
         static $cache = null;
         if ( $cache !== null ) return $cache;
 
-        // Preferred: class from includes/data/class-labels-store.php
-        if ( class_exists( '\\JPRM_Labels_Store' ) ) {
-            $cache = \JPRM_Labels_Store::map_by_id();
-            if ( is_array( $cache ) && ! empty( $cache ) ) return $cache;
+        if ( class_exists( 'JPRM_Labels_Store' ) && method_exists( 'JPRM_Labels_Store', 'map_by_id' ) ) {
+            $map = \JPRM_Labels_Store::map_by_id();
+            if ( is_array( $map ) && ! empty( $map ) ) {
+                $cache = $map;
+                return $cache;
+            }
         }
 
         // Fallback: read from options directly (primary + v2)
@@ -427,14 +445,9 @@ class Restaurant_Menu extends Widget_Base {
         }
 
         if ( is_array( $raw ) ) {
-            // Accept formats:
-            // - [ ['id'=>'small','label'=>'Small Glass','icon'=>'fa-...'], ... ]
-            // - [ ['slug'=>'small','name'=>'Small Glass'], ... ]
-            // - [ 'Small Glass', 'Big Glass', 'Bottle' ]
             $is_assoc = array_keys( $raw ) !== range( 0, count( $raw ) - 1 );
             if ( $is_assoc ) {
                 foreach ( $raw as $k => $v ) {
-                    // assoc map: 'small' => 'Small Glass'
                     if ( is_string( $v ) ) {
                         $rows[] = [ 'id' => (string)$k, 'label' => $v, 'icon' => '' ];
                     } elseif ( is_array( $v ) ) {
@@ -450,7 +463,7 @@ class Restaurant_Menu extends Widget_Base {
                         $rows[] = [ 'id' => sanitize_title( $v ), 'label' => $v, 'icon' => '' ];
                     } elseif ( is_array( $v ) ) {
                         $id    = isset( $v['id'] )    ? (string)$v['id']    : ( isset($v['slug']) ? (string)$v['slug'] : '' );
-                        $label = isset( $v['label'] ) ? (string)$v['label'] : ( isset($v['name']) ? (string)$v['name'] : '' );
+                        $label = isset( $v['label'] ) ? (string) $v['label'] : ( isset($v['name']) ? (string)$v['name'] : '' );
                         $icon  = isset( $v['icon'] )  ? (string)$v['icon']  : '';
                         if ( $id === '' ) $id = sanitize_title( $label );
                         if ( $label !== '' ) $rows[] = [ 'id' => $id, 'label' => $label, 'icon' => $icon ];
@@ -460,38 +473,6 @@ class Restaurant_Menu extends Widget_Base {
         }
 
         return $rows;
-    }
-
-    /**
-     * Build the inner HTML for a label based on the chosen presentation.
-     * - 'text'      => plain text
-     * - 'icon'      => icon only (with SR-only text fallback)
-     * - 'icon_text' => icon + text (falls back to text if no icon class)
-     */
-    protected function render_label_html( $label_text, $presentation, $icon_class = '', $hide_icon = false ) {
-        $label_text = (string) $label_text;
-        $icon_class = (string) $icon_class;
-
-        if ( $presentation !== 'text' && $presentation !== 'icon' && $presentation !== 'icon_text' ) {
-            $presentation = 'text';
-        }
-        if ( $hide_icon ) $presentation = 'text';
-
-        if ( $presentation === 'icon' ) {
-            if ( $icon_class !== '' ) {
-                return '<i class="' . esc_attr( $icon_class ) . '" aria-hidden="true"></i><span class="screen-reader-text">' . esc_html( $label_text ) . '</span>';
-            }
-            return esc_html( $label_text );
-        }
-
-        if ( $presentation === 'icon_text' ) {
-            if ( $icon_class !== '' ) {
-                return '<i class="' . esc_attr( $icon_class ) . '" aria-hidden="true"></i> ' . esc_html( $label_text );
-            }
-            return esc_html( $label_text );
-        }
-
-        return esc_html( $label_text );
     }
 
     /**
@@ -795,9 +776,9 @@ class Restaurant_Menu extends Widget_Base {
 
                 // Extended keys common in admin
                 if ( $label === '' ) {
-                    if ( isset( $row['label_key'] ) ) $label = (string) $row['label_key'];
-                    elseif ( isset( $row['preset'] ) )  $label = (string) $row['preset'];
-                    elseif ( isset( $row['key'] ) )     $label = (string) $row['key'];
+                    foreach ( [ 'label_key', 'label_id', 'id', 'key', 'preset', 'slug' ] as $k ) {
+                        if ( isset( $row[$k] ) && $row[$k] !== '' ) { $label = (string) $row[$k]; break; }
+                    }
                 }
 
                 if ( isset( $row['hide_icon'] ) ) {
@@ -815,7 +796,7 @@ class Restaurant_Menu extends Widget_Base {
     }
 
     /**
-     * Context terms
+     * Try to infer current Menu/Section context (returns slugs).
      */
     protected function detect_context_terms() {
         $out = [ 'menus' => [], 'sections' => [] ];
@@ -834,12 +815,16 @@ class Restaurant_Menu extends Widget_Base {
             if ( is_array( $terms_section ) ) foreach ( $terms_section as $t ) $out['sections'][] = $t->slug;
         }
 
+        // De-dup
         $out['menus']    = array_values( array_unique( array_filter( $out['menus'] ) ) );
         $out['sections'] = array_values( array_unique( array_filter( $out['sections'] ) ) );
 
         return apply_filters( 'jprm/widget/detected_terms_slugs', $out, $this );
     }
 
+    /**
+     * Guess if provided term values are IDs or slugs.
+     */
     protected function guess_tax_field( $vals ) {
         $all_int = true;
         foreach ( (array) $vals as $v ) {
@@ -848,6 +833,9 @@ class Restaurant_Menu extends Widget_Base {
         return $all_int ? 'term_id' : 'slug';
     }
 
+    /**
+     * Build term options for SELECT2 controls (uses slugs as values).
+     */
     protected function get_terms_options( $taxonomy ) {
         $opts = [];
         if ( ! taxonomy_exists( $taxonomy ) ) return $opts;
@@ -857,8 +845,14 @@ class Restaurant_Menu extends Widget_Base {
         return apply_filters( 'jprm/widget/term_options', $opts, $taxonomy, $this );
     }
 
+    /**
+     * Keep the render pipeline stable.
+     */
     protected function normalize_item( array $item ) { return $item; }
 
+    /**
+     * Inline CSS used by both static and dynamic rendering.
+     */
     protected function print_inline_layout_css( $tag = false ) {
         $css = '.jp-menu{list-style:none;margin:0;padding:0}'
              . '.jp-menu__item{margin:0 0 .9rem 0}'
