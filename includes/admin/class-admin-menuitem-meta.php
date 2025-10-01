@@ -12,11 +12,10 @@ class JPRM_Admin_MenuItem_Meta {
     public static function init(){
         add_action('add_meta_boxes', [__CLASS__, 'register_metaboxes']);
         add_action('save_post_jprm_menu_item', [__CLASS__, 'save'], 10, 2);
-        add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue'], 100); // late: allow us to dequeue legacy
+        add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue'], 100);
         add_action('admin_head', [__CLASS__, 'hide_core_editor']);
     }
 
-    /** Hide default WP editor on this CPT screen */
     public static function hide_core_editor(){
         $screen = function_exists('get_current_screen') ? get_current_screen() : null;
         if ( $screen && $screen->post_type === 'jprm_menu_item' ){
@@ -24,7 +23,6 @@ class JPRM_Admin_MenuItem_Meta {
         }
     }
 
-    /** Only on jprm_menu_item editor: enqueue deps and block legacy conflicting code */
     public static function enqueue(){
         $screen = function_exists('get_current_screen') ? get_current_screen() : null;
         if ( ! $screen || $screen->post_type !== 'jprm_menu_item' ) return;
@@ -32,7 +30,7 @@ class JPRM_Admin_MenuItem_Meta {
         wp_enqueue_script('jquery');
         if ( function_exists('wp_enqueue_media') ) wp_enqueue_media();
 
-        // Dequeue legacy admin JS that used to rebuild/overwrite the table.
+        // Dequeue legacy scripts that used to rebuild/overwrite the table.
         foreach (['jprm-menu-item-meta','jprm_admin_menuitem','jprm-admin','jprm-metabox'] as $h){
             if ( wp_script_is($h, 'enqueued') )  wp_dequeue_script($h);
             if ( wp_script_is($h, 'registered') ) wp_deregister_script($h);
@@ -40,7 +38,6 @@ class JPRM_Admin_MenuItem_Meta {
     }
 
     public static function register_metaboxes(){
-        // Remove potential legacy box
         remove_meta_box('jprm_menu_item_settings', 'jprm_menu_item', 'normal');
 
         add_meta_box('jprm_item_desc', __('Description','jellopoint-restaurant-menu'),
@@ -99,14 +96,14 @@ class JPRM_Admin_MenuItem_Meta {
             return wp_get_attachment_url((int)$id) ?: '';
         };
 
-        // Build single select
-        $single_opts = '<option value="">'.esc_html__('Select…','jellopoint-restaurant-menu').'</option>';
+        // Build single select options
+        $single_opts_html = '<option value="">'.esc_html__('Select…','jellopoint-restaurant-menu').'</option>';
         $predef_url = '';
         foreach ($label_map as $id => $info){
             $text = $info['text'] ?: $id;
             $iurl = $info['icon_id'] ? $icon_url($info['icon_id']) : '';
             $sel  = selected($lref, $id, false);
-            $single_opts .= '<option value="'.esc_attr($id).'" '.$sel.' data-icon="'.esc_attr($iurl).'">'.esc_html($text).'</option>';
+            $single_opts_html .= '<option value="'.esc_attr($id).'" '.$sel.' data-icon="'.esc_attr($iurl).'">'.esc_html($text).'</option>';
             if ($lm==='ref' && $lref===$id) $predef_url = $iurl;
         }
         $custom_url  = $icon ? $icon_url($icon) : '';
@@ -163,7 +160,7 @@ class JPRM_Admin_MenuItem_Meta {
                 echo '<span class="jprm-pill '.($lm==='custom'?'active':'').'" data-mode="custom">'.esc_html__('Custom','jellopoint-restaurant-menu').'</span>';
             echo '</div>';
 
-            echo '<select id="jprm_price_label_ref" name="jprm_price_label_ref">'.$single_opts.'</select> ';
+            echo '<select id="jprm_price_label_ref" name="jprm_price_label_ref">'.$single_opts_html.'</select> ';
             printf('<input type="text" id="jprm_price_label_custom" name="jprm_price_label_custom" value="%s" class="regular-text" placeholder="%s" %s />',
                 esc_attr($lcus), esc_attr__('Custom label','jellopoint-restaurant-menu'), $lm==='custom'?'':'style="display:none;"');
 
@@ -212,13 +209,13 @@ class JPRM_Admin_MenuItem_Meta {
                 $hide = !empty($r['hide_icon']);
                 $rid  = isset($r['icon_id']) ? (int)$r['icon_id'] : 0;
 
-                $row_opts = '<option value="">'.esc_html__('Select…','jellopoint-restaurant-menu').'</option>';
+                $row_opts_html = '<option value="">'.esc_html__('Select…','jellopoint-restaurant-menu').'</option>';
                 $pred_url = '';
                 foreach ($label_map as $id => $info){
                     $text = $info['text'] ?: $id;
                     $iurl = $info['icon_id'] ? $icon_url($info['icon_id']) : '';
                     $sel  = selected($lrf, $id, false);
-                    $row_opts .= '<option value="'.esc_attr($id).'" '.$sel.' data-icon="'.esc_attr($iurl).'">'.esc_html($text).'</option>';
+                    $row_opts_html .= '<option value="'.esc_attr($id).'" '.$sel.' data-icon="'.esc_attr($iurl).'">'.esc_html($text).'</option>';
                     if ($lmd==='ref' && $lrf===$id) $pred_url = $iurl;
                 }
                 $cust_url = $rid ? $icon_url($rid) : '';
@@ -235,7 +232,7 @@ class JPRM_Admin_MenuItem_Meta {
                             <span class="jprm-pill <?php echo $lmd==='custom'?'active':''; ?>" data-mode="custom"><?php echo esc_html__('Custom','jellopoint-restaurant-menu'); ?></span>
                         </div>
                         <span class="inline-field">
-                            <select class="label-ref" <?php echo $lmd==='ref'?'':'style="display:none;"'; ?>><?php echo $row_opts; ?></select>
+                            <select class="label-ref"><?php echo $row_opts_html; ?></select>
                             <input type="text" class="label-custom" value="<?php echo esc_attr($lct); ?>" placeholder="<?php echo esc_attr__('Custom label','jellopoint-restaurant-menu'); ?>" <?php echo $lmd==='custom'?'':'style="display:none;"'; ?> />
                         </span>
                     </td>
@@ -268,23 +265,42 @@ class JPRM_Admin_MenuItem_Meta {
         echo '</td></tr>';
         echo '</tbody></table>';
 
-        // Inline JS (namespaced events, no global off())
+        // Prepare safe data for JS (no quotes-in-HTML issues)
+        $js_data = [
+            'singleOptionsHTML' => $single_opts_html,
+            'i18n' => [
+                'preset'     => __('Preset','jellopoint-restaurant-menu'),
+                'custom'     => __('Custom','jellopoint-restaurant-menu'),
+                'custom_lbl' => __('Custom label','jellopoint-restaurant-menu'),
+                'selectIcon' => __('Select Icon','jellopoint-restaurant-menu'),
+                'removeIcon' => __('Remove Icon','jellopoint-restaurant-menu'),
+                'pricePh'    => '€ 7,50',
+            ],
+        ];
+        echo '<script id="jprm-meta-data" type="application/json">'.wp_json_encode($js_data).'</script>';
+
+        // Inline JS (namespaced, DOM-built rows -> no fragile long strings)
         ?>
 <script>
 (function($){
   var NS = '.jprm';
 
+  function dataJSON(){
+    try { return JSON.parse($('#jprm-meta-data').text()||'{}'); } catch(e){ return {}; }
+  }
+  var CFG = dataJSON();
+
   /* Mode toggle */
-  function jprmSetMode(){
+  function setMode(){
     var m = $('input[name="jprm_price_mode"]:checked').val() || 'single';
     if (m === 'multi'){ $('.jprm-block-single').hide(); $('.jprm-block-multi').show(); }
     else { $('.jprm-block-single').show(); $('.jprm-block-multi').hide(); }
   }
-  $('input[name="jprm_price_mode"]').off('change'+NS).on('change'+NS, jprmSetMode);
-  jprmSetMode();
+  $('input[name="jprm_price_mode"]').off('change'+NS).on('change'+NS, setMode);
+  setMode();
 
   /* Single label mode + icon */
-  function jprmSetSingleMode(mode){
+  function setSingleMode(mode){
     $('#jprm_price_label_mode').val(mode);
     $('#jprm_single_mode_switch .jprm-pill').removeClass('active');
     $('#jprm_single_mode_switch .jprm-pill[data-mode="'+mode+'"]').addClass('active');
@@ -295,9 +311,9 @@ class JPRM_Admin_MenuItem_Meta {
       $('#jprm_price_label_custom').hide();
       $('#jprm_price_label_ref').show();
     }
-    jprmRefreshSingleIcon();
+    refreshSingleIcon();
   }
-  function jprmRefreshSingleIcon(){
+  function refreshSingleIcon(){
     var mode = $('#jprm_price_label_mode').val();
     if (mode === 'custom'){
       var id  = $('#jprm_price_label_icon_id').val();
@@ -314,18 +330,19 @@ class JPRM_Admin_MenuItem_Meta {
       else $('#jprm_single_icon_preview').html('');
     }
   }
-  $('#jprm_single_mode_switch .jprm-pill').off('click'+NS).on('click'+NS, function(){ jprmSetSingleMode($(this).data('mode')); });
-  $('#jprm_price_label_ref').off('change'+NS).on('change'+NS, jprmRefreshSingleIcon);
-  jprmSetSingleMode($('#jprm_price_label_mode').val());
+  $('#jprm_single_mode_switch .jprm-pill').off('click'+NS).on('click'+NS, function(){ setSingleMode($(this).data('mode')); });
+  $('#jprm_price_label_ref').off('change'+NS).on('change'+NS, refreshSingleIcon);
+  setSingleMode($('#jprm_price_label_mode').val());
 
   var singleFrame = null;
-  function jprmEnsureSingleFrame(){
+  function ensureSingleFrame(){
     if (singleFrame) return singleFrame;
-    singleFrame = wp.media({ title:'Select Icon', multiple:false, library:{type:'image'}, button:{text:'Select Icon'} });
+    singleFrame = wp.media({ title: CFG.i18n.selectIcon || 'Select Icon', multiple:false, library:{type:'image'}, button:{text: CFG.i18n.selectIcon || 'Select Icon'} });
     singleFrame.on('select', function(){
       var file = singleFrame.state().get('selection').first(); if (!file) return;
       var id  = file.get('id');
-      var url = (file.get('sizes') && file.get('sizes').thumbnail && file.get('sizes').thumbnail.url) || file.get('url');
+      var sizes = file.get('sizes') || {};
+      var url = (sizes.thumbnail && sizes.thumbnail.url) || file.get('url');
       $('#jprm_price_label_icon_id').val(String(id)).attr('data-url', url || '');
       $('#jprm_single_icon_preview').html('<img src="'+(url||'')+'" width="32" />');
     });
@@ -333,10 +350,10 @@ class JPRM_Admin_MenuItem_Meta {
   }
   $('#jprm_single_icon_preview').off('click'+NS).on('click'+NS, function(e){
     if ($('#jprm_price_label_mode').val() !== 'custom') return;
-    e.preventDefault(); jprmEnsureSingleFrame().open();
+    e.preventDefault(); ensureSingleFrame().open();
   });
 
-  /* Multiple table */
+  /* Multiple table helpers */
   function norm(v){ return (v==null?'':String(v)).trim(); }
   function rowObj($tr){
     return {
@@ -393,16 +410,17 @@ class JPRM_Admin_MenuItem_Meta {
   var $tb = $('#jprm-prices-table tbody');
   $tb.find('tr').each(function(){ var $tr=$(this); attachRowHandlers($tr); setRowMode($tr, $tr.find('select.label-mode').val()); });
 
-  // Icon media for rows
+  // Media frame for row icons
   var rowFrame=null, activeRow=null;
   function ensureRowFrame(){
     if (rowFrame) return rowFrame;
-    rowFrame = wp.media({ title:'Select Icon', multiple:false, library:{type:'image'}, button:{text:'Select Icon'} });
+    rowFrame = wp.media({ title: CFG.i18n.selectIcon || 'Select Icon', multiple:false, library:{type:'image'}, button:{text: CFG.i18n.selectIcon || 'Select Icon'} });
     rowFrame.on('select', function(){
       if (!activeRow) return;
       var file=rowFrame.state().get('selection').first(); if(!file) return;
       var id=file.get('id');
-      var url=(file.get('sizes') && file.get('sizes').thumbnail && file.get('sizes').thumbnail.url) || file.get('url');
+      var sizes=file.get('sizes')||{};
+      var url=(sizes.thumbnail && sizes.thumbnail.url) || file.get('url');
       activeRow.find('input.icon-id').val(String(id)).attr('data-url', url || '');
       activeRow.find('.jprm-row-icon-preview').html('<img src="'+(url||'')+'" width="24" />');
       activeRow.find('.jprm-row-icon-clear').show();
@@ -412,7 +430,7 @@ class JPRM_Admin_MenuItem_Meta {
   }
   $tb.off('click'+NS, '.jprm-row-icon-preview').on('click'+NS, '.jprm-row-icon-preview', function(e){
     var $tr = $(this).closest('tr');
-    if ($tr.find('select.label-mode').val() !== 'custom') return;
+    if ($tr.find('select.label-mode').val() !== 'custom') return; // only custom is editable
     e.preventDefault(); activeRow = $tr; ensureRowFrame().open();
   });
   $(document).off('click'+NS, '.jprm-row-icon-clear').on('click'+NS, '.jprm-row-icon-clear', function(e){
@@ -428,33 +446,57 @@ class JPRM_Admin_MenuItem_Meta {
     e.preventDefault(); $(this).closest('tr').remove(); collect();
   });
 
-  // Add row
+  // Add row (DOM-built; no long HTML string)
   $('#jprm-row-add').off('click'+NS).on('click'+NS, function(e){
     e.preventDefault();
-    var $tr = $('<tr>\
-      <td><input type="checkbox" class="enable" checked /></td>\
-      <td class="label-td">\
-        <select class="label-mode" style="display:none;"><option value="ref">ref</option><option value="custom">custom</option></select>\
-        <div class="jprm-mode-switch"><span class="jprm-pill active" data-mode="ref"><?php echo esc_js(__('Preset','jellopoint-restaurant-menu')); ?></span><span class="jprm-pill" data-mode="custom"><?php echo esc_js(__('Custom','jellopoint-restaurant-menu')); ?></span></div>\
-        <span class="inline-field">\
-          <select class="label-ref"><?php echo str_replace(array("\n","\r"),'', $single_opts); ?></select>\
-          <input type="text" class="label-custom" placeholder="<?php echo esc_js(__('Custom label','jellopoint-restaurant-menu')); ?>" style="display:none;width:160px" />\
-        </span>\
-      </td>\
-      <td><input type="text" class="amount" placeholder="€ 7,50" /></td>\
-      <td class="jprm-icon-cell">\
-        <div class="jprm-row-icon-preview" title="<?php echo esc_js(__('Select icon','jellopoint-restaurant-menu')); ?>"><span class="jprm-icon-ph-sm"><span class="dashicons dashicons-format-image"></span></span></div>\
-        <input type="hidden" class="icon-id" value="0" data-url="" />\
-        <button type="button" class="button-link jprm-row-icon-clear" style="display:none;" aria-label="<?php echo esc_js(__('Remove Icon','jellopoint-restaurant-menu')); ?>"><span class="dashicons dashicons-no-alt"></span></button>\
-      </td>\
-      <td class="hide-col"><input type="checkbox" class="hide-icon" /></td>\
-      <td class="act-col"><button type="button" class="button-link jprm-row-remove" aria-label="<?php echo esc_js(__('Remove row','jellopoint-restaurant-menu')); ?>"><span class="dashicons dashicons-trash"></span></button></td>\
-    </tr>');
+    var $tr = $('<tr/>');
+
+    // enable checkbox
+    $('<td/>').append($('<input/>',{type:'checkbox','class':'enable',checked:true})).appendTo($tr);
+
+    // label cell
+    var $tdLabel = $('<td/>',{'class':'label-td'}).appendTo($tr);
+    var $modeSel = $('<select/>',{'class':'label-mode'}).css('display','none')
+        .append($('<option/>',{value:'ref', text:'ref'}))
+        .append($('<option/>',{value:'custom', text:'custom'}));
+    var $pills = $('<div/>',{'class':'jprm-mode-switch'})
+        .append($('<span/>',{'class':'jprm-pill active','data-mode':'ref', text: (CFG.i18n.preset || 'Preset')}))
+        .append($('<span/>',{'class':'jprm-pill','data-mode':'custom', text: (CFG.i18n.custom || 'Custom') }));
+    var $inline = $('<span/>',{'class':'inline-field'});
+    var $refSel = $('<select/>',{'class':'label-ref'}).html(CFG.singleOptionsHTML || '');
+    var $cusInp = $('<input/>',{type:'text','class':'label-custom',placeholder:(CFG.i18n.custom_lbl||'Custom label')}).css('display','none');
+
+    $inline.append($refSel).append($cusInp);
+    $tdLabel.append($modeSel).append($pills).append($inline);
+
+    // amount
+    $('<td/>').append($('<input/>',{type:'text','class':'amount',placeholder:(CFG.i18n.pricePh||'€ 7,50')})).appendTo($tr);
+
+    // icon
+    var $tdIcon = $('<td/>',{'class':'jprm-icon-cell'});
+    var $prev   = $('<div/>',{'class':'jprm-row-icon-preview', title:(CFG.i18n.selectIcon||'Select Icon')})
+                    .append($('<span/>',{'class':'jprm-icon-ph-sm'}).append($('<span/>',{'class':'dashicons dashicons-format-image'})));
+    var $hid    = $('<input/>',{type:'hidden','class':'icon-id',value:'0','data-url':''});
+    var $clear  = $('<button/>',{type:'button','class':'button-link jprm-row-icon-clear', 'aria-label':(CFG.i18n.removeIcon||'Remove Icon')}).css('display','none')
+                    .append($('<span/>',{'class':'dashicons dashicons-no-alt'}));
+    $tdIcon.append($prev).append($hid).append($clear).appendTo($tr);
+
+    // hide
+    $('<td/>',{'class':'hide-col'}).append($('<input/>',{type:'checkbox','class':'hide-icon'})).appendTo($tr);
+
+    // actions
+    $('<td/>',{'class':'act-col'}).append(
+        $('<button/>',{type:'button','class':'button-link jprm-row-remove','aria-label':'Remove row'})
+            .append($('<span/>',{'class':'dashicons dashicons-trash'}))
+    ).appendTo($tr);
+
     $('#jprm-prices-table tbody').append($tr);
-    attachRowHandlers($tr); setRowMode($tr,'ref'); collect();
+    attachRowHandlers($tr);
+    setRowMode($tr,'ref');
+    collect();
   });
 
-  // Keep JSON synced
+  // initial collect & before submit
   collect();
   $('#post').off('submit'+NS).on('submit'+NS, collect);
 })(jQuery);
