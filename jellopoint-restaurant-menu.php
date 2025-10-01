@@ -609,4 +609,11 @@ add_action('admin_footer', function(){
 }, 24);
 
 
-<?php if ( defined('JPRM_DEV') && JPRM_DEV ) { add_action('admin_notices', function(){ if ( current_user_can('manage_options') ) echo '<div class="notice notice-success"><p>JPRM Dev Mode: <strong>ON</strong></p></div>'; }); } ?>
+<?php if ( defined('JPRM_DEV') && JPRM_DEV ) {
+    add_action('admin_notices', function () {
+        if ( current_user_can('manage_options') ) {
+            echo '<div class="notice notice-success"><p>JPRM Dev Mode: <strong>ON</strong></p></div>';
+        }
+    });
+}
+?>
