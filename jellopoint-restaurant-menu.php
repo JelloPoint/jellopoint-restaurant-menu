@@ -608,7 +608,7 @@ add_action('admin_footer', function(){
     <?php
 }, 24);
 
-
+?>
 <?php if ( defined('JPRM_DEV') && JPRM_DEV ) {
     add_action('admin_notices', function () {
         if ( current_user_can('manage_options') ) {
