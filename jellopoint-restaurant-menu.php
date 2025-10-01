@@ -27,7 +27,9 @@ if ( version_compare( PHP_VERSION, JPRM_MIN_PHP, '<' ) ) {
     });
     return;
 }
+require_once JPRM_PLUGIN_PATH . 'includes/data/class-labels-store.php';
 require_once JPRM_PLUGIN_PATH . 'includes/class-plugin.php';
+require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-menuitem-meta.php';
 // Dev-only diagnostics page (if present)
 if ( JPRM_DEV ) {
     $__sys = JPRM_PLUGIN_PATH . 'includes/admin/class-system-check.php';
