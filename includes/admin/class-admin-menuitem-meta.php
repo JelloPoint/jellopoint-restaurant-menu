@@ -521,7 +521,7 @@ class JPRM_Admin_MenuItem_Meta {
     public static function render_visibility($post){
         $badge  = get_post_meta($post->ID, 'jprm_badge', true);
         $vis    = get_post_meta($post->ID, 'jprm_visible', true) === 'yes';
-        echo '<table class="form-table'><tbody>';
+        echo '<table class="form-table"><tbody>';
         echo '<tr><th style="width:180px;"><label for="jprm_visible">'.esc_html__('Visible','jellopoint-restaurant-menu').'</label></th><td>';
         printf('<label><input type="checkbox" id="jprm_visible" name="jprm_visible" value="yes" %s> %s</label>',
             checked($vis, true, false), esc_html__('Show this item on the site','jellopoint-restaurant-menu'));
