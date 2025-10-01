@@ -89,6 +89,14 @@ class JPRM_Admin_MenuItem_Meta {
         $custom_url = $icon?$icon_url($icon):''; $initial_url = ($lm==='ref')?$predef_url:($custom_url?:'');
 
         echo '<style>
+            /* Ensure both Preset/Custom pills are always visible and not overlapped */
+            .label-td .label-row { display:flex; align-items:center; gap:8px; flex-wrap:nowrap; }
+            .jprm-mode-switch { display:inline-flex; flex:0 0 auto; position:relative; z-index:2; }
+            .jprm-mode-switch .jprm-pill { display:inline-block; white-space:nowrap; }
+            .label-td .inline-field { display:inline-flex; gap:8px; align-items:center; flex:1 1 auto; position:relative; z-index:1; }
+            .label-td .inline-field select.label-ref { max-width:220px; }
+            .label-td .inline-field input.label-custom { width:160px; max-width:180px; }
+
             /* Give more space to the table by shrinking left label column */
             #jprm_price_meta .form-table th { width: 120px; }
 
