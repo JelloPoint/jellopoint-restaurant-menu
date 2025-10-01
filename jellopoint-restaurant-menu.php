@@ -7,12 +7,6 @@
  * Text Domain: jellopoint-restaurant-menu
  * Domain Path: /languages
  */
-
-// dev flag (follows WP_DEBUG unless you override it)
-if ( ! defined('JPRM_DEV') ) {
-    define('JPRM_DEV', defined('WP_DEBUG') && WP_DEBUG);
-}
-
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 if ( ! defined( 'JPRM_VERSION' ) ) define( 'JPRM_VERSION', '2.0.1' );
@@ -30,7 +24,9 @@ if ( version_compare( PHP_VERSION, JPRM_MIN_PHP, '<' ) ) {
 require_once JPRM_PLUGIN_PATH . 'includes/data/class-labels-store.php';
 require_once JPRM_PLUGIN_PATH . 'includes/class-plugin.php';
 require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-menuitem-meta.php';
-
+if ( JPRM_DEV ) {
+    require_once JPRM_PLUGIN_PATH . 'includes/admin/class-system-check.php';
+}
 if ( class_exists('JPRM_Admin_MenuItem_Meta') ) {
     $ref = new \ReflectionClass('JPRM_Admin_MenuItem_Meta');
     $expected = JPRM_PLUGIN_PATH . 'includes/admin/class-admin-menuitem-meta.php';
@@ -40,11 +36,6 @@ if ( class_exists('JPRM_Admin_MenuItem_Meta') ) {
             wp_die('JPRM dev guard: Admin meta loaded from unexpected path: <code>'.$ref->getFileName().'</code>');
         }
     }
-}
-
-// dev-only diagnostics page
-if ( JPRM_DEV ) {
-    require_once JPRM_PLUGIN_PATH . 'includes/admin/class-system-check.php';
 }
 
 update_option( 'jprm_current_version', JPRM_VERSION );
