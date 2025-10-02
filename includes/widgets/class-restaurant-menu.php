@@ -139,12 +139,7 @@ class Restaurant_Menu extends Widget_Base {
 
     protected function render() {
         // enqueue shared CSS once
-        wp_enqueue_style(
-    'jprm-menu',
-    JPRM_PLUGIN_URL . 'includes/render/css/menu.css',
-    [],
-    defined('JPRM_VERSION') ? JPRM_VERSION : null
-);
+        wp_enqueue_style( 'jprm-menu', plugins_url( '../render/css/menu.css', __FILE__ ), [], defined('JPRM_VERSION') ? JPRM_VERSION : null );
 
         $s = $this->get_settings_for_display();
         if ( isset( $s['data_source'] ) && $s['data_source'] === 'static' ) {
