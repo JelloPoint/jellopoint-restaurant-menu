@@ -1,24 +1,39 @@
-/* JPRM menu – shared frontend styles */
-.jp-menu{list-style:none;margin:0;padding:0}
-.jp-menu__item{margin:0 0 .9rem 0}
-.jp-menu__inner{display:grid;grid-template-columns:1fr auto;gap:.4rem .8rem;align-items:start}
-.jp-menu__content{min-width:0}
-.jp-menu__title{margin:0}
-.jp-menu__desc{opacity:.85}
-.jp-menu__pricegroup{display:flex;flex-direction:column;gap:.25rem;text-align:right}
-.jp-menu__price{display:flex;gap:.5rem;justify-content:flex-end;line-height:1.2}
-.jp-menu__label{opacity:.9;white-space:nowrap}
-.jp-menu__icon{width:1.1em;height:1.1em;vertical-align:-0.15em;border-radius:2px;display:inline-block}
-.jp-menu__value{font-weight:600;white-space:nowrap}
+/* JPRM Menu – layout + hard resets */
+.jp-menu{margin:0;padding:0;list-style:none;}
+.jp-menu li{list-style:none !important;margin:0;padding:0;}
+.jp-menu > li::marker{content:'';} /* kill stubborn bullets */
 
-/* two-column row for label | price with order variants */
-.jp-price-row{display:grid;grid-template-columns:auto auto;gap:.5rem;align-items:center}
-.jp-col-label{justify-self:end}
-.jp-col-price{justify-self:end}
-.jp-price-row.jp-order--label-right .jp-col-label{order:2}
-.jp-price-row.jp-order--label-right .jp-col-price{order:1}
-.jp-price-row.jp-order--label-left .jp-col-label{order:1}
-.jp-price-row.jp-order--label-left .jp-col-price{order:2}
+/* structure */
+.jp-menu__item{margin:0 0 .9rem 0;}
+.jp-menu__inner{display:grid;grid-template-columns:1fr auto;gap:.4rem .8rem;align-items:start;}
+.jp-menu__content{min-width:0;}
+.jp-menu__title{margin:0;}
+.jp-menu__desc{opacity:.85;}
+.jp-menu__pricegroup{display:flex;flex-direction:column;gap:.25rem;text-align:right;}
+.jp-menu__price{display:flex;gap:.5rem;justify-content:flex-end;line-height:1.2;}
+.jp-menu__value{font-weight:600;white-space:nowrap;}
 
-/* a11y */
-.screen-reader-text{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden}
+/* label + icon */
+.jp-menu__label{display:inline-flex;gap:.35em;align-items:center;white-space:nowrap;opacity:.95;}
+.jp-menu__icon{
+  width:1.1em !important;
+  height:1.1em !important;
+  max-width:1.1em !important;
+  max-height:1.1em !important;
+  object-fit:contain;
+  vertical-align:-0.2em;
+  display:inline-block;
+  border-radius:2px;
+}
+/* if WP injects width/height attributes, force them down */
+.jp-menu__icon[width],
+.jp-menu__icon[height]{width:1.1em !important;height:1.1em !important}
+
+/* two-column price row with reversible order */
+.jp-price-row{display:grid;grid-template-columns:auto auto;gap:.5rem;align-items:center;}
+.jp-col-label{justify-self:end;}
+.jp-col-price{justify-self:end;}
+.jp-price-row.jp-order--label-right .jp-col-label{order:2;}
+.jp-price-row.jp-order--label-right .jp-col-price{order:1;}
+.jp-price-row.jp-order--label-left .jp-col-label{order:1;}
+.jp-price-row.jp-order--label-left .jp-col-price{order:2;}
