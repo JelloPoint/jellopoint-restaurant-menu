@@ -41,6 +41,9 @@ require_once JPRM_PLUGIN_PATH . 'includes/data/class-labels-store.php';
 require_once JPRM_PLUGIN_PATH . 'includes/class-plugin.php';
 require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-menuitem-meta.php';
 require_once JPRM_PLUGIN_PATH . 'includes/admin/save/class-menuitem-v3-writer.php';
+require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-menu.php';
+\JelloPoint\RestaurantMenu\Admin\Admin_Menu::init();
+
 
 /* ----------------------------------------------------------------------------
  * INIT: (optional) bootstrap your core class
