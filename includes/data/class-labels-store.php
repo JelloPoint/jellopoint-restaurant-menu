@@ -1,15 +1,15 @@
 <?php
 /**
- * Labels Store + Admin Menu registration
+ * Labels Store + submenu registration via central Admin_Menu registrar
  */
 if ( ! defined('ABSPATH') ) exit;
 
+use JelloPoint\RestaurantMenu\Admin\Admin_Menu;
+
 class JPRM_Labels_Store {
 
-	/** Cache of labels */
 	protected static $cache = null;
 
-	/** Read labels from options (jprm_price_labels_v2) */
 	public static function all() : array {
 		if ( is_array(self::$cache) ) return self::$cache;
 
@@ -22,7 +22,6 @@ class JPRM_Labels_Store {
 		return self::$cache;
 	}
 
-	/** Map by id for quick resolution */
 	public static function map_by_id() : array {
 		$out = [];
 		foreach ( self::all() as $row ) {
@@ -34,11 +33,6 @@ class JPRM_Labels_Store {
 		return $out;
 	}
 
-	/**
-	 * Resolve a label reference to text & icon.
-	 * - If $ref matches an ID in the store, use its label/icon_id.
-	 * - Otherwise treat $ref as custom text.
-	 */
 	public static function resolve( $ref ) : array {
 		$ref = is_scalar($ref) ? (string)$ref : '';
 		if ( $ref === '' ) return [ 'label_text' => '', 'icon_id' => 0 ];
@@ -51,52 +45,34 @@ class JPRM_Labels_Store {
 				'icon_id'    => isset($row['icon_id']) ? (int)$row['icon_id'] : 0,
 			];
 		}
-		// custom text fallback
 		return [ 'label_text' => $ref, 'icon_id' => 0 ];
 	}
 
-	/* ----------------------------------------------------------------------
-	 * Admin Menu: ensure "Price Labels" appears under the JelloPoint menu.
-	 * -------------------------------------------------------------------- */
+	/* ---------------- Admin Menu (via central registrar) ---------------- */
+
 	public static function boot_admin_menu() : void {
-		add_action( 'admin_menu', [ __CLASS__, 'register_admin_menus' ], 20 );
-	}
-	public static function register_admin_menus() : void {
-		$parent = apply_filters( 'jprm/admin_parent_slug', 'jellopoint' ); // expected top-level slug
-
-		// If parent menu is missing, create it (safely).
-		global $admin_page_hooks;
-		if ( empty( $admin_page_hooks[ $parent ] ) ) {
-			add_menu_page(
-				__( 'JelloPoint', 'jellopoint-restaurant-menu' ),
-				__( 'JelloPoint', 'jellopoint-restaurant-menu' ),
-				'manage_options',
-				$parent,
-				'__return_null',
-				'dashicons-store',
-				56
-			);
-		}
-
-		// Add (or re-add) our submenu item.
-		add_submenu_page(
-			$parent,
-			__( 'Price Labels', 'jellopoint-restaurant-menu' ),
-			__( 'Price Labels', 'jellopoint-restaurant-menu' ),
-			'manage_options',
-			'jprm-price-labels',
-			[ __CLASS__, 'render_labels_admin_page' ],
-			10
-		);
+		// Enqueue our submenu; Admin_Menu will attach it under the parent when ready.
+		add_action( 'admin_menu', [ __CLASS__, 'queue_submenu' ], 5 );
 	}
 
-	/** Simple admin page: shows current labels; you can expand with edit UI as needed. */
+	public static function queue_submenu() : void {
+		if ( ! class_exists( Admin_Menu::class ) ) return;
+
+		Admin_Menu::register_submenu( [
+			'page_title' => __( 'Price Labels', 'jellopoint-restaurant-menu' ),
+			'menu_title' => __( 'Price Labels', 'jellopoint-restaurant-menu' ),
+			'capability' => 'manage_options',
+			'menu_slug'  => 'jprm-price-labels',
+			'callback'   => [ __CLASS__, 'render_labels_admin_page' ],
+			'position'   => 10,
+		] );
+	}
+
 	public static function render_labels_admin_page() : void {
 		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Not allowed.', 'jellopoint-restaurant-menu' ) ); }
-
 		$labels = self::all();
-		echo '<div class="wrap"><h1>' . esc_html__( 'Price Labels', 'jellopoint-restaurant-menu' ) . '</h1>';
 
+		echo '<div class="wrap"><h1>' . esc_html__( 'Price Labels', 'jellopoint-restaurant-menu' ) . '</h1>';
 		if ( empty( $labels ) ) {
 			echo '<p>' . esc_html__( 'No labels found. Add labels via your Labels settings UI.', 'jellopoint-restaurant-menu' ) . '</p>';
 		} else {
@@ -124,9 +100,9 @@ class JPRM_Labels_Store {
 			}
 			echo '</tbody></table>';
 		}
-
 		echo '</div>';
 	}
 }
-// ensure admin menu registers
+
+// Boot submenu registration.
 JPRM_Labels_Store::boot_admin_menu();
