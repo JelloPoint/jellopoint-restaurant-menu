@@ -66,17 +66,7 @@ class JPRM_Labels_Store {
 
 		// If parent menu is missing, create it (safely).
 		global $admin_page_hooks;
-		if ( empty( $admin_page_hooks[ $parent ] ) ) {
-			add_menu_page(
-				__( 'JelloPoint Menu', 'jellopoint-restaurant-menu' ),
-				__( 'JelloPoint Menu', 'jellopoint-restaurant-menu' ),
-				'manage_options',
-				$parent,
-				'__return_null',
-				'dashicons-store',
-				56
-			);
-		}
+		
 
 		// Add (or re-add) our submenu item.
 		add_submenu_page(
