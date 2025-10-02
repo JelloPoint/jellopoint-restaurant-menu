@@ -1,11 +1,11 @@
 <?php
 /**
- * Labels store + full Admin UI for Price Labels.
+ * Labels store + full Admin UI for Price Labels (fixed for PHP 8.2+).
  * - Reads/writes option 'jprm_price_labels_v2' (array or JSON string)
- * - Provides resolve() APIs for frontend
- * - Adds a robust admin page with icon picker, add/remove rows, ordering
+ * - Resolve helpers for frontend
+ * - Admin page with media icon picker, add/remove, active, order
  *
- * NOTE: Kept as a global class (no namespace) for max compatibility.
+ * NOTE: Global class (no namespace) for maximal compatibility.
  */
 if ( ! defined('ABSPATH') ) { exit; }
 
@@ -89,10 +89,9 @@ class JPRM_Labels_Store {
 	 * ADMIN UI (submenu + page + save + assets)
 	 * ===================================================================*/
 
-	/** Boot hooks for admin UI (kept here to avoid scattering). */
 	public static function boot_admin_ui() : void {
 		if ( is_admin() ) {
-			add_action( 'admin_menu', [ __CLASS__, 'attach_submenu' ], 20 );
+			add_action( 'admin_menu', [ __CLASS__, 'attach_submenu' ], 99 ); // late: parent likely exists
 			add_action( 'admin_post_jprm_save_labels', [ __CLASS__, 'handle_save' ] );
 			add_action( 'admin_enqueue_scripts', [ __CLASS__, 'enqueue_admin_assets' ] );
 		}
@@ -100,8 +99,7 @@ class JPRM_Labels_Store {
 
 	/**
 	 * Attach "Price Labels" under the existing Jellopoint parent.
-	 * We DO NOT create a new top-level. We try common slugs and scan titles.
-	 * If not found, we fall back to Settings (options-general.php).
+	 * We DO NOT create a new top-level. Fallback to Settings if not found.
 	 */
 	public static function attach_submenu() : void {
 		$parent = self::detect_parent_slug();
@@ -154,52 +152,72 @@ class JPRM_Labels_Store {
 		return false;
 	}
 
-	/** Enqueue media + JS for our admin page only. */
+	/** Enqueue media + JS for our admin page only (safe handles + nowdoc). */
 	public static function enqueue_admin_assets( $hook ) : void {
-		// Only load on our page
-		if ( $hook !== 'toplevel_page_jellopoint-menu'
-		     && $hook !== 'jellopoint-menu_page_jprm-price-labels'
-		     && $hook !== 'settings_page_jprm-price-labels' ) {
-			return;
+		// Load only on our page
+		$is_our_screen = false;
+		if ( isset( $_GET['page'] ) && $_GET['page'] === 'jprm-price-labels' ) {
+			$is_our_screen = true;
 		}
+		if ( ! $is_our_screen ) return;
+
 		wp_enqueue_media();
-		wp_enqueue_script( 'jquery' );
-		// inline small script for row add/remove + media picker
-		$js = <<<JS
+
+		// Register lightweight handles so we can attach inline scripts/styles.
+		if ( ! wp_script_is( 'jprm-labels-admin-js', 'registered' ) ) {
+			wp_register_script( 'jprm-labels-admin-js', false, [ 'jquery' ], '1.0', true );
+		}
+		if ( ! wp_style_is( 'jprm-labels-admin-css', 'registered' ) ) {
+			wp_register_style( 'jprm-labels-admin-css', false, [], '1.0' );
+		}
+
+		wp_enqueue_script( 'jprm-labels-admin-js' );
+		wp_enqueue_style( 'jprm-labels-admin-css' );
+
+		// IMPORTANT: use NOWDOC so PHP does not interpolate ${...} inside JavaScript.
+		$js = <<<'JS'
 jQuery(function($){
 	function newRow(data){
 		data = data || {};
 		var idx = $('.jprm-label-row').length;
 		var id  = data.id || ('pl-' + idx);
-		var html = `
-<tr class="jprm-label-row">
-<td><input type="text" class="regular-text" name="labels[${idx}][id]" value="${id}" /></td>
-<td><input type="text" class="regular-text" name="labels[${idx}][label]" value="${data.label||''}" /></td>
-<td><input type="text" class="regular-text" name="labels[${idx}][slug]" value="${data.slug||''}" /></td>
-<td class="jprm-icon-cell">
-  <input type="hidden" class="jprm-icon-id" name="labels[${idx}][icon_id]" value="${data.icon_id||0}">
-  <span class="jprm-icon-preview">${data.icon_html||''}</span>
-  <button type="button" class="button jprm-pick-icon">Select</button>
-  <button type="button" class="button jprm-clear-icon">Clear</button>
-</td>
-<td style="text-align:center">
-  <input type="checkbox" name="labels[${idx}][active]" value="1" ${data.active?'checked':''}>
-</td>
-<td><input type="number" class="small-text" name="labels[${idx}][order]" value="${(data.order!=null?data.order:idx)}" /></td>
-<td><button type="button" class="button button-link-delete jprm-remove-row">Remove</button></td>
-</tr>`;
+		var iconHTML = data.icon_html || '';
+		var active = data.active ? 'checked' : '';
+		var order  = (data.order != null ? data.order : idx);
+
+		var html = ''
+		+ '<tr class="jprm-label-row">'
+		+   '<td><input type="text" class="regular-text" name="labels['+idx+'][id]" value="'+id+'" /></td>'
+		+   '<td><input type="text" class="regular-text" name="labels['+idx+'][label]" value="'+(data.label||'')+'" /></td>'
+		+   '<td><input type="text" class="regular-text" name="labels['+idx+'][slug]" value="'+(data.slug||'')+'" /></td>'
+		+   '<td class="jprm-icon-cell">'
+		+     '<input type="hidden" class="jprm-icon-id" name="labels['+idx+'][icon_id]" value="'+(data.icon_id||0)+'">'
+		+     '<span class="jprm-icon-preview">'+iconHTML+'</span>'
+		+     '<button type="button" class="button jprm-pick-icon">Select</button> '
+		+     '<button type="button" class="button jprm-clear-icon">Clear</button>'
+		+   '</td>'
+		+   '<td style="text-align:center">'
+		+     '<input type="checkbox" name="labels['+idx+'][active]" value="1" '+active+'>'
+		+   '</td>'
+		+   '<td><input type="number" class="small-text" name="labels['+idx+'][order]" value="'+order+'" /></td>'
+		+   '<td><button type="button" class="button button-link-delete jprm-remove-row">Remove</button></td>'
+		+ '</tr>';
+
 		return $(html);
 	}
-	// add row
+
+	// Add row
 	$('#jprm-add-row').on('click', function(e){
 		e.preventDefault();
 		$('#jprm-labels-table tbody').append(newRow());
 	});
-	// remove row
+
+	// Remove row
 	$('#jprm-labels-table').on('click','.jprm-remove-row', function(){
 		$(this).closest('tr').remove();
 	});
-	// media picker
+
+	// Media picker
 	var frame;
 	$('#jprm-labels-table').on('click','.jprm-pick-icon', function(e){
 		e.preventDefault();
@@ -212,8 +230,9 @@ jQuery(function($){
 		});
 		frame.on('select', function(){
 			var att = frame.state().get('selection').first().toJSON();
+			var url = (att.sizes && att.sizes.thumbnail ? att.sizes.thumbnail.url : att.url);
 			$cell.find('.jprm-icon-id').val(att.id);
-			$cell.find('.jprm-icon-preview').html('<img src="'+(att.sizes && att.sizes.thumbnail ? att.sizes.thumbnail.url : att.url)+'" style="width:24px;height:24px;border-radius:3px;vertical-align:middle">');
+			$cell.find('.jprm-icon-preview').html('<img src="'+url+'" style="width:24px;height:24px;border-radius:3px;vertical-align:middle">');
 		});
 		frame.open();
 	});
@@ -225,13 +244,15 @@ jQuery(function($){
 	});
 });
 JS;
-		wp_add_inline_script( 'jquery', $js );
-		$css = <<<CSS
+
+		$css = <<<'CSS'
 #jprm-labels-table .jprm-icon-cell { white-space:nowrap; }
 #jprm-labels-table .jprm-icon-preview { display:inline-block; width:28px; height:28px; margin-right:6px; vertical-align:middle; }
 #jprm-labels-table .small-text { width:70px; }
 CSS;
-		wp_add_inline_style( 'wp-admin', $css );
+
+		wp_add_inline_script( 'jprm-labels-admin-js', $js );
+		wp_add_inline_style( 'jprm-labels-admin-css', $css );
 	}
 
 	/** Render the admin page (with full form). */
@@ -337,7 +358,9 @@ CSS;
 
 		update_option( 'jprm_price_labels_v2', wp_json_encode( $out, JSON_UNESCAPED_UNICODE ), false );
 
-		wp_safe_redirect( add_query_arg( [ 'page' => 'jprm-price-labels', 'updated' => 1 ], admin_url( self::detect_parent_slug() ? 'admin.php' : 'options-general.php' ) ) );
+		// Redirect back to our page
+		$parent = self::detect_parent_slug() ? 'admin.php' : 'options-general.php';
+		wp_safe_redirect( add_query_arg( [ 'page' => 'jprm-price-labels', 'updated' => 1 ], admin_url( $parent ) ) );
 		exit;
 	}
 }
