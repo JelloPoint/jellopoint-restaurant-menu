@@ -68,8 +68,8 @@ class JPRM_Labels_Store {
 		global $admin_page_hooks;
 		if ( empty( $admin_page_hooks[ $parent ] ) ) {
 			add_menu_page(
-				__( 'JelloPoint', 'jellopoint-restaurant-menu' ),
-				__( 'JelloPoint', 'jellopoint-restaurant-menu' ),
+				__( 'JelloPoint Menu', 'jellopoint-restaurant-menu' ),
+				__( 'JelloPoint Menu', 'jellopoint-restaurant-menu' ),
 				'manage_options',
 				$parent,
 				'__return_null',
