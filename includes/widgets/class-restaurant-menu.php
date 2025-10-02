@@ -102,6 +102,7 @@ class Restaurant_Menu extends Widget_Base {
             'condition'    => [ 'data_source' => 'dynamic' ],
         ] );
 
+        // Qty label/icon presentation & position
         $this->add_control( 'label_presentation', [
             'label'   => __( 'Label Presentation (qty)', 'jellopoint-restaurant-menu' ),
             'type'    => Controls_Manager::SELECT,
@@ -125,7 +126,7 @@ class Restaurant_Menu extends Widget_Base {
 
         $this->end_controls_section();
 
-        /* Static items unchanged */
+        /* Static items (unchanged) */
         $this->start_controls_section( 'section_static', [
             'label'     => __( 'Static Items', 'jellopoint-restaurant-menu' ),
             'condition' => [ 'data_source' => 'static' ],
@@ -156,6 +157,7 @@ class Restaurant_Menu extends Widget_Base {
         $this->render_dynamic( $s );
     }
 
+    /* ---------- STATIC ---------- */
     protected function render_static() {
         $s = $this->get_settings_for_display();
         $items = isset( $s['items'] ) ? $s['items'] : [];
@@ -185,8 +187,9 @@ class Restaurant_Menu extends Widget_Base {
         echo '</li>';
     }
 
+    /* ---------- DYNAMIC ---------- */
     protected function render_dynamic( array $s ) {
-        // labels store available
+        // Require labels store (resolver)
         $labels_file = dirname( __DIR__ ) . '/data/class-labels-store.php';
         if ( file_exists( $labels_file ) ) { require_once $labels_file; }
 
@@ -206,14 +209,24 @@ class Restaurant_Menu extends Widget_Base {
         echo '<ul class="jp-menu">';
 
         foreach ( $items as $post_id ) {
+            // Title
             $title = get_the_title( $post_id );
-            $desc  = get_the_excerpt( $post_id );
-            if ( empty( $desc ) ) { $desc = wp_trim_words( wp_strip_all_tags( get_post_field( 'post_content', $post_id ) ), 40, '' ); }
 
-            // Prefer v3 JSON if present
-            $v3 = get_post_meta( $post_id, 'jprm_price', true );
-            $cfg = is_string($v3) ? json_decode($v3, true) : [];
-            $has_v3 = is_array($cfg) && ! empty($cfg['mode']);
+            // Description: prefer explicit meta keys, then excerpt, then trimmed content
+            $desc  = $this->first_non_empty_meta( $post_id, [
+                '_jprm_desc','jprm_desc','description','item_description','_description','_jprm_item_desc','_jp_desc'
+            ] );
+            if ( $desc === '' ) {
+                $desc = get_post_field( 'post_excerpt', $post_id, 'raw' );
+                if ( $desc === '' ) {
+                    $content = get_post_field( 'post_content', $post_id, 'raw' );
+                    $desc = wp_trim_words( wp_strip_all_tags( $content ), 40, '' );
+                }
+            }
+
+            // Prefer v3 JSON; NEVER echo it
+            $cfg = $this->safe_read_v3( $post_id );
+            $has_v3 = ! empty( $cfg );
 
             echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
             echo '  <div class="jp-menu__content">';
@@ -223,7 +236,7 @@ class Restaurant_Menu extends Widget_Base {
             echo '  <div class="jp-menu__pricegroup">';
 
             if ( $has_v3 ) {
-                if ( $cfg['mode'] === 'single' && ! empty($cfg['price']) ) {
+                if ( isset($cfg['mode']) && $cfg['mode'] === 'single' && ! empty($cfg['price']) ) {
                     $res = \JPRM_Labels_Store::resolve( (string)($cfg['label_ref'] ?? '') );
                     $label_text = $res['label_text'];
                     $icon_id    = $res['icon_id'];
@@ -237,14 +250,14 @@ class Restaurant_Menu extends Widget_Base {
                         echo '      <span class="jp-menu__value jp-col-price">' . esc_html( $cfg['price'] ) . '</span>';
                         echo '    </div>';
                     }
-                } elseif ( $cfg['mode'] === 'multi' && ! empty($cfg['rows']) ) {
+                } elseif ( isset($cfg['mode']) && $cfg['mode'] === 'multi' && ! empty($cfg['rows']) ) {
                     foreach ( $cfg['rows'] as $row ) {
+                        $value = isset($row['value']) ? (string)$row['value'] : '';
+                        if ( $value === '' ) continue;
                         $res  = \JPRM_Labels_Store::resolve( (string)($row['label_ref'] ?? '') );
                         $label_text = $res['label_text'];
                         $icon_id    = $res['icon_id'];
                         $hide       = ! empty( $row['hide_icon'] );
-                        $value      = (string) ( $row['value'] ?? '' );
-                        if ( $label_text === '' && ! $icon_id && $value === '' ) continue;
 
                         echo '    <div class="jp-menu__price jp-price-row ' . esc_attr( $label_order_cls ) . '">';
                         echo '      <span class="jp-menu__label jp-col-label">' . $this->render_label_html( $label_text, $presentation, $icon_id, $hide ) . '</span>';
@@ -253,60 +266,8 @@ class Restaurant_Menu extends Widget_Base {
                     }
                 }
             } else {
-                // Legacy read (keeps your existing admin/meta working)
-                $single = $this->first_scalar( $post_id, [
-                    '_jprm_price','jprm_price','price','_price','item_price','price_single','single_price',
-                    'jprm_item_price','_jprm_price_value','_jprm_single_price','_jp_price'
-                ] );
-
-                $labels_arr  = $this->to_array( get_post_meta( $post_id, '_jprm_price_labels', true ) );
-                $amounts_arr = $this->to_array( get_post_meta( $post_id, '_jprm_price_amounts', true ) );
-                $hide_arr    = $this->to_array( get_post_meta( $post_id, '_jprm_price_hideicons', true ) );
-
-                $has_multi = ! empty( $amounts_arr ) || ! empty( $labels_arr );
-
-                if ( $has_multi ) {
-                    $max = max( count($labels_arr), count($amounts_arr) );
-                    for ( $i = 0; $i < $max; $i++ ) {
-                        $label_ref = isset($labels_arr[$i]) ? (string)$labels_arr[$i] : '';
-                        $value     = isset($amounts_arr[$i]) ? (string)$amounts_arr[$i] : '';
-                        $hide      = ! empty( $hide_arr[$i] );
-
-                        $res  = \JPRM_Labels_Store::resolve( $label_ref );
-                        $label_text = $res['label_text'];
-                        $icon_id    = $res['icon_id'];
-
-                        if ( $label_text === '' && ! $icon_id && $value === '' ) continue;
-
-                        echo '    <div class="jp-menu__price jp-price-row ' . esc_attr( $label_order_cls ) . '">';
-                        echo '      <span class="jp-menu__label jp-col-label">' . $this->render_label_html( $label_text, $presentation, $icon_id, $hide ) . '</span>';
-                        echo '      <span class="jp-menu__value jp-col-price">' . esc_html( $value ) . '</span>';
-                        echo '    </div>';
-                    }
-                } elseif ( $single !== '' ) {
-                    $single_label_ref = $this->first_scalar( $post_id, [
-                        '_jprm_single_label','single_label','price_label','jprm_single_label','jprm_price_label',
-                        '_jprm_label_single','label_single','_jprm_label_id','_jprm_label_key',
-                        'label_id','label_key','label_ref','label','preset','slug'
-                    ] );
-                    $single_hide_icon = $this->truthy( get_post_meta( $post_id, '_jprm_single_hide_icon', true ) )
-                                         || $this->truthy( get_post_meta( $post_id, 'single_hide_icon', true ) )
-                                         || $this->truthy( get_post_meta( $post_id, 'price_hide_icon', true ) );
-
-                    $res  = \JPRM_Labels_Store::resolve( $single_label_ref );
-                    $label_text = $res['label_text'];
-                    $icon_id    = $res['icon_id'];
-                    $hide       = $single_hide_icon;
-
-                    if ( $label_text === '' && ! $icon_id ) {
-                        echo '    <div class="jp-menu__price"><span class="jp-menu__value">' . esc_html( $single ) . '</span></div>';
-                    } else {
-                        echo '    <div class="jp-menu__price jp-price-row ' . esc_attr( $label_order_cls ) . '">';
-                        echo '      <span class="jp-menu__label jp-col-label">' . $this->render_label_html( $label_text, $presentation, $icon_id, $hide ) . '</span>';
-                        echo '      <span class="jp-menu__value jp-col-price">' . esc_html( $single ) . '</span>';
-                        echo '    </div>';
-                    }
-                }
+                // Legacy fallback (keeps existing items working)
+                $this->render_legacy_prices( $post_id, $label_order_cls, $presentation );
             }
 
             echo '  </div>'; // pricegroup
@@ -314,6 +275,84 @@ class Restaurant_Menu extends Widget_Base {
         }
 
         echo '</ul>';
+    }
+
+    /* ---------- helpers ---------- */
+
+    /** Safely read v3 without ever echoing raw JSON. */
+    protected function safe_read_v3( $post_id ) : array {
+        $raw = get_post_meta( $post_id, 'jprm_price', true );
+        // Guard: if filters cause it to print, we still treat as string only
+        if ( is_array( $raw ) ) $raw = wp_json_encode( $raw ); // normalize
+        if ( ! is_string( $raw ) ) return [];
+        $trim = trim( $raw );
+
+        // If it looks like JSON, decode; otherwise ignore (prevents accidental echoing of plain text)
+        if ( $trim === '' ) return [];
+        if ( $trim[0] !== '{' && $trim[0] !== '[' ) return [];
+        $cfg = json_decode( $trim, true );
+        return (json_last_error() === JSON_ERROR_NONE && is_array($cfg)) ? $cfg : [];
+    }
+
+    /** Legacy renderer: parallel arrays + single price + single label keys. */
+    protected function render_legacy_prices( $post_id, $label_order_cls, $presentation ) {
+        // MULTI (parallel arrays)
+        $labels_arr  = $this->to_array( get_post_meta( $post_id, '_jprm_price_labels', true ) );
+        $amounts_arr = $this->to_array( get_post_meta( $post_id, '_jprm_price_amounts', true ) );
+        $hide_arr    = $this->to_array( get_post_meta( $post_id, '_jprm_price_hideicons', true ) );
+
+        $has_multi = ! empty( $amounts_arr ) || ! empty( $labels_arr );
+
+        if ( $has_multi ) {
+            $max = max( count($labels_arr), count($amounts_arr) );
+            for ( $i = 0; $i < $max; $i++ ) {
+                $label_ref = isset($labels_arr[$i]) ? (string)$labels_arr[$i] : '';
+                $value     = isset($amounts_arr[$i]) ? (string)$amounts_arr[$i] : '';
+                $hide      = ! empty( $hide_arr[$i] );
+
+                if ( $value === '' ) continue;
+
+                $res  = \JPRM_Labels_Store::resolve( $label_ref );
+                $label_text = $res['label_text'];
+                $icon_id    = $res['icon_id'];
+
+                echo '    <div class="jp-menu__price jp-price-row ' . esc_attr( $label_order_cls ) . '">';
+                echo '      <span class="jp-menu__label jp-col-label">' . $this->render_label_html( $label_text, $presentation, $icon_id, $hide ) . '</span>';
+                echo '      <span class="jp-menu__value jp-col-price">' . esc_html( $value ) . '</span>';
+                echo '    </div>';
+            }
+            return;
+        }
+
+        // SINGLE
+        $single = $this->first_scalar( $post_id, [
+            '_jprm_price','jprm_price','price','_price','item_price','price_single','single_price',
+            'jprm_item_price','_jprm_price_value','_jprm_single_price','_jp_price'
+        ] );
+        if ( $single === '' ) return;
+
+        $single_label_ref = $this->first_scalar( $post_id, [
+            '_jprm_single_label','single_label','price_label','jprm_single_label','jprm_price_label',
+            '_jprm_label_single','label_single','_jprm_label_id','_jprm_label_key',
+            'label_id','label_key','label_ref','label','preset','slug'
+        ] );
+        $single_hide_icon = $this->truthy( get_post_meta( $post_id, '_jprm_single_hide_icon', true ) )
+                             || $this->truthy( get_post_meta( $post_id, 'single_hide_icon', true ) )
+                             || $this->truthy( get_post_meta( $post_id, 'price_hide_icon', true ) );
+
+        $res  = \JPRM_Labels_Store::resolve( $single_label_ref );
+        $label_text = $res['label_text'];
+        $icon_id    = $res['icon_id'];
+        $hide       = $single_hide_icon;
+
+        if ( $label_text === '' && ! $icon_id ) {
+            echo '    <div class="jp-menu__price"><span class="jp-menu__value">' . esc_html( $single ) . '</span></div>';
+        } else {
+            echo '    <div class="jp-menu__price jp-price-row ' . esc_attr( $label_order_cls ) . '">';
+            echo '      <span class="jp-menu__label jp-col-label">' . $this->render_label_html( $label_text, $presentation, $icon_id, $hide ) . '</span>';
+            echo '      <span class="jp-menu__value jp-col-price">' . esc_html( $single ) . '</span>';
+            echo '    </div>';
+        }
     }
 
     protected function render_label_html( $label_text, $presentation, $icon_id = 0, $hide_icon = false ) {
@@ -443,7 +482,7 @@ class Restaurant_Menu extends Widget_Base {
         echo '<style class="jprm-menu-inline-css">' . $css . '</style>';
     }
 
-    /* ------ tiny legacy helpers (read-only) ------ */
+    /* ---------- tiny utils ---------- */
     protected function to_array( $v ) {
         if ( is_array( $v ) ) return $v;
         if ( is_string( $v ) ) {
@@ -454,6 +493,17 @@ class Restaurant_Menu extends Widget_Base {
             if ( strpos($v, ',') !== false ) return array_map( 'trim', explode(',', $v ) );
         }
         return [];
+    }
+
+    protected function first_non_empty_meta( $post_id, array $keys ) {
+        foreach ( $keys as $k ) {
+            $v = get_post_meta( $post_id, $k, true );
+            if ( is_string($v) || is_numeric($v) ) {
+                $sv = trim((string)$v);
+                if ( $sv !== '' ) return $sv;
+            }
+        }
+        return '';
     }
 
     protected function first_scalar( $post_id, array $keys ) {
