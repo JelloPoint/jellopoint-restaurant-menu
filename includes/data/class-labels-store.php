@@ -1,99 +1,132 @@
 <?php
 /**
- * Labels store facade.
- * Reads option 'jprm_price_labels_v2' (array or JSON string).
- * Provides lookups by id/slug/name + resolve() helper.
- *
- * Note: Kept as global class (no namespace) for maximum compatibility.
+ * Labels Store + Admin Menu registration
  */
-if ( ! defined('ABSPATH') ) { exit; }
-
-if ( ! class_exists('JPRM_Labels_Store') ) :
+if ( ! defined('ABSPATH') ) exit;
 
 class JPRM_Labels_Store {
 
-    /** Return the raw list as array of rows. */
-    public static function all() : array {
-        $opt = get_option( 'jprm_price_labels_v2', [] );
-        if ( is_string( $opt ) ) {
-            $arr = json_decode( $opt, true );
-            return is_array($arr) ? $arr : [];
-        }
-        return is_array($opt) ? $opt : [];
-    }
+	/** Cache of labels */
+	protected static $cache = null;
 
-    /** Map by id. */
-    public static function map_by_id() : array {
-        $out = [];
-        foreach ( self::all() as $row ) {
-            if ( ! is_array($row) ) continue;
-            $id = isset($row['id']) ? (string)$row['id'] : '';
-            if ( $id === '' ) continue;
-            $out[$id] = $row;
-        }
-        return $out;
-    }
+	/** Read labels from options (jprm_price_labels_v2) */
+	public static function all() : array {
+		if ( is_array(self::$cache) ) return self::$cache;
 
-    /** Map by slug. */
-    public static function map_by_slug() : array {
-        $out = [];
-        foreach ( self::all() as $row ) {
-            if ( ! is_array($row) ) continue;
-            $slug = isset($row['slug']) ? (string)$row['slug'] : '';
-            if ( $slug === '' ) continue;
-            $out[$slug] = $row;
-        }
-        return $out;
-    }
+		$opt = get_option('jprm_price_labels_v2', []);
+		if ( is_string($opt) ) {
+			$tmp = json_decode($opt, true);
+			if ( json_last_error() === JSON_ERROR_NONE && is_array($tmp) ) $opt = $tmp;
+		}
+		self::$cache = is_array($opt) ? $opt : [];
+		return self::$cache;
+	}
 
-    /**
-     * Get a label row by id OR slug OR case-insensitive name.
-     * Returns array|null
-     */
-    public static function get_by_ref( string $ref ) : ?array {
-        $ref = trim($ref);
-        if ( $ref === '' ) return null;
+	/** Map by id for quick resolution */
+	public static function map_by_id() : array {
+		$out = [];
+		foreach ( self::all() as $row ) {
+			if ( ! is_array($row) ) continue;
+			$id = isset($row['id']) ? (string)$row['id'] : '';
+			if ( $id === '' ) continue;
+			$out[$id] = $row;
+		}
+		return $out;
+	}
 
-        // Try id
-        $by_id = self::map_by_id();
-        if ( isset( $by_id[$ref] ) ) return $by_id[$ref];
+	/**
+	 * Resolve a label reference to text & icon.
+	 * - If $ref matches an ID in the store, use its label/icon_id.
+	 * - Otherwise treat $ref as custom text.
+	 */
+	public static function resolve( $ref ) : array {
+		$ref = is_scalar($ref) ? (string)$ref : '';
+		if ( $ref === '' ) return [ 'label_text' => '', 'icon_id' => 0 ];
 
-        // Try slug
-        $by_slug = self::map_by_slug();
-        if ( isset( $by_slug[$ref] ) ) return $by_slug[$ref];
+		$map = self::map_by_id();
+		if ( isset($map[$ref]) ) {
+			$row = $map[$ref];
+			return [
+				'label_text' => isset($row['label']) ? (string)$row['label'] : '',
+				'icon_id'    => isset($row['icon_id']) ? (int)$row['icon_id'] : 0,
+			];
+		}
+		// custom text fallback
+		return [ 'label_text' => $ref, 'icon_id' => 0 ];
+	}
 
-        // Case-insensitive match against id/slug/label
-        $needle = strtolower($ref);
-        foreach ( self::all() as $r ) {
-            if ( ! is_array($r) ) continue;
-            $id   = strtolower( (string) ($r['id']    ?? '') );
-            $slug = strtolower( (string) ($r['slug']  ?? '') );
-            $name = strtolower( (string) ($r['label'] ?? '') );
-            if ( $needle === $id || $needle === $slug || $needle === $name ) return $r;
-        }
+	/* ----------------------------------------------------------------------
+	 * Admin Menu: ensure "Price Labels" appears under the JelloPoint menu.
+	 * -------------------------------------------------------------------- */
+	public static function boot_admin_menu() : void {
+		add_action( 'admin_menu', [ __CLASS__, 'register_admin_menus' ], 20 );
+	}
+	public static function register_admin_menus() : void {
+		$parent = apply_filters( 'jprm/admin_parent_slug', 'jellopoint' ); // expected top-level slug
 
-        return null;
-    }
+		// If parent menu is missing, create it (safely).
+		global $admin_page_hooks;
+		if ( empty( $admin_page_hooks[ $parent ] ) ) {
+			add_menu_page(
+				__( 'JelloPoint', 'jellopoint-restaurant-menu' ),
+				__( 'JelloPoint', 'jellopoint-restaurant-menu' ),
+				'manage_options',
+				$parent,
+				'__return_null',
+				'dashicons-store',
+				56
+			);
+		}
 
-    /**
-     * Resolve any ref or free text into display text + icon id.
-     * Returns ['label_text' => string, 'icon_id' => int]
-     */
-    public static function resolve( string $ref_or_text ) : array {
-        $ref_or_text = trim($ref_or_text);
-        if ( $ref_or_text === '' ) return [ 'label_text' => '', 'icon_id' => 0 ];
+		// Add (or re-add) our submenu item.
+		add_submenu_page(
+			$parent,
+			__( 'Price Labels', 'jellopoint-restaurant-menu' ),
+			__( 'Price Labels', 'jellopoint-restaurant-menu' ),
+			'manage_options',
+			'jprm-price-labels',
+			[ __CLASS__, 'render_labels_admin_page' ],
+			10
+		);
+	}
 
-        $row = self::get_by_ref( $ref_or_text );
-        if ( $row ) {
-            return [
-                'label_text' => (string) ( $row['label'] ?? $ref_or_text ),
-                'icon_id'    => isset($row['icon_id']) ? (int)$row['icon_id'] : 0,
-            ];
-        }
+	/** Simple admin page: shows current labels; you can expand with edit UI as needed. */
+	public static function render_labels_admin_page() : void {
+		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Not allowed.', 'jellopoint-restaurant-menu' ) ); }
 
-        // treat as literal text
-        return [ 'label_text' => $ref_or_text, 'icon_id' => 0 ];
-    }
+		$labels = self::all();
+		echo '<div class="wrap"><h1>' . esc_html__( 'Price Labels', 'jellopoint-restaurant-menu' ) . '</h1>';
+
+		if ( empty( $labels ) ) {
+			echo '<p>' . esc_html__( 'No labels found. Add labels via your Labels settings UI.', 'jellopoint-restaurant-menu' ) . '</p>';
+		} else {
+			echo '<table class="widefat striped"><thead><tr>';
+			echo '<th>' . esc_html__( 'ID', 'jellopoint-restaurant-menu' ) . '</th>';
+			echo '<th>' . esc_html__( 'Label', 'jellopoint-restaurant-menu' ) . '</th>';
+			echo '<th>' . esc_html__( 'Icon', 'jellopoint-restaurant-menu' ) . '</th>';
+			echo '</tr></thead><tbody>';
+			foreach ( $labels as $row ) {
+				$id   = isset($row['id']) ? (string)$row['id'] : '';
+				$lab  = isset($row['label']) ? (string)$row['label'] : '';
+				$icon = isset($row['icon_id']) ? (int)$row['icon_id'] : 0;
+
+				echo '<tr>';
+				echo '<td>' . esc_html( $id ) . '</td>';
+				echo '<td>' . esc_html( $lab ) . '</td>';
+				echo '<td>';
+				if ( $icon ) {
+					echo wp_get_attachment_image( $icon, [24,24], false, [ 'style'=>'width:24px;height:24px;border-radius:3px;vertical-align:middle' ] );
+				} else {
+					echo '&mdash;';
+				}
+				echo '</td>';
+				echo '</tr>';
+			}
+			echo '</tbody></table>';
+		}
+
+		echo '</div>';
+	}
 }
-
-endif;
+// ensure admin menu registers
+JPRM_Labels_Store::boot_admin_menu();

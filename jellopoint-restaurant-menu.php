@@ -2,7 +2,7 @@
 /**
  * Plugin Name: JelloPoint – Restaurant Menu
  * Description: Dynamic restaurant menu items with labels/icons and an Elementor widget.
- * Version: 2.0.5
+ * Version: 2.0.6
  * Author: JelloPoint
  * Text Domain: jellopoint-restaurant-menu
  * Domain Path: /languages
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 /* ----------------------------------------------------------------------------
  * Constants
  * ------------------------------------------------------------------------- */
-if ( ! defined( 'JPRM_VERSION' ) )          define( 'JPRM_VERSION', '2.0.5' );
+if ( ! defined( 'JPRM_VERSION' ) )          define( 'JPRM_VERSION', '2.0.6' );
 if ( ! defined( 'JPRM_PLUGIN_FILE' ) )      define( 'JPRM_PLUGIN_FILE', __FILE__ );
 if ( ! defined( 'JPRM_PLUGIN_PATH' ) )      define( 'JPRM_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 if ( ! defined( 'JPRM_PLUGIN_URL' ) )       define( 'JPRM_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -35,7 +35,7 @@ add_action( 'plugins_loaded', function() {
  * ------------------------------------------------------------------------- */
 require_once JPRM_PLUGIN_PATH . 'includes/storage/class-price-schema.php';
 require_once JPRM_PLUGIN_PATH . 'includes/storage/class-price-repository.php';
-require_once JPRM_PLUGIN_PATH . 'includes/render/class-price-renderer.php'; // <-- NEW
+require_once JPRM_PLUGIN_PATH . 'includes/render/class-price-renderer.php';
 
 require_once JPRM_PLUGIN_PATH . 'includes/data/class-labels-store.php';
 require_once JPRM_PLUGIN_PATH . 'includes/class-plugin.php';
@@ -43,7 +43,7 @@ require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-menuitem-meta.php';
 require_once JPRM_PLUGIN_PATH . 'includes/admin/save/class-menuitem-v3-writer.php';
 
 /* ----------------------------------------------------------------------------
- * Initialize core plugin class if present (safe-guarded)
+ * INIT: (optional) bootstrap your core class
  * ------------------------------------------------------------------------- */
 add_action( 'init', function() {
 	if ( class_exists( '\JelloPoint\RestaurantMenu\Plugin' ) ) {
@@ -54,6 +54,20 @@ add_action( 'init', function() {
 		}
 	}
 }, 5 );
+
+/* ----------------------------------------------------------------------------
+ * 🔹 CSS: Register our public stylesheet for both frontend & Elementor preview
+ * ------------------------------------------------------------------------- */
+function jprm_register_public_styles() {
+	wp_register_style(
+		'jprm-menu',
+		JPRM_PLUGIN_URL . 'includes/render/css/menu.css',
+		[],
+		JPRM_VERSION
+	);
+}
+add_action( 'wp_enqueue_scripts', 'jprm_register_public_styles', 20 );
+add_action( 'elementor/frontend/after_register_styles', 'jprm_register_public_styles', 20 );
 
 /* ----------------------------------------------------------------------------
  * Elementor: category (optional)

@@ -8,9 +8,6 @@ use JelloPoint\RestaurantMenu\Render\Price_Renderer;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-/**
- * Restaurant Menu – Elementor Widget (uses Price_Renderer)
- */
 class Restaurant_Menu extends Widget_Base {
 
     public function get_name() { return 'jprm-restaurant-menu'; }
@@ -18,6 +15,11 @@ class Restaurant_Menu extends Widget_Base {
     public function get_icon() { return 'eicon-menu-card'; }
     public function get_categories() { return [ 'jellopoint-widgets' ]; }
     public function get_keywords() { return [ 'menu','restaurant','card','food','price','prices','items' ]; }
+
+    /** Tell Elementor which styles to load (frontend + editor preview) */
+    public function get_style_depends() {
+        return [ 'jprm-menu' ];
+    }
 
     protected function register_controls() {
         $menu_options    = $this->get_terms_options( 'jprm_menu' );
@@ -130,7 +132,7 @@ class Restaurant_Menu extends Widget_Base {
 
         $this->end_controls_section();
 
-        /* Static items (kept minimal for now) */
+        /* Static items (simple for now) */
         $this->start_controls_section( 'section_static', [
             'label'     => __( 'Static Items', 'jellopoint-restaurant-menu' ),
             'condition' => [ 'data_source' => 'static' ],
@@ -149,47 +151,6 @@ class Restaurant_Menu extends Widget_Base {
     }
 
     protected function render() {
-        // Load CSS file + strong inline overrides
-        if ( defined('JPRM_PLUGIN_URL') ) {
-            wp_enqueue_style(
-                'jprm-menu',
-                JPRM_PLUGIN_URL . 'includes/render/css/menu.css',
-                [],
-                defined('JPRM_VERSION') ? JPRM_VERSION : null
-            );
-            wp_add_inline_style('jprm-menu', <<<CSS
-ul.jp-menu, .elementor-widget ul.jp-menu { list-style: none !important; margin: 0; padding-left: 0 !important; }
-ul.jp-menu > li, .elementor-widget ul.jp-menu > li { list-style: none !important; margin: 0; padding: 0; }
-ul.jp-menu > li::marker, .elementor-widget ul.jp-menu > li::marker { content: '' !important; }
-ul.jp-menu > li::before, .elementor-widget ul.jp-menu > li::before { content: none !important; }
-
-.jp-menu__label{display:inline-flex;gap:.35em;align-items:center;white-space:nowrap;opacity:.95;}
-.jp-menu__icon{
-  width:1.1em !important;height:1.1em !important;max-width:1.1em !important;max-height:1.1em !important;
-  object-fit:contain !important;vertical-align:-0.2em !important;display:inline-block !important;border-radius:2px;
-}
-.jp-menu__icon[width], .jp-menu__icon[height]{ width:1.1em !important; height:1.1em !important; }
-
-.jp-menu{ margin:0; padding:0; }
-.jp-menu__item{ margin:0 0 .9rem 0; }
-.jp-menu__inner{ display:grid; grid-template-columns:1fr auto; gap:.4rem .8rem; align-items:start; }
-.jp-menu__content{ min-width:0; }
-.jp-menu__title{ margin:0; }
-.jp-menu__desc{ opacity:.85; }
-.jp-menu__price{ display:flex; gap:.5rem; justify-content:flex-end; line-height:1.2; }
-.jp-menu__pricegroup{ display:flex; flex-direction:column; gap:.25rem; text-align:right; }
-.jp-menu__value{ font-weight:600; white-space:nowrap; }
-
-.jp-price-row{ display:grid; grid-template-columns:auto auto; gap:.5rem; align-items:center; }
-.jp-col-label{ justify-self:end; }
-.jp-col-price{ justify-self:end; }
-.jp-price-row.jp-order--label-right .jp-col-label{ order:2; }
-.jp-price-row.jp-order--label-right .jp-col-price{ order:1; }
-.jp-price-row.jp-order--label-left .jp-col-label{ order:1; }
-.jp-price-row.jp-order--label-left .jp-col-price{ order:2; }
-CSS);
-        }
-
         $s = $this->get_settings_for_display();
         if ( isset( $s['data_source'] ) && $s['data_source'] === 'static' ) {
             $this->render_static();
@@ -218,7 +179,6 @@ CSS);
         if ( $title !== '' ) echo '      <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
         if ( $desc  !== '' ) echo '      <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
         echo '    </div>';
-        // For static we only render a simple single price at the moment
         $cfg = [];
         if ( $price !== '' ) {
             $cfg = [ 'mode' => 'single', 'price' => (string)$price, 'label_ref' => '', 'hide_icon' => false ];
@@ -284,7 +244,6 @@ CSS);
 
     /* ---------- helpers ---------- */
 
-    /** Safely read v3 without ever echoing raw JSON. */
     protected function safe_read_v3( $post_id ) : array {
         $raw = get_post_meta( $post_id, 'jprm_price', true );
         if ( is_array( $raw ) ) return $raw;
@@ -307,7 +266,6 @@ CSS);
         return '';
     }
 
-    /** Query posts by menus/sections, with optional auto-context. */
     protected function collect_dynamic_items( array $s ) : array {
         $menus    = ( ! empty( $s['query_menus'] )    && is_array( $s['query_menus'] ) )    ? $s['query_menus']    : [];
         $sections = ( ! empty( $s['query_sections'] ) && is_array( $s['query_sections'] ) ) ? $s['query_sections'] : [];
