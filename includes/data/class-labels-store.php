@@ -1,9 +1,10 @@
 <?php
 /**
- * Labels store + full Admin UI for Price Labels (fixed for PHP 8.2+).
+ * Labels store + full Admin UI for Price Labels (PHP 8.2+ safe).
  * - Reads/writes option 'jprm_price_labels_v2' (array or JSON string)
  * - Resolve helpers for frontend
  * - Admin page with media icon picker, add/remove, active, order
+ * - UI sizing tuned so fields fit on one screen
  *
  * NOTE: Global class (no namespace) for maximal compatibility.
  */
@@ -155,26 +156,23 @@ class JPRM_Labels_Store {
 	/** Enqueue media + JS for our admin page only (safe handles + nowdoc). */
 	public static function enqueue_admin_assets( $hook ) : void {
 		// Load only on our page
-		$is_our_screen = false;
-		if ( isset( $_GET['page'] ) && $_GET['page'] === 'jprm-price-labels' ) {
-			$is_our_screen = true;
-		}
+		$is_our_screen = ( isset( $_GET['page'] ) && $_GET['page'] === 'jprm-price-labels' );
 		if ( ! $is_our_screen ) return;
 
 		wp_enqueue_media();
 
 		// Register lightweight handles so we can attach inline scripts/styles.
 		if ( ! wp_script_is( 'jprm-labels-admin-js', 'registered' ) ) {
-			wp_register_script( 'jprm-labels-admin-js', false, [ 'jquery' ], '1.0', true );
+			wp_register_script( 'jprm-labels-admin-js', false, [ 'jquery' ], '1.1', true );
 		}
 		if ( ! wp_style_is( 'jprm-labels-admin-css', 'registered' ) ) {
-			wp_register_style( 'jprm-labels-admin-css', false, [], '1.0' );
+			wp_register_style( 'jprm-labels-admin-css', false, [], '1.1' );
 		}
 
 		wp_enqueue_script( 'jprm-labels-admin-js' );
 		wp_enqueue_style( 'jprm-labels-admin-css' );
 
-		// IMPORTANT: use NOWDOC so PHP does not interpolate ${...} inside JavaScript.
+		// JS (nowdoc to prevent PHP interpolation)
 		$js = <<<'JS'
 jQuery(function($){
 	function newRow(data){
@@ -187,20 +185,20 @@ jQuery(function($){
 
 		var html = ''
 		+ '<tr class="jprm-label-row">'
-		+   '<td><input type="text" class="regular-text" name="labels['+idx+'][id]" value="'+id+'" /></td>'
-		+   '<td><input type="text" class="regular-text" name="labels['+idx+'][label]" value="'+(data.label||'')+'" /></td>'
-		+   '<td><input type="text" class="regular-text" name="labels['+idx+'][slug]" value="'+(data.slug||'')+'" /></td>'
-		+   '<td class="jprm-icon-cell">'
+		+   '<td class="col-id"><input type="text" class="regular-text jprm-input jprm-id" name="labels['+idx+'][id]" value="'+id+'" /></td>'
+		+   '<td class="col-label"><input type="text" class="regular-text jprm-input jprm-label" name="labels['+idx+'][label]" value="'+(data.label||'')+'" /></td>'
+		+   '<td class="col-slug"><input type="text" class="regular-text jprm-input jprm-slug" name="labels['+idx+'][slug]" value="'+(data.slug||'')+'" /></td>'
+		+   '<td class="jprm-icon-cell col-icon">'
 		+     '<input type="hidden" class="jprm-icon-id" name="labels['+idx+'][icon_id]" value="'+(data.icon_id||0)+'">'
 		+     '<span class="jprm-icon-preview">'+iconHTML+'</span>'
 		+     '<button type="button" class="button jprm-pick-icon">Select</button> '
 		+     '<button type="button" class="button jprm-clear-icon">Clear</button>'
 		+   '</td>'
-		+   '<td style="text-align:center">'
+		+   '<td class="col-active" style="text-align:center">'
 		+     '<input type="checkbox" name="labels['+idx+'][active]" value="1" '+active+'>'
 		+   '</td>'
-		+   '<td><input type="number" class="small-text" name="labels['+idx+'][order]" value="'+order+'" /></td>'
-		+   '<td><button type="button" class="button button-link-delete jprm-remove-row">Remove</button></td>'
+		+   '<td class="col-order"><input type="number" class="small-text jprm-input jprm-order" name="labels['+idx+'][order]" value="'+order+'" /></td>'
+		+   '<td class="col-actions"><button type="button" class="button button-link-delete jprm-remove-row">Remove</button></td>'
 		+ '</tr>';
 
 		return $(html);
@@ -245,10 +243,42 @@ jQuery(function($){
 });
 JS;
 
+		// CSS (nowdoc; narrower columns/inputs so it fits on one screen)
 		$css = <<<'CSS'
-#jprm-labels-table .jprm-icon-cell { white-space:nowrap; }
+/* Table sizing */
+#jprm-labels-table { table-layout: fixed; }
+#jprm-labels-table th, #jprm-labels-table td { vertical-align: middle; }
+
+#jprm-labels-table thead th { white-space: nowrap; }
+
+/* Column widths – tuned to fit a typical admin viewport */
+#jprm-labels-table th:nth-child(1), #jprm-labels-table td.col-id      { width: 10%; }
+#jprm-labels-table th:nth-child(2), #jprm-labels-table td.col-label   { width: 28%; }
+#jprm-labels-table th:nth-child(3), #jprm-labels-table td.col-slug    { width: 20%; }
+#jprm-labels-table th:nth-child(4), #jprm-labels-table td.col-icon    { width: 20%; }
+#jprm-labels-table th:nth-child(5), #jprm-labels-table td.col-active  { width: 8%;  text-align: center; }
+#jprm-labels-table th:nth-child(6), #jprm-labels-table td.col-order   { width: 8%; }
+#jprm-labels-table th:nth-child(7), #jprm-labels-table td.col-actions { width: 6%; }
+
+/* Inputs: smaller, but fill their cell (no overflow) */
+#jprm-labels-table .jprm-input { width: 100%; max-width: 100%; box-sizing: border-box; }
+#jprm-labels-table .jprm-id    { font-family: monospace; font-size: 12px; padding: 3px 6px; }
+#jprm-labels-table .jprm-label { font-size: 13px; padding: 4px 6px; }
+#jprm-labels-table .jprm-slug  { font-family: monospace; font-size: 12px; padding: 3px 6px; }
+#jprm-labels-table .jprm-order { width: 70px; }
+
+/* Icon cell */
+#jprm-labels-table .jprm-icon-cell { white-space: nowrap; }
 #jprm-labels-table .jprm-icon-preview { display:inline-block; width:28px; height:28px; margin-right:6px; vertical-align:middle; }
-#jprm-labels-table .small-text { width:70px; }
+
+/* Compact buttons in icon cell & actions */
+#jprm-labels-table .jprm-icon-cell .button { margin-right: 4px; }
+#jprm-labels-table .col-actions .button { white-space: nowrap; }
+
+/* Small screens: let columns wrap nicely */
+@media (max-width: 1200px){
+  #jprm-labels-table { table-layout: auto; }
+}
 CSS;
 
 		wp_add_inline_script( 'jprm-labels-admin-js', $js );
@@ -272,13 +302,13 @@ CSS;
 				<table class="widefat striped" id="jprm-labels-table">
 					<thead>
 						<tr>
-							<th style="width:12%"><?php esc_html_e('ID', 'jellopoint-restaurant-menu'); ?></th>
-							<th style="width:26%"><?php esc_html_e('Label', 'jellopoint-restaurant-menu'); ?></th>
-							<th style="width:20%"><?php esc_html_e('Slug', 'jellopoint-restaurant-menu'); ?></th>
-							<th style="width:20%"><?php esc_html_e('Icon', 'jellopoint-restaurant-menu'); ?></th>
-							<th style="width:8%; text-align:center"><?php esc_html_e('Active', 'jellopoint-restaurant-menu'); ?></th>
-							<th style="width:8%"><?php esc_html_e('Order', 'jellopoint-restaurant-menu'); ?></th>
-							<th style="width:6%">&nbsp;</th>
+							<th><?php esc_html_e('ID', 'jellopoint-restaurant-menu'); ?></th>
+							<th><?php esc_html_e('Label', 'jellopoint-restaurant-menu'); ?></th>
+							<th><?php esc_html_e('Slug', 'jellopoint-restaurant-menu'); ?></th>
+							<th><?php esc_html_e('Icon', 'jellopoint-restaurant-menu'); ?></th>
+							<th style="text-align:center"><?php esc_html_e('Active', 'jellopoint-restaurant-menu'); ?></th>
+							<th><?php esc_html_e('Order', 'jellopoint-restaurant-menu'); ?></th>
+							<th>&nbsp;</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -295,18 +325,18 @@ CSS;
 							$icon_html = $icon_id ? wp_get_attachment_image( $icon_id, [24,24], false, [ 'style'=>'width:24px;height:24px;border-radius:3px;vertical-align:middle' ] ) : '';
 							?>
 							<tr class="jprm-label-row">
-								<td><input type="text" class="regular-text" name="labels[<?php echo esc_attr($i); ?>][id]" value="<?php echo esc_attr($id); ?>" /></td>
-								<td><input type="text" class="regular-text" name="labels[<?php echo esc_attr($i); ?>][label]" value="<?php echo esc_attr($label); ?>" /></td>
-								<td><input type="text" class="regular-text" name="labels[<?php echo esc_attr($i); ?>][slug]" value="<?php echo esc_attr($slug); ?>" /></td>
-								<td class="jprm-icon-cell">
+								<td class="col-id"><input type="text" class="regular-text jprm-input jprm-id" name="labels[<?php echo esc_attr($i); ?>][id]" value="<?php echo esc_attr($id); ?>" /></td>
+								<td class="col-label"><input type="text" class="regular-text jprm-input jprm-label" name="labels[<?php echo esc_attr($i); ?>][label]" value="<?php echo esc_attr($label); ?>" /></td>
+								<td class="col-slug"><input type="text" class="regular-text jprm-input jprm-slug" name="labels[<?php echo esc_attr($i); ?>][slug]" value="<?php echo esc_attr($slug); ?>" /></td>
+								<td class="jprm-icon-cell col-icon">
 									<input type="hidden" class="jprm-icon-id" name="labels[<?php echo esc_attr($i); ?>][icon_id]" value="<?php echo esc_attr($icon_id); ?>">
 									<span class="jprm-icon-preview"><?php echo $icon_html; ?></span>
 									<button type="button" class="button jprm-pick-icon"><?php esc_html_e('Select', 'jellopoint-restaurant-menu'); ?></button>
 									<button type="button" class="button jprm-clear-icon"><?php esc_html_e('Clear', 'jellopoint-restaurant-menu'); ?></button>
 								</td>
-								<td style="text-align:center"><input type="checkbox" name="labels[<?php echo esc_attr($i); ?>][active]" value="1" <?php checked( $active ); ?>></td>
-								<td><input type="number" class="small-text" name="labels[<?php echo esc_attr($i); ?>][order]" value="<?php echo esc_attr($order); ?>" /></td>
-								<td><button type="button" class="button button-link-delete jprm-remove-row"><?php esc_html_e('Remove', 'jellopoint-restaurant-menu'); ?></button></td>
+								<td class="col-active" style="text-align:center"><input type="checkbox" name="labels[<?php echo esc_attr($i); ?>][active]" value="1" <?php checked( $active ); ?>></td>
+								<td class="col-order"><input type="number" class="small-text jprm-input jprm-order" name="labels[<?php echo esc_attr($i); ?>][order]" value="<?php echo esc_attr($order); ?>" /></td>
+								<td class="col-actions"><button type="button" class="button button-link-delete jprm-remove-row"><?php esc_html_e('Remove', 'jellopoint-restaurant-menu'); ?></button></td>
 							</tr>
 							<?php
 						endforeach;
