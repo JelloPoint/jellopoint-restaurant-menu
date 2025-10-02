@@ -1,6 +1,7 @@
 <?php
 /**
  * Passive writer for Price Schema v3 – reads current admin fields and writes jprm_price.
+ * Always rebuilds from admin fields on save (prevents stale prices).
  */
 namespace JelloPoint\RestaurantMenu\Admin\Save;
 
@@ -14,6 +15,7 @@ class MenuItem_V3_Writer {
     const CPT = 'jprm_menu_item';
 
     public static function init() : void {
+        // run after admin meta saves
         add_action( 'save_post_' . self::CPT, [ __CLASS__, 'write_v3' ], 50, 2 );
     }
 
@@ -21,27 +23,23 @@ class MenuItem_V3_Writer {
         if ( wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) return;
         if ( ! current_user_can( 'edit_post', $post_id ) ) return;
 
-        // If valid v3 already present, sanitize once and keep.
-        $existing = Price_Repository::get( (int)$post_id );
-        if ( is_array($existing) ) {
-            // Already valid – nothing to do (sanitization happens in get()).
-            return;
-        }
+        $post_id = (int) $post_id;
 
+        // Determine mode from admin fields (defaults to single)
         $mode = get_post_meta( $post_id, 'jprm_price_mode', true );
         $mode = ($mode === 'multi') ? 'multi' : 'single';
 
         if ( $mode === 'single' ) {
+            // Read single fields
             $amount = Price_Schema::sanitize_price_string( get_post_meta( $post_id, 'jprm_price_amount', true ) );
 
-            // Label mode & value from admin
             $lm   = get_post_meta( $post_id, 'jprm_price_label_mode', true );
             $lm   = ($lm === 'custom') ? 'custom' : 'ref';
             $ref  = get_post_meta( $post_id, 'jprm_price_label_ref', true );
             $cust = get_post_meta( $post_id, 'jprm_price_label_custom', true );
             $icon = (int) get_post_meta( $post_id, 'jprm_price_label_icon_id', true );
 
-            if ( $amount === '' ) { Price_Repository::delete( (int)$post_id ); return; }
+            if ( $amount === '' ) { Price_Repository::delete( $post_id ); return; }
 
             $cfg = Price_Schema::normalize_single( [
                 'price'     => $amount,
@@ -50,11 +48,12 @@ class MenuItem_V3_Writer {
                 'hide_icon' => false,
             ] );
 
-            Price_Repository::set( (int)$post_id, $cfg );
+            // Write canonical meta (always overwrite to avoid stale values)
+            Price_Repository::set( $post_id, $cfg );
             return;
         }
 
-        // MULTI – read rows JSON from admin
+        // MULTI mode – read rows JSON from admin UI
         $rows_raw = get_post_meta( $post_id, 'jprm_prices', true );
         $rows = [];
         if ( is_string($rows_raw) && $rows_raw !== '' ) {
@@ -76,6 +75,7 @@ class MenuItem_V3_Writer {
             $hide_icon  = ! empty( $r['hide_icon'] );
 
             if ( $amount === '' ) continue;
+
             $norm_rows[] = [
                 'label_ref' => $label_ref,
                 'value'     => $amount,
@@ -85,12 +85,14 @@ class MenuItem_V3_Writer {
         }
 
         if ( empty( $norm_rows ) ) {
-            Price_Repository::delete( (int)$post_id );
+            // No valid rows – remove canonical meta
+            Price_Repository::delete( $post_id );
             return;
         }
 
         $cfg = Price_Schema::normalize_multi( $norm_rows );
-        Price_Repository::set( (int)$post_id, $cfg );
+        // Always overwrite to reflect latest admin state
+        Price_Repository::set( $post_id, $cfg );
     }
 }
 MenuItem_V3_Writer::init();
