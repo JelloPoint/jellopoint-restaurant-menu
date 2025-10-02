@@ -2,7 +2,7 @@
 /**
  * Plugin Name: JelloPoint – Restaurant Menu
  * Description: Dynamic restaurant menu items with labels/icons and an Elementor widget.
- * Version: 2.0.4
+ * Version: 2.0.5
  * Author: JelloPoint
  * Text Domain: jellopoint-restaurant-menu
  * Domain Path: /languages
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 /* ----------------------------------------------------------------------------
  * Constants
  * ------------------------------------------------------------------------- */
-if ( ! defined( 'JPRM_VERSION' ) )          define( 'JPRM_VERSION', '2.0.4' );
+if ( ! defined( 'JPRM_VERSION' ) )          define( 'JPRM_VERSION', '2.0.5' );
 if ( ! defined( 'JPRM_PLUGIN_FILE' ) )      define( 'JPRM_PLUGIN_FILE', __FILE__ );
 if ( ! defined( 'JPRM_PLUGIN_PATH' ) )      define( 'JPRM_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 if ( ! defined( 'JPRM_PLUGIN_URL' ) )       define( 'JPRM_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -35,6 +35,7 @@ add_action( 'plugins_loaded', function() {
  * ------------------------------------------------------------------------- */
 require_once JPRM_PLUGIN_PATH . 'includes/storage/class-price-schema.php';
 require_once JPRM_PLUGIN_PATH . 'includes/storage/class-price-repository.php';
+require_once JPRM_PLUGIN_PATH . 'includes/render/class-price-renderer.php'; // <-- NEW
 
 require_once JPRM_PLUGIN_PATH . 'includes/data/class-labels-store.php';
 require_once JPRM_PLUGIN_PATH . 'includes/class-plugin.php';
@@ -46,19 +47,16 @@ require_once JPRM_PLUGIN_PATH . 'includes/admin/save/class-menuitem-v3-writer.ph
  * ------------------------------------------------------------------------- */
 add_action( 'init', function() {
 	if ( class_exists( '\JelloPoint\RestaurantMenu\Plugin' ) ) {
-		// Preferred static bootstrap method
 		if ( method_exists( '\JelloPoint\RestaurantMenu\Plugin', 'init' ) ) {
 			\JelloPoint\RestaurantMenu\Plugin::init();
-		}
-		// Alternate singleton pattern support
-		elseif ( method_exists( '\JelloPoint\RestaurantMenu\Plugin', 'instance' ) ) {
+		} elseif ( method_exists( '\JelloPoint\RestaurantMenu\Plugin', 'instance' ) ) {
 			\JelloPoint\RestaurantMenu\Plugin::instance();
 		}
 	}
 }, 5 );
 
 /* ----------------------------------------------------------------------------
- * Elementor: register a custom category (optional, used by widget get_categories())
+ * Elementor: category (optional)
  * ------------------------------------------------------------------------- */
 add_action( 'elementor/elements/categories_registered', function( $elements_manager ) {
 	if ( method_exists( $elements_manager, 'add_category' ) ) {
@@ -76,16 +74,13 @@ add_action( 'elementor/elements/categories_registered', function( $elements_mana
  * Elementor integration — load & register widget ONLY after Elementor is ready
  * ------------------------------------------------------------------------- */
 add_action( 'elementor/widgets/register', function( $widgets_manager ) {
-
 	$widget_file = JPRM_PLUGIN_PATH . 'includes/widgets/class-restaurant-menu.php';
 	if ( file_exists( $widget_file ) ) {
 		require_once $widget_file;
 	}
-
 	if ( class_exists( '\JelloPoint\RestaurantMenu\Widgets\Restaurant_Menu' ) ) {
 		$widgets_manager->register( new \JelloPoint\RestaurantMenu\Widgets\Restaurant_Menu() );
 	}
-
 }, 10 );
 
 /* ----------------------------------------------------------------------------
@@ -102,9 +97,3 @@ add_action( 'admin_init', function() {
 		} );
 	}
 } );
-
-/* ----------------------------------------------------------------------------
- * Safety note:
- * Do NOT require includes/widgets/class-restaurant-menu.php anywhere else.
- * The only place it is included is inside the Elementor hook above.
- * ------------------------------------------------------------------------- */
