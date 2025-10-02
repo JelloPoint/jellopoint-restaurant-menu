@@ -27,6 +27,8 @@ if ( version_compare( PHP_VERSION, JPRM_MIN_PHP, '<' ) ) {
     });
     return;
 }
+require_once JPRM_PLUGIN_PATH . 'includes/render/class-price-renderer.php';
+
 // Storage layer
 require_once JPRM_PLUGIN_PATH . 'includes/storage/class-price-schema.php';
 require_once JPRM_PLUGIN_PATH . 'includes/storage/class-price-repository.php';
