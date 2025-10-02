@@ -4,12 +4,13 @@ namespace JelloPoint\RestaurantMenu\Widgets;
 use Elementor\Widget_Base;
 use Elementor\Controls_Manager;
 use Elementor\Repeater;
-
 use JelloPoint\RestaurantMenu\Render\Price_Renderer;
-use JelloPoint\RestaurantMenu\Storage\Price_Repository;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * Restaurant Menu – Elementor Widget (uses Price_Renderer)
+ */
 class Restaurant_Menu extends Widget_Base {
 
     public function get_name() { return 'jprm-restaurant-menu'; }
@@ -95,7 +96,17 @@ class Restaurant_Menu extends Widget_Base {
             'condition' => [ 'data_source' => 'dynamic' ],
         ] );
 
-        // Renderer options (shared for all rows)
+        $this->add_control( 'hide_invisible', [
+            'label'        => __( 'Hide invisible items', 'jellopoint-restaurant-menu' ),
+            'type'         => Controls_Manager::SWITCHER,
+            'label_on'     => __( 'Yes', 'jellopoint-restaurant-menu' ),
+            'label_off'    => __( 'No', 'jellopoint-restaurant-menu' ),
+            'return_value' => 'yes',
+            'default'      => '',
+            'condition'    => [ 'data_source' => 'dynamic' ],
+        ] );
+
+        // Qty label/icon presentation & position
         $this->add_control( 'label_presentation', [
             'label'   => __( 'Label Presentation (qty)', 'jellopoint-restaurant-menu' ),
             'type'    => Controls_Manager::SELECT,
@@ -119,7 +130,7 @@ class Restaurant_Menu extends Widget_Base {
 
         $this->end_controls_section();
 
-        /* Static items (kept simple; we’ll extend later) */
+        /* Static items (kept minimal for now) */
         $this->start_controls_section( 'section_static', [
             'label'     => __( 'Static Items', 'jellopoint-restaurant-menu' ),
             'condition' => [ 'data_source' => 'static' ],
@@ -138,8 +149,46 @@ class Restaurant_Menu extends Widget_Base {
     }
 
     protected function render() {
-        // enqueue shared CSS once
-        wp_enqueue_style( 'jprm-menu', plugins_url( '../render/css/menu.css', __FILE__ ), [], defined('JPRM_VERSION') ? JPRM_VERSION : null );
+        // Load CSS file + strong inline overrides
+        if ( defined('JPRM_PLUGIN_URL') ) {
+            wp_enqueue_style(
+                'jprm-menu',
+                JPRM_PLUGIN_URL . 'includes/render/css/menu.css',
+                [],
+                defined('JPRM_VERSION') ? JPRM_VERSION : null
+            );
+            wp_add_inline_style('jprm-menu', <<<CSS
+ul.jp-menu, .elementor-widget ul.jp-menu { list-style: none !important; margin: 0; padding-left: 0 !important; }
+ul.jp-menu > li, .elementor-widget ul.jp-menu > li { list-style: none !important; margin: 0; padding: 0; }
+ul.jp-menu > li::marker, .elementor-widget ul.jp-menu > li::marker { content: '' !important; }
+ul.jp-menu > li::before, .elementor-widget ul.jp-menu > li::before { content: none !important; }
+
+.jp-menu__label{display:inline-flex;gap:.35em;align-items:center;white-space:nowrap;opacity:.95;}
+.jp-menu__icon{
+  width:1.1em !important;height:1.1em !important;max-width:1.1em !important;max-height:1.1em !important;
+  object-fit:contain !important;vertical-align:-0.2em !important;display:inline-block !important;border-radius:2px;
+}
+.jp-menu__icon[width], .jp-menu__icon[height]{ width:1.1em !important; height:1.1em !important; }
+
+.jp-menu{ margin:0; padding:0; }
+.jp-menu__item{ margin:0 0 .9rem 0; }
+.jp-menu__inner{ display:grid; grid-template-columns:1fr auto; gap:.4rem .8rem; align-items:start; }
+.jp-menu__content{ min-width:0; }
+.jp-menu__title{ margin:0; }
+.jp-menu__desc{ opacity:.85; }
+.jp-menu__price{ display:flex; gap:.5rem; justify-content:flex-end; line-height:1.2; }
+.jp-menu__pricegroup{ display:flex; flex-direction:column; gap:.25rem; text-align:right; }
+.jp-menu__value{ font-weight:600; white-space:nowrap; }
+
+.jp-price-row{ display:grid; grid-template-columns:auto auto; gap:.5rem; align-items:center; }
+.jp-col-label{ justify-self:end; }
+.jp-col-price{ justify-self:end; }
+.jp-price-row.jp-order--label-right .jp-col-label{ order:2; }
+.jp-price-row.jp-order--label-right .jp-col-price{ order:1; }
+.jp-price-row.jp-order--label-left .jp-col-label{ order:1; }
+.jp-price-row.jp-order--label-left .jp-col-price{ order:2; }
+CSS);
+        }
 
         $s = $this->get_settings_for_display();
         if ( isset( $s['data_source'] ) && $s['data_source'] === 'static' ) {
@@ -154,90 +203,108 @@ class Restaurant_Menu extends Widget_Base {
         $s = $this->get_settings_for_display();
         $items = isset( $s['items'] ) ? $s['items'] : [];
         echo '<ul class="jp-menu">';
-        foreach ( $items as $item ) {
-            $title = $item['item_title'] ?? '';
-            $desc  = $item['item_description'] ?? '';
-            $price = $item['item_price'] ?? '';
-
-            echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
-            echo '  <div class="jp-menu__content">';
-            if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
-            if ( $desc  !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
-            echo '  </div>';
-            echo '  <div class="jp-menu__pricegroup">';
-            if ( $price !== '' ) {
-                echo '    <div class="jp-menu__price"><span class="jp-menu__value">' . esc_html( $price ) . '</span></div>';
-            }
-            echo '  </div>';
-            echo '</div></li>';
-        }
+        foreach ( $items as $item ) { $this->render_static_item( $item ); }
         echo '</ul>';
+    }
+
+    protected function render_static_item( $item ) {
+        $title = $item['item_title'] ?? '';
+        $desc  = $item['item_description'] ?? '';
+        $price = $item['item_price'] ?? '';
+
+        echo '<li class="jp-menu__item">';
+        echo '  <div class="jp-menu__inner">';
+        echo '    <div class="jp-menu__content">';
+        if ( $title !== '' ) echo '      <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
+        if ( $desc  !== '' ) echo '      <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
+        echo '    </div>';
+        // For static we only render a simple single price at the moment
+        $cfg = [];
+        if ( $price !== '' ) {
+            $cfg = [ 'mode' => 'single', 'price' => (string)$price, 'label_ref' => '', 'hide_icon' => false ];
+        }
+        echo Price_Renderer::render_pricegroup( $cfg, [
+            'presentation' => 'text',
+            'order_class'  => 'jp-order--label-right',
+        ] );
+        echo '  </div>';
+        echo '</li>';
     }
 
     /* ---------- DYNAMIC ---------- */
     protected function render_dynamic( array $s ) {
-        // labels resolver callback (uses your Labels Store)
-        if ( ! class_exists( '\\JPRM_Labels_Store' ) ) {
-            $labels_file = dirname( __DIR__ ) . '/data/class-labels-store.php';
-            if ( file_exists( $labels_file ) ) require_once $labels_file;
-        }
-        $resolve_label = function( string $ref ) : array {
-            if ( class_exists( '\\JPRM_Labels_Store' ) ) {
-                return \JPRM_Labels_Store::resolve( $ref );
-            }
-            return ['label_text'=>'','icon_id'=>0];
-        };
+        // labels store resolver
+        $labels_file = dirname( __DIR__ ) . '/data/class-labels-store.php';
+        if ( file_exists( $labels_file ) ) { require_once $labels_file; }
 
         $items = $this->collect_dynamic_items( $s );
         if ( empty( $items ) ) { echo '<ul class="jp-menu"></ul>'; return; }
 
-        $presentation = $s['label_presentation'] ?? 'text';
-        $position     = $s['label_position']     ?? 'right';
+        $presentation    = isset( $s['label_presentation'] ) ? $s['label_presentation'] : 'text';
+        if ( $presentation === 'badge' ) $presentation = 'text';
+        $label_order_cls = ( isset( $s['label_position'] ) && $s['label_position'] === 'left' )
+            ? 'jp-order--label-left' : 'jp-order--label-right';
 
         echo '<ul class="jp-menu">';
+
         foreach ( $items as $post_id ) {
             $title = get_the_title( $post_id );
-            $desc  = $this->choose_description( $post_id );
 
-            // read canonical price schema via repository
-            $cfg = Price_Repository::get( (int)$post_id );
+            // Description: prefer explicit meta keys, then excerpt, then trimmed content
+            $desc  = $this->first_non_empty_meta( $post_id, [
+                '_jprm_desc','jprm_desc','description','item_description','_description','_jprm_item_desc','_jp_desc'
+            ] );
+            if ( $desc === '' ) {
+                $desc = get_post_field( 'post_excerpt', $post_id, 'raw' );
+                if ( $desc === '' ) {
+                    $content = get_post_field( 'post_content', $post_id, 'raw' );
+                    $desc = wp_trim_words( wp_strip_all_tags( $content ), 40, '' );
+                }
+            }
+
+            // Canonical v3
+            $cfg = $this->safe_read_v3( $post_id );
 
             echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
             echo '  <div class="jp-menu__content">';
-            if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
-            if ( $desc  !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
+            if ( $title !== '' ) echo    '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
+            if ( $desc  !== '' ) echo    '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
             echo '  </div>';
 
-            if ( is_array($cfg) ) {
-                echo Price_Renderer::render_price_group( $cfg, [
-                    'presentation'   => $presentation,
-                    'label_position' => $position,
-                    'resolve_label'  => $resolve_label,
-                ] );
-            } else {
-                // no price configured
-                echo '<div class="jp-menu__pricegroup"></div>';
-            }
+            echo Price_Renderer::render_pricegroup( $cfg, [
+                'presentation' => $presentation,
+                'order_class'  => $label_order_cls,
+            ] );
 
             echo '</div></li>';
         }
+
         echo '</ul>';
     }
 
     /* ---------- helpers ---------- */
 
-    protected function choose_description( $post_id ) : string {
-        $desc = $this->first_non_empty_meta( $post_id, [
-            '_jprm_desc','jprm_desc','description','item_description','_description','_jprm_item_desc','_jp_desc'
-        ] );
-        if ( $desc === '' ) {
-            $desc = get_post_field( 'post_excerpt', $post_id, 'raw' );
-            if ( $desc === '' ) {
-                $content = get_post_field( 'post_content', $post_id, 'raw' );
-                $desc = wp_trim_words( wp_strip_all_tags( $content ), 40, '' );
+    /** Safely read v3 without ever echoing raw JSON. */
+    protected function safe_read_v3( $post_id ) : array {
+        $raw = get_post_meta( $post_id, 'jprm_price', true );
+        if ( is_array( $raw ) ) return $raw;
+        if ( ! is_string( $raw ) ) return [];
+        $trim = trim( $raw );
+        if ( $trim === '' ) return [];
+        if ( $trim[0] !== '{' && $trim[0] !== '[' ) return [];
+        $cfg = json_decode( $trim, true );
+        return (json_last_error() === JSON_ERROR_NONE && is_array($cfg)) ? $cfg : [];
+    }
+
+    protected function first_non_empty_meta( $post_id, array $keys ) {
+        foreach ( $keys as $k ) {
+            $v = get_post_meta( $post_id, $k, true );
+            if ( is_string($v) || is_numeric($v) ) {
+                $sv = trim((string)$v);
+                if ( $sv !== '' ) return $sv;
             }
         }
-        return $desc;
+        return '';
     }
 
     /** Query posts by menus/sections, with optional auto-context. */
@@ -309,16 +376,5 @@ class Restaurant_Menu extends Widget_Base {
         if ( is_wp_error( $terms ) || empty( $terms ) ) return $opts;
         foreach ( $terms as $t ) $opts[ $t->slug ] = $t->name;
         return $opts;
-    }
-
-    protected function first_non_empty_meta( $post_id, array $keys ) {
-        foreach ( $keys as $k ) {
-            $v = get_post_meta( $post_id, $k, true );
-            if ( is_string($v) || is_numeric($v) ) {
-                $sv = trim((string)$v);
-                if ( $sv !== '' ) return $sv;
-            }
-        }
-        return '';
     }
 }
