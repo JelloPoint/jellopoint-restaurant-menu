@@ -27,6 +27,10 @@ if ( version_compare( PHP_VERSION, JPRM_MIN_PHP, '<' ) ) {
     });
     return;
 }
+// Storage layer
+require_once JPRM_PLUGIN_PATH . 'includes/storage/class-price-schema.php';
+require_once JPRM_PLUGIN_PATH . 'includes/storage/class-price-repository.php';
+
 require_once JPRM_PLUGIN_PATH . 'includes/data/class-labels-store.php';
 require_once JPRM_PLUGIN_PATH . 'includes/class-plugin.php';
 require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-menuitem-meta.php';
