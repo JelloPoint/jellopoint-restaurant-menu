@@ -197,7 +197,7 @@ class Restaurant_Menu extends Widget_Base {
         // Dynamic data
         $items = $this->collect_dynamic_items( $s );
 
-        // 🔒 Editor safety net: if nothing came back, force a loose query so preview never shows empty
+        // Editor safety net: if nothing came back, force a loose query so preview never shows empty
         if ( empty( $items ) && $this->is_elementor_edit_mode() ) {
             $items = $this->collect_dynamic_items_fallback_all();
         }
@@ -216,7 +216,6 @@ class Restaurant_Menu extends Widget_Base {
         foreach ( $items as $item ) {
             $title = $item['title'] ?? '';
             $desc  = $item['description'] ?? '';
-            $cfg   = $item['price_cfg'] ?? []; // v3 config (not yet used for render here)
 
             echo '<li class="jp-menu__item">';
             echo '  <div class="jp-menu__inner">';
@@ -326,6 +325,42 @@ class Restaurant_Menu extends Widget_Base {
         return false;
     }
 
+    /** Resolve the correct Menu Item post type at runtime. */
+    protected function resolve_item_post_type() : string {
+        // 1) Preferred slug
+        if ( post_type_exists('jprm_item') ) return 'jprm_item';
+
+        // 2) Common alternatives
+        $candidates = [ 'jprm_menu_item', 'jprm_menuitem', 'jp_menu_item', 'menu_item' ];
+        foreach ( $candidates as $pt ) {
+            if ( post_type_exists( $pt ) ) return $pt;
+        }
+
+        // 3) Probe across ANY post type: find a post that has our price meta
+        $probe = new \WP_Query( [
+            'post_type'      => 'any',
+            'post_status'    => 'any',
+            'meta_query'     => [
+                [
+                    'key'     => 'jprm_price',
+                    'compare' => 'EXISTS',
+                ]
+            ],
+            'posts_per_page' => 1,
+            'no_found_rows'  => true,
+        ] );
+        if ( $probe->have_posts() ) {
+            $probe->the_post();
+            $pt = get_post_type( get_the_ID() );
+            wp_reset_postdata();
+            if ( is_string($pt) && $pt !== '' ) return $pt;
+        }
+        wp_reset_postdata();
+
+        // Final fallback to the historical default
+        return 'jprm_item';
+    }
+
     /** Build select options for a taxonomy (slug => "Name (slug)"). */
     protected function get_terms_options( string $taxonomy ) : array {
         $out = [];
@@ -379,6 +414,8 @@ class Restaurant_Menu extends Widget_Base {
         $filtered = apply_filters( 'jprm/widget/get_items', null, $s, $this );
         if ( is_array( $filtered ) ) return $filtered;
 
+        $post_type = $this->resolve_item_post_type();
+
         $menus_in    = ( ! empty( $s['query_menus'] )    && is_array( $s['query_menus'] ) )    ? $s['query_menus']    : [];
         $sections_in = ( ! empty( $s['query_sections'] ) && is_array( $s['query_sections'] ) ) ? $s['query_sections'] : [];
 
@@ -405,14 +442,13 @@ class Restaurant_Menu extends Widget_Base {
             $tax_query[] = [ 'taxonomy' => 'jprm_section', 'field' => 'slug', 'terms' => $sections ];
         }
 
-        // Fallback to all items if still empty and user allows it
         $fallback_all = isset($s['show_all_when_empty']) && $s['show_all_when_empty'] === 'yes';
         if ( $fallback_all && count($tax_query) === 1 ) { $tax_query = []; }
         elseif ( ! $fallback_all && count($tax_query) === 1 ) { return []; }
 
         $args = [
-            'post_type'      => 'jprm_item',
-            'post_status'    => 'publish',
+            'post_type'      => $post_type,
+            'post_status'    => $this->is_elementor_edit_mode() ? 'any' : 'publish',
             'orderby'        => $orderby,
             'order'          => $order,
             'posts_per_page' => $limit,
@@ -428,7 +464,7 @@ class Restaurant_Menu extends Widget_Base {
         }
         wp_reset_postdata();
 
-        // Apply visibility filter only outside Elementor edit mode (prevents “everything hidden” in editor)
+        // Apply visibility filter only outside Elementor edit mode
         if ( ! $this->is_elementor_edit_mode() && isset($s['hide_invisible']) && $s['hide_invisible'] === 'yes' ) {
             $items = array_filter( $items, function($it){
                 return apply_filters( 'jprm/item/is_visible', true, $it );
@@ -440,12 +476,23 @@ class Restaurant_Menu extends Widget_Base {
 
     /** Ultra-safe fallback used only in Elementor edit mode if primary query found nothing. */
     protected function collect_dynamic_items_fallback_all() : array {
+        $post_type = $this->resolve_item_post_type();
+
         $q = new \WP_Query( [
-            'post_type'      => 'jprm_item',
-            'post_status'    => 'publish',
+            'post_type'      => $post_type,
+            'post_status'    => 'any',
             'posts_per_page' => -1,
         ] );
-        if ( ! $q->have_posts() ) return [];
+        if ( ! $q->have_posts() ) {
+            // As a last resort, try ANY post type with our meta key in editor
+            $q = new \WP_Query( [
+                'post_type'      => 'any',
+                'post_status'    => 'any',
+                'meta_query'     => [ [ 'key' => 'jprm_price', 'compare' => 'EXISTS' ] ],
+                'posts_per_page' => -1,
+            ] );
+            if ( ! $q->have_posts() ) return [];
+        }
         $items = [];
         while ( $q->have_posts() ) { $q->the_post();
             $items[] = $this->build_item_from_post( get_the_ID() );
