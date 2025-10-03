@@ -1,116 +1,99 @@
 <?php
 /**
- * Plugin Name: JelloPoint – Restaurant Menu
- * Description: Dynamic restaurant menu items with labels/icons and an Elementor widget.
- * Version: 2.0.6
+ * Plugin Name: JelloPoint Restaurant Menu
+ * Description: Restaurant menu items with dynamic prices, labels, and Elementor widget.
+ * Version: 2.0.1
  * Author: JelloPoint
  * Text Domain: jellopoint-restaurant-menu
- * Domain Path: /languages
  */
 
-if ( ! defined( 'ABSPATH' ) ) exit;
+if ( ! defined('ABSPATH') ) { exit; }
 
-/* ----------------------------------------------------------------------------
- * Constants
- * ------------------------------------------------------------------------- */
-if ( ! defined( 'JPRM_VERSION' ) )          define( 'JPRM_VERSION', '2.0.6' );
-if ( ! defined( 'JPRM_PLUGIN_FILE' ) )      define( 'JPRM_PLUGIN_FILE', __FILE__ );
-if ( ! defined( 'JPRM_PLUGIN_PATH' ) )      define( 'JPRM_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
-if ( ! defined( 'JPRM_PLUGIN_URL' ) )       define( 'JPRM_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-if ( ! defined( 'JPRM_PLUGIN_BASENAME' ) )  define( 'JPRM_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
+// -----------------------------------------------------------------------------
+// Constants
+// -----------------------------------------------------------------------------
+if ( ! defined('JPRM_VERSION') ) {
+    define('JPRM_VERSION', '2.0.1');
+}
+if ( ! defined('JPRM_PLUGIN_FILE') ) {
+    define('JPRM_PLUGIN_FILE', __FILE__);
+}
+if ( ! defined('JPRM_PLUGIN_PATH') ) {
+    define('JPRM_PLUGIN_PATH', plugin_dir_path(__FILE__));
+}
+if ( ! defined('JPRM_PLUGIN_URL') ) {
+    define('JPRM_PLUGIN_URL', plugin_dir_url(__FILE__));
+}
 
-/* ----------------------------------------------------------------------------
- * i18n
- * ------------------------------------------------------------------------- */
-add_action( 'plugins_loaded', function() {
-	load_plugin_textdomain(
-		'jellopoint-restaurant-menu',
-		false,
-		dirname( JPRM_PLUGIN_BASENAME ) . '/languages'
-	);
-} );
+// -----------------------------------------------------------------------------
+// i18n
+// -----------------------------------------------------------------------------
+add_action('plugins_loaded', function(){
+    load_plugin_textdomain('jellopoint-restaurant-menu', false, dirname(plugin_basename(__FILE__)) . '/languages/');
+});
 
-/* ----------------------------------------------------------------------------
- * Core includes (do NOT depend on Elementor)
- * ------------------------------------------------------------------------- */
+// -----------------------------------------------------------------------------
+// Core includes (order matters: storage -> data -> admin -> render -> widget)
+// -----------------------------------------------------------------------------
 require_once JPRM_PLUGIN_PATH . 'includes/storage/class-price-schema.php';
 require_once JPRM_PLUGIN_PATH . 'includes/storage/class-price-repository.php';
-require_once JPRM_PLUGIN_PATH . 'includes/render/class-price-renderer.php';
 
 require_once JPRM_PLUGIN_PATH . 'includes/data/class-labels-store.php';
+
 require_once JPRM_PLUGIN_PATH . 'includes/class-plugin.php';
 require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-menuitem-meta.php';
 require_once JPRM_PLUGIN_PATH . 'includes/admin/save/class-menuitem-v3-writer.php';
-require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-menu.php';
-\JelloPoint\RestaurantMenu\Admin\Admin_Menu::init();
 
+require_once JPRM_PLUGIN_PATH . 'includes/render/class-price-renderer.php';
 
-/* ----------------------------------------------------------------------------
- * INIT: (optional) bootstrap your core class
- * ------------------------------------------------------------------------- */
-add_action( 'init', function() {
-	if ( class_exists( '\JelloPoint\RestaurantMenu\Plugin' ) ) {
-		if ( method_exists( '\JelloPoint\RestaurantMenu\Plugin', 'init' ) ) {
-			\JelloPoint\RestaurantMenu\Plugin::init();
-		} elseif ( method_exists( '\JelloPoint\RestaurantMenu\Plugin', 'instance' ) ) {
-			\JelloPoint\RestaurantMenu\Plugin::instance();
-		}
-	}
-}, 5 );
+// -----------------------------------------------------------------------------
+// Styles
+// -----------------------------------------------------------------------------
+add_action('init', function(){
+    // Register frontend/editor style once; Elementor widget declares dependency.
+    wp_register_style(
+        'jprm-menu',
+        JPRM_PLUGIN_URL . 'includes/render/css/menu.css',
+        [],
+        JPRM_VERSION
+    );
+});
 
-/* ----------------------------------------------------------------------------
- * 🔹 CSS: Register our public stylesheet for both frontend & Elementor preview
- * ------------------------------------------------------------------------- */
-function jprm_register_public_styles() {
-	wp_register_style(
-		'jprm-menu',
-		JPRM_PLUGIN_URL . 'includes/render/css/menu.css',
-		[],
-		JPRM_VERSION
-	);
-}
-add_action( 'wp_enqueue_scripts', 'jprm_register_public_styles', 20 );
-add_action( 'elementor/frontend/after_register_styles', 'jprm_register_public_styles', 20 );
+// -----------------------------------------------------------------------------
+// Elementor integration
+// -----------------------------------------------------------------------------
+/**
+ * Check Elementor and register widget + category
+ */
+add_action('plugins_loaded', function(){
 
-/* ----------------------------------------------------------------------------
- * Elementor: category (optional)
- * ------------------------------------------------------------------------- */
-add_action( 'elementor/elements/categories_registered', function( $elements_manager ) {
-	if ( method_exists( $elements_manager, 'add_category' ) ) {
-		$elements_manager->add_category(
-			'jellopoint-widgets',
-			[
-				'title' => __( 'JelloPoint', 'jellopoint-restaurant-menu' ),
-				'icon'  => 'fa fa-plug',
-			]
-		);
-	}
-}, 10 );
+    // If Elementor not loaded yet, add an admin notice
+    if ( ! did_action('elementor/loaded') ) {
+        add_action('admin_notices', function(){
+            if ( current_user_can('activate_plugins') ) {
+                echo '<div class="notice notice-warning"><p>';
+                echo esc_html__('JelloPoint Restaurant Menu: Elementor is not active. The widget will be unavailable until Elementor is activated.', 'jellopoint-restaurant-menu');
+                echo '</p></div>';
+            }
+        });
+        return;
+    }
 
-/* ----------------------------------------------------------------------------
- * Elementor integration — load & register widget ONLY after Elementor is ready
- * ------------------------------------------------------------------------- */
-add_action( 'elementor/widgets/register', function( $widgets_manager ) {
-	$widget_file = JPRM_PLUGIN_PATH . 'includes/widgets/class-restaurant-menu.php';
-	if ( file_exists( $widget_file ) ) {
-		require_once $widget_file;
-	}
-	if ( class_exists( '\JelloPoint\RestaurantMenu\Widgets\Restaurant_Menu' ) ) {
-		$widgets_manager->register( new \JelloPoint\RestaurantMenu\Widgets\Restaurant_Menu() );
-	}
-}, 10 );
+    // Register category
+    add_action('elementor/elements/categories_registered', function( $elements_manager ){
+        $elements_manager->add_category(
+            'jellopoint-widgets',
+            [
+                'title' => __('JelloPoint', 'jellopoint-restaurant-menu'),
+                'icon'  => 'fa fa-plug',
+            ]
+        );
+    });
 
-/* ----------------------------------------------------------------------------
- * Admin notice if Elementor is inactive (non-fatal)
- * ------------------------------------------------------------------------- */
-add_action( 'admin_init', function() {
-	if ( ! did_action( 'elementor/loaded' ) ) {
-		add_action( 'admin_notices', function() {
-			if ( current_user_can( 'activate_plugins' ) ) {
-				echo '<div class="notice notice-warning"><p>';
-				echo esc_html__( 'JelloPoint – Restaurant Menu: Elementor is not active. The Elementor widget will be unavailable until Elementor is activated.', 'jellopoint-restaurant-menu' );
-				echo '</p></div>';
-			}
-		} );
-	}
-} );
+    // Register widget
+    add_action('elementor/widgets/register', function( $widgets_manager ){
+        require_once JPRM_PLUGIN_PATH . 'includes/widgets/class-restaurant-menu.php';
+        $widgets_manager->register( new \JelloPoint\RestaurantMenu\Widgets\Restaurant_Menu() );
+    });
+
+}, 20);

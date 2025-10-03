@@ -23,7 +23,8 @@ class Price_Renderer {
         $cfg = Price_Schema::sanitize_cfg( $cfg ); // defensive
 
         $presentation = isset($opts['presentation']) && in_array($opts['presentation'], ['text','icon','icon_text'], true)
-            ? $opts['presentation'] : 'text';
+            ? $opts['presentation']
+            : 'text';
 
         $order_class = isset($opts['order_class']) && is_string($opts['order_class'])
             ? $opts['order_class'] : 'jp-order--label-right';
@@ -38,36 +39,26 @@ class Price_Renderer {
             $hide    = ! empty( $cfg['hide_icon'] );
 
             $res        = \JPRM_Labels_Store::resolve( $ref );
-            $label_text = $res['label_text'];
-            if ( $icon_id <= 0 ) $icon_id = $res['icon_id'];
+            $label_text = (string)($res['label_text'] ?? '');
+            $icon_id    = $icon_id ?: (int)($res['icon_id'] ?? 0);
 
-            if ( $label_text === '' && ! $icon_id ) {
-                echo '<div class="jp-menu__price"><span class="jp-menu__value">' . esc_html( $price ) . '</span></div>';
-            } else {
-                echo '<div class="jp-menu__price jp-price-row ' . esc_attr( $order_class ) . '">';
-                echo '  <span class="jp-menu__label jp-col-label">' . self::label_html( $label_text, $presentation, $icon_id, $hide ) . '</span>';
-                echo '  <span class="jp-menu__value jp-col-price">' . esc_html( $price ) . '</span>';
-                echo '</div>';
-            }
+            echo self::row_html( $price, $label_text, $icon_id, $presentation, $order_class, $hide );
         }
 
-        if ( ($cfg['mode'] ?? '') === 'multi' && ! empty($cfg['rows']) && is_array($cfg['rows']) ) {
+        if ( ($cfg['mode'] ?? '') === 'multiple' && ! empty($cfg['rows']) && is_array($cfg['rows']) ) {
             foreach ( $cfg['rows'] as $row ) {
-                $value = self::sanitize_price_string( $row['value'] ?? '' );
-                if ( $value === '' ) continue;
+                $price = self::sanitize_price_string( $row['price'] ?? '' );
+                if ( $price === '' ) continue;
 
                 $ref     = (string)($row['label_ref'] ?? '');
-                $icon_id = isset($row['icon_id']) ? (int)$row['icon_id'] : 0;
                 $hide    = ! empty( $row['hide_icon'] );
+                $icon_id = isset($row['icon_id']) ? (int)$row['icon_id'] : 0;
 
                 $res        = \JPRM_Labels_Store::resolve( $ref );
-                $label_text = $res['label_text'];
-                if ( $icon_id <= 0 ) $icon_id = $res['icon_id'];
+                $label_text = (string)($res['label_text'] ?? '');
+                $icon_id    = $icon_id ?: (int)($res['icon_id'] ?? 0);
 
-                echo '<div class="jp-menu__price jp-price-row ' . esc_attr( $order_class ) . '">';
-                echo '  <span class="jp-menu__label jp-col-label">' . self::label_html( $label_text, $presentation, $icon_id, $hide ) . '</span>';
-                echo '  <span class="jp-menu__value jp-col-price">' . esc_html( $value ) . '</span>';
-                echo '</div>';
+                echo self::row_html( $price, $label_text, $icon_id, $presentation, $order_class, $hide );
             }
         }
 
@@ -75,33 +66,35 @@ class Price_Renderer {
         return ob_get_clean();
     }
 
-    /* -------------------- internals -------------------- */
+    /** Single price row grid */
+    protected static function row_html( string $price, string $label_text, int $icon_id, string $presentation, string $order_class, bool $hide_icon ) : string {
+        $label_html = self::label_html( $label_text, $icon_id, $presentation, $hide_icon );
+        $price_html = '<span class="jp-menu__value">' . esc_html( $price ) . '</span>';
 
-    /** Same sanitizer used elsewhere; keep renderer hermetic. */
-    protected static function sanitize_price_string( $s ) : string {
-        return Price_Schema::sanitize_price_string( $s );
+        $label_col = '<div class="jp-col-label">' . $label_html . '</div>';
+        $price_col = '<div class="jp-col-price">' . $price_html . '</div>';
+
+        $inner = ($order_class === 'jp-order--label-left')
+            ? $label_col . $price_col
+            : $price_col . $label_col;
+
+        return '<div class="jp-price-row ' . esc_attr( $order_class ) . '">' . $inner . '</div>';
     }
 
-    /** Build label HTML based on presentation + optional icon override. */
-    protected static function label_html( string $label_text, string $presentation, int $icon_id = 0, bool $hide_icon = false ) : string {
-        if ( $presentation !== 'text' && $presentation !== 'icon' && $presentation !== 'icon_text' ) {
-            $presentation = 'text';
-        }
-        if ( $hide_icon ) $presentation = 'text';
-
+    /** Label + optional icon */
+    protected static function label_html( string $label_text, int $icon_id, string $presentation, bool $hide_icon ) : string {
         $icon_html = '';
-        if ( $icon_id > 0 ) {
-            $img = wp_get_attachment_image( $icon_id, 'thumbnail', false, [
-                'class' => 'jp-menu__icon',
-                'alt'   => $label_text !== '' ? $label_text : '',
-            ] );
-            if ( is_string( $img ) && $img !== '' ) $icon_html = $img;
+
+        if ( ! $hide_icon && $icon_id > 0 ) {
+            $img = wp_get_attachment_image( $icon_id, [24,24], false, [ 'class' => 'jp-menu__icon' ] );
+            if ( is_string($img) ) $icon_html = $img;
         }
 
         if ( $presentation === 'icon' ) {
-            if ( $icon_html !== '' ) {
-                return $icon_html . '<span class="screen-reader-text">' . esc_html( $label_text ) . '</span>';
-            }
+            return $icon_html;
+        }
+
+        if ( $presentation === 'text' ) {
             return esc_html( $label_text );
         }
 
@@ -113,5 +106,12 @@ class Price_Renderer {
         }
 
         return esc_html( $label_text );
+    }
+
+    /** Defensive cleanup for price strings */
+    protected static function sanitize_price_string( $v ) : string {
+        $v = is_scalar($v) ? (string)$v : '';
+        // allow "0", trim spaces
+        return trim($v);
     }
 }
