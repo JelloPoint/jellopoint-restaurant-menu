@@ -192,7 +192,6 @@ class Restaurant_Menu extends Widget_Base {
         echo '<ul class="jp-menu">';
         foreach ( $items as $item ) { $this->render_static_item( $item ); }
         echo '</ul>';
-        // no inline CSS here; stylesheet is loaded via get_style_depends()
     }
 
     /* =========================
@@ -339,8 +338,37 @@ class Restaurant_Menu extends Widget_Base {
     }
 
     /**
+     * Build select options for a taxonomy (slug => "Name (slug)"), resilient to missing taxonomies.
+     */
+    protected function get_terms_options( string $taxonomy ) : array {
+        $out = [];
+
+        if ( ! taxonomy_exists( $taxonomy ) ) {
+            return $out;
+        }
+
+        $terms = get_terms( [
+            'taxonomy'   => $taxonomy,
+            'hide_empty' => false,
+        ] );
+
+        if ( is_wp_error( $terms ) || empty( $terms ) ) {
+            return $out;
+        }
+
+        foreach ( $terms as $t ) {
+            $name = isset($t->name) ? (string)$t->name : '';
+            $slug = isset($t->slug) ? (string)$t->slug : '';
+            if ( $slug === '' ) continue;
+            // show name and slug for clarity
+            $out[ $slug ] = $name !== '' ? sprintf( '%s (%s)', $name, $slug ) : $slug;
+        }
+
+        return $out;
+    }
+
+    /**
      * Try to discover menus/sections from the current post if nothing was set.
-     * (kept as-is from your working version)
      */
     protected function autodetect_context_slugs() : array {
         $slugs = [ 'menus' => [], 'sections' => [] ];
@@ -349,6 +377,7 @@ class Restaurant_Menu extends Widget_Base {
 
         $taxes = [ 'jprm_menu', 'jprm_section' ];
         foreach ( $taxes as $tax ) {
+            if ( ! taxonomy_exists( $tax ) ) continue;
             $terms = wp_get_post_terms( $post->ID, $tax, [ 'fields' => 'slugs' ] );
             if ( is_wp_error( $terms ) || empty( $terms ) ) continue;
             if ( $tax === 'jprm_menu' ) $slugs['menus']    = $terms;
@@ -437,7 +466,7 @@ class Restaurant_Menu extends Widget_Base {
                 'title'       => $title,
                 'description' => $desc,
                 'price_cfg'   => $cfg, // preferred, if present
-                // fallbacks that your current rendering still uses:
+                // fallbacks that current rendering still uses:
                 'price'       => $single_price,
                 'prices'      => $rows,
                 'single_label_ref' => get_post_meta($pid, '_jprm_single_label_ref', true),
