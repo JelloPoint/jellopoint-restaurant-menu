@@ -21,9 +21,7 @@ class Restaurant_Menu extends Widget_Base {
     public function get_keywords() { return [ 'menu','restaurant','card','food','price','prices','items' ]; }
 
     // Load the plugin stylesheet registered in the plugin bootstrap.
-    public function get_style_depends() {
-        return [ 'jprm-menu' ];
-    }
+    public function get_style_depends() { return [ 'jprm-menu' ]; }
 
     /* =========================
      * Controls
@@ -44,7 +42,7 @@ class Restaurant_Menu extends Widget_Base {
             ],
         ] );
 
-        // ✅ Auto-detect + fallback controls (restored)
+        // Auto-detect + fallback controls
         $this->add_control( 'auto_detect_context', [
             'label'        => __( 'Auto-detect context (from this page)', 'jellopoint-restaurant-menu' ),
             'type'         => Controls_Manager::SWITCHER,
@@ -153,43 +151,14 @@ class Restaurant_Menu extends Widget_Base {
         ] );
 
         $this->end_controls_section();
-
-        /* ---- Static items (simple for now) ---- */
-        $this->start_controls_section( 'section_static', [ 'label' => __( 'Static Items', 'jellopoint-restaurant-menu' ), 'condition' => [ 'data_source' => 'static' ] ] );
-
-        $repeater = new Repeater();
-        $repeater->add_control( 'item_title', [
-            'label'   => __( 'Title', 'jellopoint-restaurant-menu' ),
-            'type'    => Controls_Manager::TEXT,
-            'default' => '',
-        ] );
-        $repeater->add_control( 'item_description', [
-            'label'   => __( 'Description', 'jellopoint-restaurant-menu' ),
-            'type'    => Controls_Manager::TEXTAREA,
-            'default' => '',
-        ] );
-        $repeater->add_control( 'item_price', [
-            'label'   => __( 'Price', 'jellopoint-restaurant-menu' ),
-            'type'    => Controls_Manager::TEXT,
-            'default' => '',
-        ] );
-
-        $this->add_control( 'items', [
-            'label'       => __( 'Items', 'jellopoint-restaurant-menu' ),
-            'type'        => Controls_Manager::REPEATER,
-            'fields'      => $repeater->get_controls(),
-            'title_field' => '{{{ item_title }}}',
-        ] );
-
-        $this->end_controls_section();
     }
 
     /* =========================
-     * Static rendering (unchanged)
+     * Static rendering
      * ========================= */
     protected function render_static_item( $item ) {
         $title = $item['item_title'] ?? '';
-               $desc  = $item['item_description'] ?? '';
+        $desc  = $item['item_description'] ?? '';
         $price = $item['item_price'] ?? '';
 
         echo '<li class="jp-menu__item">';
@@ -206,7 +175,6 @@ class Restaurant_Menu extends Widget_Base {
         echo '  </div>';
         echo '</li>';
     }
-
     protected function render_static() {
         $s = $this->get_settings_for_display();
         $items = isset( $s['items'] ) ? $s['items'] : [];
@@ -228,6 +196,12 @@ class Restaurant_Menu extends Widget_Base {
 
         // Dynamic data
         $items = $this->collect_dynamic_items( $s );
+
+        // 🔒 Editor safety net: if nothing came back, force a loose query so preview never shows empty
+        if ( empty( $items ) && $this->is_elementor_edit_mode() ) {
+            $items = $this->collect_dynamic_items_fallback_all();
+        }
+
         if ( empty( $items ) ) {
             echo '<div class="jp-menu--empty">' . esc_html__( 'No items found for this selection.', 'jellopoint-restaurant-menu' ) . '</div>';
             return;
@@ -242,7 +216,7 @@ class Restaurant_Menu extends Widget_Base {
         foreach ( $items as $item ) {
             $title = $item['title'] ?? '';
             $desc  = $item['description'] ?? '';
-            $cfg   = $item['price_cfg'] ?? []; // unified v3 config from repository
+            $cfg   = $item['price_cfg'] ?? []; // v3 config (not yet used for render here)
 
             echo '<li class="jp-menu__item">';
             echo '  <div class="jp-menu__inner">';
@@ -269,14 +243,10 @@ class Restaurant_Menu extends Widget_Base {
                 if ( $single_ref === '' && ! empty( $item['labels'] ) && is_array( $item['labels'] ) ) {
                     $single_ref = (string) reset( $item['labels'] );
                 }
-
                 if ( $single_ref === '' && ! empty( $item['ID'] ) ) {
                     $meta_all = get_post_meta( (int)$item['ID'] );
                     foreach ( $meta_all as $k => $vals ) {
-                        if ( stripos($k, 'label') !== false && ! empty($vals[0]) ) {
-                            $single_ref = (string)$vals[0];
-                            break;
-                        }
+                        if ( stripos($k, 'label') !== false && ! empty($vals[0]) ) { $single_ref = (string)$vals[0]; break; }
                     }
                 }
 
@@ -286,27 +256,19 @@ class Restaurant_Menu extends Widget_Base {
                     $icon_id    = (int)($res['icon_id'] ?? 0);
                 }
 
-                if ( $single_hide === null ) {
-                    $single_hide = ! empty( $item['hide_icon'] );
-                }
+                if ( $single_hide === null ) { $single_hide = ! empty( $item['hide_icon'] ); }
 
                 $row_order = $order_class;
                 $value     = (string)$item['price'];
 
                 echo '      <div class="jp-price-row ' . esc_attr( $row_order ) . '">';
-
                 if ( $order_class === 'jp-order--label-left' ) {
-                    echo '          <div class="jp-col-label">';
-                    echo                $this->label_html( $label_text, $icon_id, $presentation, (bool)$single_hide );
-                    echo '          </div>';
+                    echo '          <div class="jp-col-label">' . $this->label_html( $label_text, $icon_id, $presentation, (bool)$single_hide ) . '</div>';
                     echo '          <span class="jp-menu__value jp-col-price">' . esc_html( $value ) . '</span>';
                 } else {
                     echo '          <span class="jp-menu__value jp-col-price">' . esc_html( $value ) . '</span>';
-                    echo '          <div class="jp-col-label">';
-                    echo                $this->label_html( $label_text, $icon_id, $presentation, (bool)$single_hide );
-                    echo '          </div>';
+                    echo '          <div class="jp-col-label">' . $this->label_html( $label_text, $icon_id, $presentation, (bool)$single_hide ) . '</div>';
                 }
-
                 echo '      </div>';
             }
 
@@ -314,7 +276,6 @@ class Restaurant_Menu extends Widget_Base {
             if ( $has_multi_rows ) {
                 foreach ( $item['prices'] as $row ) {
                     if ( empty($row['price']) ) continue;
-
                     $value     = (string)$row['price'];
                     $ref       = isset($row['label_ref']) ? (string)$row['label_ref'] : '';
                     $hide_icon = ! empty( $row['hide_icon'] );
@@ -332,15 +293,11 @@ class Restaurant_Menu extends Widget_Base {
 
                     echo '      <div class="jp-price-row ' . esc_attr( $row_order ) . '">';
                     if ( $order_class === 'jp-order--label-left' ) {
-                        echo '          <div class="jp-col-label">';
-                        echo                $this->label_html( $label_text, $icon_id, $presentation, (bool)$hide_icon );
-                        echo '          </div>';
+                        echo '          <div class="jp-col-label">' . $this->label_html( $label_text, $icon_id, $presentation, (bool)$hide_icon ) . '</div>';
                         echo '          <span class="jp-menu__value jp-col-price">' . esc_html( $value ) . '</span>';
                     } else {
                         echo '          <span class="jp-menu__value jp-col-price">' . esc_html( $value ) . '</span>';
-                        echo '          <div class="jp-col-label">';
-                        echo                $this->label_html( $label_text, $icon_id, $presentation, (bool)$hide_icon );
-                        echo '          </div>';
+                        echo '          <div class="jp-col-label">' . $this->label_html( $label_text, $icon_id, $presentation, (bool)$hide_icon ) . '</div>';
                     }
                     echo '      </div>';
                 }
@@ -354,24 +311,28 @@ class Restaurant_Menu extends Widget_Base {
         echo '</ul>';
     }
 
-    /**
-     * Build select options for a taxonomy (slug => "Name (slug)"), resilient to missing taxonomies.
-     */
+    /* =========================
+     * Helpers
+     * ========================= */
+
+    /** Elementor edit mode? */
+    protected function is_elementor_edit_mode() : bool {
+        if ( class_exists('\Elementor\Plugin') ) {
+            $inst = \Elementor\Plugin::$instance;
+            if ( isset($inst->editor) && method_exists($inst->editor, 'is_edit_mode') ) {
+                return (bool) $inst->editor->is_edit_mode();
+            }
+        }
+        return false;
+    }
+
+    /** Build select options for a taxonomy (slug => "Name (slug)"). */
     protected function get_terms_options( string $taxonomy ) : array {
         $out = [];
+        if ( ! taxonomy_exists( $taxonomy ) ) return $out;
 
-        if ( ! taxonomy_exists( $taxonomy ) ) {
-            return $out;
-        }
-
-        $terms = get_terms( [
-            'taxonomy'   => $taxonomy,
-            'hide_empty' => false,
-        ] );
-
-        if ( is_wp_error( $terms ) || empty( $terms ) ) {
-            return $out;
-        }
+        $terms = get_terms( [ 'taxonomy' => $taxonomy, 'hide_empty' => false ] );
+        if ( is_wp_error( $terms ) || empty( $terms ) ) return $out;
 
         foreach ( $terms as $t ) {
             $name = isset($t->name) ? (string)$t->name : '';
@@ -379,71 +340,52 @@ class Restaurant_Menu extends Widget_Base {
             if ( $slug === '' ) continue;
             $out[ $slug ] = $name !== '' ? sprintf( '%s (%s)', $name, $slug ) : $slug;
         }
-
         return $out;
     }
 
-    /**
-     * Normalize selected values (which might contain TERM IDs from older saved widgets)
-     * into TERM SLUGS for querying.
-     */
+    /** Normalize possible term IDs to slugs. */
     protected function normalize_to_slugs( array $values, string $taxonomy ) : array {
         if ( empty($values) ) return [];
-
         $slugs = [];
         foreach ( $values as $v ) {
-            // Already a slug-like string?
-            if ( is_string($v) && ! ctype_digit($v) ) {
-                $slugs[] = $v;
-                continue;
-            }
-            // Numeric (string "12" or int 12) -> resolve to slug
+            if ( is_string($v) && ! ctype_digit($v) ) { $slugs[] = $v; continue; }
             $term_id = is_numeric($v) ? (int)$v : 0;
             if ( $term_id > 0 ) {
                 $term = get_term( $term_id, $taxonomy );
-                if ( $term && ! is_wp_error($term) && isset($term->slug) && $term->slug !== '' ) {
-                    $slugs[] = $term->slug;
-                }
+                if ( $term && ! is_wp_error($term) && ! empty($term->slug) ) $slugs[] = $term->slug;
             }
         }
-        // unique, reindex
         return array_values( array_unique( $slugs ) );
     }
 
-    /**
-     * Try to discover menus/sections from the current post if nothing was set.
-     */
+    /** Auto-detect context terms from current post. */
     protected function autodetect_context_slugs() : array {
         $slugs = [ 'menus' => [], 'sections' => [] ];
         $post = get_post();
         if ( ! $post ) return $slugs;
 
-        $taxes = [ 'jprm_menu', 'jprm_section' ];
-        foreach ( $taxes as $tax ) {
+        foreach ( [ 'jprm_menu', 'jprm_section' ] as $tax ) {
             if ( ! taxonomy_exists( $tax ) ) continue;
             $terms = wp_get_post_terms( $post->ID, $tax, [ 'fields' => 'slugs' ] );
             if ( is_wp_error( $terms ) || empty( $terms ) ) continue;
-            if ( $tax === 'jprm_menu' ) $slugs['menus']    = $terms;
+            if ( $tax === 'jprm_menu' )    $slugs['menus']    = $terms;
             if ( $tax === 'jprm_section' ) $slugs['sections'] = $terms;
         }
         return $slugs;
     }
 
-    /**
-     * Collect dynamic items based on widget settings.
-     */
-    protected function collect_dynamic_items( array $s ) {
+    /** Primary collector honoring controls/filters. */
+    protected function collect_dynamic_items( array $s ) : array {
         $filtered = apply_filters( 'jprm/widget/get_items', null, $s, $this );
         if ( is_array( $filtered ) ) return $filtered;
 
         $menus_in    = ( ! empty( $s['query_menus'] )    && is_array( $s['query_menus'] ) )    ? $s['query_menus']    : [];
         $sections_in = ( ! empty( $s['query_sections'] ) && is_array( $s['query_sections'] ) ) ? $s['query_sections'] : [];
 
-        // Support legacy IDs stored in saved widgets
         $menus    = $this->normalize_to_slugs( $menus_in, 'jprm_menu' );
         $sections = $this->normalize_to_slugs( $sections_in, 'jprm_section' );
 
-        // ✅ Auto-detect from current post if enabled and nothing selected
+        // Auto-detect from current post if enabled and nothing selected
         $auto = isset($s['auto_detect_context']) && $s['auto_detect_context'] === 'yes';
         if ( $auto && empty($menus) && empty($sections) ) {
             $ctx = $this->autodetect_context_slugs();
@@ -457,28 +399,16 @@ class Restaurant_Menu extends Widget_Base {
 
         $tax_query = [ 'relation' => 'AND' ];
         if ( ! empty($menus) ) {
-            $tax_query[] = [
-                'taxonomy' => 'jprm_menu',
-                'field'    => 'slug',
-                'terms'    => $menus,
-            ];
+            $tax_query[] = [ 'taxonomy' => 'jprm_menu', 'field' => 'slug', 'terms' => $menus ];
         }
         if ( ! empty($sections) ) {
-            $tax_query[] = [
-                'taxonomy' => 'jprm_section',
-                'field'    => 'slug',
-                'terms'    => $sections,
-            ];
+            $tax_query[] = [ 'taxonomy' => 'jprm_section', 'field' => 'slug', 'terms' => $sections ];
         }
 
-        // ✅ Fallback to all items if still empty and user allows it
+        // Fallback to all items if still empty and user allows it
         $fallback_all = isset($s['show_all_when_empty']) && $s['show_all_when_empty'] === 'yes';
-        if ( $fallback_all && count($tax_query) === 1 ) {
-            $tax_query = [];
-        } elseif ( !$fallback_all && count($tax_query) === 1 ) {
-            // no tax terms and not allowed to fallback => force no results
-            return [];
-        }
+        if ( $fallback_all && count($tax_query) === 1 ) { $tax_query = []; }
+        elseif ( ! $fallback_all && count($tax_query) === 1 ) { return []; }
 
         $args = [
             'post_type'      => 'jprm_item',
@@ -494,52 +424,70 @@ class Restaurant_Menu extends Widget_Base {
 
         $items = [];
         while ( $q->have_posts() ) { $q->the_post();
-            $pid   = get_the_ID();
-            $title = get_the_title();
-            $desc  = get_post_meta( $pid, 'jprm_description', true );
-            $desc  = is_string($desc) ? $desc : '';
-
-            // Unified v3 price JSON (preferred)
-            $cfg_json = get_post_meta( $pid, 'jprm_price', true );
-            $cfg      = [];
-            if ( is_string($cfg_json) && $cfg_json !== '' ) {
-                $tmp = json_decode($cfg_json, true);
-                if ( json_last_error() === JSON_ERROR_NONE && is_array($tmp) ) {
-                    $cfg = $tmp;
-                }
-            }
-
-            // Legacy fallbacks (temporary)
-            $single_price = get_post_meta( $pid, 'single_price', true );
-            $rows_json    = get_post_meta( $pid, 'jprm_price_rows', true );
-            $rows         = [];
-            if ( is_string($rows_json) && $rows_json !== '' ) {
-                $t = json_decode($rows_json, true);
-                if ( json_last_error() === JSON_ERROR_NONE && is_array($t) ) $rows = $t;
-            }
-
-            $items[] = [
-                'ID'          => $pid,
-                'title'       => $title,
-                'description' => $desc,
-                'price_cfg'   => $cfg,
-                'price'       => $single_price,
-                'prices'      => $rows,
-                'single_label_ref' => get_post_meta($pid, '_jprm_single_label_ref', true),
-                'single_hide_icon' => ! empty( get_post_meta($pid, '_jprm_single_hide_icon', true) ),
-                'labels'           => get_post_meta($pid, '_jprm_labels', true),
-                'hide_icon'        => ! empty( get_post_meta($pid, '_jprm_hide_icon', true) ),
-            ];
+            $items[] = $this->build_item_from_post( get_the_ID() );
         }
         wp_reset_postdata();
 
-        if ( isset($s['hide_invisible']) && $s['hide_invisible'] === 'yes' ) {
+        // Apply visibility filter only outside Elementor edit mode (prevents “everything hidden” in editor)
+        if ( ! $this->is_elementor_edit_mode() && isset($s['hide_invisible']) && $s['hide_invisible'] === 'yes' ) {
             $items = array_filter( $items, function($it){
                 return apply_filters( 'jprm/item/is_visible', true, $it );
             } );
         }
 
         return $items;
+    }
+
+    /** Ultra-safe fallback used only in Elementor edit mode if primary query found nothing. */
+    protected function collect_dynamic_items_fallback_all() : array {
+        $q = new \WP_Query( [
+            'post_type'      => 'jprm_item',
+            'post_status'    => 'publish',
+            'posts_per_page' => -1,
+        ] );
+        if ( ! $q->have_posts() ) return [];
+        $items = [];
+        while ( $q->have_posts() ) { $q->the_post();
+            $items[] = $this->build_item_from_post( get_the_ID() );
+        }
+        wp_reset_postdata();
+        return $items;
+    }
+
+    /** Build one item array from a post ID (kept identical to your previous pipeline). */
+    protected function build_item_from_post( int $pid ) : array {
+        $title = get_the_title( $pid );
+        $desc  = get_post_meta( $pid, 'jprm_description', true );
+        $desc  = is_string($desc) ? $desc : '';
+
+        $cfg_json = get_post_meta( $pid, 'jprm_price', true );
+        $cfg      = [];
+        if ( is_string($cfg_json) && $cfg_json !== '' ) {
+            $tmp = json_decode($cfg_json, true);
+            if ( json_last_error() === JSON_ERROR_NONE && is_array($tmp) ) $cfg = $tmp;
+        }
+
+        // Legacy fallbacks (temporary)
+        $single_price = get_post_meta( $pid, 'single_price', true );
+        $rows_json    = get_post_meta( $pid, 'jprm_price_rows', true );
+        $rows         = [];
+        if ( is_string($rows_json) && $rows_json !== '' ) {
+            $t = json_decode($rows_json, true);
+            if ( json_last_error() === JSON_ERROR_NONE && is_array($t) ) $rows = $t;
+        }
+
+        return [
+            'ID'          => $pid,
+            'title'       => $title,
+            'description' => $desc,
+            'price_cfg'   => $cfg,
+            'price'       => $single_price,
+            'prices'      => $rows,
+            'single_label_ref' => get_post_meta($pid, '_jprm_single_label_ref', true),
+            'single_hide_icon' => ! empty( get_post_meta($pid, '_jprm_single_hide_icon', true) ),
+            'labels'           => get_post_meta($pid, '_jprm_labels', true),
+            'hide_icon'        => ! empty( get_post_meta($pid, '_jprm_hide_icon', true) ),
+        ];
     }
 
     /** Render a label+icon combo according to presentation rules. */
@@ -550,21 +498,9 @@ class Restaurant_Menu extends Widget_Base {
             if ( is_string($img) ) $icon_html = $img;
         }
 
-        if ( $presentation === 'icon' ) {
-            return $icon_html;
-        }
-
-        if ( $presentation === 'text' ) {
-            return esc_html( $label_text );
-        }
-
-        if ( $presentation === 'icon_text' ) {
-            if ( $icon_html !== '' ) {
-                return $icon_html . ' ' . esc_html( $label_text );
-            }
-            return esc_html( $label_text );
-        }
-
+        if ( $presentation === 'icon' )      return $icon_html;
+        if ( $presentation === 'text' )      return esc_html( $label_text );
+        if ( $presentation === 'icon_text' ) return $icon_html ? ($icon_html . ' ' . esc_html($label_text)) : esc_html($label_text);
         return esc_html( $label_text );
     }
 
