@@ -236,23 +236,19 @@ class Restaurant_Menu extends Widget_Base {
             // Multi rows?
             $has_multi_rows = ! empty( $item['prices'] ) && is_array( $item['prices'] );
 
-            // SINGLE price (with explicit single label logic + multiple fallbacks)
-            if ( 
-                ! $has_multi_rows && isset( $item['price'] ) && $item['price'] !== '' ) {
+            // SINGLE price
+            if ( ! $has_multi_rows && isset( $item['price'] ) && $item['price'] !== '' ) {
                 $label_text = '';
                 $icon_id    = 0;
                 $hide_icon  = false;
 
-                // prefer explicit single label ref; fallback to item-level labels; final fallback: scan meta
                 $single_ref  = isset($item['single_label_ref']) ? (string)$item['single_label_ref'] : '';
                 $single_hide = isset($item['single_hide_icon']) ? (bool)$item['single_hide_icon'] : null;
 
-                // If not set, try legacy item labels
                 if ( $single_ref === '' && ! empty( $item['labels'] ) && is_array( $item['labels'] ) ) {
                     $single_ref = (string) reset( $item['labels'] );
                 }
 
-                // If still empty, try to discover from all meta (regex scan)
                 if ( $single_ref === '' && ! empty( $item['ID'] ) ) {
                     $meta_all = get_post_meta( (int)$item['ID'] );
                     foreach ( $meta_all as $k => $vals ) {
@@ -293,7 +289,7 @@ class Restaurant_Menu extends Widget_Base {
                 echo '      </div>';
             }
 
-            // MULTIPLE prices (each row has own label/icon)
+            // MULTIPLE prices
             if ( $has_multi_rows ) {
                 foreach ( $item['prices'] as $row ) {
                     if ( empty($row['price']) ) continue;
@@ -360,11 +356,37 @@ class Restaurant_Menu extends Widget_Base {
             $name = isset($t->name) ? (string)$t->name : '';
             $slug = isset($t->slug) ? (string)$t->slug : '';
             if ( $slug === '' ) continue;
-            // show name and slug for clarity
             $out[ $slug ] = $name !== '' ? sprintf( '%s (%s)', $name, $slug ) : $slug;
         }
 
         return $out;
+    }
+
+    /**
+     * Normalize selected values (which might contain TERM IDs from older saved widgets)
+     * into TERM SLUGS for querying.
+     */
+    protected function normalize_to_slugs( array $values, string $taxonomy ) : array {
+        if ( empty($values) ) return [];
+
+        $slugs = [];
+        foreach ( $values as $v ) {
+            // Already a slug-like string?
+            if ( is_string($v) && ! ctype_digit($v) ) {
+                $slugs[] = $v;
+                continue;
+            }
+            // Numeric (string "12" or int 12) -> resolve to slug
+            $term_id = is_numeric($v) ? (int)$v : 0;
+            if ( $term_id > 0 ) {
+                $term = get_term( $term_id, $taxonomy );
+                if ( $term && ! is_wp_error($term) && isset($term->slug) && $term->slug !== '' ) {
+                    $slugs[] = $term->slug;
+                }
+            }
+        }
+        // unique, reindex
+        return array_values( array_unique( $slugs ) );
     }
 
     /**
@@ -388,19 +410,23 @@ class Restaurant_Menu extends Widget_Base {
 
     /**
      * Collect dynamic items based on widget settings.
-     * (kept as-is from your working version; includes your repository/meta lookups)
      */
     protected function collect_dynamic_items( array $s ) {
         $filtered = apply_filters( 'jprm/widget/get_items', null, $s, $this );
         if ( is_array( $filtered ) ) return $filtered;
 
-        $menus    = ( ! empty( $s['query_menus'] )    && is_array( $s['query_menus'] ) )    ? $s['query_menus']    : [];
-        $sections = ( ! empty( $s['query_sections'] ) && is_array( $s['query_sections'] ) ) ? $s['query_sections'] : [];
+        $menus_in    = ( ! empty( $s['query_menus'] )    && is_array( $s['query_menus'] ) )    ? $s['query_menus']    : [];
+        $sections_in = ( ! empty( $s['query_sections'] ) && is_array( $s['query_sections'] ) ) ? $s['query_sections'] : [];
+
+        // ✅ Normalize (support legacy IDs stored in saved widgets)
+        $menus    = $this->normalize_to_slugs( $menus_in, 'jprm_menu' );
+        $sections = $this->normalize_to_slugs( $sections_in, 'jprm_section' );
+
         $orderby  = ! empty( $s['query_orderby'] ) ? sanitize_text_field( $s['query_orderby'] ) : 'menu_order';
         $order    = ! empty( $s['query_order'] )   ? sanitize_text_field( $s['query_order'] )   : 'ASC';
         $limit    = ( isset( $s['query_limit'] ) && $s['query_limit'] !== '' ) ? (int) $s['query_limit'] : -1;
 
-        // Auto-detect context slugs if nothing selected
+        // Auto-detect context slugs if still nothing selected
         if ( empty($menus) && empty($sections) ) {
             $auto = $this->autodetect_context_slugs();
             $menus    = $auto['menus'];
@@ -442,7 +468,7 @@ class Restaurant_Menu extends Widget_Base {
             $desc  = get_post_meta( $pid, 'jprm_description', true );
             $desc  = is_string($desc) ? $desc : '';
 
-            // Unified v3 price JSON (prepared by repository/writer)
+            // Unified v3 price JSON (preferred)
             $cfg_json = get_post_meta( $pid, 'jprm_price', true );
             $cfg      = [];
             if ( is_string($cfg_json) && $cfg_json !== '' ) {
@@ -452,7 +478,7 @@ class Restaurant_Menu extends Widget_Base {
                 }
             }
 
-            // Legacy fallbacks (kept temporarily; you can drop when safe)
+            // Legacy fallbacks (temporary)
             $single_price = get_post_meta( $pid, 'single_price', true );
             $rows_json    = get_post_meta( $pid, 'jprm_price_rows', true );
             $rows         = [];
@@ -465,8 +491,7 @@ class Restaurant_Menu extends Widget_Base {
                 'ID'          => $pid,
                 'title'       => $title,
                 'description' => $desc,
-                'price_cfg'   => $cfg, // preferred, if present
-                // fallbacks that current rendering still uses:
+                'price_cfg'   => $cfg,
                 'price'       => $single_price,
                 'prices'      => $rows,
                 'single_label_ref' => get_post_meta($pid, '_jprm_single_label_ref', true),
@@ -477,7 +502,6 @@ class Restaurant_Menu extends Widget_Base {
         }
         wp_reset_postdata();
 
-        // Allow hiding invisible items (custom filter hook elsewhere)
         if ( isset($s['hide_invisible']) && $s['hide_invisible'] === 'yes' ) {
             $items = array_filter( $items, function($it){
                 return apply_filters( 'jprm/item/is_visible', true, $it );
@@ -513,6 +537,6 @@ class Restaurant_Menu extends Widget_Base {
         return esc_html( $label_text );
     }
 
-    // Kept for backwards-compatibility; no longer outputs inline CSS
-    protected function print_inline_layout_css() { /* handled by registered stylesheet */ }
+    // No inline CSS here; stylesheet is loaded via get_style_depends()
+    protected function print_inline_layout_css() { /* no-op */ }
 }
