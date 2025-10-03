@@ -2,7 +2,7 @@
 /**
  * Plugin Name: JelloPoint – Restaurant Menu
  * Description: Restaurant Menu items, labels and Elementor widget.
- * Version: 2.0.2
+ * Version: 2.0.3
  * Author: JelloPoint
  * Text Domain: jellopoint-restaurant-menu
  */
@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 /* -------------------------------------------------
  * Constants
  * ------------------------------------------------- */
-if ( ! defined( 'JPRM_VERSION' ) )      define( 'JPRM_VERSION', '2.0.2' );
+if ( ! defined( 'JPRM_VERSION' ) )      define( 'JPRM_VERSION', '2.0.3' );
 if ( ! defined( 'JPRM_PLUGIN_FILE' ) )  define( 'JPRM_PLUGIN_FILE', __FILE__ );
 if ( ! defined( 'JPRM_PLUGIN_PATH' ) )  define( 'JPRM_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 if ( ! defined( 'JPRM_PLUGIN_URL' ) )   define( 'JPRM_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -31,7 +31,7 @@ $jprm_includes = [
     'includes/admin/class-admin-menuitem-meta.php',
     'includes/admin/save/class-menuitem-v3-writer.php',
 
-    // Renderer (optional, not required by the widget code right now)
+    // Renderer (optional)
     'includes/render/class-price-renderer.php',
 ];
 
@@ -46,21 +46,17 @@ foreach ( $jprm_includes as $rel ) {
  * Register stylesheet handle used by the widget
  * ------------------------------------------------- */
 function jprm_register_assets() {
-    // Register the CSS handle the widget declares in get_style_depends().
     $css = JPRM_PLUGIN_URL . 'includes/render/css/menu.css';
     wp_register_style( 'jprm-menu', $css, [], JPRM_VERSION );
 }
 add_action( 'init', 'jprm_register_assets', 5 );
 
-// Make sure the CSS is visible in Elementor editor preview as well
+// Ensure CSS is visible in Elementor editor preview as well
 add_action( 'elementor/editor/after_enqueue_styles', function() {
-    if ( wp_style_is( 'jprm-menu', 'registered' ) ) {
-        wp_enqueue_style( 'jprm-menu' );
-    } else {
-        // As a fallback, register+enqueue here too.
+    if ( ! wp_style_is( 'jprm-menu', 'registered' ) ) {
         wp_register_style( 'jprm-menu', JPRM_PLUGIN_URL . 'includes/render/css/menu.css', [], JPRM_VERSION );
-        wp_enqueue_style( 'jprm-menu' );
     }
+    wp_enqueue_style( 'jprm-menu' );
 }, 10 );
 
 /* -------------------------------------------------
@@ -115,7 +111,7 @@ function jprm_register_types_fallback() {
 }
 add_action( 'init', 'jprm_register_types_fallback', 4 ); // early, before queries
 
-// Make sure rewrites are ready on activation (in case fallbacks are used)
+// Flush rewrites when activating (in case fallbacks are used)
 function jprm_activate() {
     jprm_register_types_fallback();
     flush_rewrite_rules();
@@ -151,15 +147,17 @@ add_action( 'elementor/widgets/register', function( $widgets_manager ) {
 }, 10 );
 
 /* -------------------------------------------------
- * (Optional) Hook plugin core if your includes/class-plugin.php expects to be instantiated
+ * (Optional) Hook plugin core if your \JelloPoint\RestaurantMenu\Plugin
+ * exposes a public static accessor (singleton). Avoid private __construct().
  * ------------------------------------------------- */
 if ( class_exists( '\JelloPoint\RestaurantMenu\Plugin' ) ) {
-    // If your Plugin class wires additional hooks, instantiate it.
-    // Guarded to avoid double-wiring if it already self-instantiates.
-    if ( ! isset( $GLOBALS['jprm_plugin'] ) ) {
-        $GLOBALS['jprm_plugin'] = new \JelloPoint\RestaurantMenu\Plugin();
-        if ( method_exists( $GLOBALS['jprm_plugin'], 'init' ) ) {
-            $GLOBALS['jprm_plugin']->init();
-        }
+    // Prefer common singleton accessors; do NOT new the class (constructor may be private).
+    if ( is_callable( [ '\JelloPoint\RestaurantMenu\Plugin', 'instance' ] ) ) {
+        \JelloPoint\RestaurantMenu\Plugin::instance();
+    } elseif ( is_callable( [ '\JelloPoint\RestaurantMenu\Plugin', 'get_instance' ] ) ) {
+        \JelloPoint\RestaurantMenu\Plugin::get_instance();
+    } else {
+        // No public accessor; assume class-plugin.php self-wires via hooks.
+        // Intentionally do nothing to avoid calling a private constructor.
     }
 }
