@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 /**
  * JelloPoint – Restaurant Menu (Elementor Widget)
  * Stable rendering: title, description, single/multiple prices, labels & icons.
- * Minimal extras: editor fallback + legacy term ID normalization.
+ * Extra: robust editor fallback + legacy term ID normalization.
  */
 class Restaurant_Menu extends Widget_Base {
 
@@ -20,7 +20,6 @@ class Restaurant_Menu extends Widget_Base {
     public function get_categories() { return [ 'jellopoint-widgets' ]; }
     public function get_keywords() { return [ 'menu','restaurant','card','food','price','prices','items' ]; }
 
-    // Load the plugin stylesheet registered in the plugin bootstrap.
     public function get_style_depends() { return [ 'jprm-menu' ]; }
 
     /* =========================
@@ -42,7 +41,6 @@ class Restaurant_Menu extends Widget_Base {
             ],
         ] );
 
-        // Helpful toggles
         $this->add_control( 'auto_detect_context', [
             'label'        => __( 'Auto-detect context (from this page)', 'jellopoint-restaurant-menu' ),
             'type'         => Controls_Manager::SWITCHER,
@@ -126,7 +124,7 @@ class Restaurant_Menu extends Widget_Base {
 
         $this->end_controls_section();
 
-        /* ---- Presentation controls (labels/icons order & type) ---- */
+        /* ---- Presentation controls ---- */
         $this->start_controls_section( 'section_presentation', [ 'label' => __( 'Price Labels', 'jellopoint-restaurant-menu' ) ] );
 
         $this->add_control( 'label_presentation', [
@@ -223,10 +221,10 @@ class Restaurant_Menu extends Widget_Base {
             return;
         }
 
-        // Dynamic data (stable behavior)
+        // Dynamic data
         $items = $this->collect_dynamic_items( $s );
 
-        // Editor safety net: if nothing came back, force a loose query so preview never shows empty
+        // Editor safety net: if nothing came back, force a very loose query so preview never shows empty
         if ( empty( $items ) && $this->is_elementor_edit_mode() ) {
             $items = $this->collect_dynamic_items_fallback_all();
         }
@@ -259,7 +257,7 @@ class Restaurant_Menu extends Widget_Base {
             // Multi rows?
             $has_multi_rows = ! empty( $item['prices'] ) && is_array( $item['prices'] );
 
-            // SINGLE price (stable logic)
+            // SINGLE price
             if ( ! $has_multi_rows && isset( $item['price'] ) && $item['price'] !== '' ) {
                 $label_text = '';
                 $icon_id    = 0;
@@ -268,11 +266,9 @@ class Restaurant_Menu extends Widget_Base {
                 $single_ref  = isset($item['single_label_ref']) ? (string)$item['single_label_ref'] : '';
                 $single_hide = isset($item['single_hide_icon']) ? (bool)$item['single_hide_icon'] : null;
 
-                // fallback to first item-level label if not set
                 if ( $single_ref === '' && ! empty( $item['labels'] ) && is_array( $item['labels'] ) ) {
                     $single_ref = (string) reset( $item['labels'] );
                 }
-                // last resort: scan meta (legacy)
                 if ( $single_ref === '' && ! empty( $item['ID'] ) ) {
                     $meta_all = get_post_meta( (int)$item['ID'] );
                     foreach ( $meta_all as $k => $vals ) {
@@ -302,7 +298,7 @@ class Restaurant_Menu extends Widget_Base {
                 echo '      </div>';
             }
 
-            // MULTIPLE prices (stable logic)
+            // MULTIPLE prices
             if ( $has_multi_rows ) {
                 foreach ( $item['prices'] as $row ) {
                     if ( empty($row['price']) ) continue;
@@ -343,7 +339,6 @@ class Restaurant_Menu extends Widget_Base {
      * Helpers
      * ========================= */
 
-    /** Elementor edit mode? */
     protected function is_elementor_edit_mode() : bool {
         if ( class_exists('\Elementor\Plugin') ) {
             $inst = \Elementor\Plugin::$instance;
@@ -354,14 +349,11 @@ class Restaurant_Menu extends Widget_Base {
         return false;
     }
 
-    /** Build select options for a taxonomy (slug => "Name (slug)"). */
     protected function get_terms_options( string $taxonomy ) : array {
         $out = [];
         if ( ! taxonomy_exists( $taxonomy ) ) return $out;
-
         $terms = get_terms( [ 'taxonomy' => $taxonomy, 'hide_empty' => false ] );
         if ( is_wp_error( $terms ) || empty( $terms ) ) return $out;
-
         foreach ( $terms as $t ) {
             $name = isset($t->name) ? (string)$t->name : '';
             $slug = isset($t->slug) ? (string)$t->slug : '';
@@ -371,7 +363,6 @@ class Restaurant_Menu extends Widget_Base {
         return $out;
     }
 
-    /** Normalize possible term IDs to slugs. */
     protected function normalize_to_slugs( array $values, string $taxonomy ) : array {
         if ( empty($values) ) return [];
         $slugs = [];
@@ -386,7 +377,6 @@ class Restaurant_Menu extends Widget_Base {
         return array_values( array_unique( $slugs ) );
     }
 
-    /** Auto-detect context terms from current post. */
     protected function autodetect_context_slugs() : array {
         $slugs = [ 'menus' => [], 'sections' => [] ];
         $post = get_post();
@@ -402,22 +392,18 @@ class Restaurant_Menu extends Widget_Base {
         return $slugs;
     }
 
-    /** Primary collector honoring controls/filters — STABLE */
     protected function collect_dynamic_items( array $s ) : array {
         $filtered = apply_filters( 'jprm/widget/get_items', null, $s, $this );
         if ( is_array( $filtered ) ) return $filtered;
 
-        // Known stable CPT
-        $post_type = 'jprm_item';
+        $post_type = 'jprm_item'; // your known CPT slug
 
         $menus_in    = ( ! empty( $s['query_menus'] )    && is_array( $s['query_menus'] ) )    ? $s['query_menus']    : [];
         $sections_in = ( ! empty( $s['query_sections'] ) && is_array( $s['query_sections'] ) ) ? $s['query_sections'] : [];
 
-        // Support legacy IDs stored in saved widgets
         $menus    = $this->normalize_to_slugs( $menus_in, 'jprm_menu' );
         $sections = $this->normalize_to_slugs( $sections_in, 'jprm_section' );
 
-        // Auto-detect from current post if enabled and nothing selected
         $auto = isset($s['auto_detect_context']) && $s['auto_detect_context'] === 'yes';
         if ( $auto && empty($menus) && empty($sections) ) {
             $ctx = $this->autodetect_context_slugs();
@@ -437,7 +423,7 @@ class Restaurant_Menu extends Widget_Base {
             $tax_query[] = [ 'taxonomy' => 'jprm_section', 'field' => 'slug', 'terms' => $sections ];
         }
 
-        // Fallback to all items if still empty and user allows it
+        // If no filters selected and user allows fallback, remove tax_query completely
         $fallback_all = isset($s['show_all_when_empty']) && $s['show_all_when_empty'] === 'yes';
         if ( $fallback_all && count($tax_query) === 1 ) { $tax_query = []; }
         elseif ( ! $fallback_all && count($tax_query) === 1 ) { return []; }
@@ -450,7 +436,14 @@ class Restaurant_Menu extends Widget_Base {
             'posts_per_page' => $limit,
             'tax_query'      => $tax_query,
         ] );
-        if ( ! $q->have_posts() ) return [];
+
+        if ( ! $q->have_posts() ) {
+            // Log once to help diagnose if needed (safe; remove later)
+            if ( defined('WP_DEBUG') && WP_DEBUG ) {
+                error_log('[JPRM] Primary query returned 0 items. CPT ok? tax filters?');
+            }
+            return [];
+        }
 
         $items = [];
         while ( $q->have_posts() ) { $q->the_post();
@@ -459,7 +452,6 @@ class Restaurant_Menu extends Widget_Base {
             $desc  = get_post_meta( $pid, 'jprm_description', true );
             $desc  = is_string($desc) ? $desc : '';
 
-            // v3 cfg (if present; we still render from legacy arrays here)
             $cfg_json = get_post_meta( $pid, 'jprm_price', true );
             $cfg      = [];
             if ( is_string($cfg_json) && $cfg_json !== '' ) {
@@ -467,7 +459,6 @@ class Restaurant_Menu extends Widget_Base {
                 if ( json_last_error() === JSON_ERROR_NONE && is_array($tmp) ) $cfg = $tmp;
             }
 
-            // Legacy single/multiple (STABLE)
             $single_price = get_post_meta( $pid, 'single_price', true );
 
             $rows_json = get_post_meta( $pid, 'jprm_price_rows', true );
@@ -478,46 +469,47 @@ class Restaurant_Menu extends Widget_Base {
             }
 
             $items[] = [
-                'ID'          => $pid,
-                'title'       => $title,
-                'description' => $desc,
-                'price_cfg'   => $cfg,
-                'price'       => $single_price,
-                'prices'      => $rows,
-                'single_label_ref' => get_post_meta($pid, '_jprm_single_label_ref', true),
-                'single_hide_icon' => ! empty( get_post_meta($pid, '_jprm_single_hide_icon', true) ),
-                'labels'           => get_post_meta($pid, '_jprm_labels', true),
-                'hide_icon'        => ! empty( get_post_meta($pid, '_jprm_hide_icon', true) ),
+                'ID'                => $pid,
+                'title'             => $title,
+                'description'       => $desc,
+                'price_cfg'         => $cfg,
+                'price'             => $single_price,
+                'prices'            => $rows,
+                'single_label_ref'  => get_post_meta($pid, '_jprm_single_label_ref', true),
+                'single_hide_icon'  => ! empty( get_post_meta($pid, '_jprm_single_hide_icon', true) ),
+                'labels'            => get_post_meta($pid, '_jprm_labels', true),
+                'hide_icon'         => ! empty( get_post_meta($pid, '_jprm_hide_icon', true) ),
             ];
         }
         wp_reset_postdata();
-
-        // Apply visibility filter (only on frontend to avoid empty editor)
-        if ( ! $this->is_elementor_edit_mode() && isset($s['hide_invisible']) && $s['hide_invisible'] === 'yes' ) {
-            $items = array_filter( $items, function($it){
-                return apply_filters( 'jprm/item/is_visible', true, $it );
-            } );
-        }
-
         return $items;
     }
 
-    /** Ultra-safe fallback used only in Elementor edit mode if primary query found nothing. */
+    /**
+     * Ultra-safe fallback used only in Elementor edit mode if primary query found nothing.
+     * Searches ANY post type that looks like a menu item by meta keys, then builds items.
+     */
     protected function collect_dynamic_items_fallback_all() : array {
-        // Look across ANY post type for anything that looks like a menu item (editor only)
         $q = new \WP_Query( [
             'post_type'      => 'any',
             'post_status'    => 'any',
-            'meta_query'     => [
-                'relation' => 'OR',
-                [ 'key' => 'jprm_price',       'compare' => 'EXISTS' ],
-                [ 'key' => 'jprm_price_rows',  'compare' => 'EXISTS' ],
-                [ 'key' => 'single_price',     'compare' => 'EXISTS' ],
-            ],
             'posts_per_page' => -1,
             'no_found_rows'  => true,
+            'meta_query'     => [
+                'relation' => 'OR',
+                [ 'key' => 'jprm_price',      'compare' => 'EXISTS' ],
+                [ 'key' => 'jprm_price_rows', 'compare' => 'EXISTS' ],
+                [ 'key' => 'single_price',    'compare' => 'EXISTS' ],
+            ],
         ] );
-        if ( ! $q->have_posts() ) return [];
+
+        if ( ! $q->have_posts() ) {
+            if ( defined('WP_DEBUG') && WP_DEBUG ) {
+                error_log('[JPRM] Fallback ANY/meta query also returned 0.');
+            }
+            return [];
+        }
+
         $items = [];
         while ( $q->have_posts() ) { $q->the_post();
             $items[] = $this->build_item_from_post( get_the_ID() );
@@ -526,7 +518,7 @@ class Restaurant_Menu extends Widget_Base {
         return $items;
     }
 
-    /** Build one item array from a post ID (kept identical to your previous pipeline). */
+    /** Build one item array from a post ID. */
     protected function build_item_from_post( int $pid ) : array {
         $title = get_the_title( $pid );
         $desc  = get_post_meta( $pid, 'jprm_description', true );
@@ -539,22 +531,22 @@ class Restaurant_Menu extends Widget_Base {
             if ( json_last_error() === JSON_ERROR_NONE && is_array($tmp) ) $cfg = $tmp;
         }
 
-        // Legacy fallbacks (temporary)
         $single_price = get_post_meta( $pid, 'single_price', true );
-        $rows_json    = get_post_meta( $pid, 'jprm_price_rows', true );
-        $rows         = [];
+
+        $rows_json = get_post_meta( $pid, 'jprm_price_rows', true );
+        $rows      = [];
         if ( is_string($rows_json) && $rows_json !== '' ) {
             $t = json_decode($rows_json, true);
             if ( json_last_error() === JSON_ERROR_NONE && is_array($t) ) $rows = $t;
         }
 
         return [
-            'ID'          => $pid,
-            'title'       => $title,
-            'description' => $desc,
-            'price_cfg'   => $cfg,
-            'price'       => $single_price,
-            'prices'      => $rows,
+            'ID'               => $pid,
+            'title'            => $title,
+            'description'      => $desc,
+            'price_cfg'        => $cfg,
+            'price'            => $single_price,
+            'prices'           => $rows,
             'single_label_ref' => get_post_meta($pid, '_jprm_single_label_ref', true),
             'single_hide_icon' => ! empty( get_post_meta($pid, '_jprm_single_hide_icon', true) ),
             'labels'           => get_post_meta($pid, '_jprm_labels', true),
@@ -575,7 +567,4 @@ class Restaurant_Menu extends Widget_Base {
         if ( $presentation === 'icon_text' ) return $icon_html ? ($icon_html . ' ' . esc_html($label_text)) : esc_html($label_text);
         return esc_html( $label_text );
     }
-
-    // No inline CSS here; stylesheet is loaded via get_style_depends()
-    protected function print_inline_layout_css() { /* no-op */ }
 }
