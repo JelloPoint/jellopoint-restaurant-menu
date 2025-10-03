@@ -569,3 +569,4 @@ class Restaurant_Menu extends Widget_Base {
     // No inline CSS here; stylesheet is loaded via get_style_depends()
     protected function print_inline_layout_css() { /* no-op */ }
 }
+ 
