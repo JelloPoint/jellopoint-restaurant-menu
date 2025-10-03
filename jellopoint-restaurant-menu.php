@@ -2,7 +2,7 @@
 /**
  * Plugin Name: JelloPoint – Restaurant Menu
  * Description: Restaurant Menu items, labels and Elementor widget.
- * Version: 2.0.3
+ * Version: 2.0.4
  * Author: JelloPoint
  * Text Domain: jellopoint-restaurant-menu
  */
@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 /* -------------------------------------------------
  * Constants
  * ------------------------------------------------- */
-if ( ! defined( 'JPRM_VERSION' ) )      define( 'JPRM_VERSION', '2.0.3' );
+if ( ! defined( 'JPRM_VERSION' ) )      define( 'JPRM_VERSION', '2.0.4' );
 if ( ! defined( 'JPRM_PLUGIN_FILE' ) )  define( 'JPRM_PLUGIN_FILE', __FILE__ );
 if ( ! defined( 'JPRM_PLUGIN_PATH' ) )  define( 'JPRM_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 if ( ! defined( 'JPRM_PLUGIN_URL' ) )   define( 'JPRM_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -21,7 +21,7 @@ if ( ! defined( 'JPRM_PLUGIN_URL' ) )   define( 'JPRM_PLUGIN_URL', plugin_dir_ur
  * Includes (safe order)
  * ------------------------------------------------- */
 $jprm_includes = [
-    // Storage layer (if present)
+    // Storage (if present)
     'includes/storage/class-price-schema.php',
     'includes/storage/class-price-repository.php',
 
@@ -43,7 +43,7 @@ foreach ( $jprm_includes as $rel ) {
 }
 
 /* -------------------------------------------------
- * Register stylesheet handle used by the widget
+ * Assets
  * ------------------------------------------------- */
 function jprm_register_assets() {
     $css = JPRM_PLUGIN_URL . 'includes/render/css/menu.css';
@@ -135,29 +135,32 @@ add_action( 'elementor/elements/categories_registered', function( $elements_mana
     }
 }, 10 );
 
-// Widget registration
+// Widget registration (require_once — never print file contents)
 add_action( 'elementor/widgets/register', function( $widgets_manager ) {
     $widget_file = JPRM_PLUGIN_PATH . 'includes/widgets/class-restaurant-menu.php';
-    if ( file_exists( $widget_file ) ) {
-        require_once $widget_file;
-        if ( class_exists( '\JelloPoint\RestaurantMenu\Widgets\Restaurant_Menu' ) ) {
-            $widgets_manager->register( new \JelloPoint\RestaurantMenu\Widgets\Restaurant_Menu() );
-        }
+
+    if ( ! file_exists( $widget_file ) ) {
+        error_log('[JPRM] Widget file missing: ' . $widget_file);
+        return;
+    }
+
+    require_once $widget_file;
+
+    if ( class_exists( '\JelloPoint\RestaurantMenu\Widgets\Restaurant_Menu' ) ) {
+        $widgets_manager->register( new \JelloPoint\RestaurantMenu\Widgets\Restaurant_Menu() );
+    } else {
+        error_log('[JPRM] Widget class not found after require_once.');
     }
 }, 10 );
 
 /* -------------------------------------------------
- * (Optional) Hook plugin core if your \JelloPoint\RestaurantMenu\Plugin
- * exposes a public static accessor (singleton). Avoid private __construct().
+ * Optional: if your Plugin singleton exists, let it bootstrap itself.
+ * (Do NOT call private constructors.)
  * ------------------------------------------------- */
 if ( class_exists( '\JelloPoint\RestaurantMenu\Plugin' ) ) {
-    // Prefer common singleton accessors; do NOT new the class (constructor may be private).
     if ( is_callable( [ '\JelloPoint\RestaurantMenu\Plugin', 'instance' ] ) ) {
         \JelloPoint\RestaurantMenu\Plugin::instance();
     } elseif ( is_callable( [ '\JelloPoint\RestaurantMenu\Plugin', 'get_instance' ] ) ) {
         \JelloPoint\RestaurantMenu\Plugin::get_instance();
-    } else {
-        // No public accessor; assume class-plugin.php self-wires via hooks.
-        // Intentionally do nothing to avoid calling a private constructor.
     }
 }

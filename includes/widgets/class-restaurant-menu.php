@@ -42,7 +42,7 @@ class Restaurant_Menu extends Widget_Base {
             ],
         ] );
 
-        // Keep the two toggles that helped before
+        // Helpful toggles
         $this->add_control( 'auto_detect_context', [
             'label'        => __( 'Auto-detect context (from this page)', 'jellopoint-restaurant-menu' ),
             'type'         => Controls_Manager::SWITCHER,
@@ -183,7 +183,7 @@ class Restaurant_Menu extends Widget_Base {
     }
 
     /* =========================
-     * Static rendering (unchanged)
+     * Static rendering
      * ========================= */
     protected function render_static_item( $item ) {
         $title = $item['item_title'] ?? '';
@@ -204,7 +204,6 @@ class Restaurant_Menu extends Widget_Base {
         echo '  </div>';
         echo '</li>';
     }
-
     protected function render_static() {
         $s = $this->get_settings_for_display();
         $items = isset( $s['items'] ) ? $s['items'] : [];
@@ -246,7 +245,6 @@ class Restaurant_Menu extends Widget_Base {
         foreach ( $items as $item ) {
             $title = $item['title'] ?? '';
             $desc  = $item['description'] ?? '';
-            $cfg   = $item['price_cfg'] ?? []; // (kept for future use)
 
             echo '<li class="jp-menu__item">';
             echo '  <div class="jp-menu__inner">';
@@ -409,7 +407,7 @@ class Restaurant_Menu extends Widget_Base {
         $filtered = apply_filters( 'jprm/widget/get_items', null, $s, $this );
         if ( is_array( $filtered ) ) return $filtered;
 
-        // Hard-lock to the known CPT that worked before
+        // Known stable CPT
         $post_type = 'jprm_item';
 
         $menus_in    = ( ! empty( $s['query_menus'] )    && is_array( $s['query_menus'] ) )    ? $s['query_menus']    : [];
@@ -506,50 +504,62 @@ class Restaurant_Menu extends Widget_Base {
 
     /** Ultra-safe fallback used only in Elementor edit mode if primary query found nothing. */
     protected function collect_dynamic_items_fallback_all() : array {
+        // Look across ANY post type for anything that looks like a menu item (editor only)
         $q = new \WP_Query( [
-            'post_type'      => 'jprm_item',
+            'post_type'      => 'any',
             'post_status'    => 'any',
+            'meta_query'     => [
+                'relation' => 'OR',
+                [ 'key' => 'jprm_price',       'compare' => 'EXISTS' ],
+                [ 'key' => 'jprm_price_rows',  'compare' => 'EXISTS' ],
+                [ 'key' => 'single_price',     'compare' => 'EXISTS' ],
+            ],
             'posts_per_page' => -1,
+            'no_found_rows'  => true,
         ] );
         if ( ! $q->have_posts() ) return [];
         $items = [];
         while ( $q->have_posts() ) { $q->the_post();
-            $pid   = get_the_ID();
-            $title = get_the_title();
-            $desc  = get_post_meta( $pid, 'jprm_description', true );
-            $desc  = is_string($desc) ? $desc : '';
-
-            $cfg_json = get_post_meta( $pid, 'jprm_price', true );
-            $cfg      = [];
-            if ( is_string($cfg_json) && $cfg_json !== '' ) {
-                $tmp = json_decode($cfg_json, true);
-                if ( json_last_error() === JSON_ERROR_NONE && is_array($tmp) ) $cfg = $tmp;
-            }
-
-            $single_price = get_post_meta( $pid, 'single_price', true );
-
-            $rows_json = get_post_meta( $pid, 'jprm_price_rows', true );
-            $rows      = [];
-            if ( is_string($rows_json) && $rows_json !== '' ) {
-                $t = json_decode($rows_json, true);
-                if ( json_last_error() === JSON_ERROR_NONE && is_array($t) ) $rows = $t;
-            }
-
-            $items[] = [
-                'ID'          => $pid,
-                'title'       => $title,
-                'description' => $desc,
-                'price_cfg'   => $cfg,
-                'price'       => $single_price,
-                'prices'      => $rows,
-                'single_label_ref' => get_post_meta($pid, '_jprm_single_label_ref', true),
-                'single_hide_icon' => ! empty( get_post_meta($pid, '_jprm_single_hide_icon', true) ),
-                'labels'           => get_post_meta($pid, '_jprm_labels', true),
-                'hide_icon'        => ! empty( get_post_meta($pid, '_jprm_hide_icon', true) ),
-            ];
+            $items[] = $this->build_item_from_post( get_the_ID() );
         }
         wp_reset_postdata();
         return $items;
+    }
+
+    /** Build one item array from a post ID (kept identical to your previous pipeline). */
+    protected function build_item_from_post( int $pid ) : array {
+        $title = get_the_title( $pid );
+        $desc  = get_post_meta( $pid, 'jprm_description', true );
+        $desc  = is_string($desc) ? $desc : '';
+
+        $cfg_json = get_post_meta( $pid, 'jprm_price', true );
+        $cfg      = [];
+        if ( is_string($cfg_json) && $cfg_json !== '' ) {
+            $tmp = json_decode($cfg_json, true);
+            if ( json_last_error() === JSON_ERROR_NONE && is_array($tmp) ) $cfg = $tmp;
+        }
+
+        // Legacy fallbacks (temporary)
+        $single_price = get_post_meta( $pid, 'single_price', true );
+        $rows_json    = get_post_meta( $pid, 'jprm_price_rows', true );
+        $rows         = [];
+        if ( is_string($rows_json) && $rows_json !== '' ) {
+            $t = json_decode($rows_json, true);
+            if ( json_last_error() === JSON_ERROR_NONE && is_array($t) ) $rows = $t;
+        }
+
+        return [
+            'ID'          => $pid,
+            'title'       => $title,
+            'description' => $desc,
+            'price_cfg'   => $cfg,
+            'price'       => $single_price,
+            'prices'      => $rows,
+            'single_label_ref' => get_post_meta($pid, '_jprm_single_label_ref', true),
+            'single_hide_icon' => ! empty( get_post_meta($pid, '_jprm_single_hide_icon', true) ),
+            'labels'           => get_post_meta($pid, '_jprm_labels', true),
+            'hide_icon'        => ! empty( get_post_meta($pid, '_jprm_hide_icon', true) ),
+        ];
     }
 
     /** Render a label+icon combo according to presentation rules. */
@@ -569,4 +579,3 @@ class Restaurant_Menu extends Widget_Base {
     // No inline CSS here; stylesheet is loaded via get_style_depends()
     protected function print_inline_layout_css() { /* no-op */ }
 }
- 
