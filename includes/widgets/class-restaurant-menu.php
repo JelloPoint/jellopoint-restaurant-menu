@@ -44,6 +44,27 @@ class Restaurant_Menu extends Widget_Base {
             ],
         ] );
 
+        // ✅ Auto-detect + fallback controls (restored)
+        $this->add_control( 'auto_detect_context', [
+            'label'        => __( 'Auto-detect context (from this page)', 'jellopoint-restaurant-menu' ),
+            'type'         => Controls_Manager::SWITCHER,
+            'label_on'     => __( 'Yes', 'jellopoint-restaurant-menu' ),
+            'label_off'    => __( 'No', 'jellopoint-restaurant-menu' ),
+            'return_value' => 'yes',
+            'default'      => 'yes',
+            'condition'    => [ 'data_source' => 'dynamic' ],
+        ] );
+
+        $this->add_control( 'show_all_when_empty', [
+            'label'        => __( 'Fallback to all items when no menu/section', 'jellopoint-restaurant-menu' ),
+            'type'         => Controls_Manager::SWITCHER,
+            'label_on'     => __( 'Yes', 'jellopoint-restaurant-menu' ),
+            'label_off'    => __( 'No', 'jellopoint-restaurant-menu' ),
+            'return_value' => 'yes',
+            'default'      => 'yes',
+            'condition'    => [ 'data_source' => 'dynamic' ],
+        ] );
+
         $this->add_control( 'query_menus', [
             'label'       => __( 'Menus', 'jellopoint-restaurant-menu' ),
             'type'        => Controls_Manager::SELECT2,
@@ -168,7 +189,7 @@ class Restaurant_Menu extends Widget_Base {
      * ========================= */
     protected function render_static_item( $item ) {
         $title = $item['item_title'] ?? '';
-        $desc  = $item['item_description'] ?? '';
+               $desc  = $item['item_description'] ?? '';
         $price = $item['item_price'] ?? '';
 
         echo '<li class="jp-menu__item">';
@@ -418,20 +439,21 @@ class Restaurant_Menu extends Widget_Base {
         $menus_in    = ( ! empty( $s['query_menus'] )    && is_array( $s['query_menus'] ) )    ? $s['query_menus']    : [];
         $sections_in = ( ! empty( $s['query_sections'] ) && is_array( $s['query_sections'] ) ) ? $s['query_sections'] : [];
 
-        // ✅ Normalize (support legacy IDs stored in saved widgets)
+        // Support legacy IDs stored in saved widgets
         $menus    = $this->normalize_to_slugs( $menus_in, 'jprm_menu' );
         $sections = $this->normalize_to_slugs( $sections_in, 'jprm_section' );
+
+        // ✅ Auto-detect from current post if enabled and nothing selected
+        $auto = isset($s['auto_detect_context']) && $s['auto_detect_context'] === 'yes';
+        if ( $auto && empty($menus) && empty($sections) ) {
+            $ctx = $this->autodetect_context_slugs();
+            $menus    = $ctx['menus'];
+            $sections = $ctx['sections'];
+        }
 
         $orderby  = ! empty( $s['query_orderby'] ) ? sanitize_text_field( $s['query_orderby'] ) : 'menu_order';
         $order    = ! empty( $s['query_order'] )   ? sanitize_text_field( $s['query_order'] )   : 'ASC';
         $limit    = ( isset( $s['query_limit'] ) && $s['query_limit'] !== '' ) ? (int) $s['query_limit'] : -1;
-
-        // Auto-detect context slugs if still nothing selected
-        if ( empty($menus) && empty($sections) ) {
-            $auto = $this->autodetect_context_slugs();
-            $menus    = $auto['menus'];
-            $sections = $auto['sections'];
-        }
 
         $tax_query = [ 'relation' => 'AND' ];
         if ( ! empty($menus) ) {
@@ -449,13 +471,22 @@ class Restaurant_Menu extends Widget_Base {
             ];
         }
 
+        // ✅ Fallback to all items if still empty and user allows it
+        $fallback_all = isset($s['show_all_when_empty']) && $s['show_all_when_empty'] === 'yes';
+        if ( $fallback_all && count($tax_query) === 1 ) {
+            $tax_query = [];
+        } elseif ( !$fallback_all && count($tax_query) === 1 ) {
+            // no tax terms and not allowed to fallback => force no results
+            return [];
+        }
+
         $args = [
             'post_type'      => 'jprm_item',
             'post_status'    => 'publish',
             'orderby'        => $orderby,
             'order'          => $order,
             'posts_per_page' => $limit,
-            'tax_query'      => count($tax_query) > 1 ? $tax_query : [],
+            'tax_query'      => $tax_query,
         ];
 
         $q = new \WP_Query( $args );
