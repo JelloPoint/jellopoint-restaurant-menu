@@ -49,7 +49,8 @@ class Price_Renderer {
             : 'text';
 
         $order_class = isset($opts['order_class']) && is_string($opts['order_class'])
-       ? $opts['order_class'] : 'jp-order--label-right';
+            ? $opts['order_class']
+            : 'jp-order--label-right';
 
         ob_start();
         echo '<div class="jp-menu__pricegroup">';
@@ -70,7 +71,7 @@ class Price_Renderer {
         if ( ($cfg['mode'] ?? '') === 'multiple' && ! empty($cfg['rows']) && is_array($cfg['rows']) ) {
             foreach ( $cfg['rows'] as $row ) {
                 $price = self::sanitize_price_string( $row['price'] ?? '' );
-           if ( $price === '' ) continue;
+                if ( $price === '' ) continue;
 
                 $ref     = (string)($row['label_ref'] ?? '');
                 $hide    = ! empty( $row['hide_icon'] );
@@ -136,7 +137,7 @@ class Price_Renderer {
 
         if ( $presentation === 'icon_text' ) {
             if ( $icon_html !== '' ) {
-                return $icon_html + ' ' . esc_html( $label_text );
+                return $icon_html . ' ' . esc_html( $label_text );
             }
             return esc_html( $label_text );
         }
@@ -151,3 +152,4 @@ class Price_Renderer {
         return trim($v);
     }
 }
+?>
