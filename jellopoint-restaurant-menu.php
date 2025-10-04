@@ -134,79 +134,100 @@ if ( class_exists( '\JelloPoint\RestaurantMenu\Plugin' ) ) {
     }
 }
 
-/* =========================
- * (Leave your TEMP DEBUG LOGGER if you still need it)
- * ========================= */
+/* ===========================================================
+ * JPRM – FORENSICS LOGGER (TEMPORARY)
+ * =========================================================== */
+add_action('wp', function () {
 
-if ( ! function_exists('jprm_dbg_str') ) {
-    function jprm_dbg_str( $v ) {
-        if ( is_bool($v) ) return $v ? 'true' : 'false';
-        if ( is_null($v) ) return 'null';
-        if ( is_array($v) || is_object($v) ) return wp_json_encode( $v );
-        return (string) $v;
-    }
-}
+    // 0) List all public post types
+    $pts = get_post_types([], 'objects');
+    $pt_names = array_keys($pts);
+    error_log('[JPRM FORENSICS] Registered post types: ' . implode(', ', $pt_names));
 
-add_action( 'init', function() {
-    $cpt   = post_type_exists('jprm_item') ? 'YES' : 'NO';
-    $tax_m = taxonomy_exists('jprm_menu') ? 'YES' : 'NO';
-    $tax_s = taxonomy_exists('jprm_section') ? 'YES' : 'NO';
-    error_log("[JPRM DEBUG] init: CPT jprm_item={$cpt}; tax jprm_menu={$tax_m}; tax jprm_section={$tax_s}");
-}, 12 );
-
-add_action( 'wp', function() {
-    // 1) Broad "looks-like menu item" probe across ANY post type by meta keys
-    $q_any = new WP_Query([
+    // 1) Latest 15 posts of ANY type – ID, type, title
+    $q_latest = new WP_Query([
         'post_type'      => 'any',
         'post_status'    => 'any',
+        'posts_per_page' => 15,
+        'orderby'        => 'date',
+        'order'          => 'DESC',
         'no_found_rows'  => true,
-        'posts_per_page' => 5,
-        'meta_query'     => [
+    ]);
+    error_log('[JPRM FORENSICS] Latest any-type posts found=' . intval($q_latest->found_posts));
+    if ( $q_latest->have_posts() ) {
+        while ( $q_latest->have_posts() ) { $q_latest->the_post();
+            $pid  = get_the_ID();
+            $type = get_post_type( $pid );
+            error_log('[JPRM FORENSICS] Post ID=' . $pid . ' type=' . $type . ' title="' . get_the_title() . '"');
+        }
+        wp_reset_postdata();
+    }
+
+    // 2) For those latest posts, dump meta keys that look like price/label
+    if ( $q_latest->posts ) {
+        foreach ( $q_latest->posts as $p ) {
+            $pid  = $p->ID;
+            $type = get_post_type( $pid );
+            $all  = get_post_meta( $pid );
+            $hits = [];
+            foreach ( $all as $k => $v ) {
+                if (
+                    stripos($k,'jprm') !== false ||
+                    stripos($k,'price') !== false ||
+                    stripos($k,'label') !== false ||
+                    stripos($k,'amount') !== false
+                ) {
+                    $val = isset($v[0]) ? (is_scalar($v[0]) ? (string)$v[0] : json_encode($v[0])) : '';
+                    $len = strlen($val);
+                    $hits[] = $k . ($len ? ' (len='. $len .')' : '');
+                }
+            }
+            if ( $hits ) {
+                error_log('[JPRM FORENSICS] Meta hits for ID=' . $pid . ' (' . $type . '): ' . implode(', ', $hits));
+            }
+        }
+    }
+
+    // 3) Super-broad meta probe (legacy keys included)
+    $meta_keys = [
+        'jprm_price','jprm_price_rows','single_price',
+        '_jprm_price','_jprm_price_amounts','_jprm_price_labels',
+        'jprm_prices','prices','jprm_price_v2'
+    ];
+    $meta_or = array_map(function($k){ return [ 'key' => $k, 'compare' => 'EXISTS' ]; }, $meta_keys);
+
+    $q_meta = new WP_Query([
+        'post_type'      => 'any',
+        'post_status'    => 'any',
+        'posts_per_page' => 10,
+        'no_found_rows'  => true,
+        'meta_query'     => array_merge([ 'relation' => 'OR' ], $meta_or),
+    ]);
+    error_log('[JPRM FORENSICS] Broad ANY+legacy-meta probe found=' . intval($q_meta->found_posts));
+    if ( $q_meta->have_posts() ) {
+        while ( $q_meta->have_posts() ) { $q_meta->the_post();
+            error_log('[JPRM FORENSICS] ANY+legacy-meta sample => ID=' . get_the_ID() . ' type=' . get_post_type() . ' title="' . get_the_title() . '"');
+        }
+        wp_reset_postdata();
+    }
+
+    // 4) Do we have any posts attached to our taxonomies at all?
+    $q_tax = new WP_Query([
+        'post_type'      => 'any',
+        'post_status'    => 'any',
+        'posts_per_page' => 10,
+        'no_found_rows'  => true,
+        'tax_query'      => [
             'relation' => 'OR',
-            [ 'key' => 'jprm_price',      'compare' => 'EXISTS' ],
-            [ 'key' => 'jprm_price_rows', 'compare' => 'EXISTS' ],
-            [ 'key' => 'single_price',    'compare' => 'EXISTS' ],
+            [ 'taxonomy' => 'jprm_menu',    'field' => 'slug', 'terms' => get_terms([ 'taxonomy'=>'jprm_menu', 'fields'=>'slugs','hide_empty'=>false ]) ],
+            [ 'taxonomy' => 'jprm_section', 'field' => 'slug', 'terms' => get_terms([ 'taxonomy'=>'jprm_section','fields'=>'slugs','hide_empty'=>false ]) ],
         ],
     ]);
-    error_log('[JPRM DEBUG] wp: ANY+meta probe found=' . intval( $q_any->found_posts ));
-
-    if ( $q_any->have_posts() ) {
-        $q_any->the_post();
-        error_log('[JPRM DEBUG] wp: ANY sample => ID=' . get_the_ID() . ' post_type=' . get_post_type() . ' title="' . get_the_title() . '"');
+    error_log('[JPRM FORENSICS] Any posts attached to jprm_menu/section? ' . intval($q_tax->found_posts));
+    if ( $q_tax->have_posts() ) {
+        while ( $q_tax->have_posts() ) { $q_tax->the_post();
+            error_log('[JPRM FORENSICS] Tax-attached sample => ID=' . get_the_ID() . ' type=' . get_post_type() . ' title="' . get_the_title() . '"');
+        }
         wp_reset_postdata();
     }
-
-    // 2) Strict CPT probe
-    $q_cpt = new WP_Query([
-        'post_type'      => 'jprm_item',
-        'post_status'    => 'any',
-        'no_found_rows'  => true,
-        'posts_per_page' => 5,
-    ]);
-    error_log('[JPRM DEBUG] wp: jprm_item probe found=' . intval( $q_cpt->found_posts ));
-
-    if ( $q_cpt->have_posts() ) {
-        $q_cpt->the_post();
-        error_log('[JPRM DEBUG] wp: jprm_item sample => ID=' . get_the_ID() . ' title="' . get_the_title() . '"');
-        wp_reset_postdata();
-    }
-}, 12 );
-
-// 3) Log what the widget receives (without altering it)
-add_filter( 'jprm/widget/get_items', function( $items, $settings, $widget ) {
-    $ds   = isset($settings['data_source']) ? $settings['data_source'] : '(unset)';
-    $menus    = isset($settings['query_menus'])    ? $settings['query_menus']    : [];
-    $sections = isset($settings['query_sections']) ? $settings['query_sections'] : [];
-    error_log('[JPRM DEBUG] widget hook: data_source=' . $ds . ' menus=' . jprm_dbg_str($menus) . ' sections=' . jprm_dbg_str($sections));
-
-    // DO NOT alter behavior; let normal code run
-    return null;
-}, 10, 3 );
-
-// 4) Final safety: log when the widget finds 0 items just before output
-add_action( 'wp_footer', function() {
-    // Only log in editor or if WP_DEBUG to avoid noisy logs
-    if ( defined('WP_DEBUG') && WP_DEBUG ) {
-        error_log('[JPRM DEBUG] footer ping (page rendered).');
-    }
-}, 99 );
+}, 20);
