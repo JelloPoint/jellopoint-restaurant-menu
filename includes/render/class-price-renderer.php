@@ -145,7 +145,7 @@ class Price_Renderer {
         return esc_html( $label_text );
     }
 
-    /** Defensive cleanup  for price strings */
+    /** Defensive cleanup for price strings */
     protected static function sanitize_price_string( $v ) : string {
         $v = is_scalar($v) ? (string)$v : '';
         // allow "0", trim spaces
