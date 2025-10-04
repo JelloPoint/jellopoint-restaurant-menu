@@ -68,7 +68,7 @@ class Plugin {
             ],
             'public'        => true,
             'show_ui'       => true,
-            'show_in_menu'  => false, // we attach manually
+            'show_in_menu'  => false, // attach manually under our root
             'show_in_rest'  => true,
             'supports'      => [ 'title', 'page-attributes' ],
             'has_archive'   => false,
@@ -130,7 +130,7 @@ class Plugin {
             'edit.php?post_type=jprm_menu_item'
         );
 
-        // Price Labels (fallback if not yet loaded)
+        // Price Labels – if Labels_Store hasn’t attached its page yet, provide a stub to keep the slot
         if ( ! has_action('admin_menu', 'JPRM_Labels_Store::register_menu') ) {
             add_submenu_page(
                 self::PARENT_SLUG,
@@ -213,3 +213,9 @@ class Plugin {
         }
     }
 }
+
+/**
+ * Ensure init() runs even if the bootstrap forgets to call it.
+ * Harmless if called twice (WP will de-duplicate hooks by callback identity).
+ */
+\JelloPoint\RestaurantMenu\Plugin::init();
