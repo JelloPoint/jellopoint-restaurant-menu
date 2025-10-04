@@ -9,6 +9,8 @@
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+if ( ! defined('JPRM_EXPERIMENTAL') ) define('JPRM_EXPERIMENTAL', false);
+
 /* -------------------------------------------------
  * Constants
  * ------------------------------------------------- */
