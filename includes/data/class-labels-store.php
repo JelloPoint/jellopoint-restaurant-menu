@@ -1,15 +1,14 @@
 <?php
 /**
- * JPRM Price Labels Store (v2 storage) — POLISH (single-file drop-in)
- * Requirements implemented:
- * 1) ID auto-filled and hidden (kept in storage for compatibility).
- * 2) Columns order: Name first, then Slug (switched).
- * 3) Icon picker (media frame) instead of numeric ID; shows preview.
- * 4) Drag & drop reordering (no visible "Order" field).
+ * JPRM Price Labels Store (v2 storage) — POLISH (fixed)
+ * Implements:
+ * 1) ID hidden + auto-filled
+ * 2) Columns: Name, Slug, Icon, Active (drag handle at left)
+ * 3) Icon picker (media library) with preview
+ * 4) Drag & drop ordering (hidden order field)
  *
- * Storage remains the same option: jprm_price_labels_v2
- * Public API remains: JPRM_Labels_Store::resolve(), ::all()
- * Page renders even if submenu callback is __return_null (via admin_page hook).
+ * Storage option: jprm_price_labels_v2
+ * Public API stays compatible; page renders via admin_page_{slug}.
  */
 if ( ! defined('ABSPATH') ) { exit; }
 
@@ -20,7 +19,6 @@ class JPRM_Labels_Store {
 
     /* ================= Public API (used by renderer/UI) ================= */
 
-    /** Return all saved labels as a normalized array; keep legacy keys. */
     public static function all() : array {
         $raw = get_option( self::OPTION_KEY, [] );
         if ( is_string( $raw ) ) {
@@ -32,14 +30,12 @@ class JPRM_Labels_Store {
         foreach ( $raw as $row ) {
             $row = is_array($row) ? $row : [];
             $row = self::sanitize_row( $row );
-            // Maintain both keys for maximum compatibility
             if ( ! isset($row['label_text']) ) { $row['label_text'] = $row['label']; }
             $out[] = $row;
         }
         return $out;
     }
 
-    /** Resolve a ref (id/slug) or literal text to text+icon id. */
     public static function resolve( $ref_or_text ) : array {
         $ref = is_scalar($ref_or_text) ? (string)$ref_or_text : '';
         if ( $ref !== '' ) {
@@ -54,7 +50,6 @@ class JPRM_Labels_Store {
                 }
             }
         }
-        // Literal label text
         return ['label_text' => $ref, 'icon_id' => 0];
     }
 
@@ -66,7 +61,6 @@ class JPRM_Labels_Store {
         add_action( 'admin_menu', [ __CLASS__, 'maybe_register_menu' ], 9 );
     }
 
-    /** Only register submenu if main plugin didn’t; still harmless if present. */
     public static function maybe_register_menu() : void {
         $parent_slug = 'jprm';
         add_submenu_page(
@@ -75,22 +69,19 @@ class JPRM_Labels_Store {
             __( 'Price Labels', 'jellopoint-restaurant-menu' ),
             'manage_options',
             self::PAGE_SLUG,
-            '__return_null' // we render via admin_page_{slug}
+            '__return_null'
         );
     }
 
-    /** Render the admin table UI with drag & drop and media picker. */
     public static function render_admin_page() : void {
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_die( esc_html__( 'You do not have permission to access this page.', 'jellopoint-restaurant-menu' ) );
         }
 
-        // Ensure media frame & jQuery UI
         wp_enqueue_media();
         wp_enqueue_script( 'jquery-ui-sortable' );
 
         $rows    = self::all();
-        // Normalize order for display (ASC)
         usort( $rows, function($a,$b){ return (int)($a['order'] ?? 0) <=> (int)($b['order'] ?? 0); } );
         $updated = isset($_GET['updated']) ? (int)$_GET['updated'] : 0;
 
@@ -118,7 +109,6 @@ class JPRM_Labels_Store {
         echo '</tr></thead><tbody id="jprm-labels-tbody">';
 
         if ( empty($rows) ) {
-            // One blank row to start
             echo self::row_html( 0, [
                 'id' => '',
                 'label' => '',
@@ -139,7 +129,7 @@ class JPRM_Labels_Store {
         echo '<p><button type="submit" class="button button-primary">'.esc_html__('Save Labels','jellopoint-restaurant-menu').'</button></p>';
         echo '</form>';
 
-        // Inline CSS & JS (kept minimal, no external files)
+        // Inline CSS & JS
         ?>
         <style>
         .jprm-labels-table .col-drag { width:34px; }
@@ -159,56 +149,43 @@ class JPRM_Labels_Store {
                 $('#jprm-labels-tbody tr').each(function(index){
                     var $tr = $(this);
                     $tr.find('input[name$="[order]"]').val(index);
-                    // Also update numeric indexes in input names to keep POST arrays compact
+                    // Update the first bracket index in input names to maintain compact arrays
                     $tr.find('input, textarea, select').each(function(){
                         var name = $(this).attr('name');
                         if(!name) return;
-                        // replace bracketed index [old] with [index]
                         name = name.replace(/labels\[[^\]]+\]/, 'labels['+index+']');
                         $(this).attr('name', name);
                     });
                 });
             }
 
-            function makeRow(data){
+            function makeRow(){
                 var idx = $('#jprm-labels-tbody tr').length;
-                var id  = data.id || uniqueId();
-                var label = data.label || '';
-                var slug  = data.slug || '';
-                var icon  = parseInt(data.icon_id || 0, 10) || 0;
-                var active= !!(data.active ?? true);
-                var order = typeof data.order === 'number' ? data.order : idx;
-
-                var img = '';
-                if(icon > 0){
-                    // We can't fetch the image URL without AJAX; leave empty. After choosing, preview will appear.
-                    img = '';
-                }
-
+                var id  = uniqueId();
                 var row = [
                     '<tr class="jprm-row">',
                       '<td class="col-drag"><span class="dashicons dashicons-menu jprm-drag" title="Drag"></span></td>',
                       '<td>',
-                        '<input type="text" class="regular-text" name="labels['+idx+'][label]" value="'+_.escape(label)+'" />',
-                        '<input type="hidden" name="labels['+idx+'][id]" value="'+_.escape(id)+'" />',
-                        '<input type="hidden" name="labels['+idx+'][order]" value="'+_.escape(order)+'" />',
+                        '<input type="text" class="regular-text" name="labels['+idx+'][label]" value="" />',
+                        '<input type="hidden" name="labels['+idx+'][id]" value="'+id+'" />',
+                        '<input type="hidden" name="labels['+idx+'][order]" value="'+idx+'" />',
                       '</td>',
-                      '<td><input type="text" class="regular-text" name="labels['+idx+'][slug]" value="'+_.escape(slug)+'" /></td>',
+                      '<td><input type="text" class="regular-text" name="labels['+idx+'][slug]" value="" /></td>',
                       '<td>',
                         '<div class="jprm-icon-wrap">',
-                          '<span class="jprm-icon-preview">'+(img ? img : '')+'</span>',
-                          '<input type="hidden" name="labels['+idx+'][icon_id]" value="'+icon+'" />',
-                          '<button type="button" class="button jprm-choose-icon">'+wp.i18n.__( 'Choose', 'jellopoint-restaurant-menu' )+'</button>',
-                          '<button type="button" class="button jprm-clear-icon">'+wp.i18n.__( 'Clear', 'jellopoint-restaurant-menu' )+'</button>',
+                          '<span class="jprm-icon-preview"></span>',
+                          '<input type="hidden" name="labels['+idx+'][icon_id]" value="0" />',
+                          '<button type="button" class="button jprm-choose-icon">Choose</button>',
+                          '<button type="button" class="button jprm-clear-icon">Clear</button>',
                         '</div>',
                       '</td>',
-                      '<td><label><input type="checkbox" name="labels['+idx+'][active]" value="1" '+(active ? 'checked' : '')+' /> '+wp.i18n.__( 'Active', 'jellopoint-restaurant-menu' )+'</label></td>',
+                      '<td><label><input type="checkbox" name="labels['+idx+'][active]" value="1" checked /> Active</label></td>',
                     '</tr>'
                 ].join('');
                 return $(row);
             }
 
-            // Setup sortable
+            // Sortable
             $('#jprm-labels-tbody').sortable({
                 handle: '.jprm-drag',
                 placeholder: 'placeholder',
@@ -218,7 +195,7 @@ class JPRM_Labels_Store {
 
             // Add row
             $('#jprm-add-row').on('click', function(){
-                var $tr = makeRow({});
+                var $tr = makeRow();
                 $('#jprm-labels-tbody').append($tr);
                 renumber();
             });
@@ -231,15 +208,16 @@ class JPRM_Labels_Store {
                 var $preview = $wrap.find('.jprm-icon-preview');
                 if (frame) { frame.close(); }
                 frame = wp.media({
-                    title: wp.i18n.__( 'Select Icon', 'jellopoint-restaurant-menu' ),
-                    button: { text: wp.i18n.__( 'Use this icon', 'jellopoint-restaurant-menu' ) },
+                    title: 'Select Icon',
+                    button: { text: 'Use this icon' },
                     library: { type: 'image' },
                     multiple: false
                 });
                 frame.on('select', function(){
                     var attachment = frame.state().get('selection').first().toJSON();
                     $input.val(attachment.id);
-                    $preview.html('<img src="'+attachment.sizes?.thumbnail?.url || attachment.icon || attachment.url+'" alt="" />');
+                    var url = (attachment.sizes && attachment.sizes.thumbnail && attachment.sizes.thumbnail.url) ? attachment.sizes.thumbnail.url : (attachment.icon || attachment.url);
+                    $preview.html('<img src="'+url+'" alt="" />');
                 });
                 frame.open();
             });
@@ -259,7 +237,7 @@ class JPRM_Labels_Store {
         echo '</div>';
     }
 
-    /** Save posted labels (keeps legacy field names; auto-fill id & order). */
+    /** Save posted labels (hidden id & order respected). */
     public static function handle_save() : void {
         if ( ! is_admin() ) return;
         if ( empty($_POST['jprm_labels_nonce']) || ! wp_verify_nonce( $_POST['jprm_labels_nonce'], 'jprm_labels_save' ) ) {
@@ -275,29 +253,24 @@ class JPRM_Labels_Store {
             $row = is_array($row) ? $row : [];
             $row = self::sanitize_row( $row );
 
-            // Skip completely empty lines
             if ( $row['label'] === '' && $row['slug'] === '' && (int)$row['icon_id'] === 0 ) {
                 continue;
             }
 
-            // Auto-fill ID if missing
             if ( $row['id'] === '' ) {
                 $row['id'] = $row['slug'] !== '' ? $row['slug'] : uniqid('lbl_');
             }
-            // Ensure uniqueness of ID in this save pass
             if ( isset($seen_ids[$row['id']]) ) {
                 $row['id'] .= '_' . $i;
             }
             $seen_ids[$row['id']] = true;
 
-            // Force numeric order based on incoming hidden field; fallback to loop index
             $row['order'] = isset($row['order']) ? (int)$row['order'] : $i;
 
             $clean[] = $row;
             $i++;
         }
 
-        // Reindex order to 0..n for cleanliness
         usort( $clean, function($a,$b){ return (int)($a['order'] ?? 0) <=> (int)($b['order'] ?? 0); } );
         foreach ( $clean as $k => $r ) { $clean[$k]['order'] = $k; }
 
@@ -328,6 +301,46 @@ class JPRM_Labels_Store {
             'active' => $active,
             'order'  => $order,
         ];
+    }
+
+    /** Render a single <tr> for the table body. */
+    protected static function row_html( int $index, array $row ) : string {
+        $id    = esc_attr( (string)($row['id'] ?? '') );
+        $slug  = esc_attr( (string)($row['slug'] ?? '') );
+        $label = esc_attr( (string)($row['label'] ?? '') );
+        if ( $label === '' ) { $label = esc_attr( (string)($row['label_text'] ?? '') ); }
+        $icon  = (int)($row['icon_id'] ?? 0);
+        $act   = ! empty($row['active']);
+        $order = (int)($row['order'] ?? $index);
+
+        $preview = '';
+        if ( $icon > 0 ) {
+            $img = wp_get_attachment_image( $icon, [24,24], false );
+            if ( is_string($img) ) { $preview = $img; }
+        }
+
+        ob_start();
+        ?>
+        <tr class="jprm-row">
+            <td class="col-drag"><span class="dashicons dashicons-menu jprm-drag" title="<?php echo esc_attr__( 'Drag', 'jellopoint-restaurant-menu' ); ?>"></span></td>
+            <td>
+                <input type="text" class="regular-text" name="labels[<?php echo $index; ?>][label]" value="<?php echo $label; ?>" />
+                <input type="hidden" name="labels[<?php echo $index; ?>][id]" value="<?php echo $id; ?>" />
+                <input type="hidden" name="labels[<?php echo $index; ?>][order]" value="<?php echo esc_attr($order); ?>" />
+            </td>
+            <td><input type="text" class="regular-text" name="labels[<?php echo $index; ?>][slug]" value="<?php echo $slug; ?>" /></td>
+            <td>
+                <div class="jprm-icon-wrap">
+                    <span class="jprm-icon-preview"><?php echo $preview; ?></span>
+                    <input type="hidden" name="labels[<?php echo $index; ?>][icon_id]" value="<?php echo esc_attr($icon); ?>" />
+                    <button type="button" class="button jprm-choose-icon"><?php echo esc_html__( 'Choose', 'jellopoint-restaurant-menu' ); ?></button>
+                    <button type="button" class="button jprm-clear-icon"><?php echo esc_html__( 'Clear', 'jellopoint-restaurant-menu' ); ?></button>
+                </div>
+            </td>
+            <td><label><input type="checkbox" name="labels[<?php echo $index; ?>][active]" value="1" <?php checked( $act, true ); ?> /> <?php echo esc_html__( 'Active', 'jellopoint-restaurant-menu' ); ?></label></td>
+        </tr>
+        <?php
+        return ob_get_clean();
     }
 }
 
