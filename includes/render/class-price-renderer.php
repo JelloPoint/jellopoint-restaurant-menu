@@ -11,6 +11,28 @@ if ( ! defined('ABSPATH') ) exit;
 class Price_Renderer {
 
     /**
+     * Convenience: render directly from a post's v3 JSON meta (jprm_price).
+     * Read-only. No fallbacks/migrations. Returns '' if invalid/missing.
+     *
+     * @param int   $post_id
+     * @param array $opts Same as render_pricegroup()
+     * @return string HTML (identical structure to render_pricegroup output)
+     */
+    public static function render_from_meta( int $post_id, array $opts = [] ) : string {
+        $post_id = (int)$post_id;
+        if ( $post_id <= 0 ) return '';
+
+        $raw = get_post_meta( $post_id, 'jprm_price', true );
+        if ( ! is_string( $raw ) || $raw === '' ) return '';
+
+        $cfg = json_decode( $raw, true );
+        if ( ! is_array( $cfg ) ) return '';
+
+        // sanitize in render_pricegroup via Price_Schema::sanitize_cfg
+        return self::render_pricegroup( $cfg, $opts );
+    }
+
+    /**
      * Render full <div class="jp-menu__pricegroup">…</div> for a v3 cfg.
      *
      * @param array $cfg Canonical schema (mode: single|multi)
@@ -27,7 +49,7 @@ class Price_Renderer {
             : 'text';
 
         $order_class = isset($opts['order_class']) && is_string($opts['order_class'])
-            ? $opts['order_class'] : 'jp-order--label-right';
+       ? $opts['order_class'] : 'jp-order--label-right';
 
         ob_start();
         echo '<div class="jp-menu__pricegroup">';
@@ -48,7 +70,7 @@ class Price_Renderer {
         if ( ($cfg['mode'] ?? '') === 'multiple' && ! empty($cfg['rows']) && is_array($cfg['rows']) ) {
             foreach ( $cfg['rows'] as $row ) {
                 $price = self::sanitize_price_string( $row['price'] ?? '' );
-                if ( $price === '' ) continue;
+           if ( $price === '' ) continue;
 
                 $ref     = (string)($row['label_ref'] ?? '');
                 $hide    = ! empty( $row['hide_icon'] );
@@ -66,23 +88,37 @@ class Price_Renderer {
         return ob_get_clean();
     }
 
-    /** Single price row grid */
+    /**
+     * Render one row: label (text/icon/both) + price span.
+     * Keeps exact classes/structure.
+     */
     protected static function row_html( string $price, string $label_text, int $icon_id, string $presentation, string $order_class, bool $hide_icon ) : string {
-        $label_html = self::label_html( $label_text, $icon_id, $presentation, $hide_icon );
-        $price_html = '<span class="jp-menu__value">' . esc_html( $price ) . '</span>';
+        $label_markup = self::get_label_markup( $label_text, $icon_id, $presentation, $hide_icon );
 
-        $label_col = '<div class="jp-col-label">' . $label_html . '</div>';
-        $price_col = '<div class="jp-col-price">' . $price_html . '</div>';
+        $price_html = '<span class="jp-menu__price">' . esc_html( $price ) . '</span>';
 
-        $inner = ($order_class === 'jp-order--label-left')
-            ? $label_col . $price_col
-            : $price_col . $label_col;
+        // Order: left label then price, or reversed, but keep classes identical
+        if ( $order_class === 'jp-order--label-left' ) {
+            return '<div class="jp-menu__row ' . esc_attr( $order_class ) . '">'
+                . '<span class="jp-menu__label">' . $label_markup . '</span>'
+                . $price_html
+                . '</div>';
+        }
 
-        return '<div class="jp-price-row ' . esc_attr( $order_class ) . '">' . $inner . '</div>';
+        // default/right
+        return '<div class="jp-menu__row ' . esc_attr( $order_class ) . '">'
+            . $price_html
+            . '<span class="jp-menu__label">' . $label_markup . '</span>'
+            . '</div>';
     }
 
-    /** Label + optional icon */
-    protected static function label_html( string $label_text, int $icon_id, string $presentation, bool $hide_icon ) : string {
+    /**
+     * Returns label markup according to presentation mode.
+     * - 'text'      => plain escaped text
+     * - 'icon'      => icon only (if available)
+     * - 'icon_text' => icon + text (space-separated)
+     */
+    protected static function get_label_markup( string $label_text, int $icon_id, string $presentation, bool $hide_icon ) : string {
         $icon_html = '';
 
         if ( ! $hide_icon && $icon_id > 0 ) {
@@ -100,7 +136,7 @@ class Price_Renderer {
 
         if ( $presentation === 'icon_text' ) {
             if ( $icon_html !== '' ) {
-                return $icon_html . ' ' . esc_html( $label_text );
+                return $icon_html + ' ' . esc_html( $label_text );
             }
             return esc_html( $label_text );
         }
