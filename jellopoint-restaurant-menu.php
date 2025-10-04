@@ -2,7 +2,7 @@
 /**
  * Plugin Name: JelloPoint – Restaurant Menu
  * Description: Restaurant Menu items, labels and Elementor widget.
- * Version: 2.0.5
+ * Version: 2.0.6
  * Author: JelloPoint
  * Text Domain: jellopoint-restaurant-menu
  */
@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 /* -------------------------------------------------
  * Constants
  * ------------------------------------------------- */
-if ( ! defined( 'JPRM_VERSION' ) )      define( 'JPRM_VERSION', '2.0.5' );
+if ( ! defined( 'JPRM_VERSION' ) )      define( 'JPRM_VERSION', '2.0.6' );
 if ( ! defined( 'JPRM_PLUGIN_FILE' ) )  define( 'JPRM_PLUGIN_FILE', __FILE__ );
 if ( ! defined( 'JPRM_PLUGIN_PATH' ) )  define( 'JPRM_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 if ( ! defined( 'JPRM_PLUGIN_URL' ) )   define( 'JPRM_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -54,6 +54,39 @@ add_action( 'elementor/editor/after_enqueue_styles', function() {
     }
     wp_enqueue_style( 'jprm-menu' );
 }, 10 );
+
+/* -------------------------------------------------
+ * CPT fallback (ONLY post type, since your taxonomies already exist)
+ * ------------------------------------------------- */
+function jprm_register_cpt_fallback() {
+    if ( post_type_exists( 'jprm_item' ) ) {
+        return;
+    }
+    register_post_type( 'jprm_item', [
+        'label'               => __( 'Menu Items', 'jellopoint-restaurant-menu' ),
+        'labels'              => [
+            'name'          => __( 'Menu Items', 'jellopoint-restaurant-menu' ),
+            'singular_name' => __( 'Menu Item', 'jellopoint-restaurant-menu' ),
+        ],
+        'public'              => true,
+        'show_ui'             => true,
+        'show_in_menu'        => true,
+        'show_in_rest'        => true,
+        'supports'            => [ 'title', 'editor', 'thumbnail', 'page-attributes' ],
+        'has_archive'         => false,
+        'rewrite'             => [ 'slug' => 'menu-item' ],
+        'menu_position'       => 25,
+    ] );
+}
+add_action( 'init', 'jprm_register_cpt_fallback', 3 ); // early: ensure available before queries
+
+// Flush rewrites when activating (helps first-time fallback)
+function jprm_activate() {
+    jprm_register_cpt_fallback();
+    flush_rewrite_rules();
+}
+register_activation_hook( __FILE__, 'jprm_activate' );
+register_deactivation_hook( __FILE__, 'flush_rewrite_rules' );
 
 /* -------------------------------------------------
  * Elementor integration
@@ -100,10 +133,11 @@ if ( class_exists( '\JelloPoint\RestaurantMenu\Plugin' ) ) {
         \JelloPoint\RestaurantMenu\Plugin::get_instance();
     }
 }
+
 /* =========================
- * JPRM TEMP DEBUG LOGGER
- * Remove after diagnosing.
+ * (Leave your TEMP DEBUG LOGGER if you still need it)
  * ========================= */
+
 if ( ! function_exists('jprm_dbg_str') ) {
     function jprm_dbg_str( $v ) {
         if ( is_bool($v) ) return $v ? 'true' : 'false';
