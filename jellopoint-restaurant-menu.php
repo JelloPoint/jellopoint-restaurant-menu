@@ -23,8 +23,8 @@ require_once JPRM_PLUGIN_PATH . 'includes/data/class-labels-store.php';
 require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-menuitem-meta.php';
 require_once JPRM_PLUGIN_PATH . 'includes/admin/save/class-menuitem-v3-writer.php'; // optional central writer
 
-// Elementor Widget (you already have the clean widget file in includes/widgets/)
-require_once JPRM_PLUGIN_PATH . 'includes/widgets/class-restaurant-menu.php';
+// IMPORTANT: Do NOT require the widget file here.
+// It will be lazy-loaded inside Plugin::register_elementor_widget() when Elementor is ready.
 
 // Init
 \JelloPoint\RestaurantMenu\Plugin::init();

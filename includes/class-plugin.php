@@ -8,8 +8,12 @@ class Plugin {
     public static function init() : void {
         add_action( 'init', [ __CLASS__, 'register_types' ] );
         add_action( 'init', [ __CLASS__, 'register_taxonomies' ] );
-        add_action( 'elementor/widgets/register', [ __CLASS__, 'register_elementor_widget' ] );
+
+        // Elementor integration (safe if Elementor not active)
         add_action( 'elementor/elements/categories_registered', [ __CLASS__, 'register_elementor_category' ] );
+        add_action( 'elementor/widgets/register', [ __CLASS__, 'register_elementor_widget' ] );
+
+        // Styles
         add_action( 'wp_enqueue_scripts', [ __CLASS__, 'register_assets' ] );
         add_action( 'elementor/editor/after_enqueue_styles', [ __CLASS__, 'enqueue_editor_styles' ] );
     }
@@ -17,8 +21,7 @@ class Plugin {
     public static function register_types() : void {
         if ( post_type_exists('jprm_menu_item') ) return;
 
-        // Parent menu slug for nesting under JelloPoint root in admin
-        $parent_menu_slug = 'jellopoint';
+        $parent_menu_slug = 'jellopoint'; // keep under JelloPoint root
 
         register_post_type( 'jprm_menu_item', [
             'label'         => __( 'Menu Items', 'jellopoint-restaurant-menu' ),
@@ -30,7 +33,7 @@ class Plugin {
             ],
             'public'        => true,
             'show_ui'       => true,
-            'show_in_menu'  => $parent_menu_slug, // keep under JelloPoint
+            'show_in_menu'  => $parent_menu_slug,
             'show_in_rest'  => true,
             'supports'      => [ 'title', 'page-attributes' ],
             'has_archive'   => false,
@@ -76,6 +79,7 @@ class Plugin {
     }
 
     public static function register_elementor_category( $elements_manager ) : void {
+        if ( ! is_object( $elements_manager ) ) return;
         $elements_manager->add_category( 'jellopoint-widgets', [
             'title' => __( 'JelloPoint', 'jellopoint-restaurant-menu' ),
             'icon'  => 'fa fa-plug',
@@ -83,8 +87,18 @@ class Plugin {
     }
 
     public static function register_elementor_widget( $widgets_manager ) : void {
-        // Widget class must be already included by the main plugin file
-        if ( class_exists( '\JelloPoint\RestaurantMenu\Widgets\Restaurant_Menu' ) ) {
+        // Only load the widget class now (Elementor is ready here)
+        if ( ! class_exists( '\Elementor\Widget_Base' ) ) return;
+
+        // Lazy-require the widget file here to avoid fatal on plugin load.
+        if ( defined('JPRM_PLUGIN_PATH') ) {
+            $file = JPRM_PLUGIN_PATH . 'includes/widgets/class-restaurant-menu.php';
+            if ( file_exists( $file ) ) {
+                require_once $file;
+            }
+        }
+
+        if ( class_exists( '\JelloPoint\RestaurantMenu\Widgets\Restaurant_Menu' ) && is_object( $widgets_manager ) ) {
             $widgets_manager->register( new \JelloPoint\RestaurantMenu\Widgets\Restaurant_Menu() );
         }
     }
