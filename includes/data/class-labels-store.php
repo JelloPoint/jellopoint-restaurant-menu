@@ -1,7 +1,7 @@
 <?php
 /**
  * Labels admin (clean) — manages only jprm_price_labels_v2.
- * Each row: { id, slug, label, icon_id, active, order }
+ * Attaches under the JelloPoint root menu created/ensured by Plugin::ensure_parent_menu().
  */
 if ( ! defined('ABSPATH') ) { exit; }
 
@@ -9,6 +9,7 @@ class JPRM_Labels_Store {
 
     const OPTION = 'jprm_price_labels_v2';
     const NONCE  = 'jprm_labels_save';
+    const PARENT = \JelloPoint\RestaurantMenu\Plugin::PARENT_SLUG; // 'jellopoint'
 
     public static function init() : void {
         add_action( 'admin_menu', [ __CLASS__, 'register_menu' ] );
@@ -16,10 +17,8 @@ class JPRM_Labels_Store {
     }
 
     public static function register_menu() : void {
-        // Parent slug must match your JelloPoint root menu slug.
-        $parent = 'jellopoint';
         add_submenu_page(
-            $parent,
+            self::PARENT,
             __( 'Price Labels', 'jellopoint-restaurant-menu' ),
             __( 'Price Labels', 'jellopoint-restaurant-menu' ),
             'manage_options',
@@ -33,7 +32,6 @@ class JPRM_Labels_Store {
         $opt = get_option( self::OPTION );
         $list = is_string($opt) ? json_decode($opt, true) : ( is_array($opt) ? $opt : [] );
         if ( ! is_array($list) ) $list = [];
-        // Sort by 'order'
         usort( $list, function($a,$b){
             $ao = isset($a['order']) ? (int)$a['order'] : 0;
             $bo = isset($b['order']) ? (int)$b['order'] : 0;
@@ -56,30 +54,30 @@ class JPRM_Labels_Store {
 
                 <table class="widefat fixed striped" style="max-width:1000px;">
                     <thead>
-                        <tr>
-                            <th style="width:120px;"><?php esc_html_e('ID', 'jellopoint-restaurant-menu'); ?></th>
-                            <th style="width:160px;"><?php esc_html_e('Slug', 'jellopoint-restaurant-menu'); ?></th>
-                            <th><?php esc_html_e('Label', 'jellopoint-restaurant-menu'); ?></th>
-                            <th style="width:110px;"><?php esc_html_e('Icon ID', 'jellopoint-restaurant-menu'); ?></th>
-                            <th style="width:90px;"><?php esc_html_e('Active', 'jellopoint-restaurant-menu'); ?></th>
-                            <th style="width:90px;"><?php esc_html_e('Order', 'jellopoint-restaurant-menu'); ?></th>
-                            <th style="width:120px;"><?php esc_html_e('Actions', 'jellopoint-restaurant-menu'); ?></th>
-                        </tr>
+                    <tr>
+                        <th style="width:120px;"><?php esc_html_e('ID', 'jellopoint-restaurant-menu'); ?></th>
+                        <th style="width:160px;"><?php esc_html_e('Slug', 'jellopoint-restaurant-menu'); ?></th>
+                        <th><?php esc_html_e('Label', 'jellopoint-restaurant-menu'); ?></th>
+                        <th style="width:110px;"><?php esc_html_e('Icon ID', 'jellopoint-restaurant-menu'); ?></th>
+                        <th style="width:90px;"><?php esc_html_e('Active', 'jellopoint-restaurant-menu'); ?></th>
+                        <th style="width:90px;"><?php esc_html_e('Order', 'jellopoint-restaurant-menu'); ?></th>
+                        <th style="width:120px;"><?php esc_html_e('Actions', 'jellopoint-restaurant-menu'); ?></th>
+                    </tr>
                     </thead>
                     <tbody id="jprm-labels-body">
-                        <?php
-                        if ( empty($list) ) {
-                            $list = [
-                                [ 'id'=>'pl-0','slug'=>'','label'=>'','icon_id'=>0,'active'=>1,'order'=>0 ]
-                            ];
-                        }
-                        foreach ( $list as $i => $row ) :
-                            $id     = isset($row['id']) ? (string)$row['id'] : '';
-                            $slug   = isset($row['slug']) ? (string)$row['slug'] : '';
-                            $label  = isset($row['label']) ? (string)$row['label'] : '';
-                            $icon   = isset($row['icon_id']) ? (int)$row['icon_id'] : 0;
-                            $active = ! empty( $row['active'] );
-                            $order  = isset($row['order']) ? (int)$row['order'] : 0;
+                    <?php
+                    if ( empty($list) ) {
+                        $list = [
+                            [ 'id'=>'pl-0','slug'=>'','label'=>'','icon_id'=>0,'active'=>1,'order'=>0 ]
+                        ];
+                    }
+                    foreach ( $list as $i => $row ) :
+                        $id     = isset($row['id']) ? (string)$row['id'] : '';
+                        $slug   = isset($row['slug']) ? (string)$row['slug'] : '';
+                        $label  = isset($row['label']) ? (string)$row['label'] : '';
+                        $icon   = isset($row['icon_id']) ? (int)$row['icon_id'] : 0;
+                        $active = ! empty( $row['active'] );
+                        $order  = isset($row['order']) ? (int)$row['order'] : 0;
                         ?>
                         <tr>
                             <td><input type="text" name="labels[<?php echo (int)$i; ?>][id]" value="<?php echo esc_attr($id); ?>" style="width:110px;" /></td>
@@ -90,7 +88,7 @@ class JPRM_Labels_Store {
                             <td><input type="number" name="labels[<?php echo (int)$i; ?>][order]" value="<?php echo (int)$order; ?>" step="1" style="width:80px;" /></td>
                             <td><button type="button" class="button jprm-del-row"><?php esc_html_e('Delete', 'jellopoint-restaurant-menu'); ?></button></td>
                         </tr>
-                        <?php endforeach; ?>
+                    <?php endforeach; ?>
                     </tbody>
                 </table>
 
@@ -158,7 +156,7 @@ class JPRM_Labels_Store {
         exit;
     }
 
-    /** Optional mapping helper if other code wants it */
+    /** Optional mapping helper */
     public static function map() : array {
         $map = [];
         foreach ( self::get_list() as $r ) {
