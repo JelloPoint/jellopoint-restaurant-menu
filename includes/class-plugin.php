@@ -5,22 +5,25 @@ if ( ! defined('ABSPATH') ) { exit; }
 
 class Plugin {
 
-    /** Our single parent menu slug and title */
-    const PARENT_SLUG = 'jprm_root';
+    /** One stable parent */
+    const PARENT_SLUG  = 'jprm_root';
     const PARENT_TITLE = 'JelloPoint Menu';
 
     public static function init() : void {
-        // Ensure one stable parent menu exists
+        // Make sure the root exists first
         add_action( 'admin_menu', [ __CLASS__, 'ensure_parent_menu' ], 5 );
 
         // Register types/taxonomies
         add_action( 'init', [ __CLASS__, 'register_types' ] );
         add_action( 'init', [ __CLASS__, 'register_taxonomies' ] );
 
-        // Add submenus (Menus, Sections, Menu Items)
+        // Add submenus in the exact order
         add_action( 'admin_menu', [ __CLASS__, 'register_submenus' ], 20 );
 
-        // Elementor integration (safe if Elementor not active)
+        // Remove WP's auto "duplicate" submenu for the parent
+        add_action( 'admin_menu', [ __CLASS__, 'remove_parent_duplicate' ], 99 );
+
+        // Elementor integration (lazy)
         add_action( 'elementor/elements/categories_registered', [ __CLASS__, 'register_elementor_category' ] );
         add_action( 'elementor/widgets/register', [ __CLASS__, 'register_elementor_widget' ] );
 
@@ -38,20 +41,25 @@ class Plugin {
                 if ( isset($m[2]) && $m[2] === self::PARENT_SLUG ) { $has = true; break; }
             }
         }
+
+        // Allow a custom cutlery icon URL via constant or filter; fallback to dashicons
+        $icon = defined('JPRM_MENU_ICON_URL') ? JPRM_MENU_ICON_URL : 'dashicons-carrot';
+        $icon = apply_filters('jprm/root_menu_icon', $icon);
+
         if ( ! $has ) {
             add_menu_page(
                 __( self::PARENT_TITLE, 'jellopoint-restaurant-menu' ),
                 __( self::PARENT_TITLE, 'jellopoint-restaurant-menu' ),
                 'manage_options',
                 self::PARENT_SLUG,
-                '__return_null',
-                'dashicons-carrot',
+                '__return_null',    // hub only
+                $icon,
                 58
             );
         }
     }
 
-    /** Register CPT — we hide it from top-level and link it as submenu manually */
+    /** Register CPT — keep it hidden from top-level and link via submenu */
     public static function register_types() : void {
         if ( post_type_exists('jprm_menu_item') ) return;
 
@@ -65,7 +73,7 @@ class Plugin {
             ],
             'public'        => true,
             'show_ui'       => true,
-            'show_in_menu'  => false,                 // important: avoid duplicate/extra roots
+            'show_in_menu'  => false,            // IMPORTANT: avoid extra roots; we add submenu manually
             'show_in_rest'  => true,
             'supports'      => [ 'title', 'page-attributes' ],
             'has_archive'   => false,
@@ -96,9 +104,9 @@ class Plugin {
         }
     }
 
-    /** Add the exact submenu structure under the single root */
+    /** Submenus in the exact order you requested */
     public static function register_submenus() : void {
-        // Menus (taxonomy UI)
+        // 1) Menus
         add_submenu_page(
             self::PARENT_SLUG,
             __( 'Menus', 'jellopoint-restaurant-menu' ),
@@ -107,7 +115,7 @@ class Plugin {
             'edit-tags.php?taxonomy=jprm_menu&post_type=jprm_menu_item'
         );
 
-        // Sections (taxonomy UI)
+        // 2) Sections
         add_submenu_page(
             self::PARENT_SLUG,
             __( 'Sections', 'jellopoint-restaurant-menu' ),
@@ -116,7 +124,7 @@ class Plugin {
             'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item'
         );
 
-        // Menu Items (CPT list)
+        // 3) Menu Items (CPT list)
         add_submenu_page(
             self::PARENT_SLUG,
             __( 'Menu Items', 'jellopoint-restaurant-menu' ),
@@ -125,7 +133,22 @@ class Plugin {
             'edit.php?post_type=jprm_menu_item'
         );
 
-        // Price Labels page is added by the Labels_Store class under the same parent
+        // 4) Price Labels — added by Labels_Store under same parent; if not loaded yet, keep a stub here:
+        if ( ! has_action('admin_menu', 'JPRM_Labels_Store::register_menu') ) {
+            add_submenu_page(
+                self::PARENT_SLUG,
+                __( 'Price Labels', 'jellopoint-restaurant-menu' ),
+                __( 'Price Labels', 'jellopoint-restaurant-menu' ),
+                'manage_options',
+                'jprm-price-labels',
+                function(){ echo '<div class="wrap"><h1>'.esc_html__('Price Labels','jellopoint-restaurant-menu').'</h1></div>'; }
+            );
+        }
+    }
+
+    /** Remove the auto-added duplicate submenu that mirrors the parent */
+    public static function remove_parent_duplicate() : void {
+        remove_submenu_page( self::PARENT_SLUG, self::PARENT_SLUG );
     }
 
     /** Assets */
