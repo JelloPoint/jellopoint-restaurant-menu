@@ -9,8 +9,6 @@
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-if ( ! defined('JPRM_EXPERIMENTAL') ) define('JPRM_EXPERIMENTAL', false);
-
 /* -------------------------------------------------
  * Constants
  * ------------------------------------------------- */
@@ -18,6 +16,16 @@ if ( ! defined( 'JPRM_VERSION' ) )      define( 'JPRM_VERSION', '2.0.6' );
 if ( ! defined( 'JPRM_PLUGIN_FILE' ) )  define( 'JPRM_PLUGIN_FILE', __FILE__ );
 if ( ! defined( 'JPRM_PLUGIN_PATH' ) )  define( 'JPRM_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 if ( ! defined( 'JPRM_PLUGIN_URL' ) )   define( 'JPRM_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+
+// --- Feature flags ---
+if ( ! defined('JPRM_EXPERIMENTAL') ) define('JPRM_EXPERIMENTAL', false);
+
+// (optional helper so you can override via filter if needed)
+if ( ! function_exists('jprm_exp') ) {
+    function jprm_exp(): bool {
+        return (bool) apply_filters('jprm/experimental', JPRM_EXPERIMENTAL);
+    }
+}
 
 /* -------------------------------------------------
  * Includes (explicit, fixed paths)
