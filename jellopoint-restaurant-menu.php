@@ -35,7 +35,7 @@ require_once JPRM_PLUGIN_PATH . 'includes/admin/save/class-menuitem-v3-writer.ph
 require_once JPRM_PLUGIN_PATH . 'includes/render/class-price-renderer.php';
 
 // Debug (admin-only shortcode)
-//require_once JPRM_PLUGIN_PATH . 'includes/debug/class-inspector.php';
+require_once JPRM_PLUGIN_PATH . 'includes/debug/class-inspector.php';
 
 /* -------------------------------------------------
  * Assets
