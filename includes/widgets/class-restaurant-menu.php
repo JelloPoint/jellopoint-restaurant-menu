@@ -10,7 +10,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 /**
  * JelloPoint – Restaurant Menu (Elementor Widget)
  * Stable rendering: title, description, single/multiple prices, labels & icons.
- * Now supports CPT slugs: jprm_item and jprm_menu_item (auto-detect).
+ * CPT autodetect: jprm_item and/or jprm_menu_item
+ * Meta autodetect: v3 JSON + legacy (rows JSON, split arrays, legacy single).
  */
 class Restaurant_Menu extends Widget_Base {
 
@@ -472,12 +473,13 @@ class Restaurant_Menu extends Widget_Base {
             'no_found_rows'  => true,
             'meta_query'     => [
                 'relation' => 'OR',
-                [ 'key' => 'jprm_price',      'compare' => 'EXISTS' ],
-                [ 'key' => 'jprm_price_rows', 'compare' => 'EXISTS' ],
-                [ 'key' => 'single_price',    'compare' => 'EXISTS' ],
+                [ 'key' => 'jprm_price',            'compare' => 'EXISTS' ],
+                [ 'key' => 'jprm_price_rows',       'compare' => 'EXISTS' ],
+                [ 'key' => 'single_price',          'compare' => 'EXISTS' ],
                 [ 'key' => '_jprm_price',           'compare' => 'EXISTS' ],
                 [ 'key' => '_jprm_price_amounts',   'compare' => 'EXISTS' ],
                 [ 'key' => '_jprm_price_labels',    'compare' => 'EXISTS' ],
+                [ 'key' => '_jprm_price_hideicons', 'compare' => 'EXISTS' ],
                 [ 'key' => 'jprm_price_v2',         'compare' => 'EXISTS' ],
                 [ 'key' => 'jprm_prices',           'compare' => 'EXISTS' ],
                 [ 'key' => 'prices',                'compare' => 'EXISTS' ],
@@ -492,12 +494,21 @@ class Restaurant_Menu extends Widget_Base {
         return $items;
     }
 
-    /** Build one item array from a post ID. */
+    /** Build one item array from a post ID (robust across versions). */
     protected function build_item_from_post( int $pid ) : array {
-        $title = get_the_title( $pid );
-        $desc  = get_post_meta( $pid, 'jprm_description', true );
-        $desc  = is_string($desc) ? $desc : '';
+        // --- Description ---
+        $desc = get_post_meta( $pid, 'jprm_description', true );
+        if ( ! is_string($desc) || $desc === '' ) {
+            $excerpt = get_post_field( 'post_excerpt', $pid );
+            if ( ! is_string($excerpt) || $excerpt === '' ) {
+                $content = get_post_field( 'post_content', $pid );
+                $desc = is_string($content) ? trim( wp_strip_all_tags( strip_shortcodes( $content ) ) ) : '';
+            } else {
+                $desc = $excerpt;
+            }
+        }
 
+        // --- v3 JSON (preferred) ---
         $cfg_json = get_post_meta( $pid, 'jprm_price', true );
         $cfg      = [];
         if ( is_string($cfg_json) && $cfg_json !== '' ) {
@@ -505,26 +516,108 @@ class Restaurant_Menu extends Widget_Base {
             if ( json_last_error() === JSON_ERROR_NONE && is_array($tmp) ) $cfg = $tmp;
         }
 
-        $single_price = get_post_meta( $pid, 'single_price', true );
+        $single_price     = '';
+        $single_label_ref = '';
+        $single_hide_icon = false;
+        $rows             = [];
 
-        $rows_json = get_post_meta( $pid, 'jprm_price_rows', true );
-        $rows      = [];
-        if ( is_string($rows_json) && $rows_json !== '' ) {
-            $t = json_decode($rows_json, true);
-            if ( json_last_error() === JSON_ERROR_NONE && is_array($t) ) $rows = $t;
+        if ( ! empty($cfg) && is_array($cfg) ) {
+            $mode = isset($cfg['mode']) ? (string)$cfg['mode'] : '';
+            if ( $mode === 'single' ) {
+                $single_price     = isset($cfg['price']) ? (string)$cfg['price'] : '';
+                $single_label_ref = isset($cfg['label_ref']) ? (string)$cfg['label_ref'] : '';
+                $single_hide_icon = ! empty($cfg['hide_icon']);
+            } elseif ( $mode === 'multi' && ! empty($cfg['rows']) && is_array($cfg['rows']) ) {
+                foreach ( $cfg['rows'] as $r ) {
+                    if ( empty($r['price']) ) continue;
+                    $rows[] = [
+                        'price'     => (string)$r['price'],
+                        'label_ref' => isset($r['label_ref']) ? (string)$r['label_ref'] : '',
+                        'hide_icon' => ! empty($r['hide_icon']),
+                    ];
+                }
+            }
         }
+
+        // --- Legacy JSON rows ---
+        if ( empty($rows) ) {
+            $rows_json = get_post_meta( $pid, 'jprm_price_rows', true );
+            if ( is_string($rows_json) && $rows_json !== '' ) {
+                $t = json_decode($rows_json, true);
+                if ( json_last_error() === JSON_ERROR_NONE && is_array($t) ) {
+                    foreach ( $t as $r ) {
+                        if ( empty($r['price']) ) continue;
+                        $rows[] = [
+                            'price'     => (string)$r['price'],
+                            'label_ref' => isset($r['label_ref']) ? (string)$r['label_ref'] : '',
+                            'hide_icon' => ! empty($r['hide_icon']),
+                        ];
+                    }
+                }
+            }
+        }
+
+        // --- Legacy split arrays (_jprm_price_amounts/_labels/_hideicons) ---
+        if ( empty($rows) ) {
+            $amts = get_post_meta( $pid, '_jprm_price_amounts', true );
+            $labs = get_post_meta( $pid, '_jprm_price_labels', true );
+            $hids = get_post_meta( $pid, '_jprm_price_hideicons', true );
+
+            if ( ! is_array($amts) && is_string($amts) && $amts !== '' ) {
+                $dec = json_decode($amts, true);
+                if ( json_last_error() === JSON_ERROR_NONE && is_array($dec) ) $amts = $dec;
+            }
+            if ( ! is_array($labs) && is_string($labs) && $labs !== '' ) {
+                $dec = json_decode($labs, true);
+                if ( json_last_error() === JSON_ERROR_NONE && is_array($dec) ) $labs = $dec;
+            }
+            if ( ! is_array($hids) && is_string($hids) && $hids !== '' ) {
+                $dec = json_decode($hids, true);
+                if ( json_last_error() === JSON_ERROR_NONE && is_array($dec) ) $hids = $dec;
+            }
+
+            if ( is_array($amts) && ! empty($amts) ) {
+                $max = max( count($amts), is_array($labs)?count($labs):0, is_array($hids)?count($hids):0 );
+                for ( $i = 0; $i < $max; $i++ ) {
+                    $p = isset($amts[$i]) ? (string)$amts[$i] : '';
+                    if ( $p === '' ) continue;
+                    $rows[] = [
+                        'price'     => $p,
+                        'label_ref' => isset($labs[$i]) ? (string)$labs[$i] : '',
+                        'hide_icon' => ! empty($hids[$i]),
+                    ];
+                }
+            }
+        }
+
+        // --- Legacy single ---
+        if ( $single_price === '' ) {
+            $sp = get_post_meta( $pid, 'single_price', true );
+            if ( is_string($sp) && $sp !== '' ) {
+                $single_price = $sp;
+            }
+        }
+        if ( $single_label_ref === '' ) {
+            $single_label_ref = get_post_meta( $pid, '_jprm_single_label_ref', true );
+            if ( ! is_string($single_label_ref) ) $single_label_ref = '';
+        }
+        $single_hide_icon = $single_hide_icon || ! empty( get_post_meta( $pid, '_jprm_single_hide_icon', true ) );
+
+        // --- Item-level defaults ---
+        $labels    = get_post_meta( $pid, '_jprm_labels', true );
+        $hide_icon = ! empty( get_post_meta( $pid, '_jprm_hide_icon', true ) );
 
         return [
             'ID'               => $pid,
-            'title'            => $title,
-            'description'      => $desc,
+            'title'            => get_the_title( $pid ),
+            'description'      => is_string($desc) ? $desc : '',
             'price_cfg'        => $cfg,
             'price'            => $single_price,
             'prices'           => $rows,
-            'single_label_ref' => get_post_meta($pid, '_jprm_single_label_ref', true),
-            'single_hide_icon' => ! empty( get_post_meta($pid, '_jprm_single_hide_icon', true) ),
-            'labels'           => get_post_meta($pid, '_jprm_labels', true),
-            'hide_icon'        => ! empty( get_post_meta($pid, '_jprm_hide_icon', true) ),
+            'single_label_ref' => $single_label_ref,
+            'single_hide_icon' => (bool)$single_hide_icon,
+            'labels'           => is_array($labels) ? $labels : [],
+            'hide_icon'        => (bool)$hide_icon,
         ];
     }
 
