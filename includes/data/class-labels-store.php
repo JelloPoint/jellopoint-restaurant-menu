@@ -1,14 +1,15 @@
 <?php
 /**
- * JPRM Price Labels Store (v2 storage) — POLISH (fixed)
- * Implements:
- * 1) ID hidden + auto-filled
- * 2) Columns: Name, Slug, Icon, Active (drag handle at left)
- * 3) Icon picker (media library) with preview
- * 4) Drag & drop ordering (hidden order field)
+ * JPRM Price Labels Store (v2 storage) — POLISH (fixed v3)
+ * Implements user's 4 requirements and ensures JS runs reliably.
  *
- * Storage option: jprm_price_labels_v2
- * Public API stays compatible; page renders via admin_page_{slug}.
+ * - ID hidden + auto-filled
+ * - Columns: Name, Slug, Icon, Active (drag handle)
+ * - Icon picker via media frame (+ preview, clear)
+ * - Drag & drop ordering (hidden 'order' field)
+ *
+ * Storage option: jprm_price_labels_v2 (unchanged)
+ * Public API: resolve()/all() compatible; prefers 'label' for text
  */
 if ( ! defined('ABSPATH') ) { exit; }
 
@@ -57,19 +58,30 @@ class JPRM_Labels_Store {
 
     public static function boot_admin_ui() : void {
         add_action( 'admin_init', [ __CLASS__, 'handle_save' ] );
+        add_action( 'admin_enqueue_scripts', [ __CLASS__, 'enqueue_assets' ] );
         add_action( 'admin_page_' . self::PAGE_SLUG, [ __CLASS__, 'render_admin_page' ] );
         add_action( 'admin_menu', [ __CLASS__, 'maybe_register_menu' ], 9 );
     }
 
+    /** Ensure required JS libs are present on our page. */
+    public static function enqueue_assets( $hook ) : void {
+        if ( isset($_GET['page']) && $_GET['page'] === self::PAGE_SLUG ) {
+            wp_enqueue_media();
+            wp_enqueue_script( 'jquery' );
+            wp_enqueue_script( 'jquery-ui-sortable' );
+            wp_enqueue_style( 'dashicons' );
+        }
+    }
+
     public static function maybe_register_menu() : void {
-        $parent_slug = 'jprm';
+        $parent_slug = 'jprm'; // matches your top-level 'JelloPoint Menu' slug
         add_submenu_page(
             $parent_slug,
             __( 'Price Labels', 'jellopoint-restaurant-menu' ),
             __( 'Price Labels', 'jellopoint-restaurant-menu' ),
             'manage_options',
             self::PAGE_SLUG,
-            '__return_null'
+            '__return_null' // we render via admin_page_{slug}
         );
     }
 
@@ -77,9 +89,6 @@ class JPRM_Labels_Store {
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_die( esc_html__( 'You do not have permission to access this page.', 'jellopoint-restaurant-menu' ) );
         }
-
-        wp_enqueue_media();
-        wp_enqueue_script( 'jquery-ui-sortable' );
 
         $rows    = self::all();
         usort( $rows, function($a,$b){ return (int)($a['order'] ?? 0) <=> (int)($b['order'] ?? 0); } );
@@ -142,14 +151,13 @@ class JPRM_Labels_Store {
         .jprm-hidden { display:none !important; }
         </style>
         <script>
-        (function($){
+        jQuery(function($){
             function uniqueId(){ return 'lbl_' + (Date.now().toString(36)) + '_' + Math.random().toString(36).slice(2,7); }
 
             function renumber(){
                 $('#jprm-labels-tbody tr').each(function(index){
                     var $tr = $(this);
                     $tr.find('input[name$="[order]"]').val(index);
-                    // Update the first bracket index in input names to maintain compact arrays
                     $tr.find('input, textarea, select').each(function(){
                         var name = $(this).attr('name');
                         if(!name) return;
@@ -215,8 +223,8 @@ class JPRM_Labels_Store {
                 });
                 frame.on('select', function(){
                     var attachment = frame.state().get('selection').first().toJSON();
-                    $input.val(attachment.id);
                     var url = (attachment.sizes && attachment.sizes.thumbnail && attachment.sizes.thumbnail.url) ? attachment.sizes.thumbnail.url : (attachment.icon || attachment.url);
+                    $input.val(attachment.id);
                     $preview.html('<img src="'+url+'" alt="" />');
                 });
                 frame.open();
@@ -231,7 +239,7 @@ class JPRM_Labels_Store {
 
             // On submit, renumber to capture final order
             $('form').on('submit', function(){ renumber(); });
-        })(jQuery);
+        });
         </script>
         <?php
         echo '</div>';
