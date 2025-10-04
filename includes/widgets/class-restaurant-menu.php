@@ -12,6 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * Stable rendering: title, description, single/multiple prices, labels & icons.
  * CPT autodetect: jprm_item and/or jprm_menu_item
  * Meta autodetect: v3 JSON + legacy (rows JSON, split arrays, broad prices/description keys).
+ * Label resolve: by ID or slug, via store OR directly from jprm_price_labels_v2 option.
  */
 class Restaurant_Menu extends Widget_Base {
 
@@ -274,8 +275,8 @@ class Restaurant_Menu extends Widget_Base {
                     }
                 }
 
-                if ( $single_ref !== '' && class_exists('JPRM_Labels_Store') ) {
-                    $res = \JPRM_Labels_Store::resolve( $single_ref );
+                if ( $single_ref !== '' ) {
+                    $res = $this->resolve_label( $single_ref );
                     $label_text = (string)($res['label_text'] ?? '');
                     $icon_id    = (int)($res['icon_id'] ?? 0);
                 }
@@ -306,8 +307,8 @@ class Restaurant_Menu extends Widget_Base {
 
                     $label_text = '';
                     $icon_id    = 0;
-                    if ( $ref !== '' && class_exists('JPRM_Labels_Store') ) {
-                        $res = \JPRM_Labels_Store::resolve( $ref );
+                    if ( $ref !== '' ) {
+                        $res = $this->resolve_label( $ref );
                         $label_text = (string)($res['label_text'] ?? '');
                         $icon_id    = (int)($res['icon_id'] ?? 0);
                     }
@@ -463,6 +464,64 @@ class Restaurant_Menu extends Widget_Base {
         return $out;
     }
 
+    /** Resolve a label by ID or slug; uses store if present, otherwise option jprm_price_labels_v2. */
+    protected function resolve_label( string $ref ) : array {
+        $ref = trim( (string)$ref );
+        if ( $ref === '' ) return [ 'label_text' => '', 'icon_id' => 0 ];
+
+        // 1) If Labels Store exists, try its helpers
+        if ( class_exists( 'JPRM_Labels_Store' ) ) {
+            // Try resolve() if available
+            if ( method_exists( 'JPRM_Labels_Store', 'resolve' ) ) {
+                $res = \JPRM_Labels_Store::resolve( $ref );
+                if ( is_array($res) && ( !empty($res['label_text']) || !empty($res['icon_id']) ) ) {
+                    return $res;
+                }
+            }
+            // Try map_by_id / map_by_slug
+            if ( method_exists( 'JPRM_Labels_Store', 'map_by_id' ) || method_exists( 'JPRM_Labels_Store', 'map_by_slug' ) ) {
+                if ( method_exists( 'JPRM_Labels_Store', 'map_by_id' ) ) {
+                    $byId = \JPRM_Labels_Store::map_by_id();
+                    if ( isset($byId[$ref]) ) {
+                        $row = $byId[$ref];
+                        return [ 'label_text' => (string)($row['label'] ?? ''), 'icon_id' => (int)($row['icon_id'] ?? 0) ];
+                    }
+                }
+                if ( method_exists( 'JPRM_Labels_Store', 'map_by_slug' ) ) {
+                    $bySlug = \JPRM_Labels_Store::map_by_slug();
+                    if ( isset($bySlug[$ref]) ) {
+                        $row = $bySlug[$ref];
+                        return [ 'label_text' => (string)($row['label'] ?? ''), 'icon_id' => (int)($row['icon_id'] ?? 0) ];
+                    }
+                }
+            }
+        }
+
+        // 2) Fallback: read option jprm_price_labels_v2 directly
+        $opt = get_option( 'jprm_price_labels_v2' );
+        $list = [];
+        if ( is_string($opt) && $opt !== '' ) {
+            $dec = json_decode($opt, true);
+            if ( json_last_error() === JSON_ERROR_NONE && is_array($dec) ) $list = $dec;
+        } elseif ( is_array($opt) ) {
+            $list = $opt;
+        }
+        if ( ! empty($list) ) {
+            foreach ( $list as $row ) {
+                $id   = isset($row['id']) ? (string)$row['id'] : '';
+                $slug = isset($row['slug']) ? (string)$row['slug'] : '';
+                if ( $id === $ref || $slug === $ref ) {
+                    return [
+                        'label_text' => (string)($row['label'] ?? ''),
+                        'icon_id'    => (int)($row['icon_id'] ?? 0),
+                    ];
+                }
+            }
+        }
+
+        return [ 'label_text' => '', 'icon_id' => 0 ];
+    }
+
     /**
      * Collect dynamic items from whichever CPT slug(s) exist: jprm_item, jprm_menu_item.
      */
@@ -508,7 +567,6 @@ class Restaurant_Menu extends Widget_Base {
         if ( $fallback_all && count($tax_query) === 1 ) { $tax_query = []; }
         elseif ( ! $fallback_all && count($tax_query) === 1 ) { return []; }
 
-        // Query across whichever CPTs exist
         $q = new \WP_Query( [
             'post_type'      => count($candidate_slugs) === 1 ? $candidate_slugs[0] : $candidate_slugs,
             'post_status'    => 'publish',
@@ -525,7 +583,6 @@ class Restaurant_Menu extends Widget_Base {
         }
         wp_reset_postdata();
 
-        // Frontend visibility filter
         if ( ! $this->is_elementor_edit_mode() && isset($s['hide_invisible']) && $s['hide_invisible'] === 'yes' ) {
             $items = array_filter( $items, function($it){
                 return apply_filters( 'jprm/item/is_visible', true, $it );
@@ -569,7 +626,7 @@ class Restaurant_Menu extends Widget_Base {
 
     /** Build one item array from a post ID (robust across versions & key shapes). */
     protected function build_item_from_post( int $pid ) : array {
-        // --- Description (broadened keys) ---
+        // --- Description: broadened keys then fallbacks ---
         $desc = $this->first_meta_string( $pid, [ 'jprm_description', '_jprm_description', 'description', '_description' ] );
         if ( $desc === '' ) {
             $excerpt = get_post_field( 'post_excerpt', $pid );

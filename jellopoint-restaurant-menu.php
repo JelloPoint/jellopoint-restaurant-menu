@@ -56,29 +56,34 @@ add_action( 'elementor/editor/after_enqueue_styles', function() {
 }, 10 );
 
 /* -------------------------------------------------
- * CPT fallback (ONLY post type, since your taxonomies already exist)
+ * CPT fallback (post type only) – nest under JelloPoint root
  * ------------------------------------------------- */
 function jprm_register_cpt_fallback() {
     if ( post_type_exists( 'jprm_item' ) ) {
         return;
     }
+    // Make sure the parent menu slug matches your real top-level JelloPoint menu.
+    // Commonly it's 'jellopoint' if you used add_menu_page('JelloPoint', ..., 'jellopoint', ...).
+    $parent_menu_slug = 'jellopoint';
+
     register_post_type( 'jprm_item', [
         'label'               => __( 'Menu Items', 'jellopoint-restaurant-menu' ),
         'labels'              => [
             'name'          => __( 'Menu Items', 'jellopoint-restaurant-menu' ),
             'singular_name' => __( 'Menu Item', 'jellopoint-restaurant-menu' ),
+            'add_new_item'  => __( 'Add Menu Item', 'jellopoint-restaurant-menu' ),
+            'edit_item'     => __( 'Edit Menu Item', 'jellopoint-restaurant-menu' ),
         ],
         'public'              => true,
         'show_ui'             => true,
-        'show_in_menu'        => true,
+        'show_in_menu'        => $parent_menu_slug, // ← nest under JelloPoint, not as its own root
         'show_in_rest'        => true,
         'supports'            => [ 'title', 'editor', 'thumbnail', 'page-attributes' ],
         'has_archive'         => false,
         'rewrite'             => [ 'slug' => 'menu-item' ],
-        'menu_position'       => 25,
     ] );
 }
-add_action( 'init', 'jprm_register_cpt_fallback', 3 ); // early: ensure available before queries
+add_action( 'init', 'jprm_register_cpt_fallback', 3 );
 
 // Flush rewrites when activating (helps first-time fallback)
 function jprm_activate() {
