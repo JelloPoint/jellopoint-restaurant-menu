@@ -100,3 +100,79 @@ if ( class_exists( '\JelloPoint\RestaurantMenu\Plugin' ) ) {
         \JelloPoint\RestaurantMenu\Plugin::get_instance();
     }
 }
+/* =========================
+ * JPRM TEMP DEBUG LOGGER
+ * Remove after diagnosing.
+ * ========================= */
+if ( ! function_exists('jprm_dbg_str') ) {
+    function jprm_dbg_str( $v ) {
+        if ( is_bool($v) ) return $v ? 'true' : 'false';
+        if ( is_null($v) ) return 'null';
+        if ( is_array($v) || is_object($v) ) return wp_json_encode( $v );
+        return (string) $v;
+    }
+}
+
+add_action( 'init', function() {
+    $cpt   = post_type_exists('jprm_item') ? 'YES' : 'NO';
+    $tax_m = taxonomy_exists('jprm_menu') ? 'YES' : 'NO';
+    $tax_s = taxonomy_exists('jprm_section') ? 'YES' : 'NO';
+    error_log("[JPRM DEBUG] init: CPT jprm_item={$cpt}; tax jprm_menu={$tax_m}; tax jprm_section={$tax_s}");
+}, 12 );
+
+add_action( 'wp', function() {
+    // 1) Broad "looks-like menu item" probe across ANY post type by meta keys
+    $q_any = new WP_Query([
+        'post_type'      => 'any',
+        'post_status'    => 'any',
+        'no_found_rows'  => true,
+        'posts_per_page' => 5,
+        'meta_query'     => [
+            'relation' => 'OR',
+            [ 'key' => 'jprm_price',      'compare' => 'EXISTS' ],
+            [ 'key' => 'jprm_price_rows', 'compare' => 'EXISTS' ],
+            [ 'key' => 'single_price',    'compare' => 'EXISTS' ],
+        ],
+    ]);
+    error_log('[JPRM DEBUG] wp: ANY+meta probe found=' . intval( $q_any->found_posts ));
+
+    if ( $q_any->have_posts() ) {
+        $q_any->the_post();
+        error_log('[JPRM DEBUG] wp: ANY sample => ID=' . get_the_ID() . ' post_type=' . get_post_type() . ' title="' . get_the_title() . '"');
+        wp_reset_postdata();
+    }
+
+    // 2) Strict CPT probe
+    $q_cpt = new WP_Query([
+        'post_type'      => 'jprm_item',
+        'post_status'    => 'any',
+        'no_found_rows'  => true,
+        'posts_per_page' => 5,
+    ]);
+    error_log('[JPRM DEBUG] wp: jprm_item probe found=' . intval( $q_cpt->found_posts ));
+
+    if ( $q_cpt->have_posts() ) {
+        $q_cpt->the_post();
+        error_log('[JPRM DEBUG] wp: jprm_item sample => ID=' . get_the_ID() . ' title="' . get_the_title() . '"');
+        wp_reset_postdata();
+    }
+}, 12 );
+
+// 3) Log what the widget receives (without altering it)
+add_filter( 'jprm/widget/get_items', function( $items, $settings, $widget ) {
+    $ds   = isset($settings['data_source']) ? $settings['data_source'] : '(unset)';
+    $menus    = isset($settings['query_menus'])    ? $settings['query_menus']    : [];
+    $sections = isset($settings['query_sections']) ? $settings['query_sections'] : [];
+    error_log('[JPRM DEBUG] widget hook: data_source=' . $ds . ' menus=' . jprm_dbg_str($menus) . ' sections=' . jprm_dbg_str($sections));
+
+    // DO NOT alter behavior; let normal code run
+    return null;
+}, 10, 3 );
+
+// 4) Final safety: log when the widget finds 0 items just before output
+add_action( 'wp_footer', function() {
+    // Only log in editor or if WP_DEBUG to avoid noisy logs
+    if ( defined('WP_DEBUG') && WP_DEBUG ) {
+        error_log('[JPRM DEBUG] footer ping (page rendered).');
+    }
+}, 99 );
