@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * JelloPoint – Restaurant Menu (Elementor Widget)
  * Stable rendering: title, description, single/multiple prices, labels & icons.
  * CPT autodetect: jprm_item and/or jprm_menu_item
- * Meta autodetect: v3 JSON + legacy (rows JSON, split arrays, legacy single).
+ * Meta autodetect: v3 JSON + legacy (rows JSON, split arrays, broad prices/description keys).
  */
 class Restaurant_Menu extends Widget_Base {
 
@@ -390,6 +390,79 @@ class Restaurant_Menu extends Widget_Base {
         return $slugs;
     }
 
+    /** Safely get first non-empty meta from a list of keys (string result). */
+    protected function first_meta_string( int $pid, array $keys ) : string {
+        foreach ( $keys as $k ) {
+            $v = get_post_meta( $pid, $k, true );
+            if ( is_string($v) && $v !== '' ) return $v;
+        }
+        return '';
+    }
+
+    /** Try to decode a meta value into an array: JSON → maybe_unserialize → ensure array. */
+    protected function meta_to_array( $raw ) : array {
+        if ( is_array( $raw ) ) return $raw;
+
+        if ( is_string( $raw ) ) {
+            $raw = trim( $raw );
+            if ( $raw === '' ) return [];
+            // JSON?
+            $j = json_decode( $raw, true );
+            if ( json_last_error() === JSON_ERROR_NONE && is_array($j) ) return $j;
+
+            // Serialized?
+            $maybe = @maybe_unserialize( $raw );
+            if ( is_array( $maybe ) ) return $maybe;
+        }
+        return [];
+    }
+
+    /** Normalize a loose array of price rows into [ [price, label_ref, hide_icon], ... ] */
+    protected function normalize_rows( array $rows_in ) : array {
+        $out = [];
+        // Pattern A: list of row arrays
+        if ( isset($rows_in[0]) && is_array($rows_in[0]) ) {
+            foreach ( $rows_in as $r ) {
+                $price = '';
+                if ( isset($r['price']) ) $price = (string)$r['price'];
+                elseif ( isset($r['amount']) ) $price = (string)$r['amount'];
+                elseif ( isset($r['value']) ) $price = (string)$r['value'];
+
+                if ( $price === '' ) continue;
+
+                $ref  = '';
+                if ( isset($r['label_ref']) ) $ref = (string)$r['label_ref'];
+                elseif ( isset($r['label']) ) $ref = (string)$r['label'];
+                elseif ( isset($r['ref']) ) $ref = (string)$r['ref'];
+
+                $hide = false;
+                if ( isset($r['hide_icon']) ) $hide = (bool)$r['hide_icon'];
+                elseif ( isset($r['hide']) ) $hide = (bool)$r['hide'];
+                elseif ( isset($r['icon_hidden']) ) $hide = (bool)$r['icon_hidden'];
+
+                $out[] = [
+                    'price'     => $price,
+                    'label_ref' => $ref,
+                    'hide_icon' => $hide,
+                ];
+            }
+            return $out;
+        }
+
+        // Pattern B: list of scalars (just prices)
+        if ( isset($rows_in[0]) && ! is_array($rows_in[0]) ) {
+            foreach ( $rows_in as $p ) {
+                $p = (string)$p;
+                if ( $p === '' ) continue;
+                $out[] = [ 'price' => $p, 'label_ref' => '', 'hide_icon' => false ];
+            }
+            return $out;
+        }
+
+        // Pattern C: assoc with separate arrays (already handled elsewhere), keep noop here
+        return $out;
+    }
+
     /**
      * Collect dynamic items from whichever CPT slug(s) exist: jprm_item, jprm_menu_item.
      */
@@ -494,11 +567,11 @@ class Restaurant_Menu extends Widget_Base {
         return $items;
     }
 
-    /** Build one item array from a post ID (robust across versions). */
+    /** Build one item array from a post ID (robust across versions & key shapes). */
     protected function build_item_from_post( int $pid ) : array {
-        // --- Description ---
-        $desc = get_post_meta( $pid, 'jprm_description', true );
-        if ( ! is_string($desc) || $desc === '' ) {
+        // --- Description (broadened keys) ---
+        $desc = $this->first_meta_string( $pid, [ 'jprm_description', '_jprm_description', 'description', '_description' ] );
+        if ( $desc === '' ) {
             $excerpt = get_post_field( 'post_excerpt', $pid );
             if ( ! is_string($excerpt) || $excerpt === '' ) {
                 $content = get_post_field( 'post_content', $pid );
@@ -509,8 +582,8 @@ class Restaurant_Menu extends Widget_Base {
         }
 
         // --- v3 JSON (preferred) ---
-        $cfg_json = get_post_meta( $pid, 'jprm_price', true );
         $cfg      = [];
+        $cfg_json = get_post_meta( $pid, 'jprm_price', true );
         if ( is_string($cfg_json) && $cfg_json !== '' ) {
             $tmp = json_decode($cfg_json, true);
             if ( json_last_error() === JSON_ERROR_NONE && is_array($tmp) ) $cfg = $tmp;
@@ -545,14 +618,7 @@ class Restaurant_Menu extends Widget_Base {
             if ( is_string($rows_json) && $rows_json !== '' ) {
                 $t = json_decode($rows_json, true);
                 if ( json_last_error() === JSON_ERROR_NONE && is_array($t) ) {
-                    foreach ( $t as $r ) {
-                        if ( empty($r['price']) ) continue;
-                        $rows[] = [
-                            'price'     => (string)$r['price'],
-                            'label_ref' => isset($r['label_ref']) ? (string)$r['label_ref'] : '',
-                            'hide_icon' => ! empty($r['hide_icon']),
-                        ];
-                    }
+                    $rows = $this->normalize_rows( $t );
                 }
             }
         }
@@ -563,18 +629,9 @@ class Restaurant_Menu extends Widget_Base {
             $labs = get_post_meta( $pid, '_jprm_price_labels', true );
             $hids = get_post_meta( $pid, '_jprm_price_hideicons', true );
 
-            if ( ! is_array($amts) && is_string($amts) && $amts !== '' ) {
-                $dec = json_decode($amts, true);
-                if ( json_last_error() === JSON_ERROR_NONE && is_array($dec) ) $amts = $dec;
-            }
-            if ( ! is_array($labs) && is_string($labs) && $labs !== '' ) {
-                $dec = json_decode($labs, true);
-                if ( json_last_error() === JSON_ERROR_NONE && is_array($dec) ) $labs = $dec;
-            }
-            if ( ! is_array($hids) && is_string($hids) && $hids !== '' ) {
-                $dec = json_decode($hids, true);
-                if ( json_last_error() === JSON_ERROR_NONE && is_array($dec) ) $hids = $dec;
-            }
+            $amts = $this->meta_to_array( $amts );
+            $labs = $this->meta_to_array( $labs );
+            $hids = $this->meta_to_array( $hids );
 
             if ( is_array($amts) && ! empty($amts) ) {
                 $max = max( count($amts), is_array($labs)?count($labs):0, is_array($hids)?count($hids):0 );
@@ -586,6 +643,18 @@ class Restaurant_Menu extends Widget_Base {
                         'label_ref' => isset($labs[$i]) ? (string)$labs[$i] : '',
                         'hide_icon' => ! empty($hids[$i]),
                     ];
+                }
+            }
+        }
+
+        // --- Broad multi price keys: jprm_prices / prices (JSON, serialized, or array) ---
+        if ( empty($rows) ) {
+            foreach ( [ 'jprm_prices', 'prices' ] as $k ) {
+                $raw = get_post_meta( $pid, $k, true );
+                $arr = $this->meta_to_array( $raw );
+                if ( ! empty( $arr ) ) {
+                    $rows = $this->normalize_rows( $arr );
+                    if ( ! empty($rows) ) break;
                 }
             }
         }
@@ -605,6 +674,7 @@ class Restaurant_Menu extends Widget_Base {
 
         // --- Item-level defaults ---
         $labels    = get_post_meta( $pid, '_jprm_labels', true );
+        $labels    = is_array($labels) ? $labels : $this->meta_to_array($labels);
         $hide_icon = ! empty( get_post_meta( $pid, '_jprm_hide_icon', true ) );
 
         return [
