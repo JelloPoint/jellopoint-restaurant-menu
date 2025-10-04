@@ -1,537 +1,91 @@
 <?php
-/**
- * JelloPoint Restaurant  Menu — Core
- * - Admin menu (no duplicates) + rename legacy "Restaurant Menu - Price Labels" to "Price Labels"
- * - CPT & Taxonomies
- * - Menu Item metabox (Price, Multiple Prices, Badge, etc.)
- * - Price Label term meta (icon uploader + CSS class) and list column
- * - Elementor widget registration (safe)
- */
-
 namespace JelloPoint\RestaurantMenu;
 
-if ( ! defined( 'ABSPATH' ) ) { exit; }
+if ( ! defined('ABSPATH') ) { exit; }
 
-final class Plugin {
-    private static $instance = null;
+class Plugin {
 
-    public static function instance() {
-        if ( null === self::$instance ) {
-            self::$instance = new self();
-        }
-        return self::$instance;
+    public static function init() : void {
+        add_action( 'init', [ __CLASS__, 'register_types' ] );
+        add_action( 'init', [ __CLASS__, 'register_taxonomies' ] );
+        add_action( 'elementor/widgets/register', [ __CLASS__, 'register_elementor_widget' ] );
+        add_action( 'elementor/elements/categories_registered', [ __CLASS__, 'register_elementor_category' ] );
+        add_action( 'wp_enqueue_scripts', [ __CLASS__, 'register_assets' ] );
+        add_action( 'elementor/editor/after_enqueue_styles', [ __CLASS__, 'enqueue_editor_styles' ] );
     }
 
-    private function __construct() {
-        add_action( 'plugins_loaded', [ $this, 'i18n' ] );
-        add_action( 'init', [ $this, 'register_post_type_and_tax' ], 9 );
-        add_action( 'init', [ $this, 'ensure_shortcode' ], 20 );
+    public static function register_types() : void {
+        if ( post_type_exists('jprm_menu_item') ) return;
 
-        // Admin menu (curated)
-        add_action( 'admin_menu', [ $this, 'register_admin_menu' ] );
-        add_action( 'admin_head', [ $this, 'hide_parent_duplicate_submenu' ] );
-        add_filter( 'parent_file',  [ $this, 'admin_parent_highlight' ] );
-        add_filter( 'submenu_file', [ $this, 'admin_submenu_highlight' ], 10, 2 );
-        // Late rename of legacy submenu label
-        add_action( 'admin_menu', [ $this, 'rename_existing_price_labels_submenu' ], 999 );
+        // Parent menu slug for nesting under JelloPoint root in admin
+        $parent_menu_slug = 'jellopoint';
 
-        // Menu Item metabox
-
-        // Price Labels term meta + list column
-        add_action( 'jprm_label_add_form_fields',  [ $this, 'label_add_fields' ] );
-        add_action( 'jprm_label_edit_form_fields', [ $this, 'label_edit_fields' ], 10, 2 );
-        add_action( 'created_jprm_label',          [ $this, 'save_label_meta' ] );
-        add_action( 'edited_jprm_label',           [ $this, 'save_label_meta' ] );
-        add_filter( 'manage_edit-jprm_label_columns', [ $this, 'label_columns' ] );
-        add_filter( 'manage_jprm_label_custom_column', [ $this, 'label_column_content' ], 10, 3 );
-        add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_media_for_label' ] );
-
-        // Front-end tiny CSS helpers for alignment parity
-        add_action( 'wp_head', [ $this, 'output_alignment_css' ] );
-
-        // Elementor: register category and widgets only when Elementor is present
-        add_action( 'elementor/init', function () {
-            add_action( 'elementor/elements/categories_registered', [ $this, 'register_category' ] );
-            add_action( 'elementor/widgets/register',               [ $this, 'register_widgets_autoload' ] );
-            add_action( 'elementor/widgets/widgets_registered',     [ $this, 'register_widgets_autoload_legacy' ] );
-        }, 1 );
-    }
-
-    public function i18n() {
-        load_plugin_textdomain( 'jellopoint-restaurant-menu' );
-    }
-
-    /** Register CPT + Taxonomies */
-    public function register_post_type_and_tax() {
-        // CPT: Menu Items
         register_post_type( 'jprm_menu_item', [
-            'label'        => __( 'Menu Items', 'jellopoint-restaurant-menu' ),
-            'labels'       => [
+            'label'         => __( 'Menu Items', 'jellopoint-restaurant-menu' ),
+            'labels'        => [
                 'name'          => __( 'Menu Items', 'jellopoint-restaurant-menu' ),
                 'singular_name' => __( 'Menu Item', 'jellopoint-restaurant-menu' ),
-                'add_new_item'  => __( 'Add New Menu Item', 'jellopoint-restaurant-menu' ),
+                'add_new_item'  => __( 'Add Menu Item', 'jellopoint-restaurant-menu' ),
                 'edit_item'     => __( 'Edit Menu Item', 'jellopoint-restaurant-menu' ),
-                'new_item'      => __( 'New Menu Item', 'jellopoint-restaurant-menu' ),
-                'menu_name'     => __( 'Menu Items', 'jellopoint-restaurant-menu' ),
             ],
-            'public'       => false,
-            'show_ui'      => true,
-            // prevent WordPress from auto-injecting submenus under our top-level
-            'show_in_menu' => false,
-            'supports' => ['title', 'thumbnail', 'page-attributes'],
-            'map_meta_cap' => true,
-        ] );
-
-        // Taxonomy: Menus (non-hierarchical)
-        register_taxonomy( 'jprm_menu', [ 'jprm_menu_item' ], [
-            'labels'            => [
-                'name'      => __( 'Menus', 'jellopoint-restaurant-menu' ),
-                'menu_name' => __( 'Menus', 'jellopoint-restaurant-menu' ),
-            ],
-            'public'            => false,
-            'show_ui'           => true,
-            'show_admin_column' => true,
-            'hierarchical'      => false,
-        ] );
-
-        // Taxonomy: Sections (hierarchical)
-        register_taxonomy( 'jprm_section', [ 'jprm_menu_item' ], [
-            'labels'            => [
-                'name'      => __( 'Sections', 'jellopoint-restaurant-menu' ),
-                'menu_name' => __( 'Sections', 'jellopoint-restaurant-menu' ),
-            ],
-            'public'            => false,
-            'show_ui'           => true,
-            'show_admin_column' => true,
-            'hierarchical'      => true,
-        ] );
-
-        // Taxonomy: Price Labels (non-hierarchical) — force menu label
-        register_taxonomy( 'jprm_label', [ 'jprm_menu_item' ], [
-            'labels'            => [
-                'name'      => __( 'Price Labels', 'jellopoint-restaurant-menu' ),
-                'menu_name' => __( 'Price Labels', 'jellopoint-restaurant-menu' ),
-            ],
-            'public'            => false,
-            'show_ui'           => true,
-            'show_admin_column' => true,
-            'hierarchical'      => false,
+            'public'        => true,
+            'show_ui'       => true,
+            'show_in_menu'  => $parent_menu_slug, // keep under JelloPoint
+            'show_in_rest'  => true,
+            'supports'      => [ 'title', 'page-attributes' ],
+            'has_archive'   => false,
+            'rewrite'       => [ 'slug' => 'menu-item' ],
+            'menu_icon'     => 'dashicons-carrot',
         ] );
     }
 
-    /** Admin menu: curated (no duplicates) */
-    public function register_admin_menu() {
-        add_menu_page(
-            __( 'JelloPoint Menu', 'jellopoint-restaurant-menu' ),
-            __( 'JelloPoint Menu', 'jellopoint-restaurant-menu' ),
-            'edit_posts',
-            'jprm_admin',
-            [ $this, 'render_admin_page' ],
-            'dashicons-food',
-            25
+    public static function register_taxonomies() : void {
+        if ( ! taxonomy_exists('jprm_menu') ) {
+            register_taxonomy( 'jprm_menu', [ 'jprm_menu_item' ], [
+                'label'        => __( 'Menus', 'jellopoint-restaurant-menu' ),
+                'public'       => false,
+                'show_ui'      => true,
+                'show_in_rest' => true,
+                'hierarchical' => true,
+            ] );
+        }
+        if ( ! taxonomy_exists('jprm_section') ) {
+            register_taxonomy( 'jprm_section', [ 'jprm_menu_item' ], [
+                'label'        => __( 'Sections', 'jellopoint-restaurant-menu' ),
+                'public'       => false,
+                'show_ui'      => true,
+                'show_in_rest' => true,
+                'hierarchical' => true,
+            ] );
+        }
+    }
+
+    public static function register_assets() : void {
+        if ( ! defined('JPRM_PLUGIN_URL') ) return;
+        wp_register_style(
+            'jprm-menu',
+            JPRM_PLUGIN_URL . 'includes/render/css/menu.css',
+            [],
+            defined('JPRM_VERSION') ? JPRM_VERSION : null
         );
-        add_submenu_page( 'jprm_admin', __( 'Menus', 'jellopoint-restaurant-menu' ), __( 'Menus', 'jellopoint-restaurant-menu' ), 'edit_posts', 'edit-tags.php?taxonomy=jprm_menu&post_type=jprm_menu_item' );
-        add_submenu_page( 'jprm_admin', __( 'Menu Items', 'jellopoint-restaurant-menu' ), __( 'Menu Items', 'jellopoint-restaurant-menu' ), 'edit_posts', 'edit.php?post_type=jprm_menu_item' );
-        add_submenu_page( 'jprm_admin', __( 'Sections', 'jellopoint-restaurant-menu' ), __( 'Sections', 'jellopoint-restaurant-menu' ), 'edit_posts', 'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item' );
-        // Do NOT add a Price Labels submenu here to avoid duplicates; we rename the legacy one instead.
     }
 
-    public function rename_existing_price_labels_submenu() {
-        if ( ! is_admin() ) return;
-        global $submenu;
-        if ( empty( $submenu ) || empty( $submenu['jprm_admin'] ) ) return;
-        foreach ( $submenu['jprm_admin'] as $idx => $row ) {
-            $label = isset( $row[0] ) ? wp_strip_all_tags( $row[0] ) : '';
-            $slug  = isset( $row[2] ) ? (string) $row[2] : '';
-            if ( false !== strpos( $slug, 'taxonomy=jprm_label' ) || stripos( $label, 'Restaurant Menu - Price Labels' ) !== false ) {
-                $submenu['jprm_admin'][ $idx ][0] = __( 'Price Labels', 'jellopoint-restaurant-menu' );
-                if ( isset( $submenu['jprm_admin'][ $idx ][3] ) ) {
-                    $submenu['jprm_admin'][ $idx ][3] = __( 'Price Labels', 'jellopoint-restaurant-menu' );
-                }
-            }
+    public static function enqueue_editor_styles() : void {
+        // Ensure styling also loads inside Elementor editor preview
+        wp_enqueue_style( 'jprm-menu' );
+    }
+
+    public static function register_elementor_category( $elements_manager ) : void {
+        $elements_manager->add_category( 'jellopoint-widgets', [
+            'title' => __( 'JelloPoint', 'jellopoint-restaurant-menu' ),
+            'icon'  => 'fa fa-plug',
+        ] );
+    }
+
+    public static function register_elementor_widget( $widgets_manager ) : void {
+        // Widget class must be already included by the main plugin file
+        if ( class_exists( '\JelloPoint\RestaurantMenu\Widgets\Restaurant_Menu' ) ) {
+            $widgets_manager->register( new \JelloPoint\RestaurantMenu\Widgets\Restaurant_Menu() );
         }
-    }
-
-    public function render_admin_page() {
-        echo '<div class="wrap"><h1>'. esc_html__( 'JelloPoint Menu', 'jellopoint-restaurant-menu' ) .'</h1><p>'. esc_html__( 'Manage Menus, Menu Items, Sections and Price Labels.', 'jellopoint-restaurant-menu' ) .'</p></div>';
-    }
-
-    public function hide_parent_duplicate_submenu() {
-        remove_submenu_page( 'jprm_admin', 'jprm_admin' );
-    }
-
-    public function admin_parent_highlight( $parent ) {
-        $screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
-        if ( ! $screen ) return $parent;
-        if ( 'jprm_menu_item' === ( $screen->post_type ?? '' ) ) return 'jprm_admin';
-        if ( 'edit-tags' === ( $screen->base ?? '' ) && in_array( ( $screen->taxonomy ?? '' ), [ 'jprm_menu', 'jprm_label', 'jprm_section' ], true ) ) return 'jprm_admin';
-        return $parent;
-    }
-
-    public function admin_submenu_highlight( $submenu_file, $parent_file ) {
-        $screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
-        if ( 'jprm_admin' !== $parent_file || ! $screen ) return $submenu_file;
-        if ( 'jprm_menu_item' === ( $screen->post_type ?? '' ) ) return 'edit.php?post_type=jprm_menu_item';
-        if ( 'edit-tags' === ( $screen->base ?? '' ) ) {
-            if ( 'jprm_menu' === ( $screen->taxonomy ?? '' ) )   return 'edit-tags.php?taxonomy=jprm_menu&post_type=jprm_menu_item';
-            if ( 'jprm_section' === ( $screen->taxonomy ?? '' ) ) return 'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item';
-            if ( 'jprm_label' === ( $screen->taxonomy ?? '' ) )   return 'edit-tags.php?taxonomy=jprm_label&post_type=jprm_menu_item';
-        }
-        return $submenu_file;
-    }
-
-    /* === Menu Item Metabox === */
-
-
-
-    /* === Price Labels: term meta (icon image + CSS class) === */
-    public function enqueue_media_for_label( $hook ) {
-        if ( empty( $_GET['taxonomy'] ) || $_GET['taxonomy'] !== 'jprm_label' ) return;
-        wp_enqueue_media();
-        $js = <<<JS
-(function($){
-  function bind(){
-    $(document).on('click','.jprm-upload-icon',function(e){
-      e.preventDefault();
-      var $w = $(this).closest('.form-field, .jprm-term-meta, tr');
-      var frame = wp.media({ title: 'Select Icon', multiple:false, library:{ type:'image' } });
-      frame.on('select', function(){
-        var a = frame.state().get('selection').first().toJSON();
-        var url = (a.sizes && a.sizes.thumbnail) ? a.sizes.thumbnail.url : a.url;
-        $w.find('.jprm-icon-id').val(a.id);
-        $w.find('.jprm-icon-preview').html('<img src="'+url+'" style="height:40px;width:auto;border-radius:3px" />');
-        $w.find('.jprm-remove-icon').show();
-      });
-      frame.open();
-    });
-    $(document).on('click','.jprm-remove-icon',function(e){
-      e.preventDefault();
-      var $w = $(this).closest('.form-field, .jprm-term-meta, tr');
-      $w.find('.jprm-icon-id').val('');
-      $w.find('.jprm-icon-preview').empty();
-      $(this).hide();
-    });
-  }
-  $(document).ready(bind);
-})(jQuery);
-JS;
-        wp_add_inline_script( 'jquery-core', $js );
-        $css = '.column-jprm_label_icon{width:70px}.jprm-term-meta .jprm-icon-preview img{height:40px;width:auto;border-radius:3px}';
-        wp_add_inline_style( 'common', $css );
-    }
-
-    public function label_add_fields() {
-        ?>
-        <div class="form-field jprm-term-meta">
-            <label for="jprm_label_icon_id"><?php esc_html_e( 'Icon', 'jellopoint-restaurant-menu' ); ?></label>
-            <div class="jprm-icon-preview"></div>
-            <input type="hidden" class="jprm-icon-id" name="jprm_label_icon_id" id="jprm_label_icon_id" value="" />
-            <p>
-                <button class="button jprm-upload-icon"><?php esc_html_e( 'Upload Icon', 'jellopoint-restaurant-menu' ); ?></button>
-                <button class="button-secondary jprm-remove-icon" style="display:none;"><?php esc_html_e( 'Remove', 'jellopoint-restaurant-menu' ); ?></button>
-            </p>
-            <p class="description"><?php esc_html_e( 'Upload a small image to represent this label (e.g., vegan, spicy).', 'jellopoint-restaurant-menu' ); ?></p>
-        </div>
-        <div class="form-field">
-            <label for="jprm_label_icon_class"><?php esc_html_e( 'Icon CSS class (optional)', 'jellopoint-restaurant-menu' ); ?></label>
-            <input type="text" name="jprm_label_icon_class" id="jprm_label_icon_class" value="" />
-            <p class="description"><?php esc_html_e( 'Alternative to an image: a CSS class like “fas fa-pepper-hot”.', 'jellopoint-restaurant-menu' ); ?></p>
-        </div>
-        <?php
-    }
-
-    public function label_edit_fields( $term, $taxonomy ) {
-        $icon_id    = (int) get_term_meta( $term->term_id, '_jprm_icon_id', true );
-        $icon_class = (string) get_term_meta( $term->term_id, '_jprm_icon_class', true );
-        $thumb      = $icon_id ? wp_get_attachment_image( $icon_id, 'thumbnail', false, [ 'style' => 'height:40px;width:auto;border-radius:3px' ] ) : '';
-        ?>
-        <tr class="form-field jprm-term-meta">
-            <th scope="row"><label for="jprm_label_icon_id"><?php esc_html_e( 'Icon', 'jellopoint-restaurant-menu' ); ?></label></th>
-            <td>
-                <div class="jprm-icon-preview"><?php echo $thumb ?: ''; ?></div>
-                <input type="hidden" class="jprm-icon-id" name="jprm_label_icon_id" id="jprm_label_icon_id" value="<?php echo esc_attr( $icon_id ); ?>" />
-                <p>
-                    <button class="button jprm-upload-icon"><?php esc_html_e( 'Upload Icon', 'jellopoint-restaurant-menu' ); ?></button>
-                    <button class="button-secondary jprm-remove-icon" <?php echo $icon_id ? '' : 'style="display:none;"'; ?>><?php esc_html_e( 'Remove', 'jellopoint-restaurant-menu' ); ?></button>
-                </p>
-            </td>
-        </tr>
-        <tr class="form-field">
-            <th scope="row"><label for="jprm_label_icon_class"><?php esc_html_e( 'Icon CSS class (optional)', 'jellopoint-restaurant-menu' ); ?></label></th>
-            <td>
-                <input type="text" name="jprm_label_icon_class" id="jprm_label_icon_class" value="<?php echo esc_attr( $icon_class ); ?>" class="regular-text" />
-                <p class="description"><?php esc_html_e( 'Alternative to an image: a CSS class like “fas fa-pepper-hot”.', 'jellopoint-restaurant-menu' ); ?></p>
-            </td>
-        </tr>
-        <?php
-    }
-
-    public function save_label_meta( $term_id ) {
-        if ( isset( $_POST['jprm_label_icon_id'] ) ) {
-            update_term_meta( $term_id, '_jprm_icon_id', absint( $_POST['jprm_label_icon_id'] ) );
-        }
-        if ( isset( $_POST['jprm_label_icon_class'] ) ) {
-            update_term_meta( $term_id, '_jprm_icon_class', sanitize_text_field( wp_unslash( $_POST['jprm_label_icon_class'] ) ) );
-        }
-    }
-
-    public function label_columns( $columns ) {
-        $new = [];
-        foreach ( $columns as $key => $label ) {
-            $new[ $key ] = $label;
-            if ( 'name' === $key ) { $new['jprm_label_icon'] = __( 'Icon', 'jellopoint-restaurant-menu' ); }
-        }
-        return $new;
-    }
-
-    public function label_column_content( $content, $column, $term_id ) {
-        if ( 'jprm_label_icon' === $column ) {
-            $icon_id    = (int) get_term_meta( $term_id, '_jprm_icon_id', true );
-            $icon_class = (string) get_term_meta( $term_id, '_jprm_icon_class', true );
-            if ( $icon_id ) {
-                $img = wp_get_attachment_image( $icon_id, 'thumbnail', false, [ 'style' => 'height:32px;width:auto;border-radius:3px' ] );
-                if ( $img ) return $img;
-            }
-            if ( $icon_class ) return '<span class="'. esc_attr( $icon_class ) .'" aria-hidden="true"></span>';
-            return '—';
-        }
-        return $content;
-    }
-
-    /* Front-end helper CSS for alignment parity */
-    public function output_alignment_css() {
-        echo '<style id="jprm-fixes-inline-css">
-        .jp-menu__inner{display:grid;grid-template-columns:1fr auto;align-items:start;gap:1rem}
-        .jp-box-right{display:flex;flex-direction:column;align-items:flex-end}
-        .jp-menu__pricegroup{display:inline-grid;justify-items:end;text-align:right}
-        .jp-menu__price-row{display:flex;align-items:center;justify-content:space-between;gap:.5rem;width:100%}
-        .jp-menu__price-row .jp-col{display:block}
-        .jp-menu__price-row .jp-col.jp-col-labelwrap{display:inline-flex;align-items:center;gap:.5rem}
-        </style>';
-    }
-
-    /* === Elementor integration === */
-    public function register_category( $elements_manager ) {
-        $slug = 'jellopoint-widgets';
-        if ( method_exists( $elements_manager, 'get_categories' ) ) {
-            $cats = $elements_manager->get_categories();
-            if ( ! isset( $cats[ $slug ] ) ) {
-                $elements_manager->add_category( $slug, [ 'title' => __( 'JelloPoint Widgets', 'jellopoint-restaurant-menu' ), 'icon' => 'fa fa-plug' ] );
-            }
-        } else {
-            // Fallback: add anyway
-            $elements_manager->add_category( $slug, [ 'title' => __( 'JelloPoint Widgets', 'jellopoint-restaurant-menu' ), 'icon' => 'fa fa-plug' ] );
-        }
-    }
-
-    public function register_widgets_autoload( $widgets_manager ) {
-        $classes = $this->autoload_widgets();
-        foreach ( $classes as $class ) {
-            $widgets_manager->register( new $class() );
-        }
-    }
-
-    public function register_widgets_autoload_legacy() {
-        if ( ! class_exists( '\\Elementor\\Plugin' ) ) return;
-        $classes = $this->autoload_widgets();
-        foreach ( $classes as $class ) {
-            \Elementor\Plugin::instance()->widgets_manager->register_widget_type( new $class() );
-        }
-    }
-
-    private function autoload_widgets() {
-        if ( ! class_exists( '\\Elementor\\Widget_Base' ) ) return [];
-        $widgets_dir = plugin_dir_path( __FILE__ ) . 'widgets/';
-        if ( ! is_dir( $widgets_dir ) ) return [];
-        $before = get_declared_classes();
-        foreach ( glob( $widgets_dir . '*.php' ) as $file ) {
-            if ( is_readable( $file ) ) require_once $file;
-        }
-        $after = get_declared_classes();
-        $new = array_diff( $after, $before );
-        $found = [];
-        foreach ( $new as $fqcn ) {
-            if ( is_subclass_of( $fqcn, '\\Elementor\\Widget_Base' ) ) $found[] = $fqcn;
-        }
-        return $found;
-    }
-
-
-    /** Ensure the [jprm_menu] shortcode exists in admin/editor so Elementor preview renders. */
-    public function ensure_shortcode() {
-        if ( shortcode_exists( 'jprm_menu' ) ) {
-            return;
-        }
-        add_shortcode( 'jprm_menu', [ $this, 'render_shortcode' ] );
-    }
-
-    /** Minimal renderer for [jprm_menu] to support editor preview if original handler isn't loaded. */
-    public function render_shortcode( $atts ) {
-        $atts = shortcode_atts( [
-            'menu' => '',
-            'sections' => '',
-            'show_section_headings' => 'yes',
-            'show_hierarchy' => 'yes',
-            'section_mode' => 'include', // include|exclude
-        ], $atts, 'jprm_menu' );
-
-        $menu_term = isset( $atts['menu'] ) ? trim( (string) $atts['menu'] ) : '';
-        if ( '' === $menu_term ) {
-            if ( is_admin() ) {
-                return '<div class="notice inline notice-warning"><p>'. esc_html__( 'Select a Menu in the widget settings to preview.', 'jellopoint-restaurant-menu' ) .'</p></div>';
-            }
-            return '';
-        }
-
-        // Parse sections
-        $sections = array_filter( array_map( 'trim', explode( ',', (string) $atts['sections'] ) ) );
-        $section_mode = ( $atts['section_mode'] === 'exclude' ) ? 'exclude' : 'include';
-        $show_heads = ( $atts['show_section_headings'] === 'yes' );
-        $show_hier  = ( $atts['show_hierarchy'] === 'yes' );
-
-        // Build base tax query with selected menu
-        $tax_query = [
-            'relation' => 'AND',
-            [
-                'taxonomy' => 'jprm_menu',
-                'field'    => is_numeric( $menu_term ) ? 'term_id' : 'slug',
-                'terms'    => [ is_numeric( $menu_term ) ? (int) $menu_term : $menu_term ],
-            ],
-        ];
-
-        $args = [
-            'post_type'      => 'jprm_menu_item',
-            'posts_per_page' => -1,
-            'orderby'        => [ 'menu_order' => 'ASC', 'title' => 'ASC' ],
-            'tax_query'      => $tax_query,
-            'no_found_rows'  => true,
-        ];
-
-        // If sections provided, we will filter when not showing headings. If showing headings, we group by section later.
-        if ( ! $show_heads && ! empty( $sections ) ) {
-            $args['tax_query'][] = [
-                'taxonomy' => 'jprm_section',
-                'field'    => 'term_id',
-                'terms'    => array_map( 'intval', $sections ),
-                'operator' => ( $section_mode === 'exclude' ) ? 'NOT IN' : 'IN',
-            ];
-        }
-
-        $q = new \WP_Query( $args );
-
-        ob_start();
-        echo '<div class="jp-menu">';
-        if ( ! $show_heads ) {
-            // flat list
-            while ( $q->have_posts() ) { $q->the_post();
-                $this->render_item_card( get_the_ID() );
-            }
-            \wp_reset_postdata();
-        } else {
-            // Group by sections (respecting hierarchy if possible)
-            $terms = get_terms( [ 'taxonomy' => 'jprm_section', 'hide_empty' => false ] );
-            $by_id = [];
-            foreach ( $terms as $t ) { $by_id[ $t->term_id ] = $t; }
-            // Build hierarchy
-            $children = [];
-            foreach ( $terms as $t ) {
-                $p = (int) $t->parent;
-                if ( ! isset( $children[ $p ] ) ) $children[ $p ] = [];
-                $children[ $p ][] = $t->term_id;
-            }
-            // Filter top-level terms if a sections filter is provided
-            $start_nodes = isset( $children[0] ) ? $children[0] : [];
-            if ( ! empty( $sections ) ) {
-                $set = array_map( 'intval', $sections );
-                if ( $section_mode === 'include' ) {
-                    $start_nodes = array_values( array_intersect( $start_nodes, $set ) );
-                } else {
-                    $start_nodes = array_values( array_diff( $start_nodes, $set ) );
-                }
-            }
-            // Render recursively
-            $render_section = function( $term_id, $depth ) use ( &$render_section, &$children, $menu_term ) {
-                $term = get_term( $term_id, 'jprm_section' );
-                if ( ! $term || $term instanceof \WP_Error ) return;
-                echo '<h3 class="jp-menu__section-title">'. esc_html( $term->name ) .'</h3>';
-                // Query items in this section + menu
-                $q2 = new \WP_Query( [
-                    'post_type' => 'jprm_menu_item',
-                    'posts_per_page' => -1,
-                    'orderby' => [ 'menu_order' => 'ASC', 'title' => 'ASC' ],
-                    'tax_query' => [
-                        'relation' => 'AND',
-                        [
-                            'taxonomy' => 'jprm_menu',
-                            'field'    => is_numeric( $menu_term ) ? 'term_id' : 'slug',
-                            'terms'    => [ is_numeric( $menu_term ) ? (int) $menu_term : $menu_term ],
-                        ],
-                        [
-                            'taxonomy' => 'jprm_section',
-                            'field'    => 'term_id',
-                            'terms'    => [ (int) $term_id ],
-                            'include_children' => false,
-                        ]
-                    ],
-                    'no_found_rows' => true,
-                ] );
-                while ( $q2->have_posts() ) { $q2->the_post();
-                    $this->render_item_card( get_the_ID() );
-                }
-                \wp_reset_postdata();
-                // children
-                if ( ! empty( $children[ $term_id ] ) ) {
-                    foreach ( $children[ $term_id ] as $child_id ) {
-                        $render_section( $child_id, $depth+1 );
-                    }
-                }
-            };
-            foreach ( $start_nodes as $top_id ) {
-                $render_section( (int) $top_id, 0 );
-            }
-        }
-        echo '</div>';
-
-        return ob_get_clean();
-    }
-
-    /** Render one menu item card based on stored meta. */
-    private function render_item_card( $post_id ) {
-        $title = get_the_title( $post_id );
-        $desc  = get_post_meta( $post_id, '_jprm_desc', true );
-        $price = get_post_meta( $post_id, '_jprm_price', true );
-        $multi = (bool) get_post_meta( $post_id, '_jprm_multi', true );
-        $rows  = get_post_meta( $post_id, '_jprm_multi_rows', true );
-        if ( ! is_array( $rows ) ) {
-            $dec = json_decode( (string) $rows, true );
-            $rows = is_array( $dec ) ? $dec : [];
-        }
-        echo '<div class="jp-menu__item">';
-        echo '<div class="jp-menu__inner">';
-        echo '<div class="jp-box-left">';
-        echo '<div class="jp-menu__title">'. esc_html( $title ) .'</div>';
-        if ( $desc ) echo '<div class="jp-menu__desc">'. wp_kses_post( $desc ) .'</div>';
-        echo '</div>';
-        echo '<div class="jp-box-right">';
-        if ( $multi && ! empty( $rows ) ) {
-            echo '<div class="jp-menu__pricegroup">';
-            foreach ( $rows as $r ) {
-                $label = isset( $r['label_custom'] ) ? $r['label_custom'] : '';
-                $amt   = isset( $r['amount'] ) ? $r['amount'] : '';
-                echo '<div class="jp-menu__price-row"><span class="jp-col jp-col-labelwrap">'. esc_html( $label ) .'</span><span class="jp-col jp-col-price">'. esc_html( $amt ) .'</span></div>';
-            }
-            echo '</div>';
-        } elseif ( $price !== '' ) {
-            echo '<div class="jp-menu__price">'. esc_html( $price ) .'</div>';
-        }
-        echo '</div>'; // right
-        echo '</div>'; // inner
-        echo '</div>'; // item
     }
 }
-
-/* Bootstrap */
-if ( ! function_exists( __NAMESPACE__ . '\\jprm_bootstrap' ) ) {
-    function jprm_bootstrap() { return Plugin::instance(); }
-}
-jprm_bootstrap();
