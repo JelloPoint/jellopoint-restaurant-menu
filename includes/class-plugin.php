@@ -5,14 +5,20 @@ if ( ! defined('ABSPATH') ) { exit; }
 
 class Plugin {
 
-    /** Our desired parent slug */
-    const PARENT_SLUG = 'jellopoint';
+    /** Our single parent menu slug and title */
+    const PARENT_SLUG = 'jprm_root';
+    const PARENT_TITLE = 'JelloPoint Menu';
 
     public static function init() : void {
-        add_action( 'admin_menu', [ __CLASS__, 'ensure_parent_menu' ], 5 ); // create parent early if missing
+        // Ensure one stable parent menu exists
+        add_action( 'admin_menu', [ __CLASS__, 'ensure_parent_menu' ], 5 );
 
+        // Register types/taxonomies
         add_action( 'init', [ __CLASS__, 'register_types' ] );
         add_action( 'init', [ __CLASS__, 'register_taxonomies' ] );
+
+        // Add submenus (Menus, Sections, Menu Items)
+        add_action( 'admin_menu', [ __CLASS__, 'register_submenus' ], 20 );
 
         // Elementor integration (safe if Elementor not active)
         add_action( 'elementor/elements/categories_registered', [ __CLASS__, 'register_elementor_category' ] );
@@ -23,37 +29,29 @@ class Plugin {
         add_action( 'elementor/editor/after_enqueue_styles', [ __CLASS__, 'enqueue_editor_styles' ] );
     }
 
-    /**
-     * Ensure a stable parent menu exists. If something else in your stack already
-     * creates a "JelloPoint" root menu with slug 'jellopoint', we won't duplicate it.
-     * If not found, we create a lightweight parent so CPT + subpages have a home.
-     */
+    /** Create the single root if missing */
     public static function ensure_parent_menu() : void {
         global $menu;
-        $has_parent = false;
-
+        $has = false;
         if ( is_array( $menu ) ) {
             foreach ( $menu as $m ) {
-                if ( isset($m[2]) && $m[2] === self::PARENT_SLUG ) {
-                    $has_parent = true;
-                    break;
-                }
+                if ( isset($m[2]) && $m[2] === self::PARENT_SLUG ) { $has = true; break; }
             }
         }
-
-        if ( ! $has_parent ) {
+        if ( ! $has ) {
             add_menu_page(
-                __( 'JelloPoint', 'jellopoint-restaurant-menu' ),
-                __( 'JelloPoint', 'jellopoint-restaurant-menu' ),
+                __( self::PARENT_TITLE, 'jellopoint-restaurant-menu' ),
+                __( self::PARENT_TITLE, 'jellopoint-restaurant-menu' ),
                 'manage_options',
                 self::PARENT_SLUG,
-                '__return_null', // no page, it just acts as a hub
-                'dashicons-admin-generic',
-                58 // position near the top
+                '__return_null',
+                'dashicons-carrot',
+                58
             );
         }
     }
 
+    /** Register CPT — we hide it from top-level and link it as submenu manually */
     public static function register_types() : void {
         if ( post_type_exists('jprm_menu_item') ) return;
 
@@ -67,8 +65,7 @@ class Plugin {
             ],
             'public'        => true,
             'show_ui'       => true,
-            // Put CPT under the JelloPoint parent we ensure above
-            'show_in_menu'  => self::PARENT_SLUG,
+            'show_in_menu'  => false,                 // important: avoid duplicate/extra roots
             'show_in_rest'  => true,
             'supports'      => [ 'title', 'page-attributes' ],
             'has_archive'   => false,
@@ -77,6 +74,7 @@ class Plugin {
         ] );
     }
 
+    /** Register Menus / Sections taxonomies */
     public static function register_taxonomies() : void {
         if ( ! taxonomy_exists('jprm_menu') ) {
             register_taxonomy( 'jprm_menu', [ 'jprm_menu_item' ], [
@@ -98,6 +96,39 @@ class Plugin {
         }
     }
 
+    /** Add the exact submenu structure under the single root */
+    public static function register_submenus() : void {
+        // Menus (taxonomy UI)
+        add_submenu_page(
+            self::PARENT_SLUG,
+            __( 'Menus', 'jellopoint-restaurant-menu' ),
+            __( 'Menus', 'jellopoint-restaurant-menu' ),
+            'manage_options',
+            'edit-tags.php?taxonomy=jprm_menu&post_type=jprm_menu_item'
+        );
+
+        // Sections (taxonomy UI)
+        add_submenu_page(
+            self::PARENT_SLUG,
+            __( 'Sections', 'jellopoint-restaurant-menu' ),
+            __( 'Sections', 'jellopoint-restaurant-menu' ),
+            'manage_options',
+            'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item'
+        );
+
+        // Menu Items (CPT list)
+        add_submenu_page(
+            self::PARENT_SLUG,
+            __( 'Menu Items', 'jellopoint-restaurant-menu' ),
+            __( 'Menu Items', 'jellopoint-restaurant-menu' ),
+            'edit_posts',
+            'edit.php?post_type=jprm_menu_item'
+        );
+
+        // Price Labels page is added by the Labels_Store class under the same parent
+    }
+
+    /** Assets */
     public static function register_assets() : void {
         if ( ! defined('JPRM_PLUGIN_URL') ) return;
         wp_register_style(
@@ -112,6 +143,7 @@ class Plugin {
         wp_enqueue_style( 'jprm-menu' );
     }
 
+    /** Elementor category */
     public static function register_elementor_category( $elements_manager ) : void {
         if ( ! is_object( $elements_manager ) ) return;
         $elements_manager->add_category( 'jellopoint-widgets', [
@@ -120,16 +152,14 @@ class Plugin {
         ] );
     }
 
+    /** Elementor widget (lazy-load) */
     public static function register_elementor_widget( $widgets_manager ) : void {
         if ( ! class_exists( '\Elementor\Widget_Base' ) ) return;
 
         if ( defined('JPRM_PLUGIN_PATH') ) {
             $file = JPRM_PLUGIN_PATH . 'includes/widgets/class-restaurant-menu.php';
-            if ( file_exists( $file ) ) {
-                require_once $file;
-            }
+            if ( file_exists( $file ) ) { require_once $file; }
         }
-
         if ( class_exists( '\JelloPoint\RestaurantMenu\Widgets\Restaurant_Menu' ) && is_object( $widgets_manager ) ) {
             $widgets_manager->register( new \JelloPoint\RestaurantMenu\Widgets\Restaurant_Menu() );
         }
