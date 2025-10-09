@@ -9,8 +9,12 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
  * JelloPoint – Restaurant Menu (Elementor Widget)
- * Same as your working original, with ONLY the "Auto-detect context" control/logic removed.
- * Also: tiny safety tweak in query_items() to omit empty tax_query.
+ * Original working logic preserved.
+ * Changes:
+ *  - Added "Source Mode" (Dynamic/Static) control (editor-only UX).
+ *  - Removed "Auto-detect context" control/logic.
+ *  - Kept fallback "show all when empty" behavior.
+ *  - Widget icon set to a restaurant-style icon (Elementor built-in).
  */
 class Restaurant_Menu extends Widget_Base {
 
@@ -20,6 +24,11 @@ class Restaurant_Menu extends Widget_Base {
 
 	public function get_title() {
 		return __( 'Restaurant Menu', 'jellopoint-restaurant-menu' );
+	}
+
+	// 🔹 icon in Elementor panel (restaurant-style)
+	public function get_icon() {
+		return 'eicon-restaurant';
 	}
 
 	public function get_categories() {
@@ -54,6 +63,18 @@ class Restaurant_Menu extends Widget_Base {
 		$section_options = $this->get_terms_options( 'jprm_section' );
 
 		$this->start_controls_section( 'section_source', [ 'label' => __( 'Data Source', 'jellopoint-restaurant-menu' ) ] );
+
+		// 🔹 New: explicit Source Mode (keeps legacy behavior in render())
+		$this->add_control( 'data_mode', [
+			'label'   => __( 'Source Mode', 'jellopoint-restaurant-menu' ),
+			'type'    => Controls_Manager::CHOOSE,
+			'toggle'  => true,
+			'default' => 'dynamic',
+			'options' => [
+				'dynamic' => [ 'title' => __( 'Dynamic', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-database' ],
+				'static'  => [ 'title' => __( 'Static', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-editor-list-ul' ],
+			],
+		] );
 
 		// (Auto-detect context control removed)
 
@@ -137,11 +158,12 @@ class Restaurant_Menu extends Widget_Base {
 
 		$this->end_controls_section();
 
-		/* ---- Static items (unchanged) ---- */
+		/* ---- Static items (unchanged, only shown when Source Mode = static) ---- */
 		$this->start_controls_section(
 			'section_static',
 			[
-				'label'      => __( 'Static Items', 'jellopoint-restaurant-menu' ),
+				'label'     => __( 'Static Items', 'jellopoint-restaurant-menu' ),
+				'condition' => [ 'data_mode' => 'static' ],
 			]
 		);
 
@@ -163,9 +185,15 @@ class Restaurant_Menu extends Widget_Base {
 	public function render() {
 		$s = $this->get_settings_for_display();
 
-		// Legacy static behavior (if repeater items exist, show them)
-		if ( ! empty( $s['items'] ) ) {
-			$this->render_static_list( (array) $s['items'] );
+		// 🔹 Rendering rule (keeps legacy behavior):
+		// - If Source Mode = static → render static repeater.
+		// - Else (legacy) if repeater has items saved → render static.
+		// - Else → dynamic from CPT.
+		$mode = isset( $s['data_mode'] ) ? $s['data_mode'] : null;
+		if ( $mode === 'static' || ( $mode === null && ! empty( $s['items'] ) ) ) {
+			if ( ! empty( $s['items'] ) ) {
+				$this->render_static_list( (array) $s['items'] );
+			}
 			return;
 		}
 
@@ -211,7 +239,6 @@ class Restaurant_Menu extends Widget_Base {
 
 			$cfg = $this->read_price_config( $post_id );
 			if ( empty( $cfg ) ) {
-				// Nothing to display: skip gracefully.
 				continue;
 			}
 
@@ -302,7 +329,7 @@ class Restaurant_Menu extends Widget_Base {
 			'no_found_rows'  => true,
 		];
 
-		// Only set tax_query if we actually have filters.
+		// Only set tax_query if filters exist (keeps "show all" working).
 		if ( count( $tax_query ) > 1 ) {
 			$args['tax_query'] = $tax_query;
 		}
