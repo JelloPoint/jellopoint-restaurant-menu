@@ -6,16 +6,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Core plugin bootstrap (admin submenus, CPT/Tax, Elementor hookups).
- * Cleanup-only: no functional changes intended; idempotent init to avoid double hooks.
+ * Core plugin bootstrap (CPT/Tax, Elementor, assets).
+ * Cleanup-only: no functional changes. This class does NOT manage admin menus.
  */
 class Plugin {
-
-	/**
-	 * Use the existing JelloPoint parent menu slug created by the root plugin file.
-	 * This MUST match the slug used in jellopoint-restaurant-menu.php.
-	 */
-	const PARENT_SLUG = 'jellopoint';
 
 	/** @var bool */
 	private static $bootstrapped = false;
@@ -33,15 +27,11 @@ class Plugin {
 		add_action( 'init', [ __CLASS__, 'register_types' ] );
 		add_action( 'init', [ __CLASS__, 'register_taxonomies' ] );
 
-		// Submenus & order (under existing JelloPoint parent).
-		add_action( 'admin_menu', [ __CLASS__, 'register_submenus' ], 20 );
-		add_action( 'admin_menu', [ __CLASS__, 'enforce_submenu_order' ], 100 );
-
-		// Elementor integration.
+		// Elementor.
 		add_action( 'elementor/elements/categories_registered', [ __CLASS__, 'register_elementor_category' ] );
 		add_action( 'elementor/widgets/register', [ __CLASS__, 'register_elementor_widget' ] );
 
-		// Styles (frontend + Elementor editor preview).
+		// Styles (frontend registration + Elementor editor enqueue).
 		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'register_assets' ] );
 		add_action( 'elementor/editor/after_enqueue_styles', [ __CLASS__, 'enqueue_editor_styles' ] );
 	}
@@ -67,7 +57,7 @@ class Plugin {
 				],
 				'public'       => true,
 				'show_ui'      => true,
-				// Important: we attach our list screen via submenu under the existing parent.
+				// List screen attachment to a parent menu is handled elsewhere.
 				'show_in_menu' => false,
 				'show_in_rest' => true,
 				'supports'     => [ 'title', 'page-attributes' ],
@@ -108,94 +98,6 @@ class Plugin {
 				]
 			);
 		}
-	}
-
-	/* =========================
-	 * Admin Submenus (under existing parent)
-	 * ========================= */
-
-	public static function register_submenus(): void {
-		$parent = self::PARENT_SLUG;
-
-		// Menus (taxonomy).
-		add_submenu_page(
-			$parent,
-			__( 'Menus', 'jellopoint-restaurant-menu' ),
-			__( 'Menus', 'jellopoint-restaurant-menu' ),
-			'edit_posts',
-			'edit-tags.php?taxonomy=jprm_menu&post_type=jprm_menu_item'
-		);
-
-		// Sections (taxonomy).
-		add_submenu_page(
-			$parent,
-			__( 'Sections', 'jellopoint-restaurant-menu' ),
-			__( 'Sections', 'jellopoint-restaurant-menu' ),
-			'edit_posts',
-			'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item'
-		);
-
-		// Menu Items (CPT list).
-		add_submenu_page(
-			$parent,
-			__( 'Menu Items', 'jellopoint-restaurant-menu' ),
-			__( 'Menu Items', 'jellopoint-restaurant-menu' ),
-			'edit_posts',
-			'edit.php?post_type=jprm_menu_item'
-		);
-
-		/**
-		 * Price Labels submenu
-		 * If your Labels Store registers its own submenu, that will remain.
-		 * Otherwise we add a neutral placeholder so the item is visible.
-		 */
-		if ( ! class_exists( 'JPRM_Labels_Store' ) ) {
-			add_submenu_page(
-				$parent,
-				__( 'Price Labels', 'jellopoint-restaurant-menu' ),
-				__( 'Price Labels', 'jellopoint-restaurant-menu' ),
-				'manage_options',
-				'jprm-price-labels',
-				'__return_null'
-			);
-		}
-	}
-
-	public static function enforce_submenu_order(): void {
-		global $submenu;
-
-		if ( empty( $submenu[ self::PARENT_SLUG ] ) ) {
-			return;
-		}
-
-		$desired = [
-			'edit-tags.php?taxonomy=jprm_menu&post_type=jprm_menu_item',
-			'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item',
-			'edit.php?post_type=jprm_menu_item',
-			'jprm-price-labels',
-		];
-
-		$current = $submenu[ self::PARENT_SLUG ];
-		$map     = [];
-
-		foreach ( $current as $item ) {
-			$key         = isset( $item[2] ) ? (string) $item[2] : '';
-			$map[ $key ] = $item;
-		}
-
-		$reordered = [];
-		foreach ( $desired as $slug ) {
-			if ( isset( $map[ $slug ] ) ) {
-				$reordered[] = $map[ $slug ];
-				unset( $map[ $slug ] );
-			}
-		}
-		// Keep any extra items from other modules at the end.
-		foreach ( $map as $rest ) {
-			$reordered[] = $rest;
-		}
-
-		$submenu[ self::PARENT_SLUG ] = $reordered;
 	}
 
 	/* =========================
@@ -245,7 +147,6 @@ class Plugin {
 			return;
 		}
 
-		// We rely on the constant set in the root plugin file.
 		$file = defined( 'JPRM_PLUGIN_PATH' )
 			? JPRM_PLUGIN_PATH . 'includes/widgets/class-restaurant-menu.php'
 			: plugin_dir_path( __DIR__ ) . 'widgets/class-restaurant-menu.php';
