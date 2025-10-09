@@ -7,51 +7,33 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Admin menu manager for JelloPoint Restaurant Menu.
- * Cleanup-only: no new features; ensures consistent parent + submenus without duplicates.
+ * Cleanup-only, with duplicate guards.
  */
 class Admin_Menu {
 
-	/**
-	 * Parent slug shared across JelloPoint plugins.
-	 * Must match the slug used by the root bootstrap.
-	 */
 	const PARENT_SLUG = 'jellopoint';
 
-	/** @var bool */
 	private static $bootstrapped = false;
 
-	/**
-	 * Wire hooks (idempotent).
-	 */
 	public static function init(): void {
 		if ( self::$bootstrapped ) {
 			return;
 		}
 		self::$bootstrapped = true;
 
-		// Ensure parent exists early; add submenus after types/tax are registered on init.
 		add_action( 'admin_menu', [ __CLASS__, 'ensure_parent' ], 5 );
 		add_action( 'admin_menu', [ __CLASS__, 'register_submenus' ], 20 );
 		add_action( 'admin_menu', [ __CLASS__, 'remove_parent_self_link' ], 90 );
 		add_action( 'admin_menu', [ __CLASS__, 'enforce_order' ], 100 );
 	}
 
-	/**
-	 * Create the top-level "JelloPoint" menu if it's not already present.
-	 */
 	public static function ensure_parent(): void {
 		global $menu;
 
-		$exists = false;
 		foreach ( (array) $menu as $m ) {
 			if ( isset( $m[2] ) && $m[2] === self::PARENT_SLUG ) {
-				$exists = true;
-				break;
+				return;
 			}
-		}
-
-		if ( $exists ) {
-			return;
 		}
 
 		$icon = defined( 'JPRM_MENU_ICON_URL' ) ? JPRM_MENU_ICON_URL : 'dashicons-carrot';
@@ -64,73 +46,52 @@ class Admin_Menu {
 			self::PARENT_SLUG,
 			'__return_null',
 			$icon,
-			58 // After Comments by default.
+			58
 		);
 	}
 
-	/**
-	 * Add the plugin submenus under the JelloPoint parent.
-	 */
 	public static function register_submenus(): void {
-		$parent = self::PARENT_SLUG;
-
-		// Menus taxonomy (jprm_menu).
-		add_submenu_page(
-			$parent,
-			__( 'Menus', 'jellopoint-restaurant-menu' ),
-			__( 'Menus', 'jellopoint-restaurant-menu' ),
-			'edit_posts',
-			'edit-tags.php?taxonomy=jprm_menu&post_type=jprm_menu_item'
-		);
-
-		// Sections taxonomy (jprm_section).
-		add_submenu_page(
-			$parent,
-			__( 'Sections', 'jellopoint-restaurant-menu' ),
-			__( 'Sections', 'jellopoint-restaurant-menu' ),
-			'edit_posts',
-			'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item'
-		);
-
-		// CPT list (jprm_menu_item).
-		add_submenu_page(
-			$parent,
-			__( 'Menu Items', 'jellopoint-restaurant-menu' ),
-			__( 'Menu Items', 'jellopoint-restaurant-menu' ),
-			'edit_posts',
-			'edit.php?post_type=jprm_menu_item'
-		);
-
-		/**
-		 * Price Labels.
-		 * If your labels module creates its own page + slug, keep it.
-		 * Otherwise, we expose a neutral placeholder.
-		 */
+		$parent      = self::PARENT_SLUG;
 		$labels_slug = apply_filters( 'jprm/price_labels_slug', 'jprm-price-labels' );
 
-		// Only add a placeholder if nothing else already added that slug.
-		if ( ! self::submenu_exists( $parent, $labels_slug ) ) {
-			add_submenu_page(
-				$parent,
-				__( 'Price Labels', 'jellopoint-restaurant-menu' ),
-				__( 'Price Labels', 'jellopoint-restaurant-menu' ),
-				'manage_options',
-				$labels_slug,
-				'__return_null'
-			);
-		}
+		// Menus taxonomy.
+		self::maybe_add_submenu(
+			$parent,
+			__( 'Menus', 'jellopoint-restaurant-menu' ),
+			'edit-tags.php?taxonomy=jprm_menu&post_type=jprm_menu_item',
+			'edit_posts'
+		);
+
+		// Sections taxonomy.
+		self::maybe_add_submenu(
+			$parent,
+			__( 'Sections', 'jellopoint-restaurant-menu' ),
+			'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item',
+			'edit_posts'
+		);
+
+		// Menu Items CPT list — add only if not already present anywhere.
+		self::maybe_add_submenu(
+			$parent,
+			__( 'Menu Items', 'jellopoint-restaurant-menu' ),
+			'edit.php?post_type=jprm_menu_item',
+			'edit_posts'
+		);
+
+		// Price Labels (placeholder only if nothing else adds it).
+		self::maybe_add_submenu(
+			$parent,
+			__( 'Price Labels', 'jellopoint-restaurant-menu' ),
+			$labels_slug,
+			'manage_options',
+			'__return_null'
+		);
 	}
 
-	/**
-	 * Remove the redundant top-level self-link (prevents duplicate first submenu).
-	 */
 	public static function remove_parent_self_link(): void {
 		remove_submenu_page( self::PARENT_SLUG, self::PARENT_SLUG );
 	}
 
-	/**
-	 * Enforce a predictable submenu order while preserving 3rd-party additions.
-	 */
 	public static function enforce_order(): void {
 		global $submenu;
 
@@ -145,37 +106,44 @@ class Admin_Menu {
 			apply_filters( 'jprm/price_labels_slug', 'jprm-price-labels' ),
 		];
 
-		$current = $submenu[ self::PARENT_SLUG ];
-		$map     = [];
-
-		foreach ( $current as $item ) {
-			$key         = isset( $item[2] ) ? (string) $item[2] : '';
-			$map[ $key ] = $item;
+		// Build a map by slug to naturally de-duplicate same targets.
+		$unique = [];
+		foreach ( $submenu[ self::PARENT_SLUG ] as $item ) {
+			$slug = isset( $item[2] ) ? (string) $item[2] : '';
+			$unique[ $slug ] = $item; // later wins, duplicates collapse
 		}
 
-		$reordered = [];
+		// Rebuild in desired order first...
+		$ordered = [];
 		foreach ( $desired as $slug ) {
-			if ( isset( $map[ $slug ] ) ) {
-				$reordered[] = $map[ $slug ];
-				unset( $map[ $slug ] );
+			if ( isset( $unique[ $slug ] ) ) {
+				$ordered[] = $unique[ $slug ];
+				unset( $unique[ $slug ] );
 			}
 		}
-
-		// Append anything else at the end (added by other modules).
-		foreach ( $map as $rest ) {
-			$reordered[] = $rest;
+		// ...then append any unknown items.
+		foreach ( $unique as $rest ) {
+			$ordered[] = $rest;
 		}
-
-		$submenu[ self::PARENT_SLUG ] = $reordered;
+		$submenu[ self::PARENT_SLUG ] = $ordered;
 	}
 
 	/**
-	 * Utility: check whether a submenu with a given slug exists.
+	 * Add a submenu if a slug isn't already present under the parent.
 	 *
-	 * @param string $parent Parent menu slug.
-	 * @param string $slug   Submenu slug/file.
-	 * @return bool
+	 * @param string      $parent
+	 * @param string      $title
+	 * @param string      $slug
+	 * @param string      $capability
+	 * @param callable|"" $callback
 	 */
+	private static function maybe_add_submenu( string $parent, string $title, string $slug, string $capability, $callback = '' ): void {
+		if ( self::submenu_exists( $parent, $slug ) ) {
+			return;
+		}
+		add_submenu_page( $parent, $title, $title, $capability, $slug, $callback );
+	}
+
 	private static function submenu_exists( string $parent, string $slug ): bool {
 		global $submenu;
 
@@ -191,5 +159,4 @@ class Admin_Menu {
 	}
 }
 
-// Bootstrap (safe to call multiple times).
 Admin_Menu::init();
