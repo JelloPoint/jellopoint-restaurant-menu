@@ -9,32 +9,20 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
  * JelloPoint – Restaurant Menu (Elementor Widget)
- * Clean reader for the current schema:
- * - CPT: jprm_menu_item
- * - Description: jprm_desc
- * - Prices: jprm_price JSON (mode: single|multi)
- * - Labels: option jprm_price_labels_v2 (id/slug -> label + icon), or custom text per row with optional icon_id
+ * Cleanup-only:
+ * - Removed "Auto-detect context" control/logic
+ * - Labels: treat "pl-*" codes as CSS icon classes (don't print as text)
+ * - Preserve existing behavior for dynamic/static and rendering
  */
 class Restaurant_Menu extends Widget_Base {
 
-	public function get_name() {
-		return 'jprm_restaurant_menu';
-	}
-
-	public function get_title() {
-		return __( 'Restaurant Menu', 'jellopoint-restaurant-menu' );
-	}
-
-	public function get_categories() {
-		return [ 'jellopoint-widgets' ];
-	}
-
-	public function get_keywords() {
-		return [ 'menu', 'restaurant', 'prices', 'jellopoint', 'labels' ];
-	}
+	public function get_name() { return 'jprm_restaurant_menu'; }
+	public function get_title() { return __( 'Restaurant Menu', 'jellopoint-restaurant-menu' ); }
+	public function get_categories() { return [ 'jellopoint-widgets' ]; }
+	public function get_keywords() { return [ 'menu', 'restaurant', 'prices', 'jellopoint', 'labels' ]; }
 
 	public function get_style_depends() {
-		// Registered in plugin bootstrap; enqueued for editor preview.
+		// Registered by the plugin; Elementor editor enqueues it as well.
 		return [ 'jprm-menu' ];
 	}
 
@@ -58,32 +46,19 @@ class Restaurant_Menu extends Widget_Base {
 
 		$this->start_controls_section( 'section_source', [ 'label' => __( 'Data Source', 'jellopoint-restaurant-menu' ) ] );
 
-		// 🔹 NEW: explicit Source Mode toggle (Dynamic vs Static)
+		// Source Mode toggle (explicit Dynamic vs Static)
 		$this->add_control( 'data_mode', [
 			'label'   => __( 'Source Mode', 'jellopoint-restaurant-menu' ),
 			'type'    => Controls_Manager::CHOOSE,
 			'toggle'  => true,
 			'default' => 'dynamic',
 			'options' => [
-				'dynamic' => [
-					'title' => __( 'Dynamic', 'jellopoint-restaurant-menu' ),
-					'icon'  => 'eicon-database',
-				],
-				'static'  => [
-					'title' => __( 'Static', 'jellopoint-restaurant-menu' ),
-					'icon'  => 'eicon-editor-list-ul',
-				],
+				'dynamic' => [ 'title' => __( 'Dynamic', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-database' ],
+				'static'  => [ 'title' => __( 'Static', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-editor-list-ul' ],
 			],
 		] );
 
-		$this->add_control( 'auto_detect_context', [
-			'label'        => __( 'Auto-detect context (this page terms)', 'jellopoint-restaurant-menu' ),
-			'type'         => Controls_Manager::SWITCHER,
-			'label_on'     => __( 'Yes', 'jellopoint-restaurant-menu' ),
-			'label_off'    => __( 'No', 'jellopoint-restaurant-menu' ),
-			'return_value' => 'yes',
-			'default'      => 'yes',
-		] );
+		// (Auto-detect context removed by request)
 
 		$this->add_control( 'show_all_when_empty', [
 			'label'        => __( 'Fallback to all items when no menu/section', 'jellopoint-restaurant-menu' ),
@@ -96,7 +71,7 @@ class Restaurant_Menu extends Widget_Base {
 
 		$this->add_control( 'menus', [
 			'label'       => __( 'Menus', 'jellopoint-restaurant-menu' ),
-			'description' => __( 'Choose Menus to include (or leave empty to use page context).', 'jellopoint-restaurant-menu' ),
+			'description' => __( 'Choose Menus to include (leave empty to match nothing).', 'jellopoint-restaurant-menu' ),
 			'type'        => Controls_Manager::SELECT2,
 			'options'     => $menu_options,
 			'multiple'    => true,
@@ -104,7 +79,7 @@ class Restaurant_Menu extends Widget_Base {
 
 		$this->add_control( 'sections', [
 			'label'       => __( 'Sections', 'jellopoint-restaurant-menu' ),
-			'description' => __( 'Choose Sections to include (or leave empty to use page context).', 'jellopoint-restaurant-menu' ),
+			'description' => __( 'Choose Sections to include (leave empty to match nothing).', 'jellopoint-restaurant-menu' ),
 			'type'        => Controls_Manager::SELECT2,
 			'options'     => $section_options,
 			'multiple'    => true,
@@ -165,12 +140,11 @@ class Restaurant_Menu extends Widget_Base {
 
 		$this->end_controls_section();
 
-		/* ---- Static items (kept minimal for parity) ---- */
+		/* ---- Static items ---- */
 		$this->start_controls_section(
 			'section_static',
 			[
 				'label'      => __( 'Static Items', 'jellopoint-restaurant-menu' ),
-				// 🔹 Only show when Source Mode = static
 				'condition'  => [ 'data_mode' => 'static' ],
 			]
 		);
@@ -193,9 +167,7 @@ class Restaurant_Menu extends Widget_Base {
 	public function render() {
 		$s = $this->get_settings_for_display();
 
-		// 🔹 Source selection:
-		// If 'data_mode' is explicitly set to static, render static list.
-		// If not set (older content), keep legacy behavior: if static items exist, render those.
+		// Source selection:
 		$mode = isset( $s['data_mode'] ) ? $s['data_mode'] : null;
 		if ( $mode === 'static' || ( $mode === null && ! empty( $s['items'] ) ) ) {
 			if ( ! empty( $s['items'] ) ) {
@@ -204,7 +176,7 @@ class Restaurant_Menu extends Widget_Base {
 			return;
 		}
 
-		// Dynamic: strictly from jprm_menu_item
+		// Dynamic from CPT
 		if ( ! post_type_exists( 'jprm_menu_item' ) ) {
 			echo '<div class="jp-menu--empty">' . esc_html__( 'Menu item type not found (jprm_menu_item).', 'jellopoint-restaurant-menu' ) . '</div>';
 			return;
@@ -213,18 +185,11 @@ class Restaurant_Menu extends Widget_Base {
 		$label_presentation = (string) ( $s['label_presentation'] ?? 'icon_text' );
 		$label_position     = (string) ( $s['label_position'] ?? 'right' );
 
-		$ctx_slugs = [ 'menus' => [], 'sections' => [] ];
-		if ( ( $s['auto_detect_context'] ?? 'no' ) === 'yes' ) {
-			$ctx_slugs = $this->autodetect_context_slugs();
-		}
-
+		// Explicit selections only (auto-detect removed)
 		$menus    = $this->normalize_to_slugs( $s['menus']    ?? [], 'jprm_menu' );
 		$sections = $this->normalize_to_slugs( $s['sections'] ?? [], 'jprm_section' );
 
-		if ( empty( $menus ) && ! empty( $ctx_slugs['menus'] ) )    $menus    = $ctx_slugs['menus'];
-		if ( empty( $sections ) && ! empty( $ctx_slugs['sections'] ) ) $sections = $ctx_slugs['sections'];
-
-		// If nothing selected and no context, optionally show all (when enabled).
+		// If nothing selected, optionally show all when enabled.
 		if ( empty( $menus ) && empty( $sections ) && ( $s['show_all_when_empty'] ?? 'no' ) !== 'yes' ) {
 			echo '<div class="jp-menu--empty">' . esc_html__( 'No menu/section selected.', 'jellopoint-restaurant-menu' ) . '</div>';
 			return;
@@ -241,8 +206,6 @@ class Restaurant_Menu extends Widget_Base {
 		}
 
 		$label_map    = $this->build_label_map();
-		$presentation = $label_presentation;
-		$position     = $label_position;
 
 		echo '<div class="jp-menu">';
 		foreach ( $items as $post ) {
@@ -253,35 +216,30 @@ class Restaurant_Menu extends Widget_Base {
 
 			$cfg = $this->read_price_config( $post_id );
 			if ( empty( $cfg ) ) {
-				// Nothing to display: skip gracefully.
 				continue;
 			}
 
 			echo '  <div class="jp-menu__row">';
-
-			// Left: title + description
 			echo '    <div class="jp-menu__content">';
 			if ( $title !== '' ) echo '      <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
 			if ( is_string($desc) && $desc !== '' ) echo '      <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
 			echo '    </div>';
 
-			// Right: prices
 			echo '    <div class="jp-menu__pricegroup">';
 
 			if ( $cfg['mode'] === 'single' && $cfg['price'] !== '' ) {
-				// Resolve label (registry by id/slug or treat as custom)
-				$resolved   = $this->resolve_label_ref( $cfg['label_ref'], $label_map, $cfg['icon_id'] ?? 0 );
-				$label_html = $this->label_html( $resolved['text'], (int) $resolved['icon_id'], $presentation, (bool) $cfg['hide_icon'] );
+				$r = $this->resolve_label_ref( $cfg['label_ref'], $label_map, (int) ( $cfg['icon_id'] ?? 0 ) );
+				$label_html = $this->label_html( $r['text'], (int) $r['icon_id'], (string) ( $s['label_presentation'] ?? 'icon_text' ), (bool) ( $cfg['hide_icon'] ?? false ), $r['css_class'] );
 
-				if ( $position === 'left' ) {
+				if ( $label_position === 'left' ) {
 					echo '      <div class="jp-menu__price">';
-					echo '        <div class="jp-col-label">' . $label_html . '</div>';
+					echo '        <div class="jp-col-label jp-menu__label">' . $label_html . '</div>';
 					echo '        <span class="jp-menu__value jp-col-price">' . esc_html( $cfg['price'] ) . '</span>';
 					echo '      </div>';
 				} else {
 					echo '      <div class="jp-menu__price">';
 					echo '        <span class="jp-menu__value jp-col-price">' . esc_html( $cfg['price'] ) . '</span>';
-					echo '        <div class="jp-col-label">' . $label_html . '</div>';
+					echo '        <div class="jp-col-label jp-menu__label">' . $label_html . '</div>';
 					echo '      </div>';
 				}
 			}
@@ -290,22 +248,29 @@ class Restaurant_Menu extends Widget_Base {
 				foreach ( $cfg['rows'] as $row ) {
 					$price     = (string) ( $row['value'] ?? '' );
 					if ( $price === '' ) continue;
-					$ref       = (string) ( $row['label_ref'] ?? '' );
-					$hide_icon = (bool)   ( $row['hide_icon'] ?? false );
-					$icon_id   = (int)    ( $row['icon_id'] ?? 0 );
 
-					$resolved   = $this->resolve_label_ref( $ref, $label_map, $icon_id );
-					$label_html = $this->label_html( $resolved['text'], (int) $resolved['icon_id'], $presentation, $hide_icon );
+					$r = $this->resolve_label_ref(
+						(string) ( $row['label_ref'] ?? '' ),
+						$label_map,
+						(int) ( $row['icon_id'] ?? 0 )
+					);
+					$label_html = $this->label_html(
+						$r['text'],
+						(int) $r['icon_id'],
+						(string) ( $s['label_presentation'] ?? 'icon_text' ),
+						(bool) ( $row['hide_icon'] ?? false ),
+						$r['css_class']
+					);
 
-					if ( $position === 'left' ) {
+					if ( $label_position === 'left' ) {
 						echo '      <div class="jp-menu__price">';
-						echo '        <div class="jp-col-label">' . $label_html . '</div>';
+						echo '        <div class="jp-col-label jp-menu__label">' . $label_html . '</div>';
 						echo '        <span class="jp-menu__value jp-col-price">' . esc_html( $price ) . '</span>';
 						echo '      </div>';
 					} else {
 						echo '      <div class="jp-menu__price">';
 						echo '        <span class="jp-menu__value jp-col-price">' . esc_html( $price ) . '</span>';
-						echo '        <div class="jp-col-label">' . $label_html . '</div>';
+						echo '        <div class="jp-col-label jp-menu__label">' . $label_html . '</div>';
 						echo '      </div>';
 					}
 				}
@@ -322,18 +287,10 @@ class Restaurant_Menu extends Widget_Base {
 		$tax_query = [ 'relation' => 'AND' ];
 
 		if ( ! empty( $menus_slugs ) ) {
-			$tax_query[] = [
-				'taxonomy' => 'jprm_menu',
-				'field'    => 'slug',
-				'terms'    => $menus_slugs,
-			];
+			$tax_query[] = [ 'taxonomy' => 'jprm_menu', 'field' => 'slug', 'terms' => $menus_slugs ];
 		}
 		if ( ! empty( $section_slugs ) ) {
-			$tax_query[] = [
-				'taxonomy' => 'jprm_section',
-				'field'    => 'slug',
-				'terms'    => $section_slugs,
-			];
+			$tax_query[] = [ 'taxonomy' => 'jprm_section', 'field' => 'slug', 'terms' => $section_slugs ];
 		}
 
 		$args = [
@@ -350,13 +307,7 @@ class Restaurant_Menu extends Widget_Base {
 		return $q->have_posts() ? $q->posts : [];
 	}
 
-	/** Read price config: meta jprm_price (JSON) with structure:
-	 *  mode: single|multi
-	 *  price: "12.00"
-	 *  label_ref: (string) ref to registry (id/slug) OR raw when custom
-	 *  hide_icon: bool
-	 *  rows: [ { value, label_ref, icon_id, hide_icon }, ... ]
-	 */
+	/** Price config from meta "jprm_price" JSON */
 	protected function read_price_config( int $post_id ) : array {
 		$json = get_post_meta( $post_id, 'jprm_price', true );
 		if ( ! is_string( $json ) || $json === '' ) return [];
@@ -387,64 +338,84 @@ class Restaurant_Menu extends Widget_Base {
 		return $out;
 	}
 
-	/** Build label registry: option jprm_price_labels_v2 => [ slug|id => [text, icon_id] ] */
+	/** Build label registry: keep full rows for max compatibility */
 	protected function build_label_map() : array {
 		$opt = get_option( 'jprm_price_labels_v2', [] );
 		return is_array( $opt ) ? $opt : [];
 	}
 
-	/** Resolve a label reference:
-	 *  - If $ref is slug or numeric id and exists in registry: return mapped.
-	 *  - Else: treat ref as custom text with optional $fallback_icon_id.
+	/**
+	 * Resolve label reference to:
+	 *  - text (from 'text' or 'label')
+	 *  - icon_id (image)
+	 *  - css_class (for pl-* or custom class names)
 	 */
 	protected function resolve_label_ref( string $ref, array $registry, int $fallback_icon_id = 0 ) : array {
+		$text = '';
+		$icon_id = 0;
+		$css_class = '';
+
 		if ( $ref !== '' ) {
-			// Numeric ID key
+			// Numeric key
 			if ( ctype_digit( $ref ) ) {
 				$key = (int) $ref;
-				if ( isset( $registry[ $key ] ) ) {
-					$row = $registry[ $key ];
-					return [ 'text' => (string) ( $row['text'] ?? '' ), 'icon_id' => (int) ( $row['icon_id'] ?? 0 ) ];
+				if ( isset( $registry[ $key ] ) && is_array( $registry[ $key ] ) ) {
+					$row      = $registry[ $key ];
+					$text     = (string) ( $row['text'] ?? $row['label'] ?? '' );
+					$icon_id  = (int)    ( $row['icon_id'] ?? 0 );
+					$css_class= (string) ( $row['class'] ?? $row['css'] ?? $row['css_class'] ?? $row['code'] ?? '' );
 				}
 			}
 			// Slug key
-			if ( isset( $registry[ $ref ] ) ) {
-				$row = $registry[ $ref ];
-				return [ 'text' => (string) ( $row['text'] ?? '' ), 'icon_id' => (int) ( $row['icon_id'] ?? 0 ) ];
+			if ( isset( $registry[ $ref ] ) && is_array( $registry[ $ref ] ) ) {
+				$row      = $registry[ $ref ];
+				$text     = (string) ( $row['text'] ?? $row['label'] ?? $text );
+				$icon_id  = $icon_id ?: (int) ( $row['icon_id'] ?? 0 );
+				$css_class= $css_class ?: (string) ( $row['class'] ?? $row['css'] ?? $row['css_class'] ?? $row['code'] ?? '' );
 			}
-			// Fallback: treat as custom text
-			return [ 'text' => $ref, 'icon_id' => $fallback_icon_id ];
+
+			// If the ref itself looks like a CSS code (pl-*), prefer that as class.
+			if ( $css_class === '' && preg_match( '/^pl-[A-Za-z0-9_-]+$/', $ref ) ) {
+				$css_class = $ref;
+			}
+
+			// If text ALSO looks like a CSS code, treat it as class instead of text.
+			if ( $text !== '' && preg_match( '/^pl-[A-Za-z0-9_-]+$/', $text ) ) {
+				$css_class = $css_class ?: $text;
+				$text = '';
+			}
+
+			// Fallback to custom text when nothing found
+			if ( $text === '' && $icon_id === 0 && $css_class === '' ) {
+				$text = $ref;
+			}
 		}
 
-		return [ 'text' => '', 'icon_id' => $fallback_icon_id ];
+		// Apply fallback icon id if nothing provided.
+		if ( $icon_id === 0 && $fallback_icon_id > 0 ) {
+			$icon_id = $fallback_icon_id;
+		}
+
+		return [
+			'text'      => $text,
+			'icon_id'   => $icon_id,
+			'css_class' => $css_class,
+		];
 	}
 
-	/** Normalize elementor control values (ids / strings) to slugs */
+	/** Normalize control values to term slugs */
 	protected function normalize_to_slugs( $values, string $taxonomy ) : array {
-		if ( empty($values) ) return [];
+		if ( empty( $values ) ) return [];
 		$slugs = [];
 		foreach ( $values as $v ) {
-			if ( is_string($v) && ! ctype_digit($v) ) { $slugs[] = $v; continue; }
-			$term_id = is_numeric($v) ? (int)$v : 0;
+			if ( is_string( $v ) && ! ctype_digit( $v ) ) { $slugs[] = $v; continue; }
+			$term_id = is_numeric( $v ) ? (int) $v : 0;
 			if ( $term_id > 0 ) {
 				$term = get_term( $term_id, $taxonomy );
-				if ( $term && ! is_wp_error($term) && ! empty($term->slug) ) $slugs[] = $term->slug;
+				if ( $term && ! is_wp_error( $term ) && ! empty( $term->slug ) ) $slugs[] = $term->slug;
 			}
 		}
 		return array_values( array_unique( $slugs ) );
-	}
-
-	/** Auto-detect context terms from current post (slugs) */
-	protected function autodetect_context_slugs() : array {
-		$slugs = [ 'menus' => [], 'sections' => [] ];
-		$post_id = get_the_ID();
-		if ( $post_id ) {
-			$menus = wp_get_post_terms( $post_id, 'jprm_menu', [ 'fields' => 'slugs' ] );
-			$secs  = wp_get_post_terms( $post_id, 'jprm_section', [ 'fields' => 'slugs' ] );
-			if ( is_array( $menus ) ) $slugs['menus']    = $menus;
-			if ( is_array( $secs ) )  $slugs['sections'] = $secs;
-		}
-		return $slugs;
 	}
 
 	protected function render_static_list( array $items ) : void {
@@ -468,17 +439,38 @@ class Restaurant_Menu extends Widget_Base {
 		echo '</div>';
 	}
 
-	protected function label_html( string $label_text, int $icon_id, string $presentation, bool $hide_icon ) : string {
-		$label_text = (string) $label_text;
-		$icon_html  = '';
-		if ( ! $hide_icon && $icon_id > 0 ) {
-			$img = wp_get_attachment_image( $icon_id, [24,24], false, [ 'class' => 'jp-menu__icon' ] );
-			if ( is_string($img) ) $icon_html = $img;
+	/**
+	 * Build label HTML from text/icon_id/css_class, honoring presentation & hide_icon.
+	 * - If icon_id > 0 → image icon
+	 * - Else if css_class → <span class="jp-menu__icon pl-0"> (no visible "pl-0" text)
+	 * - Else text rendering
+	 */
+	protected function label_html( string $label_text, int $icon_id, string $presentation, bool $hide_icon, string $css_class = '' ) : string {
+		$icon_html = '';
+
+		if ( ! $hide_icon ) {
+			if ( $icon_id > 0 ) {
+				$img = wp_get_attachment_image( $icon_id, [24,24], false, [ 'class' => 'jp-menu__icon' ] );
+				if ( is_string( $img ) ) $icon_html = $img;
+			} elseif ( $css_class !== '' ) {
+				// Render CSS icon class (e.g., pl-0), do NOT show "pl-0" as text
+				$icon_html = '<span class="jp-menu__icon ' . esc_attr( $css_class ) . '" aria-hidden="true"></span>';
+			}
 		}
 
-		if ( $presentation === 'icon' )      return $icon_html;
-		if ( $presentation === 'text' )      return esc_html( $label_text );
-		if ( $presentation === 'icon_text' ) return $icon_html ? ($icon_html . ' ' . esc_html($label_text)) : esc_html($label_text);
+		// Presentation modes
+		if ( $presentation === 'icon' ) {
+			return $icon_html;
+		}
+		if ( $presentation === 'text' ) {
+			return esc_html( $label_text );
+		}
+
+		// icon_text
+		if ( $icon_html !== '' && $label_text !== '' ) {
+			return $icon_html . ' ' . esc_html( $label_text );
+		}
+		if ( $icon_html !== '' ) return $icon_html;
 		return esc_html( $label_text );
 	}
 }
