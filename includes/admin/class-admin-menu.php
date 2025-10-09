@@ -7,11 +7,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Admin menu manager for JelloPoint Restaurant Menu.
- * Cleanup-only, with duplicate guards.
+ * Cleanup-only, with duplicate/mislink guards.
  */
 class Admin_Menu {
 
 	const PARENT_SLUG = 'jellopoint';
+	const SLUG_MENUS  = 'edit-tags.php?taxonomy=jprm_menu&post_type=jprm_menu_item';
+	const SLUG_SECTS  = 'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item';
+	const SLUG_ITEMS  = 'edit.php?post_type=jprm_menu_item';
 
 	private static $bootstrapped = false;
 
@@ -24,7 +27,7 @@ class Admin_Menu {
 		add_action( 'admin_menu', [ __CLASS__, 'ensure_parent' ], 5 );
 		add_action( 'admin_menu', [ __CLASS__, 'register_submenus' ], 20 );
 		add_action( 'admin_menu', [ __CLASS__, 'remove_parent_self_link' ], 90 );
-		add_action( 'admin_menu', [ __CLASS__, 'enforce_order' ], 100 );
+		add_action( 'admin_menu', [ __CLASS__, 'sanitize_and_order' ], 100 );
 	}
 
 	public static function ensure_parent(): void {
@@ -54,66 +57,46 @@ class Admin_Menu {
 		$parent      = self::PARENT_SLUG;
 		$labels_slug = apply_filters( 'jprm/price_labels_slug', 'jprm-price-labels' );
 
-		// Menus taxonomy.
-		self::maybe_add_submenu(
-			$parent,
-			__( 'Menus', 'jellopoint-restaurant-menu' ),
-			'edit-tags.php?taxonomy=jprm_menu&post_type=jprm_menu_item',
-			'edit_posts'
-		);
-
-		// Sections taxonomy.
-		self::maybe_add_submenu(
-			$parent,
-			__( 'Sections', 'jellopoint-restaurant-menu' ),
-			'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item',
-			'edit_posts'
-		);
-
-		// Menu Items CPT list — add only if not already present anywhere.
-		self::maybe_add_submenu(
-			$parent,
-			__( 'Menu Items', 'jellopoint-restaurant-menu' ),
-			'edit.php?post_type=jprm_menu_item',
-			'edit_posts'
-		);
-
-		// Price Labels (placeholder only if nothing else adds it).
-		self::maybe_add_submenu(
-			$parent,
-			__( 'Price Labels', 'jellopoint-restaurant-menu' ),
-			$labels_slug,
-			'manage_options',
-			'__return_null'
-		);
+		self::maybe_add_submenu( $parent, __( 'Menus', 'jellopoint-restaurant-menu' ),   self::SLUG_MENUS, 'edit_posts' );
+		self::maybe_add_submenu( $parent, __( 'Sections', 'jellopoint-restaurant-menu' ), self::SLUG_SECTS, 'edit_posts' );
+		self::maybe_add_submenu( $parent, __( 'Menu Items', 'jellopoint-restaurant-menu' ), self::SLUG_ITEMS, 'edit_posts' );
+		self::maybe_add_submenu( $parent, __( 'Price Labels', 'jellopoint-restaurant-menu' ), $labels_slug, 'manage_options', '__return_null' );
 	}
 
 	public static function remove_parent_self_link(): void {
 		remove_submenu_page( self::PARENT_SLUG, self::PARENT_SLUG );
 	}
 
-	public static function enforce_order(): void {
+	/**
+	 * De-duplicate and fix ordering. Also **remove mislinked “Menu Items” entries**
+	 * that do not point to `edit.php?post_type=jprm_menu_item`.
+	 */
+	public static function sanitize_and_order(): void {
 		global $submenu;
 
 		if ( empty( $submenu[ self::PARENT_SLUG ] ) ) {
 			return;
 		}
 
-		$desired = [
-			'edit-tags.php?taxonomy=jprm_menu&post_type=jprm_menu_item',
-			'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item',
-			'edit.php?post_type=jprm_menu_item',
-			apply_filters( 'jprm/price_labels_slug', 'jprm-price-labels' ),
-		];
+		$labels_slug = apply_filters( 'jprm/price_labels_slug', 'jprm-price-labels' );
+		$desired     = [ self::SLUG_MENUS, self::SLUG_SECTS, self::SLUG_ITEMS, $labels_slug ];
 
-		// Build a map by slug to naturally de-duplicate same targets.
+		// 1) Build unique map by slug (later wins).
 		$unique = [];
 		foreach ( $submenu[ self::PARENT_SLUG ] as $item ) {
 			$slug = isset( $item[2] ) ? (string) $item[2] : '';
-			$unique[ $slug ] = $item; // later wins, duplicates collapse
+
+			// If an entry is titled "Menu Items" but points to the wrong slug (e.g., edit.php),
+			// drop it — we only allow our CPT list slug.
+			$title = isset( $item[0] ) ? wp_strip_all_tags( (string) $item[0] ) : '';
+			if ( $title === __( 'Menu Items', 'jellopoint-restaurant-menu' ) && $slug !== self::SLUG_ITEMS ) {
+				continue; // remove mislinked duplicate
+			}
+
+			$unique[ $slug ] = $item;
 		}
 
-		// Rebuild in desired order first...
+		// 2) Place desired ones in order.
 		$ordered = [];
 		foreach ( $desired as $slug ) {
 			if ( isset( $unique[ $slug ] ) ) {
@@ -121,21 +104,21 @@ class Admin_Menu {
 				unset( $unique[ $slug ] );
 			}
 		}
-		// ...then append any unknown items.
-		foreach ( $unique as $rest ) {
-			$ordered[] = $rest;
+
+		// 3) Append any remaining, but **skip any other “Menu Items” titled entries**.
+		foreach ( $unique as $slug => $item ) {
+			$title = isset( $item[0] ) ? wp_strip_all_tags( (string) $item[0] ) : '';
+			if ( $title === __( 'Menu Items', 'jellopoint-restaurant-menu' ) && $slug !== self::SLUG_ITEMS ) {
+				continue;
+			}
+			$ordered[] = $item;
 		}
+
 		$submenu[ self::PARENT_SLUG ] = $ordered;
 	}
 
 	/**
-	 * Add a submenu if a slug isn't already present under the parent.
-	 *
-	 * @param string      $parent
-	 * @param string      $title
-	 * @param string      $slug
-	 * @param string      $capability
-	 * @param callable|"" $callback
+	 * Utility: add a submenu if the slug isn't already present.
 	 */
 	private static function maybe_add_submenu( string $parent, string $title, string $slug, string $capability, $callback = '' ): void {
 		if ( self::submenu_exists( $parent, $slug ) ) {
