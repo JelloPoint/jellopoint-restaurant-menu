@@ -15,6 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  *  - Removed "Auto-detect context" control/logic.
  *  - Kept fallback "show all when empty" behavior.
  *  - Widget icon set to a restaurant-style icon (Elementor built-in).
+ *  - Added normalize_to_slugs() helper required by the dynamic query.
  */
 class Restaurant_Menu extends Widget_Base {
 
@@ -26,9 +27,9 @@ class Restaurant_Menu extends Widget_Base {
 		return __( 'Restaurant Menu', 'jellopoint-restaurant-menu' );
 	}
 
-	// 🔹 icon in Elementor panel (restaurant-style)
+	// Elementor panel icon
 	public function get_icon() {
-		return 'eicon-restaurant';
+		return 'eicon-menu-card';
 	}
 
 	public function get_categories() {
@@ -64,7 +65,7 @@ class Restaurant_Menu extends Widget_Base {
 
 		$this->start_controls_section( 'section_source', [ 'label' => __( 'Data Source', 'jellopoint-restaurant-menu' ) ] );
 
-		// 🔹 New: explicit Source Mode (keeps legacy behavior in render())
+		// Source Mode (UI only; rendering keeps legacy behavior when items exist)
 		$this->add_control( 'data_mode', [
 			'label'   => __( 'Source Mode', 'jellopoint-restaurant-menu' ),
 			'type'    => Controls_Manager::CHOOSE,
@@ -158,7 +159,7 @@ class Restaurant_Menu extends Widget_Base {
 
 		$this->end_controls_section();
 
-		/* ---- Static items (unchanged, only shown when Source Mode = static) ---- */
+		/* ---- Static items (shown only when Source Mode = static) ---- */
 		$this->start_controls_section(
 			'section_static',
 			[
@@ -185,9 +186,9 @@ class Restaurant_Menu extends Widget_Base {
 	public function render() {
 		$s = $this->get_settings_for_display();
 
-		// 🔹 Rendering rule (keeps legacy behavior):
+		// Rendering rule (legacy-friendly):
 		// - If Source Mode = static → render static repeater.
-		// - Else (legacy) if repeater has items saved → render static.
+		// - Else if repeater has items saved → render static (legacy).
 		// - Else → dynamic from CPT.
 		$mode = isset( $s['data_mode'] ) ? $s['data_mode'] : null;
 		if ( $mode === 'static' || ( $mode === null && ! empty( $s['items'] ) ) ) {
@@ -338,13 +339,7 @@ class Restaurant_Menu extends Widget_Base {
 		return $q->have_posts() ? $q->posts : [];
 	}
 
-	/** Read price config: meta jprm_price (JSON) with structure:
-	 *  mode: single|multi
-	 *  price: "12.00"
-	 *  label_ref: (string) ref to registry (id/slug) OR raw when custom
-	 *  hide_icon: bool
-	 *  rows: [ { value, label_ref, icon_id, hide_icon }, ... ]
-	 */
+	/** Read price config: meta jprm_price (JSON). */
 	protected function read_price_config( int $post_id ) : array {
 		$json = get_post_meta( $post_id, 'jprm_price', true );
 		if ( ! is_string( $json ) || $json === '' ) return [];
@@ -390,7 +385,7 @@ class Restaurant_Menu extends Widget_Base {
 			}
 		}
 		return $map;
-	}
+ 	}
 
 	/** Resolve a label ref against registry; or treat ref as custom text with optional icon override */
 	protected function resolve_label_ref( string $ref, array $map, int $icon_override = 0 ) : array {
@@ -408,6 +403,27 @@ class Restaurant_Menu extends Widget_Base {
 	/* =========================
 	 * Small helpers
 	 * ========================= */
+
+	/** Convert selected term IDs or slugs into slugs for the given taxonomy. */
+	protected function normalize_to_slugs( $values, string $taxonomy ) : array {
+		if ( empty( $values ) ) return [];
+		$slugs = [];
+		foreach ( (array) $values as $v ) {
+			// If it's a non-numeric string, assume it's already a slug.
+			if ( is_string( $v ) && ! ctype_digit( $v ) ) {
+				$slugs[] = $v;
+				continue;
+			}
+			$term_id = is_numeric( $v ) ? (int) $v : 0;
+			if ( $term_id > 0 ) {
+				$term = get_term( $term_id, $taxonomy );
+				if ( $term && ! is_wp_error( $term ) && ! empty( $term->slug ) ) {
+					$slugs[] = $term->slug;
+				}
+			}
+		}
+		return array_values( array_unique( $slugs ) );
+	}
 
 	protected function render_static_list( array $items ) : void {
 		echo '<ul class="jp-menu">';
