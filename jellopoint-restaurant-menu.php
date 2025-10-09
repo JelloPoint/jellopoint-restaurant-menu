@@ -41,7 +41,10 @@ require_once JPRM_PLUGIN_PATH . 'includes/class-plugin.php';
 require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-menuitem-meta.php';
 require_once JPRM_PLUGIN_PATH . 'includes/admin/save/class-menuitem-v3-writer.php';
 
-// Renderer (optional but present in your repo)
+/** 🔹 NEW: Admin menu bootstrap */
+require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-menu.php';
+
+// Renderer
 require_once JPRM_PLUGIN_PATH . 'includes/render/class-price-renderer.php';
 
 // Debug (admin-only shortcode)
@@ -80,8 +83,7 @@ function jprm_register_cpt_fallback() {
 		return;
 	}
 
-	// Make sure the parent menu slug matches your real top-level JelloPoint menu.
-	// Commonly it's 'jellopoint' if you used add_menu_page('JelloPoint', ..., 'jellopoint', ...).
+	// This only runs as a fallback and nests under the JelloPoint parent menu.
 	$parent_menu_slug = 'jellopoint';
 
 	register_post_type(
@@ -96,7 +98,6 @@ function jprm_register_cpt_fallback() {
 			],
 			'public'       => true,
 			'show_ui'      => true,
-			// Nest under JelloPoint, not as its own root.
 			'show_in_menu' => $parent_menu_slug,
 			'show_in_rest' => true,
 			'supports'     => [ 'title', 'editor', 'thumbnail', 'page-attributes' ],
@@ -166,5 +167,12 @@ if ( class_exists( '\JelloPoint\RestaurantMenu\Plugin' ) ) {
 		\JelloPoint\RestaurantMenu\Plugin::instance();
 	} elseif ( is_callable( [ '\JelloPoint\RestaurantMenu\Plugin', 'get_instance' ] ) ) {
 		\JelloPoint\RestaurantMenu\Plugin::get_instance();
+	} elseif ( is_callable( [ '\JelloPoint\RestaurantMenu\Plugin', 'init' ] ) ) {
+		\JelloPoint\RestaurantMenu\Plugin::init();
 	}
+}
+
+/** 🔹 NEW: Initialize the Admin Menu (creates parent if missing, adds submenus) */
+if ( class_exists( '\JelloPoint\RestaurantMenu\Admin\Admin_Menu' ) ) {
+	\JelloPoint\RestaurantMenu\Admin\Admin_Menu::init();
 }
