@@ -159,7 +159,8 @@ class Restaurant_Menu extends Widget_Base {
 	}
 
 	public function render() {
-		$s = $this->get_settings_for_display();
+		echo "<!-- JPRM widget: LIVE -->";
+        $s = $this->get_settings_for_display();
 
 		// Source selection:
 		$mode = isset( $s['data_mode'] ) ? $s['data_mode'] : null;
