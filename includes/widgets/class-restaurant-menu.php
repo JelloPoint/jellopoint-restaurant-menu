@@ -10,9 +10,9 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 /**
  * JelloPoint – Restaurant Menu (Elementor Widget)
  * Cleanup-only:
- * - Removed "Auto-detect context" control/logic
- * - Robust label resolution (id / slug / pl-*), no "pl-0" text leakage
- * - Kept DOM structure identical; no extra classes that could affect CSS
+ * - Removed "Auto-detect context"
+ * - Robust label resolution for pl-* codes (outputs <span class="jp-menu__icon pl pl-0">)
+ * - Keeps DOM structure identical to original (no extra classes)
  */
 class Restaurant_Menu extends Widget_Base {
 
@@ -21,9 +21,7 @@ class Restaurant_Menu extends Widget_Base {
 	public function get_categories() { return [ 'jellopoint-widgets' ]; }
 	public function get_keywords() { return [ 'menu', 'restaurant', 'prices', 'jellopoint', 'labels' ]; }
 
-	public function get_style_depends() {
-		return [ 'jprm-menu' ];
-	}
+	public function get_style_depends() { return [ 'jprm-menu' ]; }
 
 	/** Build a select list of terms for a taxonomy (id => name) */
 	protected function get_terms_options( string $taxonomy ) : array {
@@ -70,7 +68,6 @@ class Restaurant_Menu extends Widget_Base {
 
 		$this->add_control( 'menus', [
 			'label'       => __( 'Menus', 'jellopoint-restaurant-menu' ),
-			'description' => __( 'Choose Menus to include.', 'jellopoint-restaurant-menu' ),
 			'type'        => Controls_Manager::SELECT2,
 			'options'     => $menu_options,
 			'multiple'    => true,
@@ -78,7 +75,6 @@ class Restaurant_Menu extends Widget_Base {
 
 		$this->add_control( 'sections', [
 			'label'       => __( 'Sections', 'jellopoint-restaurant-menu' ),
-			'description' => __( 'Choose Sections to include.', 'jellopoint-restaurant-menu' ),
 			'type'        => Controls_Manager::SELECT2,
 			'options'     => $section_options,
 			'multiple'    => true,
@@ -104,7 +100,6 @@ class Restaurant_Menu extends Widget_Base {
 
 		$this->add_control( 'query_limit', [
 			'label'       => __( 'Items limit', 'jellopoint-restaurant-menu' ),
-			'description' => __( 'Leave empty for no limit.', 'jellopoint-restaurant-menu' ),
 			'type'        => Controls_Manager::NUMBER,
 			'min'         => 1,
 			'step'        => 1,
@@ -269,7 +264,7 @@ class Restaurant_Menu extends Widget_Base {
 						echo '      <div class="jp-menu__price">';
 						echo '        <span class="jp-menu__value jp-col-price">' . esc_html( $price ) . '</span>';
 						echo '        <div class="jp-col-label">' . $label_html . '</div>';
-						echo '      </div>';
+					echo '      </div>';
 					}
 				}
 			}
@@ -351,10 +346,7 @@ class Restaurant_Menu extends Widget_Base {
 				if ( ! is_array( $row ) ) continue;
 
 				$slug = (string) ( $row['slug'] ?? $row['code'] ?? '' );
-				$id   = null;
-				if ( isset( $row['id'] ) && is_numeric( $row['id'] ) ) {
-					$id = (int) $row['id'];
-				}
+				$id   = isset( $row['id'] ) && is_numeric( $row['id'] ) ? (int) $row['id'] : null;
 
 				$norm = [
 					'text'      => (string) ( $row['text'] ?? $row['label'] ?? '' ),
@@ -365,13 +357,12 @@ class Restaurant_Menu extends Widget_Base {
 				];
 
 				if ( $slug !== '' ) $by_slug[ $slug ] = $norm;
-				if ( $id   !== null ) $by_id[ $id ]   = $norm;
+				if ( $id !== null )  $by_id[ $id ]    = $norm;
 
-				// If the option is already keyed by slug string, preserve that too.
+				// Also support options keyed directly by slug.
 				if ( is_string( $k ) && $k !== '' && ! isset( $by_slug[ $k ] ) ) {
 					$by_slug[ $k ] = $norm;
 				}
-				// If numeric top-level keys are actually IDs, we already handled via $id.
 			}
 		}
 
@@ -389,18 +380,13 @@ class Restaurant_Menu extends Widget_Base {
 		$css_class = '';
 
 		if ( $ref !== '' ) {
-			// Numeric id?
-			if ( ctype_digit( $ref ) ) {
-				$key = (int) $ref;
-				if ( isset( $index['by_id'][ $key ] ) ) {
-					$row = $index['by_id'][ $key ];
-					$text      = $row['text'];
-					$icon_id   = $row['icon_id'];
-					$css_class = $row['css_class'];
-				}
+			if ( ctype_digit( $ref ) && isset( $index['by_id'][(int)$ref] ) ) {
+				$row = $index['by_id'][(int)$ref];
+				$text      = $row['text'];
+				$icon_id   = $row['icon_id'];
+				$css_class = $row['css_class'];
 			}
 
-			// Slug / code?
 			if ( $text === '' && isset( $index['by_slug'][ $ref ] ) ) {
 				$row = $index['by_slug'][ $ref ];
 				$text      = $row['text'];
@@ -408,23 +394,24 @@ class Restaurant_Menu extends Widget_Base {
 				$css_class = $row['css_class'];
 			}
 
-			// pl-* fallback as CSS class
+			// If it's a pl-* code, render as CSS icon class; don't show the text "pl-0".
 			if ( $css_class === '' && preg_match( '/^pl-[A-Za-z0-9_-]+$/', $ref ) ) {
 				$css_class = $ref;
 			}
 
-			// If text itself looks like pl-*, treat as class not text.
+			// If text looks like a pl-* code, prefer it as CSS class.
 			if ( $text !== '' && preg_match( '/^pl-[A-Za-z0-9_-]+$/', $text ) ) {
 				if ( $css_class === '' ) $css_class = $text;
 				$text = '';
 			}
 
-			// Full fallback: custom text
+			// Fallback: use ref itself as visible text only if we have no icon and no class.
 			if ( $text === '' && $icon_id === 0 && $css_class === '' ) {
 				$text = $ref;
 			}
 		}
 
+		// Apply fallback icon id if provided on the row.
 		if ( $icon_id === 0 && $fallback_icon_id > 0 ) {
 			$icon_id = $fallback_icon_id;
 		}
@@ -471,7 +458,7 @@ class Restaurant_Menu extends Widget_Base {
 	/**
 	 * Build label HTML from text/icon_id/css_class, honoring presentation & hide_icon.
 	 * - If icon_id > 0 → image icon
-	 * - Else if css_class → <span class="jp-menu__icon pl-0"> (no visible "pl-0" text)
+	 * - Else if css_class → <span class="jp-menu__icon pl pl-0"> (uses your CSS)
 	 * - Else text rendering
 	 */
 	protected function label_html( string $label_text, int $icon_id, string $presentation, bool $hide_icon, string $css_class = '' ) : string {
@@ -482,7 +469,9 @@ class Restaurant_Menu extends Widget_Base {
 				$img = wp_get_attachment_image( $icon_id, [24,24], false, [ 'class' => 'jp-menu__icon' ] );
 				if ( is_string( $img ) ) $icon_html = $img;
 			} elseif ( $css_class !== '' ) {
-				$icon_html = '<span class="jp-menu__icon ' . esc_attr( $css_class ) . '" aria-hidden="true"></span>';
+				// Ensure the base "pl" class is present for your icon font/spritesheet.
+				$cls = trim( 'jp-menu__icon pl ' . $css_class );
+				$icon_html = '<span class="' . esc_attr( $cls ) . '" aria-hidden="true"></span>';
 			}
 		}
 
@@ -494,9 +483,7 @@ class Restaurant_Menu extends Widget_Base {
 		}
 
 		// icon_text
-		if ( $icon_html !== '' && $label_text !== '' ) {
-			return $icon_html . ' ' . esc_html( $label_text );
-		}
+		if ( $icon_html !== '' && $label_text !== '' ) return $icon_html . ' ' . esc_html( $label_text );
 		if ( $icon_html !== '' ) return $icon_html;
 		return esc_html( $label_text );
 	}
