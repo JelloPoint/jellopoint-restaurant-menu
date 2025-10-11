@@ -42,7 +42,7 @@ class JPRM_Admin_MenuItem_Meta {
 
 		add_meta_box('jprm_item_desc',  __('Description','jellopoint-restaurant-menu'), [__CLASS__,'render_desc'],     'jprm_menu_item', 'normal', 'high');
 		add_meta_box('jprm_price_meta', __('Pricing','jellopoint-restaurant-menu'),     [__CLASS__,'render_pricing'],  'jprm_menu_item', 'normal', 'default');
-		add_meta_box('jprm_item_vis',   __('Visibility & Badge','jellopoint-restaurant-menu'), [__CLASS__,'render_visibility'],'jprm_menu_item', 'normal', 'low');
+		add_meta_box('jprm_item_vis',   __('Visibility','jellopoint-restaurant-menu'), [__CLASS__,'render_visibility'],'jprm_menu_item', 'normal', 'low');
 	}
 
 	/* ------------------------------- sections ------------------------------ */
@@ -451,10 +451,10 @@ class JPRM_Admin_MenuItem_Meta {
 			checked($vis,true,false), esc_html__('Show this item on the site','jellopoint-restaurant-menu'));
 		echo '</td></tr>';
 
-		echo '<tr><th><label>'.esc_html__('Badge Text','jellopoint-restaurant-menu').'</label></th><td>';
-		printf('<input type="text" name="jprm_badge" value="%s" class="regular-text" placeholder="%s" />',
-			esc_attr($badge), esc_attr__('e.g. Chef’s choice','jellopoint-restaurant-menu'));
-		echo '</td></tr></tbody></table>';
+		// echo '<tr><th><label>'.esc_html__('Badge Text','jellopoint-restaurant-menu').'</label></th><td>';
+		// printf('<input type="text" name="jprm_badge" value="%s" class="regular-text" placeholder="%s" />',
+		//	esc_attr($badge), esc_attr__('e.g. Chef’s choice','jellopoint-restaurant-menu'));
+		// echo '</td></tr></tbody></table>';
 	}
 
 	/* --------------------------------- save -------------------------------- */
