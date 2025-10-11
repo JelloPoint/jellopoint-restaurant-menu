@@ -159,16 +159,6 @@ add_action(
 	10
 );
 
-// === JPRM: ensure Dietary Badges POST handler is registered on submit ===
-add_action('admin_init', function () {
-	if ( isset($_POST['action']) && $_POST['action'] === 'jprm_save_dietary_badges' ) {
-		require_once JPRM_PLUGIN_DIR . 'includes/data/class-badges-store.php';
-		require_once JPRM_PLUGIN_DIR . 'includes/admin/class-admin-dietary-badges.php';
-		$store = new \JPRM_Badges_Store();
-		new \JPRM_Admin_Dietary_Badges($store); // constructor registers the admin_post handler
-	}
-}, 1);
-
 /* -------------------------------------------------
  * Optional: let your core plugin bootstrap itself (no private constructor calls)
  * ------------------------------------------------- */
