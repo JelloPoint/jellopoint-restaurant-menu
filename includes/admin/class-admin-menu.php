@@ -187,3 +187,23 @@ Admin_Menu::init();
 	);
 }, 999);
 
+// === JPRM: ensure Dietary Badges POST handler is registered on submit ===
+\add_action( 'admin_init', function () {
+    if ( isset($_POST['action']) && $_POST['action'] === 'jprm_save_dietary_badges' ) {
+        // Load the files only for this POST request
+        $base      = \dirname( __DIR__, 1 ); // .../includes
+        $data_file = $base . '/data/class-badges-store.php';
+        $admin_file= __DIR__ . '/class-admin-dietary-badges.php';
+
+        if ( \file_exists( $data_file ) )  require_once $data_file;
+        if ( \file_exists( $admin_file ) ) require_once $admin_file;
+
+        // Instantiate once so the constructor registers:
+        // add_action( 'admin_post_jprm_save_dietary_badges', [ $this, 'handle_post' ] );
+        if ( \class_exists( '\JPRM_Badges_Store', false ) && \class_exists( '\JPRM_Admin_Dietary_Badges', false ) ) {
+            $store = new \JPRM_Badges_Store();
+            new \JPRM_Admin_Dietary_Badges( $store );
+        }
+    }
+}, 1);
+
