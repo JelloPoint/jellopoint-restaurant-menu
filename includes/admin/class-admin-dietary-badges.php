@@ -1,13 +1,12 @@
 <?php
 /**
  * JelloPoint Restaurant Menu – Admin: Dietary Badges
- *
- * UI mirrors Price Labels:
- * 1) Drag handle
+ * UI layout mirrors Price Labels:
+ * 1) Drag (three stripes)
  * 2) Name
  * 3) Icon (choose/clear via media frame)
- * 4) Active checkbox
- * 5) Delete (trash)
+ * 4) Active
+ * 5) Delete (blue trash)
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -18,8 +17,8 @@ class JPRM_Admin_Dietary_Badges {
 
 	const PAGE_SLUG = 'jprm-dietary-badges';
 
-	// If your Labels screen uses custom icons, replace these HTML snippets once:
-	const ICON_DRAG   = '<span class="dashicons dashicons-move jprm-sort" title="%s"></span>';
+	// Icon snippets (match Labels look)
+	const ICON_DRAG   = '<span class="dashicons dashicons-menu jprm-sort" title="%s" aria-hidden="true"></span>';
 	const ICON_PLACEH = '<span class="dashicons dashicons-format-image jprm-icon-placeholder" aria-hidden="true"></span>';
 	const ICON_CLEAR  = '<span class="dashicons dashicons-no-alt" aria-hidden="true"></span>';
 	const ICON_TRASH  = '<span class="dashicons dashicons-trash" aria-hidden="true"></span>';
@@ -52,7 +51,6 @@ class JPRM_Admin_Dietary_Badges {
 		wp_enqueue_style( $style_handle );
 		wp_add_inline_style( $style_handle, $this->inline_css() );
 
-		// Put script after DOM is available by printing it right here.
 		?>
 		<div class="wrap jprm-wrap">
 			<h1 class="wp-heading-inline"><?php esc_html_e( 'Dietary Badges', 'jprm' ); ?></h1>
@@ -147,28 +145,35 @@ class JPRM_Admin_Dietary_Badges {
 				renumberOrders();
 			});
 
+			// --- MEDIA PICKER: single reusable frame; close after select ---
+			var jprmFrame = null;
 			function openMedia(cb){
-				var frame = wp.media({
-					title: <?php echo wp_json_encode( __( 'Select Badge Icon', 'jprm' ) ); ?>,
-					button: { text: <?php echo wp_json_encode( __( 'Use this icon', 'jprm' ) ); ?> },
-					multiple: false
-				});
-				frame.on('select', function(){
-					var att = frame.state().get('selection').first().toJSON();
-					cb(att);
-				});
-				frame.open();
+				if (!jprmFrame) {
+					jprmFrame = wp.media({
+						title: <?php echo wp_json_encode( __( 'Select Badge Icon', 'jprm' ) ); ?>,
+						button: { text: <?php echo wp_json_encode( __( 'Use this icon', 'jprm' ) ); ?> },
+						multiple: false
+					});
+					jprmFrame.on('select', function(){
+						var att = jprmFrame.state().get('selection').first().toJSON();
+						cb && cb(att);
+						// Close frame so the button doesn't stay disabled/greyed
+						jprmFrame.close();
+					});
+				}
+				jprmFrame.open();
 			}
 
-			// Choose icon: clicking the preview OR the choose button
+			// Choose icon by clicking preview or the link
 			$tbody.on('click', '.jprm-choose-icon, .jprm-icon-preview', function(e){
 				e.preventDefault();
 				var $row = $(this).closest('tr.jprm-row');
 				openMedia(function(att){
 					$row.find('.jprm-icon-id').val(att.id);
-					$row.find('.jprm-icon-url').val(att.url);
-					$row.find('.jprm-icon-preview').html('<img src="'+att.url+'" alt="" class="jprm-icon-img">');
+					$row.find('.jprm-icon-url').val(att.url || '');
+					$row.find('.jprm-icon-preview').html('<img src="'+(att.url||'')+'" alt="" class="jprm-icon-img">');
 				});
+				return false;
 			});
 
 			$tbody.on('click', '.jprm-clear-icon', function(e){
@@ -177,6 +182,7 @@ class JPRM_Admin_Dietary_Badges {
 				$row.find('.jprm-icon-id').val('0');
 				$row.find('.jprm-icon-url').val('');
 				$row.find('.jprm-icon-preview').html('<?php echo self::ICON_PLACEH; // phpcs:ignore ?>');
+				return false;
 			});
 		});
 		</script>
@@ -255,12 +261,19 @@ class JPRM_Admin_Dietary_Badges {
 
 	protected function inline_css() : string {
 		return '
+		/* Drag handle: three stripes */
 		.jprm-table .jprm-cell-drag { width:36px; text-align:center; }
-		.jprm-sort { cursor:move; opacity:.75; }
+		.jprm-sort { cursor:move; opacity:.9; }
+
+		/* Icon preview + placeholder */
 		.jprm-icon-wrap { display:flex; align-items:center; gap:.5rem; }
 		.jprm-icon-img { width:28px; height:28px; object-fit:contain; border-radius:3px; background:#fff; border:1px solid #ccd0d4; }
-		.jprm-icon-placeholder { font-size:20px; opacity:.6; }
-		.jprm-cell-actions .button-link-delete .dashicons { color:#b32d2e; }
+		.jprm-icon-placeholder { font-size:20px; color:#000; opacity:1; } /* black like Labels */
+
+		/* Delete icon should be WP blue, not red */
+		.jprm-cell-actions .dashicons { color:#2271b1; }
+
+		/* Sort helper background */
 		.jprm-row.ui-sortable-helper { background:#fffbe5; }
 		';
 	}
