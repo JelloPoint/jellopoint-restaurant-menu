@@ -144,3 +144,46 @@ class Admin_Menu {
 }
 
 Admin_Menu::init();
+// === JPRM: Append-only "Dietary Badges" submenu (keep it last; no other changes) ===
+\add_action( 'admin_menu', function () {
+	// Use the same parent slug that your Admin_Menu class already uses.
+	$parent_slug = \JelloPoint\RestaurantMenu\Admin\Admin_Menu::PARENT_SLUG;
+
+	// Avoid duplicates if something already registered it.
+	global $submenu;
+	if ( isset( $submenu[ $parent_slug ] ) ) {
+		foreach ( (array) $submenu[ $parent_slug ] as $row ) {
+			if ( isset( $row[2] ) && (string) $row[2] === 'jprm-dietary-badges' ) {
+				return;
+			}
+		}
+	}
+
+	// Lazy-load page classes only when rendering the screen.
+	$render = function () {
+		$data_file  = \dirname( __DIR__ ) . '/data/class-badges-store.php';
+		$admin_file = __DIR__ . '/class-admin-dietary-badges.php';
+
+		if ( \file_exists( $data_file ) )  require_once $data_file;
+		if ( \file_exists( $admin_file ) ) require_once $admin_file;
+
+		if ( \class_exists( '\JPRM_Badges_Store', false ) && \class_exists( '\JPRM_Admin_Dietary_Badges', false ) ) {
+			$store = new \JPRM_Badges_Store();
+			$page  = new \JPRM_Admin_Dietary_Badges( $store );
+			$page->render_page();
+		} else {
+			\wp_die( \esc_html__( 'Dietary Badges screen could not be loaded. Missing classes.', 'jprm' ) );
+		}
+	};
+
+	\add_submenu_page(
+		$parent_slug,
+		\__( 'Dietary Badges', 'jprm' ),
+		\__( 'Dietary Badges', 'jprm' ),
+		'manage_options',
+		'jprm-dietary-badges',
+		$render,
+		999 // bottom of the group
+	);
+}, 999);
+
