@@ -5,7 +5,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 /**
  * Admin menu manager for JelloPoint Restaurant Menu.
- * Restores the original menu tree and adds the new "Dietary Badges" submenu.
+ * Restores the original menu tree and adds the new "Dietary Badges" submenu,
+ * while preventing duplicate "Menu Items" entries.
  */
 class Admin_Menu {
 
@@ -23,11 +24,10 @@ class Admin_Menu {
 		if ( self::$bootstrapped ) return;
 		self::$bootstrapped = true;
 
-		// Build the parent first, then the submenus, then tidy.
 		add_action( 'admin_menu', [ __CLASS__, 'ensure_parent' ], 5 );
 		add_action( 'admin_menu', [ __CLASS__, 'register_submenus' ], 20 );
 		add_action( 'admin_menu', [ __CLASS__, 'remove_parent_self_link' ], 99 );
-		add_action( 'admin_menu', [ __CLASS__, 'sanitize_and_order' ], 100 );
+		add_action( 'admin_menu', [ __CLASS__, 'sanitize_order_and_dedupe' ], 100 );
 	}
 
 	/**
@@ -57,18 +57,21 @@ class Admin_Menu {
 	}
 
 	/**
-	 * Add all submenus under the parent—existing ones + the new Dietary Badges.
+	 * Add submenus under the parent—keep existing ones, add Dietary Badges.
+	 * IMPORTANT: We DO NOT add "Menu Items" here anymore to avoid duplicates.
 	 */
 	public static function register_submenus(): void {
 		$parent      = self::PARENT_SLUG;
 		$labels_slug = apply_filters( 'jprm/price_labels_slug', 'jprm-price-labels' );
 
-		// Existing native screens (will use their own renderers).
-		self::maybe_add_submenu( $parent, __( 'Menus', 'jellopoint-restaurant-menu' ),       self::SLUG_MENUS,  'edit_posts' );
-		self::maybe_add_submenu( $parent, __( 'Sections', 'jellopoint-restaurant-menu' ),    self::SLUG_SECTS,  'edit_posts' );
-		self::maybe_add_submenu( $parent, __( 'Menu Items', 'jellopoint-restaurant-menu' ),  self::SLUG_ITEMS,  'edit_posts' );
+		// Existing native taxonomy screens.
+		self::maybe_add_submenu( $parent, __( 'Menus', 'jellopoint-restaurant-menu' ),    self::SLUG_MENUS, 'edit_posts' );
+		self::maybe_add_submenu( $parent, __( 'Sections', 'jellopoint-restaurant-menu' ), self::SLUG_SECTS, 'edit_posts' );
 
-		// Existing "Price Labels" (custom or native slug; we don't change it).
+		// DO NOT add Menu Items here (another component already adds it).
+		// self::maybe_add_submenu( $parent, __( 'Menu Items', 'jellopoint-restaurant-menu' ), self::SLUG_ITEMS, 'edit_posts' );
+
+		// Existing "Price Labels".
 		self::maybe_add_submenu( $parent, __( 'Price Labels', 'jellopoint-restaurant-menu' ), $labels_slug, 'manage_options' );
 
 		// NEW: Dietary Badges — mirror behavior of Price Labels.
@@ -88,22 +91,61 @@ class Admin_Menu {
 	}
 
 	/**
-	 * Remove the auto "JelloPoint" self-link (cleaner submenu list).
+	 * Remove the auto "JelloPoint" self-link.
 	 */
 	public static function remove_parent_self_link(): void {
 		remove_submenu_page( self::PARENT_SLUG, self::PARENT_SLUG );
 	}
 
 	/**
-	 * Keep a predictable order: Menus, Sections, Menu Items, Price Labels, Dietary Badges.
+	 * Keep order predictable and remove duplicates (especially "Menu Items").
 	 */
-	public static function sanitize_and_order(): void {
+	public static function sanitize_order_and_dedupe(): void {
 		global $submenu;
 		if ( empty( $submenu[ self::PARENT_SLUG ] ) ) return;
 
 		$items = $submenu[ self::PARENT_SLUG ];
 		$labels_slug = apply_filters( 'jprm/price_labels_slug', 'jprm-price-labels' );
 
+		// First pass: dedupe by slug (keep first occurrence).
+		$seen = [];
+		$deduped = [];
+		foreach ( $items as $row ) {
+			$slug = isset( $row[2] ) ? (string) $row[2] : '';
+			if ( $slug === '' ) {
+				$deduped[] = $row;
+				continue;
+			}
+			if ( isset( $seen[ $slug ] ) ) {
+				// Skip duplicates.
+				continue;
+			}
+			$seen[ $slug ] = true;
+			$deduped[] = $row;
+		}
+
+		// Second pass: if somehow two different slugs both target Menu Items,
+		// remove extras by checking the URL contains our post_type.
+		$final = [];
+		$menu_items_kept = false;
+		foreach ( $deduped as $row ) {
+			$slug = isset( $row[2] ) ? (string) $row[2] : '';
+			$is_menu_items_target =
+				( $slug === self::SLUG_ITEMS ) ||
+				( is_string( $slug ) && strpos( $slug, 'edit.php' ) !== false && strpos( $slug, 'post_type=jprm_menu_item' ) !== false );
+
+			if ( $is_menu_items_target ) {
+				if ( $menu_items_kept ) {
+					// Already have one; drop this duplicate.
+					continue;
+				}
+				$menu_items_kept = true;
+			}
+
+			$final[] = $row;
+		}
+
+		// Order them: Menus, Sections, Menu Items, Price Labels, Dietary Badges, then rest.
 		$order = [
 			self::SLUG_MENUS  => 10,
 			self::SLUG_SECTS  => 11,
@@ -112,9 +154,8 @@ class Admin_Menu {
 			self::SLUG_BADGES => 25,
 		];
 
-		// Build keyed array with weights, preserving unknowns at the end.
 		$weighted = [];
-		foreach ( $items as $idx => $row ) {
+		foreach ( $final as $idx => $row ) {
 			$slug = isset( $row[2] ) ? (string) $row[2] : '';
 			$wt   = array_key_exists( $slug, $order ) ? $order[ $slug ] : (50 + $idx);
 			$weighted[] = [ 'w' => $wt, 'i' => $idx, 'row' => $row ];
