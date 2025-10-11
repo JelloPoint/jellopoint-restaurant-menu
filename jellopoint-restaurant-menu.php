@@ -50,6 +50,9 @@ require_once JPRM_PLUGIN_PATH . 'includes/render/class-price-renderer.php';
 // Debug (admin-only shortcode)
 require_once JPRM_PLUGIN_PATH . 'includes/debug/class-inspector.php';
 
+// Badges Save
+require_once JPRM_PLUGIN_PATH . 'includes/admin/badges-post-bootstrap.php';
+
 /* -------------------------------------------------
  * Assets
  * ------------------------------------------------- */
