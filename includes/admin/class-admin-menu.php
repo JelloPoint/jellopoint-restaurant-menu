@@ -1,147 +1,161 @@
 <?php
-/**
- * Admin menu glue for adding the new "Dietary Badges" page
- * without altering any existing menus or submenus.
- *
- * This file:
- * - Detects the parent slug currently used by "Price Labels".
- * - Registers the "Dietary Badges" submenu right next to it.
- *
- * It DOES NOT create top-level menus, and DOES NOT add the existing
- * Menus/Sections/Menu Items submenus — those remain untouched.
- *
- * @package JelloPoint\RestaurantMenu
- */
+namespace JelloPoint\RestaurantMenu\Admin;
 
-if ( ! defined( 'ABSPATH' ) ) {
-	exit;
-}
+if ( ! defined( 'ABSPATH' ) ) exit;
 
 /**
- * Lightweight registrar for the Dietary Badges submenu only.
+ * Admin menu manager for JelloPoint Restaurant Menu.
+ * Restores the original menu tree and adds the new "Dietary Badges" submenu.
  */
-class JPRM_Admin_Menu {
+class Admin_Menu {
 
-	/** The menu slug of our new page (kept stable). */
-	const BADGES_SLUG = 'jprm-dietary-badges';
+	const PARENT_SLUG = 'jellopoint';
+	const SLUG_MENUS  = 'edit-tags.php?taxonomy=jprm_menu&post_type=jprm_menu_item';
+	const SLUG_SECTS  = 'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item';
+	const SLUG_ITEMS  = 'edit.php?post_type=jprm_menu_item';
 
-	/** Hook bootstrap */
-	public static function init() {
-		// Late priority so all other menus (including Price Labels) already exist.
-		add_action( 'admin_menu', array( __CLASS__, 'register_badges_submenu' ), 99 );
+	/** Stable slug for the new page */
+	const SLUG_BADGES = 'jprm-dietary-badges';
+
+	private static $bootstrapped = false;
+
+	public static function init(): void {
+		if ( self::$bootstrapped ) return;
+		self::$bootstrapped = true;
+
+		// Build the parent first, then the submenus, then tidy.
+		add_action( 'admin_menu', [ __CLASS__, 'ensure_parent' ], 5 );
+		add_action( 'admin_menu', [ __CLASS__, 'register_submenus' ], 20 );
+		add_action( 'admin_menu', [ __CLASS__, 'remove_parent_self_link' ], 99 );
+		add_action( 'admin_menu', [ __CLASS__, 'sanitize_and_order' ], 100 );
 	}
 
 	/**
-	 * Register the "Dietary Badges" submenu under the SAME parent as "Price Labels".
+	 * Ensure top-level "JelloPoint" parent exists.
 	 */
-	public static function register_badges_submenu() {
-		$parent = self::detect_parent_slug_for_price_labels();
+	public static function ensure_parent(): void {
+		global $menu;
 
-		// If we couldn't detect the parent, do nothing (avoid creating duplicates),
-		// but show a small admin notice to admins with a quick remedy.
-		if ( ! $parent ) {
-			add_action( 'admin_notices', array( __CLASS__, 'notice_cannot_find_parent' ) );
-			return;
+		foreach ( (array) $menu as $m ) {
+			if ( isset( $m[2] ) && $m[2] === self::PARENT_SLUG ) {
+				return;
+			}
 		}
 
-		// Avoid duplicates if some other inclusion already added it.
-		if ( self::submenu_exists( $parent, self::BADGES_SLUG ) ) {
-			return;
-		}
+		$icon = defined( 'JPRM_MENU_ICON_URL' ) ? JPRM_MENU_ICON_URL : 'dashicons-carrot';
+		$icon = apply_filters( 'jprm/root_menu_icon', $icon );
 
-		// Ensure classes are available.
+		add_menu_page(
+			__( 'JelloPoint', 'jellopoint-restaurant-menu' ),
+			__( 'JelloPoint', 'jellopoint-restaurant-menu' ),
+			'edit_posts',
+			self::PARENT_SLUG,
+			'__return_null',
+			$icon,
+			58
+		);
+	}
+
+	/**
+	 * Add all submenus under the parent—existing ones + the new Dietary Badges.
+	 */
+	public static function register_submenus(): void {
+		$parent      = self::PARENT_SLUG;
+		$labels_slug = apply_filters( 'jprm/price_labels_slug', 'jprm-price-labels' );
+
+		// Existing native screens (will use their own renderers).
+		self::maybe_add_submenu( $parent, __( 'Menus', 'jellopoint-restaurant-menu' ),       self::SLUG_MENUS,  'edit_posts' );
+		self::maybe_add_submenu( $parent, __( 'Sections', 'jellopoint-restaurant-menu' ),    self::SLUG_SECTS,  'edit_posts' );
+		self::maybe_add_submenu( $parent, __( 'Menu Items', 'jellopoint-restaurant-menu' ),  self::SLUG_ITEMS,  'edit_posts' );
+
+		// Existing "Price Labels" (custom or native slug; we don't change it).
+		self::maybe_add_submenu( $parent, __( 'Price Labels', 'jellopoint-restaurant-menu' ), $labels_slug, 'manage_options' );
+
+		// NEW: Dietary Badges — mirror behavior of Price Labels.
 		self::ensure_badges_classes_loaded();
+		if ( class_exists( '\JPRM_Badges_Store', false ) && class_exists( '\JPRM_Admin_Dietary_Badges', false ) ) {
+			$badges_store = new \JPRM_Badges_Store();
+			$badges_page  = new \JPRM_Admin_Dietary_Badges( $badges_store );
 
-		$store = new \JPRM_Badges_Store();
-		$page  = new \JPRM_Admin_Dietary_Badges( $store );
-
-		// Add just after Price Labels; if unknown, WordPress will sort anyway.
-		add_submenu_page(
-			$parent,
-			__( 'Dietary Badges', 'jprm' ),
-			__( 'Dietary Badges', 'jprm' ),
-			'manage_options',
-			self::BADGES_SLUG,
-			function() use ( $page ) {
-				$page->render_page();
-			},
-			25
-		);
+			self::maybe_add_submenu(
+				$parent,
+				__( 'Dietary Badges', 'jellopoint-restaurant-menu' ),
+				self::SLUG_BADGES,
+				'manage_options',
+				function() use ( $badges_page ) { $badges_page->render_page(); }
+			);
+		}
 	}
 
 	/**
-	 * Try to find the parent slug used by the existing "Price Labels" submenu.
-	 * Strategy:
-	 *   1) Look for common slugs.
-	 *   2) Scan $submenu titles for a "Price Labels" entry.
-	 *   3) Allow explicit override via filter 'jprm/dietary_badges_parent_slug'.
+	 * Remove the auto "JelloPoint" self-link (cleaner submenu list).
+	 */
+	public static function remove_parent_self_link(): void {
+		remove_submenu_page( self::PARENT_SLUG, self::PARENT_SLUG );
+	}
+
+	/**
+	 * Keep a predictable order: Menus, Sections, Menu Items, Price Labels, Dietary Badges.
+	 */
+	public static function sanitize_and_order(): void {
+		global $submenu;
+		if ( empty( $submenu[ self::PARENT_SLUG ] ) ) return;
+
+		$items = $submenu[ self::PARENT_SLUG ];
+		$labels_slug = apply_filters( 'jprm/price_labels_slug', 'jprm-price-labels' );
+
+		$order = [
+			self::SLUG_MENUS  => 10,
+			self::SLUG_SECTS  => 11,
+			self::SLUG_ITEMS  => 12,
+			$labels_slug      => 24,
+			self::SLUG_BADGES => 25,
+		];
+
+		// Build keyed array with weights, preserving unknowns at the end.
+		$weighted = [];
+		foreach ( $items as $idx => $row ) {
+			$slug = isset( $row[2] ) ? (string) $row[2] : '';
+			$wt   = array_key_exists( $slug, $order ) ? $order[ $slug ] : (50 + $idx);
+			$weighted[] = [ 'w' => $wt, 'i' => $idx, 'row' => $row ];
+		}
+
+		usort( $weighted, function( $a, $b ){
+			if ( $a['w'] === $b['w'] ) return $a['i'] <=> $b['i'];
+			return $a['w'] <=> $b['w'];
+		});
+
+		$submenu[ self::PARENT_SLUG ] = array_map( fn($x) => $x['row'], $weighted );
+	}
+
+	/**
+	 * Add submenu if it doesn't already exist under the parent.
 	 *
-	 * @return string|null
+	 * @param string          $parent_slug
+	 * @param string          $page_title
+	 * @param string          $menu_slug  Native target (edit.php?...) or custom slug.
+	 * @param string          $capability
+	 * @param callable|string $callback   Optional render callback for custom pages.
 	 */
-	protected static function detect_parent_slug_for_price_labels() {
-		$explicit = apply_filters( 'jprm/dietary_badges_parent_slug', null );
-		if ( is_string( $explicit ) && $explicit !== '' ) {
-			return $explicit;
+	protected static function maybe_add_submenu( string $parent_slug, string $page_title, string $menu_slug, string $capability, $callback = '' ): void {
+		if ( self::submenu_exists( $parent_slug, $menu_slug ) ) {
+			return;
 		}
-
-		global $submenu;
-
-		if ( empty( $submenu ) || ! is_array( $submenu ) ) {
-			return null;
+		// Native screens: no callback.
+		if ( ! is_callable( $callback ) ) {
+			add_submenu_page( $parent_slug, $page_title, $page_title, $capability, $menu_slug );
+			return;
 		}
-
-		// Candidate slugs that are often used for the Price Labels page.
-		$candidates = array(
-			'jprm',              // common internal slug
-			'jellopoint',        // branded parent slug
-			'jellopoint-menu',   // sometimes used
-		);
-
-		// If any candidate has a "Price Labels" entry under it, return that parent.
-		foreach ( $candidates as $parent ) {
-			if ( ! empty( $submenu[ $parent ] ) ) {
-				foreach ( $submenu[ $parent ] as $item ) {
-					// $item = [page_title, capability, menu_slug, menu_title, ...]
-					$title = isset( $item[0] ) ? wp_strip_all_tags( $item[0] ) : '';
-					if ( is_string( $title ) && self::is_price_labels_title( $title ) ) {
-						return $parent;
-					}
-				}
-			}
-		}
-
-		// Fallback: brute-force scan all parents for a "Price Labels" submenu.
-		foreach ( $submenu as $parent_slug => $items ) {
-			foreach ( (array) $items as $item ) {
-				$title = isset( $item[0] ) ? wp_strip_all_tags( $item[0] ) : '';
-				if ( is_string( $title ) && self::is_price_labels_title( $title ) ) {
-					return $parent_slug;
-				}
-			}
-		}
-
-		return null;
+		// Custom renderer:
+		add_submenu_page( $parent_slug, $page_title, $page_title, $capability, $menu_slug, $callback );
 	}
 
 	/**
-	 * Heuristic check for "Price Labels" title (supports translations that still include "Label").
+	 * Check if a submenu with a given slug already exists under a parent.
 	 */
-	protected static function is_price_labels_title( $title ) {
-		$title_lc = mb_strtolower( $title );
-		// Check for typical English title or parts of localized strings.
-		return ( $title_lc === 'price labels' )
-			|| ( false !== strpos( $title_lc, 'price' ) && false !== strpos( $title_lc, 'label' ) )
-			|| ( false !== strpos( $title_lc, 'labels' ) && false !== strpos( $title_lc, 'price' ) );
-	}
-
-	/**
-	 * Prevent duplicate registration.
-	 */
-	protected static function submenu_exists( $parent_slug, $menu_slug ) {
+	protected static function submenu_exists( string $parent_slug, string $menu_slug ): bool {
 		global $submenu;
-		if ( empty( $submenu[ $parent_slug ] ) ) {
-			return false;
-		}
+		if ( empty( $submenu[ $parent_slug ] ) ) return false;
 		foreach ( $submenu[ $parent_slug ] as $item ) {
 			if ( isset( $item[2] ) && (string) $item[2] === (string) $menu_slug ) {
 				return true;
@@ -151,13 +165,12 @@ class JPRM_Admin_Menu {
 	}
 
 	/**
-	 * Ensure our classes are loaded.
+	 * Lazy-load the Dietary Badges classes.
 	 */
-	protected static function ensure_badges_classes_loaded() {
-		// Paths relative to plugin root: includes/data/, includes/admin/
-		$base_dir = dirname( __DIR__, 1 ); // .../includes/admin -> /includes
-		$data     = $base_dir . '/data/class-badges-store.php';
-		$admin    = __DIR__ . '/class-admin-dietary-badges.php';
+	protected static function ensure_badges_classes_loaded(): void {
+		$base = dirname( __DIR__ ); // /includes
+		$data = $base . '/data/class-badges-store.php';
+		$admin = __DIR__ . '/class-admin-dietary-badges.php';
 
 		if ( ! class_exists( '\JPRM_Badges_Store', false ) && file_exists( $data ) ) {
 			require_once $data;
@@ -166,18 +179,6 @@ class JPRM_Admin_Menu {
 			require_once $admin;
 		}
 	}
-
-	/**
-	 * Admin notice if we couldn't detect the parent (won't block site).
-	 */
-	public static function notice_cannot_find_parent() {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			return;
-		}
-		echo '<div class="notice notice-warning"><p>';
-		echo esc_html__( 'JPRM: Could not locate the parent menu for “Price Labels”, so the “Dietary Badges” submenu was not added. You can set it explicitly via the filter jprm/dietary_badges_parent_slug.', 'jprm' );
-		echo '</p></div>';
-	}
 }
 
-JPRM_Admin_Menu::init();
+Admin_Menu::init();
