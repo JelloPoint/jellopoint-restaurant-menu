@@ -144,6 +144,7 @@ class Admin_Menu {
 }
 
 Admin_Menu::init();
+
 // === JPRM: Append-only "Dietary Badges" submenu (keep it last; no other changes) ===
 \add_action( 'admin_menu', function () {
 	// Use the same parent slug that your Admin_Menu class already uses.

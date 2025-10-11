@@ -54,7 +54,12 @@ class JPRM_Admin_Dietary_Badges {
 		?>
 		<div class="wrap jprm-wrap">
 			<h1 class="wp-heading-inline"><?php esc_html_e( 'Dietary Badges', 'jprm' ); ?></h1>
-			<p class="description"><?php esc_html_e( 'Drag rows to reorder. Click the icon to choose or clear. Use the trash to delete a row.', 'jprm' ); ?></p>
+			<?php if ( isset($_GET['updated']) && $_GET['updated'] === 'true' ) : ?>
+	        <div class="notice notice-success is-dismissible">
+		    <p><?php echo esc_html__( 'Badges saved.', 'jprm' ); ?></p>
+	    </div>
+        <?php endif; ?>
+            <p class="description"><?php esc_html_e( 'Drag rows to reorder. Click the icon to choose or clear. Use the trash to delete a row.', 'jprm' ); ?></p>
 
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="jprm-badges-form">
 				<?php wp_nonce_field( $this->nonce_action, $this->nonce_name ); ?>
