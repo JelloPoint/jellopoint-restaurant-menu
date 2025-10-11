@@ -66,6 +66,40 @@ class Admin_Menu {
 	public static function remove_parent_self_link(): void {
 		remove_submenu_page( self::PARENT_SLUG, self::PARENT_SLUG );
 	}
+// === JPRM: Append-only registration of the new "Dietary Badges" submenu ===
+// Requires: includes/admin/class-admin-dietary-badges.php
+//           includes/data/class-badges-store.php
+// This does NOT alter any existing menus; it just queues one more submenu.
+
+\JelloPoint\RestaurantMenu\Admin\Admin_Menu::register_submenu([
+	'page_title' => __( 'Dietary Badges', 'jprm' ),
+	'menu_title' => __( 'Dietary Badges', 'jprm' ),
+	'capability' => 'manage_options',
+	'menu_slug'  => 'jprm-dietary-badges',
+	'callback'   => function() {
+		// Load classes only when the page is actually rendered.
+		$admin_file = __DIR__ . '/class-admin-dietary-badges.php';
+		$data_file  = dirname( __DIR__ ) . '/data/class-badges-store.php';
+
+		if ( file_exists( $data_file ) ) {
+			require_once $data_file;
+		}
+		if ( file_exists( $admin_file ) ) {
+			require_once $admin_file;
+		}
+
+		if ( class_exists( '\JPRM_Badges_Store', false ) && class_exists( '\JPRM_Admin_Dietary_Badges', false ) ) {
+			$store = new \JPRM_Badges_Store();
+			$page  = new \JPRM_Admin_Dietary_Badges( $store );
+			$page->render_page();
+		} else {
+			// Graceful fallback if files are missing.
+			wp_die( esc_html__( 'Dietary Badges screen could not be loaded. Missing classes.', 'jprm' ) );
+		}
+	},
+	// Large position ensures it appears at the bottom of your existing group.
+	'position'   => 999,
+]);
 
 	/**
 	 * De-duplicate and fix ordering. Also **remove mislinked “Menu Items” entries**
