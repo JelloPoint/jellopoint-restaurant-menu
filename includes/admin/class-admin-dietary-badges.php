@@ -170,8 +170,9 @@ class JPRM_Admin_Dietary_Badges {
 	 * Kept self-contained to avoid touching existing scripts.
 	 */
 	protected function inline_js() {
-		$media_title  = esc_js__( 'Select Badge Icon', 'jprm' );
-		$media_button = esc_js__( 'Use this icon', 'jprm' );
+		$media_title  = esc_js( __( 'Select Badge Icon', 'jprm' ) );
+        $media_button = esc_js( __( 'Use this icon', 'jprm' ) );
+
 
 		return <<<JS
 		(function($){
