@@ -1,8 +1,7 @@
 <?php
 /**
  * JelloPoint Restaurant Menu – Admin: Menu Item > Dietary Badges Meta Box
- *
- * Displays active badges from the store as horizontal chips.
+ * Focus: clean, horizontal chip layout with guaranteed inline CSS.
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -16,6 +15,9 @@ class JPRM_MenuItem_Badges_Meta {
 	const NONCE_NAME    = 'jprm_item_badges_nonce';
 	const NONCE_ACTION  = 'jprm_item_badges_save';
 
+	/** Ensure we only print the inline CSS once per page load */
+	private static $css_printed = false;
+
 	/** @var JPRM_Badges_Store */
 	protected $store;
 
@@ -23,10 +25,6 @@ class JPRM_MenuItem_Badges_Meta {
 		$this->store = $store_instance;
 		add_action( 'add_meta_boxes', [ $this, 'register_metabox' ], 20 );
 		add_action( 'save_post_' . self::POST_TYPE, [ $this, 'save_post' ], 10, 2 );
-
-		// Load scoped CSS for this screen only
-		add_action( 'load-post.php',     [ $this, 'enqueue_css' ] );
-		add_action( 'load-post-new.php', [ $this, 'enqueue_css' ] );
 	}
 
 	public function register_metabox() {
@@ -41,17 +39,19 @@ class JPRM_MenuItem_Badges_Meta {
 	}
 
 	public function render_metabox( $post ) {
+		// Print inline CSS once (guaranteed to load)
+		$this->print_inline_css_once();
+
 		wp_nonce_field( self::NONCE_ACTION, self::NONCE_NAME );
 
 		$selected = get_post_meta( $post->ID, self::META_KEY, true );
-		if ( ! is_array( $selected ) ) {
-			$selected = [];
-		}
+		if ( ! is_array( $selected ) ) $selected = [];
 
+		// Build active badges list (ordered)
 		$badges = [];
 		foreach ( $this->store->get_rows() as $r ) {
 			if ( empty( $r['active'] ) ) continue;
-			$name = isset( $r['name'] ) ? trim( $r['name'] ) : '';
+			$name = isset( $r['name'] ) ? trim( (string) $r['name'] ) : '';
 			if ( $name === '' ) continue;
 			$badges[] = [
 				'slug'     => sanitize_title( $name ),
@@ -87,11 +87,7 @@ class JPRM_MenuItem_Badges_Meta {
 	}
 
 	public function save_post( $post_id, $post ) {
-		if (
-			! isset( $_POST[ self::NONCE_NAME ] ) ||
-			! wp_verify_nonce( $_POST[ self::NONCE_NAME ], self::NONCE_ACTION )
-		) return;
-
+		if ( ! isset( $_POST[ self::NONCE_NAME ] ) || ! wp_verify_nonce( $_POST[ self::NONCE_NAME ], self::NONCE_ACTION ) ) return;
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
 		if ( self::POST_TYPE !== $post->post_type ) return;
 		if ( ! current_user_can( 'edit_post', $post_id ) ) return;
@@ -108,9 +104,7 @@ class JPRM_MenuItem_Badges_Meta {
 
 		foreach ( $input as $slug ) {
 			$slug = sanitize_title( (string) $slug );
-			if ( in_array( $slug, $valid, true ) ) {
-				$clean[] = $slug;
-			}
+			if ( in_array( $slug, $valid, true ) ) $clean[] = $slug;
 		}
 
 		if ( empty( $clean ) ) {
@@ -120,67 +114,73 @@ class JPRM_MenuItem_Badges_Meta {
 		}
 	}
 
-	/** Load compact CSS for badges layout */
-	public function enqueue_css() {
-		$screen = get_current_screen();
-		if ( ! $screen || $screen->post_type !== self::POST_TYPE ) return;
+	private function print_inline_css_once() : void {
+		if ( self::$css_printed ) return;
+		self::$css_printed = true;
 
-		$h = 'jprm-badges-horizontal-style';
-		wp_register_style( $h, false );
-		wp_enqueue_style( $h );
-		wp_add_inline_style( $h, $this->inline_css() );
-	}
-
-	protected function inline_css() : string {
-		return '
-		#jprm_menu_item_badges .inside {
-			margin:0 !important;
-			padding:8px 12px !important;
-		}
-		#jprm_menu_item_badges .jprm-badges-list {
-			display:flex !important;
-			flex-wrap:wrap !important;
-			gap:8px !important;
-			list-style:none !important;
-			margin:0 !important;
-			padding:0 !important;
-		}
-		#jprm_menu_item_badges .jprm-badge-li {
-			background:#fff !important;
-			border:1px solid #dcdcde !important;
-			border-radius:6px !important;
-			padding:6px 10px !important;
-			display:flex !important;
-			align-items:center !important;
-		}
-		#jprm_menu_item_badges .jprm-badge-label {
-			display:flex !important;
-			align-items:center !important;
-			gap:8px !important;
-			margin:0 !important;
-			font-size:13px !important;
-			line-height:1.4 !important;
-		}
-		#jprm_menu_item_badges .jprm-badge-icon {
-			width:18px !important;
-			height:18px !important;
-			object-fit:contain !important;
-			border:1px solid #ccd0d4 !important;
-			border-radius:3px !important;
-			background:#fff !important;
-		}
-		#jprm_menu_item_badges .jprm-badge-placeholder {
-			color:#000 !important;
-			opacity:1 !important;
-			font-size:16px !important;
-		}
-		#jprm_menu_item_badges .jprm-badge-name {
-			font-weight:500 !important;
-		}
-		#jprm_menu_item_badges input[type=checkbox] {
-			margin-left:6px !important;
-		}
+		$css = '
+#jprm_menu_item_badges .inside{
+	margin:0 !important;
+	padding:8px 12px !important;
+}
+#jprm_menu_item_badges .jprm-badges-list{
+	display:flex !important;
+	flex-wrap:wrap !important;
+	gap:8px !important;
+	list-style:none !important;
+	margin:0 !important;
+	padding:0 !important;
+}
+#jprm_menu_item_badges .jprm-badge-li{
+	margin:0 !important;
+	padding:6px 10px !important;
+	background:#fff !important;
+	border:1px solid #dcdcde !important;
+	border-radius:6px !important;
+	display:flex !important;
+	align-items:center !important;
+}
+#jprm_menu_item_badges .jprm-badge-label{
+	display:flex !important;
+	align-items:center !important;
+	gap:8px !important;
+	margin:0 !important;
+	font-size:13px !important;
+	line-height:1.4 !important;
+}
+#jprm_menu_item_badges .jprm-badge-icon{
+	width:18px !important;
+	height:18px !important;
+	max-width:18px !important;
+	max-height:18px !important;
+	object-fit:contain !important;
+	border:1px solid #ccd0d4 !important;
+	border-radius:3px !important;
+	background:#fff !important;
+}
+/* Fallback: any img inside our label should never blow up */
+#jprm_menu_item_badges .jprm-badge-label img{
+	width:18px !important;
+	height:18px !important;
+	max-width:18px !important;
+	max-height:18px !important;
+	object-fit:contain !important;
+}
+#jprm_menu_item_badges .jprm-badge-placeholder{
+	color:#000 !important;
+	opacity:1 !important;
+	font-size:16px !important;
+}
+#jprm_menu_item_badges .jprm-badge-name{
+	font-weight:500 !important;
+}
+#jprm_menu_item_badges input[type=checkbox]{
+	margin-left:6px !important;
+	vertical-align:middle !important;
+}
 		';
+
+		echo '<style id="jprm-badges-inline-css">' . $css . '</style>';
 	}
 }
 
