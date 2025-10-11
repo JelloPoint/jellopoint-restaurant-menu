@@ -1,151 +1,145 @@
 <?php
 namespace JelloPoint\RestaurantMenu\Admin;
 
-if ( ! defined( 'ABSPATH' ) ) exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
 /**
- * Central admin menu registrar for the JelloPoint plugin.
- * - Ensures a single top-level "JelloPoint Menu"
- * - Provides a stable parent slug for all submenus
- * - Avoids duplicate roots; runs late to reuse existing parent if already registered
+ * Admin menu manager for JelloPoint Restaurant Menu.
+ * Cleanup-only, with duplicate/mislink guards.
  */
 class Admin_Menu {
 
-	/** Cached detected parent slug */
-	protected static $parent_slug = null;
+	const PARENT_SLUG = 'jellopoint';
+	const SLUG_MENUS  = 'edit-tags.php?taxonomy=jprm_menu&post_type=jprm_menu_item';
+	const SLUG_SECTS  = 'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item';
+	const SLUG_ITEMS  = 'edit.php?post_type=jprm_menu_item';
 
-	/** Submenu registrations queued by other components */
-	protected static $queued_submenus = [];
+	private static $bootstrapped = false;
 
-	public static function init() : void {
-		// Run late so any previously-registered parent can be reused.
-		add_action( 'admin_menu', [ __CLASS__, 'ensure_parent_and_attach_submenus' ], 99 );
+	public static function init(): void {
+		if ( self::$bootstrapped ) {
+			return;
+		}
+		self::$bootstrapped = true;
+
+		add_action( 'admin_menu', [ __CLASS__, 'ensure_parent' ], 5 );
+		add_action( 'admin_menu', [ __CLASS__, 'register_submenus' ], 20 );
+		add_action( 'admin_menu', [ __CLASS__, 'remove_parent_self_link' ], 90 );
+		add_action( 'admin_menu', [ __CLASS__, 'sanitize_and_order' ], 100 );
 	}
 
-	/**
-	 * Queue a submenu to be attached under the detected/created parent.
-	 * Accepts:
-	 * - page_title
-	 * - menu_title
-	 * - capability
-	 * - menu_slug
-	 * - callback (callable)
-	 * - position (int)
-	 */
-	public static function register_submenu( array $args ) : void {
-		self::$queued_submenus[] = $args;
-	}
+	public static function ensure_parent(): void {
+		global $menu;
 
-	/**
-	 * Detect (or create) the parent slug we use for all submenus.
-	 */
-	public static function get_parent_slug() : string {
-		if ( is_string( self::$parent_slug ) ) return self::$parent_slug;
-
-		// 1) Try candidates from filter or common names
-		global $admin_page_hooks, $menu;
-		$candidates = apply_filters( 'jprm/admin_parent_slug_candidates', [] );
-		if ( ! is_array( $candidates ) ) $candidates = [];
-		$common = [ 'jellopoint-menu', 'jellopoint_root', 'jellopoint', 'jprm_root' ];
-		$candidates = array_values( array_unique( array_merge( $candidates, $common ) ) );
-
-		foreach ( $candidates as $slug ) {
-			if ( isset( $admin_page_hooks[ $slug ] ) ) {
-				self::$parent_slug = $slug;
-				return self::$parent_slug;
+		foreach ( (array) $menu as $m ) {
+			if ( isset( $m[2] ) && $m[2] === self::PARENT_SLUG ) {
+				return;
 			}
 		}
 
-		// 2) Scan admin menu titles to find our known parent by label (fallback)
-		if ( is_array( $menu ) ) {
-			foreach ( $menu as $m ) {
-				// $m = [0 => title, 2 => slug]
-				if ( isset( $m[0], $m[2] ) ) {
-					$t = wp_strip_all_tags( (string) $m[0] );
-					$slug = (string) $m[2];
-					$low = mb_strtolower( $t );
-					if ( $low === 'jellopoint menu' || $low === 'jellopoint' ) {
-						self::$parent_slug = $slug;
-						return self::$parent_slug;
-					}
-				}
-			}
-		}
+		$icon = defined( 'JPRM_MENU_ICON_URL' ) ? JPRM_MENU_ICON_URL : 'dashicons-carrot';
+		$icon = apply_filters( 'jprm/root_menu_icon', $icon );
 
-		// Not found yet; return empty string to signal creation path.
-		return '';
+		add_menu_page(
+			__( 'JelloPoint', 'jellopoint-restaurant-menu' ),
+			__( 'JelloPoint', 'jellopoint-restaurant-menu' ),
+			'edit_posts',
+			self::PARENT_SLUG,
+			'__return_null',
+			$icon,
+			58
+		);
+	}
+
+	public static function register_submenus(): void {
+		$parent      = self::PARENT_SLUG;
+		$labels_slug = apply_filters( 'jprm/price_labels_slug', 'jprm-price-labels' );
+
+		self::maybe_add_submenu( $parent, __( 'Menus', 'jellopoint-restaurant-menu' ),   self::SLUG_MENUS, 'edit_posts' );
+		self::maybe_add_submenu( $parent, __( 'Sections', 'jellopoint-restaurant-menu' ), self::SLUG_SECTS, 'edit_posts' );
+		self::maybe_add_submenu( $parent, __( 'Menu Items', 'jellopoint-restaurant-menu' ), self::SLUG_ITEMS, 'edit_posts' );
+		self::maybe_add_submenu( $parent, __( 'Price Labels', 'jellopoint-restaurant-menu' ), $labels_slug, 'manage_options', '__return_null' );
+	}
+
+	public static function remove_parent_self_link(): void {
+		remove_submenu_page( self::PARENT_SLUG, self::PARENT_SLUG );
 	}
 
 	/**
-	 * Ensure parent menu exists, then attach all queued submenus.
+	 * De-duplicate and fix ordering. Also **remove mislinked “Menu Items” entries**
+	 * that do not point to `edit.php?post_type=jprm_menu_item`.
 	 */
-	public static function ensure_parent_and_attach_submenus() : void {
-		$parent = self::get_parent_slug();
+	public static function sanitize_and_order(): void {
+		global $submenu;
 
-		// If still not found, create the parent now (once).
-		if ( $parent === '' ) {
-			$parent = 'jellopoint-menu';
-			add_menu_page(
-				__( 'JelloPoint Menu', 'jellopoint-restaurant-menu' ), // page title
-				__( 'JelloPoint Menu', 'jellopoint-restaurant-menu' ), // menu title
-				'manage_options',
-				$parent,     // slug we standardize on
-				'__return_null',
-				'dashicons-store',
-				56
-			);
-			self::$parent_slug = $parent; // cache it
+		if ( empty( $submenu[ self::PARENT_SLUG ] ) ) {
+			return;
 		}
 
-		// Add any queued submenus now.
-		if ( ! empty( self::$queued_submenus ) ) {
-			foreach ( self::$queued_submenus as $args ) {
-				$page_title = $args['page_title'] ?? '';
-				$menu_title = $args['menu_title'] ?? '';
-				$capability = $args['capability'] ?? 'manage_options';
-				$menu_slug  = $args['menu_slug'] ?? '';
-				$callback   = $args['callback']   ?? '__return_null';
-				$position   = isset($args['position']) ? (int)$args['position'] : null;
+		$labels_slug = apply_filters( 'jprm/price_labels_slug', 'jprm-price-labels' );
+		$desired     = [ self::SLUG_MENUS, self::SLUG_SECTS, self::SLUG_ITEMS, $labels_slug ];
 
-				if ( $page_title && $menu_title && $menu_slug ) {
-					add_submenu_page(
-						self::$parent_slug,
-						$page_title,
-						$menu_title,
-						$capability,
-						$menu_slug,
-						$callback,
-						$position
-					);
-				}
+		// 1) Build unique map by slug (later wins).
+		$unique = [];
+		foreach ( $submenu[ self::PARENT_SLUG ] as $item ) {
+			$slug = isset( $item[2] ) ? (string) $item[2] : '';
+
+			// If an entry is titled "Menu Items" but points to the wrong slug (e.g., edit.php),
+			// drop it — we only allow our CPT list slug.
+			$title = isset( $item[0] ) ? wp_strip_all_tags( (string) $item[0] ) : '';
+			if ( $title === __( 'Menu Items', 'jellopoint-restaurant-menu' ) && $slug !== self::SLUG_ITEMS ) {
+				continue; // remove mislinked duplicate
 			}
-			// Clear the queue once attached
-			self::$queued_submenus = [];
+
+			$unique[ $slug ] = $item;
 		}
+
+		// 2) Place desired ones in order.
+		$ordered = [];
+		foreach ( $desired as $slug ) {
+			if ( isset( $unique[ $slug ] ) ) {
+				$ordered[] = $unique[ $slug ];
+				unset( $unique[ $slug ] );
+			}
+		}
+
+		// 3) Append any remaining, but **skip any other “Menu Items” titled entries**.
+		foreach ( $unique as $slug => $item ) {
+			$title = isset( $item[0] ) ? wp_strip_all_tags( (string) $item[0] ) : '';
+			if ( $title === __( 'Menu Items', 'jellopoint-restaurant-menu' ) && $slug !== self::SLUG_ITEMS ) {
+				continue;
+			}
+			$ordered[] = $item;
+		}
+
+		$submenu[ self::PARENT_SLUG ] = $ordered;
+	}
+
+	/**
+	 * Utility: add a submenu if the slug isn't already present.
+	 */
+	private static function maybe_add_submenu( string $parent, string $title, string $slug, string $capability, $callback = '' ): void {
+		if ( self::submenu_exists( $parent, $slug ) ) {
+			return;
+		}
+		add_submenu_page( $parent, $title, $title, $capability, $slug, $callback );
+	}
+
+	private static function submenu_exists( string $parent, string $slug ): bool {
+		global $submenu;
+
+		if ( empty( $submenu[ $parent ] ) ) {
+			return false;
+		}
+		foreach ( $submenu[ $parent ] as $item ) {
+			if ( isset( $item[2] ) && (string) $item[2] === $slug ) {
+				return true;
+			}
+		}
+		return false;
 	}
 }
 
-// === JPRM: Dietary Badges submenu (append-only) ===
-// This does NOT alter any existing menus; it just queues one more submenu at the bottom.
-\JelloPoint\RestaurantMenu\Admin\Admin_Menu::register_submenu([
-	'page_title' => __( 'Dietary Badges', 'jprm' ),
-	'menu_title' => __( 'Dietary Badges', 'jprm' ),
-	'capability' => 'manage_options',
-	'menu_slug'  => 'jprm-dietary-badges',
-	'callback'   => function() {
-		$admin_file = __DIR__ . '/class-admin-dietary-badges.php';
-		$data_file  = dirname( __DIR__ ) . '/data/class-badges-store.php';
-		if ( file_exists( $data_file ) ) require_once $data_file;
-		if ( file_exists( $admin_file ) ) require_once $admin_file;
-
-		if ( class_exists( '\JPRM_Badges_Store', false ) && class_exists( '\JPRM_Admin_Dietary_Badges', false ) ) {
-			$store = new \JPRM_Badges_Store();
-			$page  = new \JPRM_Admin_Dietary_Badges( $store );
-			$page->render_page();
-		} else {
-			wp_die( esc_html__( 'Dietary Badges screen could not be loaded. Missing classes.', 'jprm' ) );
-		}
-	},
-	// Large position ensures it appears at the bottom of your existing group.
-	'position'   => 999,
-]);
+Admin_Menu::init();
