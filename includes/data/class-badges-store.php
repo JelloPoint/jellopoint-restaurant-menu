@@ -2,10 +2,14 @@
 /**
  * JelloPoint Restaurant Menu – Data Store: Dietary Badges
  *
- * Mirrors the Labels Store shape: simple rows with slug, name, icon (ID+URL).
- * Stored in option: jprm_dietary_badges_v1
+ * Mirrors the "Price Labels" data shape/UX:
+ * - name (string)
+ * - icon_id (int)
+ * - icon_url (string)
+ * - active (bool)
+ * - order (int) — for stable sorting
  *
- * @package JPRM
+ * Stored as: option('jprm_dietary_badges_v1') => array of rows in order.
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -17,76 +21,80 @@ class JPRM_Badges_Store {
 	const OPTION_KEY = 'jprm_dietary_badges_v1';
 
 	/**
-	 * Get all rows (ensuring defaults on first run).
+	 * Return rows in display order; if missing, seed defaults.
 	 *
 	 * @return array
 	 */
-	public function get_rows() {
+	public function get_rows() : array {
 		$rows = get_option( self::OPTION_KEY, null );
+
 		if ( ! is_array( $rows ) ) {
 			$rows = $this->defaults();
 			update_option( self::OPTION_KEY, $rows, false );
 		}
-		return array_values( array_map( [ $this, 'sanitize_row' ], $rows ) );
+
+		// Normalize & sort by 'order'
+		$san = array_map( [ $this, 'sanitize_row' ], $rows );
+		usort( $san, function( $a, $b ) {
+			return (int)($a['order'] ?? 0) <=> (int)($b['order'] ?? 0);
+		});
+
+		// Reindex for neatness
+		return array_values( $san );
 	}
 
 	/**
-	 * Save rows from admin POST.
+	 * Save rows from POST (expects ordered rows).
 	 *
 	 * @param array $input
 	 * @return void
 	 */
-	public function save_rows( $input ) {
-		$san = [];
+	public function save_rows( $input ) : void {
+		$out = [];
 
 		if ( is_array( $input ) ) {
 			foreach ( $input as $row ) {
 				$r = $this->sanitize_row( $row );
-				if ( $r['slug'] !== '' || $r['name'] !== '' || $r['icon_id'] || $r['icon_url'] !== '' ) {
-					$san[] = $r;
+				// Keep non-empty lines only (at least a name or an icon)
+				if ( $r['name'] !== '' || $r['icon_id'] || $r['icon_url'] !== '' ) {
+					$out[] = $r;
 				}
 			}
 		}
 
-		update_option( self::OPTION_KEY, $san, false );
+		// Fix order sequence
+		foreach ( $out as $i => &$r ) {
+			$r['order'] = $i;
+		}
+
+		update_option( self::OPTION_KEY, $out, false );
 	}
 
 	/**
-	 * Empty/blank row for template.
-	 *
-	 * @return array
+	 * Blank row template.
 	 */
-	public function blank_row() {
+	public function blank_row() : array {
 		return [
-			'slug'     => '',
 			'name'     => '',
 			'icon_id'  => 0,
 			'icon_url' => '',
+			'active'   => true,
+			'order'    => 0,
 		];
 	}
 
 	/**
 	 * Sanitize a single row.
-	 *
-	 * @param array $row
-	 * @return array
 	 */
-	protected function sanitize_row( $row ) {
-		$slug = '';
-		if ( isset( $row['slug'] ) ) {
-			$slug = sanitize_title( wp_strip_all_tags( (string) $row['slug'] ) );
-		}
+	protected function sanitize_row( $row ) : array {
+		$name     = isset( $row['name'] ) ? sanitize_text_field( (string) $row['name'] ) : '';
+		$icon_id  = isset( $row['icon_id'] ) ? absint( $row['icon_id'] ) : 0;
+		$icon_url = isset( $row['icon_url'] ) ? esc_url_raw( (string) $row['icon_url'] ) : '';
+		$active   = isset( $row['active'] ) ? (bool) $row['active'] : false;
+		$order    = isset( $row['order'] ) ? (int) $row['order'] : 0;
 
-		$name = '';
-		if ( isset( $row['name'] ) ) {
-			$name = sanitize_text_field( (string) $row['name'] );
-		}
-
-		$icon_id  = isset( $row['icon_id'] )  ? absint( $row['icon_id'] ) : 0;
-		$icon_url = isset( $row['icon_url'] ) ? esc_url_raw( $row['icon_url'] ) : '';
-
-		// If we have ID but no URL, try to resolve to current file URL (robust across moves).
-		if ( $icon_id && empty( $icon_url ) ) {
+		// If ID but no URL, resolve a thumbnail URL for robustness.
+		if ( $icon_id && ! $icon_url ) {
 			$maybe = wp_get_attachment_image_src( $icon_id, 'thumbnail' );
 			if ( is_array( $maybe ) && ! empty( $maybe[0] ) ) {
 				$icon_url = $maybe[0];
@@ -94,33 +102,44 @@ class JPRM_Badges_Store {
 		}
 
 		return [
-			'slug'     => $slug,
 			'name'     => $name,
 			'icon_id'  => $icon_id,
 			'icon_url' => $icon_url,
+			'active'   => $active,
+			'order'    => $order,
 		];
 	}
 
 	/**
-	 * Opinionated defaults (icons intentionally empty so you can pick site-matching art).
-	 *
-	 * @return array[]
+	 * Opinionated defaults (icons empty so you can pick site-matching art).
 	 */
-	protected function defaults() {
-		return [
-			[ 'slug' => 'vegan',        'name' => 'Vegan',        'icon_id' => 0, 'icon_url' => '' ],
-			[ 'slug' => 'vegetarian',   'name' => 'Vegetarian',   'icon_id' => 0, 'icon_url' => '' ],
-			[ 'slug' => 'gluten-free',  'name' => 'Gluten-Free',  'icon_id' => 0, 'icon_url' => '' ],
-			[ 'slug' => 'halal',        'name' => 'Halal',        'icon_id' => 0, 'icon_url' => '' ],
-			[ 'slug' => 'kosher',       'name' => 'Kosher',       'icon_id' => 0, 'icon_url' => '' ],
-			[ 'slug' => 'organic',      'name' => 'Organic',      'icon_id' => 0, 'icon_url' => '' ],
-			[ 'slug' => 'spicy',        'name' => 'Spicy',        'icon_id' => 0, 'icon_url' => '' ],
-			[ 'slug' => 'nut-free',     'name' => 'Nut-Free',     'icon_id' => 0, 'icon_url' => '' ],
-			[ 'slug' => 'dairy-free',   'name' => 'Dairy-Free',   'icon_id' => 0, 'icon_url' => '' ],
-			[ 'slug' => 'low-sugar',    'name' => 'Low Sugar',    'icon_id' => 0, 'icon_url' => '' ],
-			[ 'slug' => 'low-sodium',   'name' => 'Low Sodium',   'icon_id' => 0, 'icon_url' => '' ],
-			[ 'slug' => 'contains-alc', 'name' => 'Contains Alcohol', 'icon_id' => 0, 'icon_url' => '' ],
+	protected function defaults() : array {
+		$names = [
+			'Vegan',
+			'Vegetarian',
+			'Gluten-Free',
+			'Halal',
+			'Kosher',
+			'Organic',
+			'Spicy',
+			'Nut-Free',
+			'Dairy-Free',
+			'Low Sugar',
+			'Low Sodium',
+			'Contains Alcohol',
 		];
+
+		$rows = [];
+		foreach ( $names as $i => $n ) {
+			$rows[] = [
+				'name'     => $n,
+				'icon_id'  => 0,
+				'icon_url' => '',
+				'active'   => true,
+				'order'    => $i,
+			];
+		}
+		return $rows;
 	}
 }
 
