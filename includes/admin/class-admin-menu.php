@@ -144,7 +144,6 @@ class Admin_Menu {
 }
 
 Admin_Menu::init();
-
 // === JPRM: Append-only "Dietary Badges" submenu (keep it last; no other changes) ===
 \add_action( 'admin_menu', function () {
 	// Use the same parent slug that your Admin_Menu class already uses.
@@ -187,4 +186,13 @@ Admin_Menu::init();
 		999 // bottom of the group
 	);
 }, 999);
+// === JPRM: ensure Dietary Badges POST handler is registered on submit ===
+add_action('admin_init', function () {
+	if ( isset($_POST['action']) && $_POST['action'] === 'jprm_save_dietary_badges' ) {
+		require_once JPRM_PLUGIN_DIR . 'includes/data/class-badges-store.php';
+		require_once JPRM_PLUGIN_DIR . 'includes/admin/class-admin-dietary-badges.php';
+		$store = new \JPRM_Badges_Store();
+		new \JPRM_Admin_Dietary_Badges($store); // constructor registers the admin_post handler
+	}
+}, 1);
 
