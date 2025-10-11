@@ -454,7 +454,7 @@ class JPRM_Admin_MenuItem_Meta {
 		// echo '<tr><th><label>'.esc_html__('Badge Text','jellopoint-restaurant-menu').'</label></th><td>';
 		// printf('<input type="text" name="jprm_badge" value="%s" class="regular-text" placeholder="%s" />',
 		//	esc_attr($badge), esc_attr__('e.g. Chef’s choice','jellopoint-restaurant-menu'));
-		// echo '</td></tr></tbody></table>';
+		 echo '</td></tr></tbody></table>';
 	}
 
 	/* --------------------------------- save -------------------------------- */
