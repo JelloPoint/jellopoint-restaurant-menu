@@ -16,6 +16,7 @@ class Admin_Menu {
 	const SLUG_SECTS  = 'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item';
 	const SLUG_ITEMS  = 'edit.php?post_type=jprm_menu_item';
 
+	/** @var bool */
 	private static $bootstrapped = false;
 
 	public static function init(): void {
@@ -28,6 +29,9 @@ class Admin_Menu {
 		add_action( 'admin_menu', [ __CLASS__, 'register_submenus' ], 20 );
 		add_action( 'admin_menu', [ __CLASS__, 'remove_parent_self_link' ], 90 );
 		add_action( 'admin_menu', [ __CLASS__, 'sanitize_and_order' ], 100 );
+
+		// 🔹 NEW: expose the correct parent slug to other components (e.g. Menu Builder)
+		add_filter( 'jprm/admin/menu_builder_parent', [ __CLASS__, 'menu_builder_parent' ] );
 	}
 
 	public static function ensure_parent(): void {
@@ -96,7 +100,7 @@ class Admin_Menu {
 			$unique[ $slug ] = $item;
 		}
 
-		// 2) Place desired ones in order.
+		// 2) Rebuild in desired order when available; append extras at the end (de-duped).
 		$ordered = [];
 		foreach ( $desired as $slug ) {
 			if ( isset( $unique[ $slug ] ) ) {
@@ -104,13 +108,8 @@ class Admin_Menu {
 				unset( $unique[ $slug ] );
 			}
 		}
-
-		// 3) Append any remaining, but **skip any other “Menu Items” titled entries**.
-		foreach ( $unique as $slug => $item ) {
-			$title = isset( $item[0] ) ? wp_strip_all_tags( (string) $item[0] ) : '';
-			if ( $title === __( 'Menu Items', 'jellopoint-restaurant-menu' ) && $slug !== self::SLUG_ITEMS ) {
-				continue;
-			}
+		// Append leftovers (stable order).
+		foreach ( $unique as $item ) {
 			$ordered[] = $item;
 		}
 
@@ -140,37 +139,22 @@ class Admin_Menu {
 		}
 		return false;
 	}
-	
+
+	// 🔹 NEW: Provide the parent slug for external components (Menu Builder)
+	public static function menu_builder_parent( $slug = '' ) : string {
+		return self::PARENT_SLUG;
+	}
 }
 
 Admin_Menu::init();
-// === JPRM: Append-only "Dietary Badges" submenu (keep it last; no other changes) ===
-\add_action( 'admin_menu', function () {
-	// Use the same parent slug that your Admin_Menu class already uses.
-	$parent_slug = \JelloPoint\RestaurantMenu\Admin\Admin_Menu::PARENT_SLUG;
 
-	// Avoid duplicates if something already registered it.
-	global $submenu;
-	if ( isset( $submenu[ $parent_slug ] ) ) {
-		foreach ( (array) $submenu[ $parent_slug ] as $row ) {
-			if ( isset( $row[2] ) && (string) $row[2] === 'jprm-dietary-badges' ) {
-				return;
-			}
-		}
-	}
+// === JPRM: Append-only "Dietary Badges" submenu (keep it last; no other changes below) ===
+add_action( 'admin_menu', function () {
+	$parent_slug = Admin_Menu::PARENT_SLUG;
 
-	// Lazy-load page classes only when rendering the screen.
-	$render = function () {
-		$data_file  = \dirname( __DIR__ ) . '/data/class-badges-store.php';
-		$admin_file = __DIR__ . '/class-admin-dietary-badges.php';
-
-		if ( \file_exists( $data_file ) )  require_once $data_file;
-		if ( \file_exists( $admin_file ) ) require_once $admin_file;
-
-		if ( \class_exists( '\JPRM_Badges_Store', false ) && \class_exists( '\JPRM_Admin_Dietary_Badges', false ) ) {
-			$store = new \JPRM_Badges_Store();
-			$page  = new \JPRM_Admin_Dietary_Badges( $store );
-			$page->render_page();
+	$render = function() {
+		if ( class_exists( '\JelloPoint\RestaurantMenu\Admin\Badges_Post_Bootstrap' ) ) {
+			\JelloPoint\RestaurantMenu\Admin\Badges_Post_Bootstrap::render_screen();
 		} else {
 			\wp_die( \esc_html__( 'Dietary Badges screen could not be loaded. Missing classes.', 'jprm' ) );
 		}
