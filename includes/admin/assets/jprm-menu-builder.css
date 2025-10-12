@@ -1,20 +1,31 @@
-/* Layout from earlier scaffold (keep if you like) */
+/* Layout shell */
 .jprm-menu-builder-wrap .jprm-columns{display:flex;gap:16px}
 .jprm-left{width:280px}
 .jprm-main{flex:1}
 .card{background:#fff;border:1px solid #dcdcde;padding:12px}
 
-/* Root + sublevels look the same */
+/* Root + sublevels are identical */
 .jprm-tree, .jprm-children { list-style: none; margin: 0; padding-left: 0; }
 .jprm-children { margin-left: 24px; }
 
 .jprm-li { margin: 6px 0; border: 1px solid #ccd0d4; background: #fff; border-radius: 2px; }
-.jprm-node { padding: 8px 10px; display: flex; justify-content: space-between; align-items: center; cursor: move; }
-.jprm-node .title { font-weight: 500; }
+.jprm-node { padding: 8px 10px; display: flex; gap: 8px; align-items: center; cursor: move; }
+.jprm-node .title { font-weight: 500; flex: 1 1 auto; }
 .jprm-node .meta { opacity: .6; font-size: 11px; }
 
-/* Placeholder similar to WP Menus */
+/* Caret like WP menus */
+.jprm-caret {
+  width: 18px; height: 18px; border: 1px solid #c3c4c7; background:#f6f7f7;
+  border-radius: 2px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer;
+}
+.jprm-caret:before { content: '▸'; font-size: 10px; line-height: 1; }
+.jprm-li:not(.collapsed) > .jprm-node .jprm-caret:before { content: '▾'; }
+
+/* Collapse behavior */
+.jprm-li.collapsed > ul.jprm-children { display: none; }
+
+/* Drag placeholder like WP */
 .jprm-placeholder { border: 2px dashed #c3c4c7; background: #f6f7f7; height: 38px; margin: 6px 0; border-radius: 2px; }
 
-/* Prevent selection while dragging */
+/* Prevent selection while sorting */
 body.jprm-sorting { -webkit-user-select: none; -moz-user-select: none; user-select: none; }

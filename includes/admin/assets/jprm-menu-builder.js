@@ -1,4 +1,5 @@
 (function($){
+  /** ---------------- REST helpers ---------------- */
   function apiGet(path) {
     return $.ajax({
       url: JPRM_MENU_BUILDER.root + '/' + path.replace(/^\//,''),
@@ -16,10 +17,13 @@
     });
   }
 
+  /** ---------------- Local state ---------------- */
   const state = { menus: [], sections: [], currentMenu: null };
+  const $loading = () => $('#jprm-loading');
 
-  function setLoading(on){ $('#jprm-loading')[on ? 'show' : 'hide'](); }
+  function setLoading(on){ $loading()[on ? 'show' : 'hide'](); }
 
+  /** ---------------- Loaders ---------------- */
   function loadMenus(){
     setLoading(true);
     return apiGet('menu-builder/menus')
@@ -49,7 +53,7 @@
       .always(()=> setLoading(false));
   }
 
-  // Build nested structure
+  /** ---------------- Build nested data ---------------- */
   function buildTree(items){
     const byId = {}; items.forEach(i => byId[i.id] = {...i, children: []});
     const roots = [];
@@ -65,19 +69,28 @@
     return roots;
   }
 
+  /** ---------------- DOM builders ---------------- */
+  function caret(){
+    return $('<button type="button" class="jprm-caret" aria-label="Toggle"></button>');
+  }
+
   function nodeLi(n){
-    const $li = $('<li>').attr('data-id', n.id).addClass('jprm-li');
+    const $li  = $('<li>').attr('data-id', n.id).addClass('jprm-li');
     const $row = $('<div class="jprm-node">')
+      .append(caret())
       .append($('<span class="title">').text(n.title))
       .append($('<span class="meta">').text('#'+n.id));
     $li.append($row);
 
+    // Always present a children UL to accept drops
     const $kids = $('<ul class="jprm-children jprm-sortable">');
     n.children.forEach(c => $kids.append(nodeLi(c)));
     $li.append($kids);
+
     return $li;
   }
 
+  /** ---------------- Sortable wiring ---------------- */
   function initSortable($scope){
     const options = {
       connectWith: '.jprm-sortable',
@@ -90,8 +103,16 @@
       forcePlaceholderSize: true,
       dropOnEmpty: true,
       start: function(){ $('body').addClass('jprm-sorting'); },
-      stop: function(){ $('body').removeClass('jprm-sorting'); }
+      stop: function(){ $('body').removeClass('jprm-sorting'); },
+      over: function(e, ui){
+        // Auto-expand the list we hover so it's easy to drop inside to create a child
+        const $ul = $(this);
+        const $parentLi = $ul.closest('li.jprm-li');
+        if ($parentLi.length) $parentLi.removeClass('collapsed');
+      }
     };
+
+    // Init (or re-init) each list individually
     $scope.find('.jprm-sortable').each(function(){
       const $ul = $(this);
       try { $ul.sortable('destroy'); } catch(e){}
@@ -99,13 +120,25 @@
     });
   }
 
+  /** ---------------- Render tree ---------------- */
   function renderTree(){
     const roots = buildTree(state.sections);
-    const $ul = $('#jprm-tree').empty().addClass('jprm-sortable jprm-children');
+
+    // Rebuild from scratch so markup is always our skeleton (fixes “non-draggable” cases)
+    const $ul = $('#jprm-tree').off().empty()
+      .addClass('jprm-sortable jprm-children');
+
     roots.forEach(n => $ul.append(nodeLi(n)));
+
+    // Wire carets (toggle collapse)
+    $('#jprm-tree').on('click', '.jprm-caret', function(){
+      $(this).closest('li.jprm-li').toggleClass('collapsed');
+    });
+
     initSortable($(document));
   }
 
+  /** ---------------- Collect payload to save ---------------- */
   function collectTree(){
     const out = [];
     function walk($ul, parentId){
@@ -120,7 +153,7 @@
     return out;
   }
 
-  // Events
+  /** ---------------- Events ---------------- */
   $(document).on('change', '#jprm-menu-select', function(){
     state.currentMenu = parseInt($(this).val(), 10) || null;
     loadSections();
@@ -151,6 +184,18 @@
       .always(()=> setLoading(false));
   });
 
+  // Expand/Collapse all
+  $('#jprm-expand').on('click', function(){
+    $('#jprm-tree li.jprm-li').removeClass('collapsed');
+  });
+  $('#jprm-collapse').on('click', function(){
+    $('#jprm-tree li.jprm-li').addClass('collapsed');
+  });
+
   // Boot
-  $(function(){ loadMenus().then(loadSections); });
+  $(function(){
+    // Show expand/collapse buttons now that they’re implemented
+    $('#jprm-expand, #jprm-collapse').show();
+    loadMenus().then(loadSections);
+  });
 })(jQuery);
