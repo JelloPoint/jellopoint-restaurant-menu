@@ -1,5 +1,4 @@
 (function($){
-  /** ---------------- REST helpers ---------------- */
   function apiGet(path) {
     return $.ajax({
       url: JPRM_MENU_BUILDER.root + '/' + path.replace(/^\//,''),
@@ -17,16 +16,13 @@
     });
   }
 
-  /** ---------------- Local state ---------------- */
   const state = { menus: [], sections: [], currentMenu: null };
-  const INDENT = 28;     // px per depth (close to WP)
-  const MAX_DEPTH = 6;   // prevent super deep nesting
-
-  let drag = null; // { startX, startDepth, $item }
+  const INDENT = 28;
+  const MAX_DEPTH = 6;
+  let drag = null;
 
   function setLoading(on){ $('#jprm-loading')[on ? 'show' : 'hide'](); }
 
-  /** ---------------- Loaders ---------------- */
   function loadMenus(){
     setLoading(true);
     return apiGet('menu-builder/menus')
@@ -56,17 +52,13 @@
       .always(()=> setLoading(false));
   }
 
-  /** ---------------- Build a flat, depth-annotated list ---------------- */
   function buildFlat(items){
-    // items: [{id,title,parent_id,menu_order,...}]
-    // Build adjacency then pre-order flatten
     const byId = {}; items.forEach(i => byId[i.id] = {...i, children: []});
     const roots = [];
     items.forEach(i => {
       if (i.parent_id && byId[i.parent_id]) byId[i.parent_id].children.push(byId[i.id]);
       else roots.push(byId[i.id]);
     });
-
     function sortRec(nodes){
       nodes.sort((a,b)=> (a.menu_order||0) - (b.menu_order||0) || a.title.localeCompare(b.title));
       nodes.forEach(n=> sortRec(n.children));
@@ -84,7 +76,25 @@
     return out;
   }
 
-  /** ---------------- Render (single UL, WP-style) ---------------- */
+  function applyIndent($li, depth){
+    $li.attr('data-depth', depth);
+    $li.find('> .jprm-row')
+       .css('padding-left', (depth * INDENT + 10) + 'px')
+       .toggleClass('jprm-top', depth === 0);
+  }
+
+  function clampDepth(depth, $item){
+    depth = Math.max(0, Math.min(MAX_DEPTH, depth));
+    const $prev = $item.prev('.jprm-item');
+    if ($prev.length){
+      const prevDepth = parseInt($prev.attr('data-depth'),10) || 0;
+      depth = Math.min(depth, prevDepth + 1);
+    } else {
+      depth = 0;
+    }
+    return depth;
+  }
+
   function renderList(){
     const flat = buildFlat(state.sections);
     const $ul = $('#jprm-tree').empty().removeClass().addClass('jprm-flat');
@@ -92,7 +102,6 @@
     flat.forEach(row=>{
       const $li  = $('<li>').attr('data-id', row.id).attr('data-depth', row.depth).addClass('jprm-item');
       const $row = $('<div class="jprm-row">')
-        .append($('<span class="jprm-caret" tabindex="0" aria-label="Toggle"></span>')) // future expand/collapse of meta if needed
         .append($('<span class="jprm-title">').text(row.title))
         .append($('<span class="jprm-meta">').text('#'+row.id));
       $li.append($row);
@@ -103,30 +112,8 @@
     initSortable($ul);
   }
 
-  /** ---------------- Indentation helpers ---------------- */
-  function clampDepth(depth, $item){
-    depth = Math.max(0, Math.min(MAX_DEPTH, depth));
-
-    // Prevent jumping deeper than previous sibling depth + 1
-    const $prev = $item.prev('.jprm-item');
-    if ($prev.length){
-      const prevDepth = parseInt($prev.attr('data-depth'),10) || 0;
-      depth = Math.min(depth, prevDepth + 1);
-    } else {
-      depth = 0; // first item can’t have a parent
-    }
-    return depth;
-  }
-
-  function applyIndent($li, depth){
-    $li.attr('data-depth', depth);
-    $li.find('> .jprm-row').css('padding-left', (depth * INDENT + 10) + 'px');
-  }
-
-  /** ---------------- Sortable with horizontal-depth control ---------------- */
   function initSortable($ul){
     try { $ul.sortable('destroy'); } catch(e){}
-
     $ul.sortable({
       placeholder: 'jprm-placeholder',
       items: '> li',
@@ -142,6 +129,7 @@
           $item: ui.item
         };
         ui.placeholder.height(ui.item.outerHeight());
+        applyIndent(ui.placeholder, drag.startDepth);
       },
       sort: function(e, ui){
         if (!drag) return;
@@ -151,7 +139,6 @@
         applyIndent(ui.placeholder, newDepth);
       },
       beforeStop: function(e, ui){
-        // Apply the placeholder’s depth to the real item before drop
         const depth = parseInt(ui.placeholder.attr('data-depth'),10) || 0;
         applyIndent(ui.item, depth);
       },
@@ -162,31 +149,22 @@
     });
   }
 
-  /** ---------------- Build payload to save (from flat list) ---------------- */
   function collectForSave(){
-    // From top to bottom, parent is the nearest above with depth = myDepth-1
-    const stack = []; // stack[depth] = last node id we saw at that depth
+    const stack = [];
     const out = [];
-
     $('#jprm-tree > li.jprm-item').each(function(idx){
       const $li = $(this);
       const id = parseInt($li.attr('data-id'),10);
       const depth = parseInt($li.attr('data-depth'),10) || 0;
-
-      // clear deeper stack levels
       stack.length = depth;
       const parentId = depth > 0 ? (stack[depth-1] || 0) : 0;
-
       out.push({ id, parent_id: parentId, order: idx });
-
-      // mark this as last seen at current depth
       stack[depth] = id;
     });
-
     return out;
   }
 
-  /** ---------------- Events ---------------- */
+  // Events
   $(document).on('change', '#jprm-menu-select', function(){
     state.currentMenu = parseInt($(this).val(), 10) || null;
     loadSections();
@@ -197,8 +175,9 @@
   $('#jprm-add-section').on('click', function(){
     const title = $('#jprm-new-section-title').val().trim();
     if (!title) { alert('Please enter a section title.'); return; }
+    if (!state.currentMenu) { alert('Select a Menu first.'); return; }
     setLoading(true);
-    apiPost('menu-builder/section', { name: title, parent: 0 })
+    apiPost('menu-builder/section', { name: title, parent: 0, menu_id: state.currentMenu })
       .done(()=> { $('#jprm-new-section-title').val(''); loadSections(); })
       .fail((xhr)=> {
         alert('Could not create section: ' + (xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Unknown error'));
@@ -207,9 +186,10 @@
   });
 
   $('#jprm-save').on('click', function(){
+    if (!state.currentMenu) { alert('Select a Menu first.'); return; }
     const tree = collectForSave();
     setLoading(true);
-    apiPost('menu-builder/sections/order', { tree })
+    apiPost('menu-builder/sections/order', { tree, menu_id: state.currentMenu })
       .done((res)=> { state.sections = res.sections || []; renderList(); })
       .fail((xhr)=> {
         alert('Could not save order: ' + (xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Unknown error'));
@@ -217,10 +197,5 @@
       .always(()=> setLoading(false));
   });
 
-  // Expand/Collapse all buttons (for future per-item meta; here they’re no-ops but kept for UI parity)
-  $('#jprm-expand').on('click', function(){ /* no per-item meta yet */ });
-  $('#jprm-collapse').on('click', function(){ /* no per-item meta yet */ });
-
-  // Boot
   $(function(){ loadMenus().then(loadSections); });
 })(jQuery);
