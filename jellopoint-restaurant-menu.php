@@ -57,6 +57,19 @@ require_once JPRM_PLUGIN_PATH . 'includes/admin/badges-post-bootstrap.php';
 require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-menu-builder.php';
 require_once JPRM_PLUGIN_PATH . 'includes/rest/class-jprm-menu-builder-controller.php';
 
+// Ensure REST controller file is loaded first:
+require_once JPRM_PLUGIN_PATH . 'includes/rest/class-jprm-menu-builder-controller.php';
+
+// Register routes for ALL contexts (front + admin).
+add_action( 'rest_api_init', function () {
+    // Sanity: if class isn’t loaded, bail early (prevents fatal).
+    if ( ! class_exists( '\JelloPoint\RestaurantMenu\REST\Menu_Builder_Controller' ) ) {
+        return;
+    }
+    $ctl = new \JelloPoint\RestaurantMenu\REST\Menu_Builder_Controller();
+    $ctl->register_routes();
+}, 10 );
+
 
 /* -------------------------------------------------
  * Assets
