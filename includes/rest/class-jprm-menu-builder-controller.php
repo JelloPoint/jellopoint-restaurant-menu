@@ -8,6 +8,12 @@ use WP_Error;
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+/**
+ * Menu Builder REST API
+ * - Menus: taxonomy 'jprm_menu'
+ * - Sections: taxonomy 'jprm_section' (hierarchical)
+ * - Order for siblings is stored in term meta '_jprm_term_order'
+ */
 class Menu_Builder_Controller extends WP_REST_Controller {
 
     public function __construct() {
@@ -16,46 +22,46 @@ class Menu_Builder_Controller extends WP_REST_Controller {
     }
 
     public function register_routes() : void {
-        // Diagnostics
+        // Diagnostics: GET /wp-json/jprm/v1/ping
         register_rest_route( $this->namespace, '/ping', [[
-            'methods' => WP_REST_Server::READABLE,
+            'methods'             => WP_REST_Server::READABLE,
             'permission_callback' => '__return_true',
-            'callback' => function(){ return ['ok'=>1,'time'=>time()]; },
+            'callback'            => function(){ return ['ok'=>1,'time'=>time()]; },
         ]]);
 
-        // Menus (taxonomy terms)
+        // GET /wp-json/jprm/v1/menu-builder/menus
         register_rest_route( $this->namespace, '/' . $this->rest_base . '/menus', [[
-            'methods' => WP_REST_Server::READABLE,
+            'methods'             => WP_REST_Server::READABLE,
             'permission_callback' => function(){ return is_user_logged_in() && current_user_can('edit_posts'); },
-            'callback' => [ $this, 'get_menus' ],
+            'callback'            => [ $this, 'get_menus' ],
         ]]);
 
-        // Sections (taxonomy terms)
+        // GET /wp-json/jprm/v1/menu-builder/sections?menu_id=123 (menu_id ignored for now)
         register_rest_route( $this->namespace, '/' . $this->rest_base . '/sections', [[
-            'methods' => WP_REST_Server::READABLE,
+            'methods'             => WP_REST_Server::READABLE,
             'permission_callback' => function(){ return is_user_logged_in() && current_user_can('edit_posts'); },
-            'callback' => [ $this, 'get_sections' ],
-            'args' => [
+            'callback'            => [ $this, 'get_sections' ],
+            'args'                => [
                 'menu_id' => [ 'type'=>'integer', 'required'=>false ],
             ],
         ]]);
 
-        // Save nesting & ordering
+        // POST /wp-json/jprm/v1/menu-builder/sections/order
         register_rest_route( $this->namespace, '/' . $this->rest_base . '/sections/order', [[
-            'methods' => WP_REST_Server::CREATABLE,
+            'methods'             => WP_REST_Server::CREATABLE,
             'permission_callback' => function(){ return is_user_logged_in() && current_user_can('manage_categories'); },
-            'callback' => [ $this, 'save_sections_order' ],
-            'args' => [
+            'callback'            => [ $this, 'save_sections_order' ],
+            'args'                => [
                 'tree' => [ 'type'=>'array', 'required'=>true ],
             ],
         ]]);
 
-        // Create Section term
+        // POST /wp-json/jprm/v1/menu-builder/section
         register_rest_route( $this->namespace, '/' . $this->rest_base . '/section', [[
-            'methods' => WP_REST_Server::CREATABLE,
+            'methods'             => WP_REST_Server::CREATABLE,
             'permission_callback' => function(){ return is_user_logged_in() && current_user_can('manage_categories'); },
-            'callback' => [ $this, 'create_section' ],
-            'args' => [
+            'callback'            => [ $this, 'create_section' ],
+            'args'                => [
                 'name'   => [ 'type'=>'string', 'required'=>true ],
                 'parent' => [ 'type'=>'integer', 'required'=>false, 'default'=>0 ],
             ],
@@ -67,10 +73,14 @@ class Menu_Builder_Controller extends WP_REST_Controller {
             'taxonomy'   => 'jprm_menu',
             'hide_empty' => false,
         ]);
-        if ( is_wp_error($terms) ) return $terms;
+        if ( is_wp_error( $terms ) ) return $terms;
 
-        $items = array_map(fn($t)=>['id'=>(int)$t->term_id,'title'=>$t->name], $terms);
-        return rest_ensure_response(['menus'=>$items]);
+        $items = array_map(fn($t)=>[
+            'id'    => (int) $t->term_id,
+            'title' => $t->name,
+        ], $terms );
+
+        return rest_ensure_response([ 'menus' => $items ]);
     }
 
     public function get_sections( WP_REST_Request $req ) {
@@ -78,18 +88,18 @@ class Menu_Builder_Controller extends WP_REST_Controller {
             'taxonomy'   => 'jprm_section',
             'hide_empty' => false,
         ]);
-        if ( is_wp_error($terms) ) return $terms;
+        if ( is_wp_error( $terms ) ) return $terms;
 
-        // Sort by our meta order within siblings; fallback by name
+        // Pair with meta order; we’ll sort within siblings after build in JS, but keep a stable order here too.
         $with_meta = array_map(function($t){
             $order = (int) get_term_meta( $t->term_id, '_jprm_term_order', true );
-            return [$t, $order];
+            return [ $t, $order ];
         }, $terms);
 
         usort($with_meta, function($a,$b){
             [$ta,$oa] = $a; [$tb,$ob] = $b;
-            if ( $ta->parent !== $tb->parent ) return 0; // different parents => DOM will group anyway
-            return $oa <=> $ob ?: strcasecmp($ta->name, $tb->name);
+            if ( $ta->parent !== $tb->parent ) return 0; // different parents => leave to client nesting
+            return $oa <=> $ob ?: strcasecmp( $ta->name, $tb->name );
         });
 
         $items = array_map(function($pair){
@@ -103,68 +113,68 @@ class Menu_Builder_Controller extends WP_REST_Controller {
             ];
         }, $with_meta);
 
-        return rest_ensure_response(['sections'=>$items]);
+        return rest_ensure_response([ 'sections' => $items ]);
     }
 
     public function save_sections_order( WP_REST_Request $req ) {
         $tree = $req->get_param('tree');
-        if ( ! is_array($tree) ) {
-            return new WP_Error('jprm_bad_tree', __('Invalid tree payload.', 'jprm'), ['status'=>400]);
+        if ( ! is_array( $tree ) ) {
+            return new WP_Error( 'jprm_bad_tree', __( 'Invalid tree payload.', 'jprm' ), [ 'status' => 400 ] );
         }
 
-        // $tree is a flat array of nodes: [{id, parent_id, order}]
         foreach ( $tree as $node ) {
-            $id    = isset($node['id']) ? (int)$node['id'] : 0;
-            $pid   = isset($node['parent_id']) ? (int)$node['parent_id'] : 0;
-            $order = isset($node['order']) ? (int)$node['order'] : 0;
+            $id    = isset($node['id']) ? (int) $node['id'] : 0;
+            $pid   = isset($node['parent_id']) ? (int) $node['parent_id'] : 0;
+            $order = isset($node['order']) ? (int) $node['order'] : 0;
 
             if ( $id <= 0 ) { continue; }
 
-            // Update parent if needed
             $term = get_term( $id, 'jprm_section' );
-            if ( $term && ! is_wp_error($term) ) {
-                if ( (int)$term->parent !== $pid ) {
+            if ( $term && ! is_wp_error( $term ) ) {
+                if ( (int) $term->parent !== $pid ) {
                     $res = wp_update_term( $id, 'jprm_section', [ 'parent' => $pid ] );
-                    if ( is_wp_error($res) ) { return $res; }
+                    if ( is_wp_error( $res ) ) return $res;
                 }
                 update_term_meta( $id, '_jprm_term_order', $order );
             }
         }
 
-        // response with refreshed list
+        // Return fresh list
         return $this->get_sections( $req );
     }
 
     public function create_section( WP_REST_Request $req ) {
         $name   = trim( (string) $req->get_param('name') );
-        $parent = (int) $req->get_param('parent');
+        $parent = (int) $req->get_param('parent', 0 );
+
         if ( $name === '' ) {
-            return new WP_Error('jprm_empty', __('Section name is required.', 'jprm'), ['status'=>400]);
+            return new WP_Error( 'jprm_empty', __( 'Section name is required.', 'jprm' ), [ 'status' => 400 ] );
         }
 
-        $res = wp_insert_term( $name, 'jprm_section', [ 'parent' => max(0,$parent) ] );
-        if ( is_wp_error($res) ) return $res;
+        $res = wp_insert_term( $name, 'jprm_section', [ 'parent' => max( 0, $parent ) ] );
+        if ( is_wp_error( $res ) ) return $res;
 
         $term_id = (int) $res['term_id'];
-        // put new terms at the bottom by setting order = max+1 within its parent
+
+        // New term goes to bottom of its siblings
         $siblings = get_terms([
             'taxonomy'   => 'jprm_section',
             'hide_empty' => false,
-            'parent'     => max(0,$parent),
+            'parent'     => max( 0, $parent ),
             'fields'     => 'ids',
         ]);
         $max = 0;
-        foreach ( (array)$siblings as $sid ) {
+        foreach ( (array) $siblings as $sid ) {
             $max = max( $max, (int) get_term_meta( $sid, '_jprm_term_order', true ) );
         }
         update_term_meta( $term_id, '_jprm_term_order', $max + 1 );
 
         $term = get_term( $term_id, 'jprm_section' );
         return rest_ensure_response([
-            'id'        => (int) $term->term_id,
-            'title'     => $term->name,
-            'parent_id' => (int) $term->parent,
-            'menu_order'=> (int) get_term_meta( $term->term_id, '_jprm_term_order', true ),
+            'id'         => (int) $term->term_id,
+            'title'      => $term->name,
+            'parent_id'  => (int) $term->parent,
+            'menu_order' => (int) get_term_meta( $term->term_id, '_jprm_term_order', true ),
         ]);
     }
 }

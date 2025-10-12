@@ -29,22 +29,17 @@ class Menu_Builder {
     );
 }
 
-    public function enqueue( $hook ) : void {
-    // Load assets on our screen only
-    if ( strpos( (string) $hook, self::SLUG ) === false ) {
-        return;
-    }
-
-    $asset_url = plugins_url( 'includes/admin/assets/', JPRM_PLUGIN_FILE );
-    wp_enqueue_style( 'jprm-menu-builder', $asset_url . 'jprm-menu-builder.css', [], '1.0.0' );
+public function enqueue( $hook ) : void {
+    if ( strpos( (string) $hook, self::SLUG ) === false ) return;
+    $asset_url = plugin_dir_url( dirname( __FILE__, 2 ) ) . 'includes/admin/assets/';
+    wp_enqueue_style( 'jprm-menu-builder', $asset_url . 'jprm-menu-builder.css', [], '1.1.0' );
     wp_enqueue_script( 'jquery-ui-sortable' );
-    wp_enqueue_script( 'jprm-menu-builder', $asset_url . 'jprm-menu-builder.js', [ 'jquery', 'jquery-ui-sortable' ], '1.0.0', true );
+    wp_enqueue_script( 'jprm-menu-builder', $asset_url . 'jprm-menu-builder.js', [ 'jquery', 'jquery-ui-sortable' ], '1.1.0', true );
     wp_localize_script( 'jprm-menu-builder', 'JPRM_MENU_BUILDER', [
         'root'  => esc_url_raw( rest_url( 'jprm/v1' ) ),
         'nonce' => wp_create_nonce( 'wp_rest' ),
     ] );
 }
-
 
     public function render() : void {
         require __DIR__ . '/views/jprm-menu-builder.php';

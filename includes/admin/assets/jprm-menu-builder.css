@@ -1,8 +1,20 @@
+/* Layout from earlier scaffold (keep if you like) */
 .jprm-menu-builder-wrap .jprm-columns{display:flex;gap:16px}
 .jprm-left{width:280px}
 .jprm-main{flex:1}
-.jprm-tree{list-style:none;margin:0;padding:0}
-.jprm-tree li{margin:6px 0;padding:8px 10px;border:1px solid #ccd0d4;background:#fff;cursor:move}
-.jprm-tree li .jprm-node{display:flex;justify-content:space-between;align-items:center}
-.jprm-tree ul{margin-left:24px}
 .card{background:#fff;border:1px solid #dcdcde;padding:12px}
+
+/* Root + sublevels look the same */
+.jprm-tree, .jprm-children { list-style: none; margin: 0; padding-left: 0; }
+.jprm-children { margin-left: 24px; }
+
+.jprm-li { margin: 6px 0; border: 1px solid #ccd0d4; background: #fff; border-radius: 2px; }
+.jprm-node { padding: 8px 10px; display: flex; justify-content: space-between; align-items: center; cursor: move; }
+.jprm-node .title { font-weight: 500; }
+.jprm-node .meta { opacity: .6; font-size: 11px; }
+
+/* Placeholder similar to WP Menus */
+.jprm-placeholder { border: 2px dashed #c3c4c7; background: #f6f7f7; height: 38px; margin: 6px 0; border-radius: 2px; }
+
+/* Prevent selection while dragging */
+body.jprm-sorting { -webkit-user-select: none; -moz-user-select: none; user-select: none; }

@@ -21,13 +21,11 @@
         <div class="jprm-main">
             <div class="card">
                 <h2><?php esc_html_e('Sections', 'jprm'); ?></h2>
-                <ul id="jprm-tree" class="jprm-tree">
-                    <!-- JS renders the nestable list here -->
-                </ul>
+                <ul id="jprm-tree" class="jprm-tree"></ul>
                 <div class="jprm-actions">
                     <button class="button button-primary" id="jprm-save"><?php esc_html_e('Save Structure', 'jprm'); ?></button>
-                    <button class="button" id="jprm-expand"><?php esc_html_e('Expand all', 'jprm'); ?></button>
-                    <button class="button" id="jprm-collapse"><?php esc_html_e('Collapse all', 'jprm'); ?></button>
+                    <button class="button" id="jprm-expand" style="display:none"><?php esc_html_e('Expand all', 'jprm'); ?></button>
+                    <button class="button" id="jprm-collapse" style="display:none"><?php esc_html_e('Collapse all', 'jprm'); ?></button>
                 </div>
             </div>
         </div>

@@ -49,7 +49,7 @@
       .always(()=> setLoading(false));
   }
 
-  // Build nested structure in-memory
+  // Build nested structure
   function buildTree(items){
     const byId = {}; items.forEach(i => byId[i.id] = {...i, children: []});
     const roots = [];
@@ -57,7 +57,6 @@
       if (i.parent_id && byId[i.parent_id]) byId[i.parent_id].children.push(byId[i.id]);
       else roots.push(byId[i.id]);
     });
-    // sort children by menu_order asc
     function sortRec(nodes){
       nodes.sort((a,b)=> (a.menu_order||0) - (b.menu_order||0) || a.title.localeCompare(b.title));
       nodes.forEach(n=> sortRec(n.children));
@@ -79,24 +78,35 @@
     return $li;
   }
 
-  function renderTree(){
-    const roots = buildTree(state.sections);
-    const $ul = $('#jprm-tree').empty().addClass('jprm-sortable');
-    roots.forEach(n => $ul.append(nodeLi(n)));
-
-    // Make every UL sortable and connected so items can be moved into/out of children
-    $('.jprm-sortable').sortable('destroy'); // reset
-    $('.jprm-sortable').sortable({
+  function initSortable($scope){
+    const options = {
       connectWith: '.jprm-sortable',
       placeholder: 'jprm-placeholder',
       items: '> li',
       handle: '.jprm-node',
-      tolerance: 'pointer'
+      tolerance: 'pointer',
+      toleranceElement: '> .jprm-node',
+      helper: 'clone',
+      forcePlaceholderSize: true,
+      dropOnEmpty: true,
+      start: function(){ $('body').addClass('jprm-sorting'); },
+      stop: function(){ $('body').removeClass('jprm-sorting'); }
+    };
+    $scope.find('.jprm-sortable').each(function(){
+      const $ul = $(this);
+      try { $ul.sortable('destroy'); } catch(e){}
+      $ul.sortable(options);
     });
   }
 
+  function renderTree(){
+    const roots = buildTree(state.sections);
+    const $ul = $('#jprm-tree').empty().addClass('jprm-sortable jprm-children');
+    roots.forEach(n => $ul.append(nodeLi(n)));
+    initSortable($(document));
+  }
+
   function collectTree(){
-    // Flatten DOM into [{id,parent_id,order}]
     const out = [];
     function walk($ul, parentId){
       $ul.children('li').each(function(idx){
