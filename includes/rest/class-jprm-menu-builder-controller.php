@@ -74,19 +74,34 @@ class Menu_Builder_Controller extends WP_REST_Controller {
 
     /** ---------- Handlers ---------- */
 
-    public function get_menus( WP_REST_Request $req ) {
-        $terms = get_terms([
-            'taxonomy'   => 'jprm_menu',
-            'hide_empty' => false,
-        ]);
-        if ( is_wp_error( $terms ) ) return $terms;
+    public function get_menus( \WP_REST_Request $req ) {
+    // Fetch existing menu terms
+    $terms = get_terms([
+        'taxonomy'   => 'jprm_menu',
+        'hide_empty' => false,
+    ]);
 
-        $items = array_map(static function($t){
-            return [ 'id' => (int) $t->term_id, 'title' => $t->name ];
-        }, $terms );
-
-        return rest_ensure_response([ 'menus' => $items ]);
+    // If none exist, seed a default "Main Menu" once
+    if ( ! is_wp_error( $terms ) && empty( $terms ) && current_user_can( 'manage_categories' ) ) {
+        $seed = wp_insert_term( __( 'Main Menu', 'jprm' ), 'jprm_menu' );
+        if ( ! is_wp_error( $seed ) ) {
+            $terms = get_terms([
+                'taxonomy'   => 'jprm_menu',
+                'hide_empty' => false,
+            ]);
+        }
     }
+
+    if ( is_wp_error( $terms ) ) {
+        return $terms;
+    }
+
+    $items = array_map(static function($t){
+        return [ 'id' => (int) $t->term_id, 'title' => $t->name ];
+    }, $terms );
+
+    return rest_ensure_response([ 'menus' => $items ]);
+}
 
     public function get_sections( WP_REST_Request $req ) {
         $menu_id = (int) $req->get_param('menu_id');
