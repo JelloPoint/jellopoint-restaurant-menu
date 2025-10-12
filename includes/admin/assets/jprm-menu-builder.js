@@ -49,17 +49,65 @@
       .always(()=> setLoading(false));
   }
 
-  function renderTree(){
-    const $ul = $('#jprm-tree').empty();
-    state.sections.forEach(s=>{
-      const $li = $('<li>').attr('data-id', s.id);
-      const $row = $('<div class="jprm-node">')
-        .append($('<span class="title">').text(s.title))
-        .append($('<span class="meta">').text('#'+s.id));
-      $li.append($row);
-      $ul.append($li);
+  // Build nested structure in-memory
+  function buildTree(items){
+    const byId = {}; items.forEach(i => byId[i.id] = {...i, children: []});
+    const roots = [];
+    items.forEach(i => {
+      if (i.parent_id && byId[i.parent_id]) byId[i.parent_id].children.push(byId[i.id]);
+      else roots.push(byId[i.id]);
     });
-    $ul.sortable({ placeholder: 'ui-state-highlight' });
+    // sort children by menu_order asc
+    function sortRec(nodes){
+      nodes.sort((a,b)=> (a.menu_order||0) - (b.menu_order||0) || a.title.localeCompare(b.title));
+      nodes.forEach(n=> sortRec(n.children));
+    }
+    sortRec(roots);
+    return roots;
+  }
+
+  function nodeLi(n){
+    const $li = $('<li>').attr('data-id', n.id).addClass('jprm-li');
+    const $row = $('<div class="jprm-node">')
+      .append($('<span class="title">').text(n.title))
+      .append($('<span class="meta">').text('#'+n.id));
+    $li.append($row);
+
+    const $kids = $('<ul class="jprm-children jprm-sortable">');
+    n.children.forEach(c => $kids.append(nodeLi(c)));
+    $li.append($kids);
+    return $li;
+  }
+
+  function renderTree(){
+    const roots = buildTree(state.sections);
+    const $ul = $('#jprm-tree').empty().addClass('jprm-sortable');
+    roots.forEach(n => $ul.append(nodeLi(n)));
+
+    // Make every UL sortable and connected so items can be moved into/out of children
+    $('.jprm-sortable').sortable('destroy'); // reset
+    $('.jprm-sortable').sortable({
+      connectWith: '.jprm-sortable',
+      placeholder: 'jprm-placeholder',
+      items: '> li',
+      handle: '.jprm-node',
+      tolerance: 'pointer'
+    });
+  }
+
+  function collectTree(){
+    // Flatten DOM into [{id,parent_id,order}]
+    const out = [];
+    function walk($ul, parentId){
+      $ul.children('li').each(function(idx){
+        const id = parseInt($(this).attr('data-id'), 10);
+        out.push({ id, parent_id: parentId || 0, order: idx });
+        const $kids = $(this).children('ul.jprm-children');
+        if ($kids.length) walk($kids, id);
+      });
+    }
+    walk($('#jprm-tree'), 0);
+    return out;
   }
 
   // Events
@@ -74,19 +122,25 @@
     const title = $('#jprm-new-section-title').val().trim();
     if (!title) { alert('Please enter a section title.'); return; }
     setLoading(true);
-    apiPost('menu-builder/section', { name: title /*, parent: 0, menu_id: state.currentMenu */ })
-      .done(()=> {
-        $('#jprm-new-section-title').val('');
-        loadSections();
-      })
+    apiPost('menu-builder/section', { name: title, parent: 0 })
+      .done(()=> { $('#jprm-new-section-title').val(''); loadSections(); })
       .fail((xhr)=> {
         alert('Could not create section: ' + (xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Unknown error'));
       })
       .always(()=> setLoading(false));
   });
 
-  // Boot
-  $(function(){
-    loadMenus().then(loadSections);
+  $('#jprm-save').on('click', function(){
+    const tree = collectTree();
+    setLoading(true);
+    apiPost('menu-builder/sections/order', { tree })
+      .done((res)=> { state.sections = res.sections || []; renderTree(); })
+      .fail((xhr)=> {
+        alert('Could not save order: ' + (xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Unknown error'));
+      })
+      .always(()=> setLoading(false));
   });
+
+  // Boot
+  $(function(){ loadMenus().then(loadSections); });
 })(jQuery);
