@@ -12,8 +12,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * Menu Builder REST API
  * - Menus: taxonomy 'jprm_menu'
  * - Sections: taxonomy 'jprm_section' (hierarchical)
- * - Each Section stores its owning Menu term id in term meta: _jprm_menu_term_id
- * - Sibling order stored in term meta: _jprm_term_order
+ * - Per-menu ownership: section term meta '_jprm_menu_term_id' = menu term_id
+ * - Sibling order: section term meta '_jprm_term_order'
  */
 class Menu_Builder_Controller extends WP_REST_Controller {
 
@@ -23,19 +23,22 @@ class Menu_Builder_Controller extends WP_REST_Controller {
     }
 
     public function register_routes() : void {
+
+        // GET /wp-json/jprm/v1/ping  (diagnostics)
         register_rest_route( $this->namespace, '/ping', [[
             'methods'             => WP_REST_Server::READABLE,
             'permission_callback' => '__return_true',
             'callback'            => function(){ return ['ok'=>1,'time'=>time()]; },
         ]]);
 
+        // GET /wp-json/jprm/v1/menu-builder/menus  (list jprm_menu terms)
         register_rest_route( $this->namespace, '/' . $this->rest_base . '/menus', [[
             'methods'             => WP_REST_Server::READABLE,
             'permission_callback' => function(){ return is_user_logged_in() && current_user_can('edit_posts'); },
             'callback'            => [ $this, 'get_menus' ],
         ]]);
 
-        // GET sections for a specific Menu (menu_id REQUIRED now)
+        // GET /wp-json/jprm/v1/menu-builder/sections?menu_id=###  (sections of a menu)
         register_rest_route( $this->namespace, '/' . $this->rest_base . '/sections', [[
             'methods'             => WP_REST_Server::READABLE,
             'permission_callback' => function(){ return is_user_logged_in() && current_user_can('edit_posts'); },
@@ -45,6 +48,7 @@ class Menu_Builder_Controller extends WP_REST_Controller {
             ],
         ]]);
 
+        // POST /wp-json/jprm/v1/menu-builder/sections/order  (save nesting+order)
         register_rest_route( $this->namespace, '/' . $this->rest_base . '/sections/order', [[
             'methods'             => WP_REST_Server::CREATABLE,
             'permission_callback' => function(){ return is_user_logged_in() && current_user_can('manage_categories'); },
@@ -55,6 +59,7 @@ class Menu_Builder_Controller extends WP_REST_Controller {
             ],
         ]]);
 
+        // POST /wp-json/jprm/v1/menu-builder/section  (create a section in a menu)
         register_rest_route( $this->namespace, '/' . $this->rest_base . '/section', [[
             'methods'             => WP_REST_Server::CREATABLE,
             'permission_callback' => function(){ return is_user_logged_in() && current_user_can('manage_categories'); },
@@ -67,6 +72,8 @@ class Menu_Builder_Controller extends WP_REST_Controller {
         ]]);
     }
 
+    /** -------- Handlers -------- */
+
     public function get_menus( WP_REST_Request $req ) {
         $terms = get_terms([
             'taxonomy'   => 'jprm_menu',
@@ -74,10 +81,9 @@ class Menu_Builder_Controller extends WP_REST_Controller {
         ]);
         if ( is_wp_error( $terms ) ) return $terms;
 
-        $items = array_map(fn($t)=>[
-            'id'    => (int) $t->term_id,
-            'title' => $t->name,
-        ], $terms );
+        $items = array_map(static function($t){
+            return [ 'id' => (int) $t->term_id, 'title' => $t->name ];
+        }, $terms );
 
         return rest_ensure_response([ 'menus' => $items ]);
     }
@@ -85,34 +91,35 @@ class Menu_Builder_Controller extends WP_REST_Controller {
     public function get_sections( WP_REST_Request $req ) {
         $menu_id = (int) $req->get_param('menu_id');
 
-        // Fetch only sections that belong to this Menu
-        $terms = get_terms([
+        // Fetch all section IDs and filter by ownership meta
+        $all_ids = get_terms([
             'taxonomy'   => 'jprm_section',
             'hide_empty' => false,
             'fields'     => 'ids',
         ]);
-        if ( is_wp_error( $terms ) ) return $terms;
+        if ( is_wp_error( $all_ids ) ) return $all_ids;
 
-        $filtered = [];
-        foreach ( (array) $terms as $tid ) {
-            $owner = (int) get_term_meta( $tid, '_jprm_menu_term_id', true );
-            if ( $owner === $menu_id ) $filtered[] = $tid;
+        $ids = [];
+        foreach ( (array) $all_ids as $tid ) {
+            if ( (int) get_term_meta( $tid, '_jprm_menu_term_id', true ) === $menu_id ) {
+                $ids[] = (int) $tid;
+            }
         }
 
-        // Build payload
-        $pairs = array_map(function($id){
+        // Build payload and sort (stable within siblings)
+        $pairs = array_map(static function($id){
             $t = get_term( $id, 'jprm_section' );
             $o = (int) get_term_meta( $id, '_jprm_term_order', true );
             return [$t, $o];
-        }, $filtered);
+        }, $ids);
 
-        usort($pairs, function($a,$b){
+        usort($pairs, static function($a,$b){
             [$ta,$oa] = $a; [$tb,$ob] = $b;
             if ( $ta->parent !== $tb->parent ) return 0;
             return $oa <=> $ob ?: strcasecmp( $ta->name, $tb->name );
         });
 
-        $items = array_map(function($pair){
+        $items = array_map(static function($pair){
             [$t,$o] = $pair;
             return [
                 'id'         => (int) $t->term_id,
@@ -140,9 +147,10 @@ class Menu_Builder_Controller extends WP_REST_Controller {
             $order = isset($node['order']) ? (int) $node['order'] : 0;
             if ( $id <= 0 ) continue;
 
-            // Enforce ownership: any saved section becomes part of this menu
+            // Guarantee ownership to the selected menu
             update_term_meta( $id, '_jprm_menu_term_id', $menu_id );
 
+            // Update parent + order
             $term = get_term( $id, 'jprm_section' );
             if ( $term && ! is_wp_error( $term ) ) {
                 if ( (int) $term->parent !== $pid ) {
@@ -154,10 +162,9 @@ class Menu_Builder_Controller extends WP_REST_Controller {
         }
 
         // Return fresh list for the same menu
-$r = new \WP_REST_Request( 'GET' );
-$r->set_param( 'menu_id', $menu_id );
-return $this->get_sections( $r );
-
+        $r = new WP_REST_Request( 'GET' );
+        $r->set_param( 'menu_id', $menu_id );
+        return $this->get_sections( $r );
     }
 
     public function create_section( WP_REST_Request $req ) {
@@ -177,7 +184,7 @@ return $this->get_sections( $r );
         // Link to Menu
         update_term_meta( $term_id, '_jprm_menu_term_id', $menu_id );
 
-        // Place at the end of this parent's siblings (within this menu)
+        // Place at the end of siblings (within same menu)
         $siblings = get_terms([
             'taxonomy'   => 'jprm_section',
             'hide_empty' => false,
