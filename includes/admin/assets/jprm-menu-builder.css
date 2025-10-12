@@ -1,24 +1,46 @@
 /* Layout shell */
-.jprm-menu-builder-wrap .jprm-columns{display:flex;gap:16px}
-.jprm-left{width:280px}
-.jprm-main{flex:1}
-.card{background:#fff;border:1px solid #dcdcde;padding:12px}
+.jprm-menu-builder-wrap .jprm-columns { display: flex; gap: 16px; align-items: flex-start; }
+.jprm-left  { flex: 1 1 auto; min-width: 480px; }
+.jprm-right { width: 340px; flex: 0 0 340px; }
+.card { background: #fff; border: 1px solid #dcdcde; padding: 12px; }
+
+/* Toolbar */
+.jprm-toolbar { display:flex; gap:8px; align-items:center; margin-bottom:12px; }
 
 /* Single flat list */
-.jprm-flat { list-style:none; margin:0; padding:0; }
-.jprm-item { margin:6px 0; border:1px solid #ccd0d4; background:#fff; border-radius:2px; }
-.jprm-row  { display:flex; gap:8px; align-items:center; padding:8px 10px; cursor:move; }
-.jprm-title{ font-weight:500; flex:1 1 auto; }
-.jprm-meta { opacity:.6; font-size:11px; }
+.jprm-flat { list-style: none; margin: 0; padding: 0; }
+.jprm-item {
+  margin: 6px 0;
+  border: 1px solid #ccd0d4;
+  background: #fff;
+  border-radius: 2px;
+  /* Indentation of the WHOLE BOX is set inline via JS using margin-left */
+}
+.jprm-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  cursor: move;
+  /* We keep text padding constant; horizontal indent comes from li margin-left */
+}
+.jprm-title { font-weight: 500; flex: 1 1 auto; }
+.jprm-meta  { opacity: .6; font-size: 11px; }
 
 /* 🔹 Top-level tint for clarity */
-.jprm-item[data-depth="0"] > .jprm-row,
-.jprm-row.jprm-top {
+.jprm-item[data-depth="0"] > .jprm-row { background: #f6f7f7; }
+
+/* Drag placeholder (its indent also set inline via JS) */
+.jprm-placeholder {
+  border: 2px dashed #c3c4c7;
   background: #f6f7f7;
+  height: 38px;
+  margin: 6px 0;
+  border-radius: 2px;
 }
 
-/* Drag placeholder height/shape */
-.jprm-placeholder { border:2px dashed #c3c4c7; background:#f6f7f7; height:38px; margin:6px 0; border-radius:2px; }
+/* Forms on the right */
+.jprm-form input[type="text"] { width: 100%; box-sizing: border-box; }
 
 /* Prevent selection while sorting */
 body.jprm-sorting { -webkit-user-select: none; -moz-user-select: none; user-select: none; }

@@ -1,4 +1,5 @@
 (function($){
+  /** ---------------- REST helpers ---------------- */
   function apiGet(path) {
     return $.ajax({
       url: JPRM_MENU_BUILDER.root + '/' + path.replace(/^\//,''),
@@ -16,13 +17,15 @@
     });
   }
 
+  /** ---------------- Local state ---------------- */
   const state = { menus: [], sections: [], currentMenu: null };
-  const INDENT = 28;
+  const INDENT = 28;     // px per depth (applied to entire li)
   const MAX_DEPTH = 6;
   let drag = null;
 
   function setLoading(on){ $('#jprm-loading')[on ? 'show' : 'hide'](); }
 
+  /** ---------------- Loaders ---------------- */
   function loadMenus(){
     setLoading(true);
     return apiGet('menu-builder/menus')
@@ -52,6 +55,7 @@
       .always(()=> setLoading(false));
   }
 
+  /** ---------------- Build a flat, depth-annotated list ---------------- */
   function buildFlat(items){
     const byId = {}; items.forEach(i => byId[i.id] = {...i, children: []});
     const roots = [];
@@ -59,6 +63,7 @@
       if (i.parent_id && byId[i.parent_id]) byId[i.parent_id].children.push(byId[i.id]);
       else roots.push(byId[i.id]);
     });
+
     function sortRec(nodes){
       nodes.sort((a,b)=> (a.menu_order||0) - (b.menu_order||0) || a.title.localeCompare(b.title));
       nodes.forEach(n=> sortRec(n.children));
@@ -76,25 +81,7 @@
     return out;
   }
 
-  function applyIndent($li, depth){
-    $li.attr('data-depth', depth);
-    $li.find('> .jprm-row')
-       .css('padding-left', (depth * INDENT + 10) + 'px')
-       .toggleClass('jprm-top', depth === 0);
-  }
-
-  function clampDepth(depth, $item){
-    depth = Math.max(0, Math.min(MAX_DEPTH, depth));
-    const $prev = $item.prev('.jprm-item');
-    if ($prev.length){
-      const prevDepth = parseInt($prev.attr('data-depth'),10) || 0;
-      depth = Math.min(depth, prevDepth + 1);
-    } else {
-      depth = 0;
-    }
-    return depth;
-  }
-
+  /** ---------------- Render (flat list) ---------------- */
   function renderList(){
     const flat = buildFlat(state.sections);
     const $ul = $('#jprm-tree').empty().removeClass().addClass('jprm-flat');
@@ -112,6 +99,28 @@
     initSortable($ul);
   }
 
+  /** ---------------- Indentation helpers (WHOLE BOX) ---------------- */
+  function applyIndent($li, depth){
+    $li.attr('data-depth', depth);
+    // Entire box indent:
+    $li.css('margin-left', (depth * INDENT) + 'px');
+    // Keep row padding small/consistent:
+    $li.find('> .jprm-row').css('padding-left', '10px');
+  }
+
+  function clampDepth(depth, $item){
+    depth = Math.max(0, Math.min(MAX_DEPTH, depth));
+    const $prev = $item.prev('.jprm-item');
+    if ($prev.length){
+      const prevDepth = parseInt($prev.attr('data-depth'),10) || 0;
+      depth = Math.min(depth, prevDepth + 1);
+    } else {
+      depth = 0;
+    }
+    return depth;
+  }
+
+  /** ---------------- Sortable (with horizontal-depth control) ---------------- */
   function initSortable($ul){
     try { $ul.sortable('destroy'); } catch(e){}
     $ul.sortable({
@@ -129,7 +138,7 @@
           $item: ui.item
         };
         ui.placeholder.height(ui.item.outerHeight());
-        applyIndent(ui.placeholder, drag.startDepth);
+        applyIndent(ui.placeholder, drag.startDepth); // indent placeholder too
       },
       sort: function(e, ui){
         if (!drag) return;
@@ -149,6 +158,7 @@
     });
   }
 
+  /** ---------------- Build payload to save ---------------- */
   function collectForSave(){
     const stack = [];
     const out = [];
@@ -164,7 +174,19 @@
     return out;
   }
 
-  // Events
+  /** ---------------- Expand / Collapse all ---------------- */
+  function expandAll(){
+    $('#jprm-tree > li.jprm-item').show();
+  }
+  function collapseAll(){
+    // Hide everything except depth 0
+    $('#jprm-tree > li.jprm-item').each(function(){
+      const depth = parseInt($(this).attr('data-depth'),10) || 0;
+      if (depth > 0) $(this).hide(); else $(this).show();
+    });
+  }
+
+  /** ---------------- Events ---------------- */
   $(document).on('change', '#jprm-menu-select', function(){
     state.currentMenu = parseInt($(this).val(), 10) || null;
     loadSections();
@@ -197,5 +219,9 @@
       .always(()=> setLoading(false));
   });
 
+  $('#jprm-expand').on('click', expandAll);
+  $('#jprm-collapse').on('click', collapseAll);
+
+  // Boot
   $(function(){ loadMenus().then(loadSections); });
 })(jQuery);
