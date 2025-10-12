@@ -57,31 +57,6 @@ require_once JPRM_PLUGIN_PATH . 'includes/admin/badges-post-bootstrap.php';
 require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-menu-builder.php';
 require_once JPRM_PLUGIN_PATH . 'includes/rest/class-jprm-menu-builder-controller.php';
 
-// Ensure REST controller file is loaded first:
-require_once JPRM_PLUGIN_PATH . 'includes/rest/class-jprm-menu-builder-controller.php';
-
-// --- TEMP HOTFIX: ensure /wp-json/jprm/v1/menu-builder/menus exists ---
-add_action( 'rest_api_init', function () {
-    register_rest_route( 'jprm/v1', '/menu-builder/menus', [
-        'methods'             => \WP_REST_Server::READABLE,
-        'permission_callback' => function(){ return is_user_logged_in() && current_user_can('edit_posts'); },
-        'callback'            => function( \WP_REST_Request $req ) {
-            $terms = get_terms([
-                'taxonomy'   => 'jprm_menu',
-                'hide_empty' => false,
-            ]);
-            if ( is_wp_error( $terms ) ) {
-                return $terms;
-            }
-            $items = array_map(static function($t){
-                return [ 'id' => (int) $t->term_id, 'title' => $t->name ];
-            }, $terms);
-            return rest_ensure_response([ 'menus' => $items ]);
-        },
-    ] );
-}, 1 );
-// --- /TEMP HOTFIX ---
-
 // Register routes for ALL contexts (front + admin).
 add_action( 'rest_api_init', function () {
     // Sanity: if class isn’t loaded, bail early (prevents fatal).
