@@ -4,6 +4,7 @@ namespace JelloPoint\RestaurantMenu\REST;
 use WP_REST_Controller;
 use WP_REST_Server;
 use WP_REST_Request;
+use WP_Error;
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
@@ -15,6 +16,8 @@ class Menu_Builder_Controller extends WP_REST_Controller {
     }
 
     public function register_routes() : void {
+
+        // GET /wp-json/jprm/v1/menu-builder/menus
         register_rest_route( $this->namespace, '/' . $this->rest_base . '/menus', [
             [
                 'methods'             => WP_REST_Server::READABLE,
@@ -23,59 +26,97 @@ class Menu_Builder_Controller extends WP_REST_Controller {
             ],
         ] );
 
+        // GET /wp-json/jprm/v1/menu-builder/sections?menu_id=123
+        // For now we return all sections; later we can filter by relation.
         register_rest_route( $this->namespace, '/' . $this->rest_base . '/sections', [
             [
                 'methods'             => WP_REST_Server::READABLE,
                 'permission_callback' => function () { return current_user_can( 'edit_posts' ); },
                 'callback'            => [ $this, 'get_sections' ],
                 'args'                => [
-                    'menu_id' => [ 'type' => 'integer', 'required' => true ],
+                    'menu_id' => [ 'type' => 'integer', 'required' => false ],
+                ],
+            ],
+        ] );
+
+        // POST /wp-json/jprm/v1/menu-builder/section  (create section term)
+        register_rest_route( $this->namespace, '/' . $this->rest_base . '/section', [
+            [
+                'methods'             => WP_REST_Server::CREATABLE,
+                'permission_callback' => function () { return current_user_can( 'manage_categories' ); },
+                'callback'            => [ $this, 'create_section' ],
+                'args'                => [
+                    'name'   => [ 'type' => 'string', 'required' => true ],
+                    'parent' => [ 'type' => 'integer', 'required' => false, 'default' => 0 ],
+                    // optional: 'menu_id' => [ 'type' => 'integer', 'required' => false ],
                 ],
             ],
         ] );
     }
 
     public function get_menus( WP_REST_Request $req ) {
-        $q = new \WP_Query([
-            'post_type'      => 'jprm_menu',
-            'post_status'    => [ 'publish', 'draft' ],
-            'posts_per_page' => -1,
-            'orderby'        => 'title',
-            'order'          => 'ASC',
-            'fields'         => 'ids',
+        $terms = get_terms([
+            'taxonomy'   => 'jprm_menu',
+            'hide_empty' => false,
         ]);
 
-        $items = array_map(function( $id ){
-            return [ 'id' => (int) $id, 'title' => get_the_title( $id ) ];
-        }, $q->posts );
+        if ( is_wp_error( $terms ) ) {
+            return $terms;
+        }
+
+        $items = array_map(function( $t ){
+            return [ 'id' => (int) $t->term_id, 'title' => $t->name ];
+        }, $terms );
 
         return rest_ensure_response( [ 'menus' => $items ] );
     }
 
     public function get_sections( WP_REST_Request $req ) {
-        $menu_id = (int) $req->get_param('menu_id');
-
-        // We won’t assume hierarchical yet; we just fetch sections linked to this menu by meta
-        $q = new \WP_Query([
-            'post_type'      => 'jprm_section',
-            'post_status'    => [ 'publish', 'draft' ],
-            'posts_per_page' => -1,
-            'meta_key'       => '_jprm_menu_id',
-            'meta_value'     => $menu_id,
-            'orderby'        => [ 'menu_order' => 'ASC', 'title' => 'ASC' ],
-            'fields'         => 'ids',
+        // In Phase 1 we ignore menu_id and list all sections.
+        // Later we’ll filter by relation once we define one.
+        $terms = get_terms([
+            'taxonomy'   => 'jprm_section',
+            'hide_empty' => false,
         ]);
 
-        $items = array_map(function( $id ){
+        if ( is_wp_error( $terms ) ) {
+            return $terms;
+        }
+
+        $items = array_map(function( $t ){
             return [
-                'id'         => (int) $id,
-                'title'      => get_the_title( $id ),
-                'parent_id'  => (int) get_post_meta( $id, '_jprm_parent_section_id', true ), // temporary until we flip to post_parent
-                'menu_order' => (int) get_post_field( 'menu_order', $id ),
-                'count'      => 0, // placeholder for item count (Phase 2)
+                'id'         => (int) $t->term_id,
+                'title'      => $t->name,
+                'parent_id'  => (int) $t->parent,
+                'menu_order' => 0, // placeholder; we’ll introduce a term order meta when we wire drag-drop save.
+                'count'      => (int) $t->count,
             ];
-        }, $q->posts );
+        }, $terms );
 
         return rest_ensure_response( [ 'sections' => $items ] );
+    }
+
+    public function create_section( WP_REST_Request $req ) {
+        $name   = trim( (string) $req->get_param('name') );
+        $parent = (int) $req->get_param('parent');
+
+        if ( $name === '' ) {
+            return new WP_Error( 'jprm_empty', __( 'Section name is required.', 'jprm' ), [ 'status' => 400 ] );
+        }
+
+        $res = wp_insert_term( $name, 'jprm_section', [
+            'parent' => $parent > 0 ? $parent : 0,
+        ] );
+
+        if ( is_wp_error( $res ) ) {
+            return $res;
+        }
+
+        $term = get_term( (int) $res['term_id'], 'jprm_section' );
+        return rest_ensure_response([
+            'id'    => (int) $term->term_id,
+            'title' => $term->name,
+            'parent_id' => (int) $term->parent,
+        ]);
     }
 }
