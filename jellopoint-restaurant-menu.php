@@ -53,6 +53,11 @@ require_once JPRM_PLUGIN_PATH . 'includes/debug/class-inspector.php';
 // Badges Save
 require_once JPRM_PLUGIN_PATH . 'includes/admin/badges-post-bootstrap.php';
 
+// Menu Builder
+require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-menu-builder.php';
+require_once JPRM_PLUGIN_PATH . 'includes/rest/class-jprm-menu-builder-controller.php';
+
+
 /* -------------------------------------------------
  * Assets
  * ------------------------------------------------- */
@@ -161,6 +166,20 @@ add_action(
 	},
 	10
 );
+	// 2) NEW: register Menu Builder hooks on admin only
+add_action( 'plugins_loaded', function () {
+    if ( ! is_admin() ) { return; }
+
+    // Admin screen
+    $builder = new \JelloPoint\RestaurantMenu\Admin\Menu_Builder();
+    $builder->hooks(); // adds submenu via admin_menu (priority 60)
+
+    // REST endpoints
+    add_action( 'rest_api_init', function() {
+        $ctl = new \JelloPoint\RestaurantMenu\REST\Menu_Builder_Controller();
+        $ctl->register_routes();
+    } );
+}, 30 );
 
 /* -------------------------------------------------
  * Optional: let your core plugin bootstrap itself (no private constructor calls)

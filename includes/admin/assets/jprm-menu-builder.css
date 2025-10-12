@@ -1,0 +1,8 @@
+.jprm-menu-builder-wrap .jprm-columns{display:flex;gap:16px}
+.jprm-left{width:280px}
+.jprm-main{flex:1}
+.jprm-tree{list-style:none;margin:0;padding:0}
+.jprm-tree li{margin:6px 0;padding:8px 10px;border:1px solid #ccd0d4;background:#fff;cursor:move}
+.jprm-tree li .jprm-node{display:flex;justify-content:space-between;align-items:center}
+.jprm-tree ul{margin-left:24px}
+.card{background:#fff;border:1px solid #dcdcde;padding:12px}
