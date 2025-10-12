@@ -154,9 +154,9 @@ class Menu_Builder_Controller extends WP_REST_Controller {
         }
 
         // Return fresh list for the same menu
-        $r = new \WP_REST_Request( 'GET' );
-        $r->set_param( 'menu_id', $menu_id );
-        return $this->get_sections( $r );
+$r = new \WP_REST_Request( 'GET' );
+$r->set_param( 'menu_id', $menu_id );
+return $this->get_sections( $r );
 
     }
 
