@@ -79,7 +79,7 @@ class Menu_Builder_Controller extends WP_REST_Controller {
         register_rest_route( $this->namespace, '/' . $this->rest_base . '/items', [[
             'methods'             => WP_REST_Server::READABLE,
             'permission_callback' => static fn() => is_user_logged_in() && current_user_can('edit_posts'),
-            'callback'            => [ $this, 'get_items' ],
+            'callback'            => [ $this, 'list_items' ], // <— renamed to avoid signature clash
             'args'                => [
                 'menu_id' => [ 'type'=>'integer', 'required'=>true ],
             ],
@@ -227,8 +227,9 @@ class Menu_Builder_Controller extends WP_REST_Controller {
 
     /**
      * 🔹 Read-only: list items attached to sections of the given menu.
+     * NOTE: named 'list_items' to avoid clashing with WP_REST_Controller::get_items().
      */
-    public function get_items( WP_REST_Request $req ) {
+    public function list_items( WP_REST_Request $req ) {
         $menu_id = (int) $req->get_param('menu_id');
 
         // Find section ids for this menu
