@@ -7,7 +7,7 @@
         <select id="jprm-menu-select"></select>
         <button class="button button-secondary" id="jprm-refresh"><?php esc_html_e('Refresh', 'jprm'); ?></button>
 
-        <!-- Top toggle (class-based so JS can sync multiple buttons) -->
+        <!-- Toggle (top) -->
         <button class="button jprm-toggle-all" data-collapsed="0">
             <?php esc_html_e('Collapse all', 'jprm'); ?>
         </button>
@@ -25,7 +25,7 @@
 
                 <div class="jprm-actions">
                     <button class="button button-primary" id="jprm-save"><?php esc_html_e('Save Structure', 'jprm'); ?></button>
-                    <!-- Bottom toggle (mirrors top one) -->
+                    <!-- Toggle (bottom) -->
                     <button class="button jprm-toggle-all" data-collapsed="0">
                         <?php esc_html_e('Collapse all', 'jprm'); ?>
                     </button>
@@ -33,7 +33,7 @@
             </div>
         </div>
 
-        <!-- RIGHT: Add Section + Existing Items (checkboxes) -->
+        <!-- RIGHT: Add Section + Existing Items -->
         <div class="jprm-right">
             <div class="card">
                 <h2><?php esc_html_e('Add Section', 'jprm'); ?></h2>
