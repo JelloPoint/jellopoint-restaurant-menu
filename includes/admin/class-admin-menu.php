@@ -43,7 +43,7 @@ class Admin_Menu {
 			}
 		}
 
-		$icon = defined( 'JPRM_MENU_ICON_URL' ) ? JPRM_MENU_ICON_URL : 'dashicons-carrot';
+		$icon = defined( 'JPRM_MENU_ICON_URL' ) ? JPRM_MENU_ICON_URL : 'dashicons-food';
 		$icon = apply_filters( 'jprm/root_menu_icon', $icon );
 
 		add_menu_page(
