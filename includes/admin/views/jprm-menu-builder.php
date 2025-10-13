@@ -6,8 +6,7 @@
         <label for="jprm-menu-select"><?php esc_html_e('Select Menu:', 'jprm'); ?></label>
         <select id="jprm-menu-select"></select>
         <button class="button button-secondary" id="jprm-refresh"><?php esc_html_e('Refresh', 'jprm'); ?></button>
-        <button class="button" id="jprm-expand"><?php esc_html_e('Expand all', 'jprm'); ?></button>
-        <button class="button" id="jprm-collapse"><?php esc_html_e('Collapse all', 'jprm'); ?></button>
+        <button class="button" id="jprm-toggle-all" data-collapsed="0"><?php esc_html_e('Collapse all', 'jprm'); ?></button>
         <span class="spinner is-active" id="jprm-loading" style="display:none;"></span>
     </div>
 
@@ -25,7 +24,7 @@
             </div>
         </div>
 
-        <!-- RIGHT: Add Section + Existing Items -->
+        <!-- RIGHT: Add Section + Existing Items (checkboxes) -->
         <div class="jprm-right">
             <div class="card">
                 <h2><?php esc_html_e('Add Section', 'jprm'); ?></h2>
@@ -44,18 +43,21 @@
                     <label style="display:block;margin-bottom:6px;"><?php esc_html_e('Target Section', 'jprm'); ?></label>
                     <select id="jprm-item-target-section" style="width:100%;max-width:100%;"></select>
 
-                    <label style="display:block;margin:10px 0 6px;"><?php esc_html_e('Unassigned Items (multi-select)', 'jprm'); ?></label>
-                    <select id="jprm-existing-item" multiple size="8" style="width:100%;max-width:100%;"></select>
+                    <div style="display:flex;align-items:center;gap:8px;margin:10px 0 6px;">
+                        <strong><?php esc_html_e('Unassigned Items', 'jprm'); ?></strong>
+                        <label><input type="checkbox" id="jprm-unassigned-all"> <?php esc_html_e('Select all', 'jprm'); ?></label>
+                    </div>
+                    <div id="jprm-unassigned-list" style="max-height:280px;overflow:auto;border:1px solid #dcdcde;padding:6px;"></div>
 
                     <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
-                        <button class="button button-primary" id="jprm-assign-item"><?php esc_html_e('Add to Section', 'jprm'); ?></button>
+                        <button class="button button-primary" id="jprm-assign-item"><?php esc_html_e('Add selected to Section', 'jprm'); ?></button>
                         <a class="button" id="jprm-open-add-item" target="_blank" rel="noopener">
                             <?php esc_html_e('Create Item in Editor (new tab)', 'jprm'); ?>
                         </a>
                     </div>
                 </div>
                 <p class="description" style="margin-top:8px;">
-                    <?php esc_html_e('Select one or more items and add them to the chosen Section.', 'jprm'); ?>
+                    <?php esc_html_e('Tick one or more items and add them to the chosen Section.', 'jprm'); ?>
                 </p>
             </div>
         </div>

@@ -100,14 +100,18 @@
     });
     $sel.val(tree.flat[0].id);
   }
-  function fillExistingItemsSelect(){
-    const $sel = $('#jprm-existing-item').empty();
-    if (!state.unassigned.length) { $sel.append($('<option>').text('— No unassigned items —').prop('disabled', true)); return; }
+  function renderUnassignedCheckboxes(){
+    const $box = $('#jprm-unassigned-list').empty();
+    if (!state.unassigned.length) { $box.append($('<div>').css('opacity',.7).text('— No unassigned items —')); return; }
     state.unassigned.forEach(it => {
+      const id = 'ua-'+it.id;
       const label = it.price ? `${it.title} • ${it.price}` : it.title;
-      $sel.append($('<option>').val(it.id).text(label));
+      const $row = $('<label for="'+id+'">').css({display:'block', padding:'4px 2px'});
+      $row.append($('<input type="checkbox">').attr('id', id).attr('data-id', it.id).css('margin-right','6px'));
+      $row.append($('<span>').text(label));
+      $box.append($row);
     });
-    // keep multi-select; no default select-all
+    $('#jprm-unassigned-all').prop('checked', false);
   }
 
   /* ---------------- Rendering ---------------- */
@@ -129,18 +133,25 @@
 
     const $ul = $('#jprm-tree').empty().removeClass().addClass('jprm-flat');
 
+    function actionIcon(cls, title){
+      return $('<span class="dashicons '+cls+' jprm-act" title="'+title+'">').css({cursor:'pointer',opacity:.8});
+    }
+
     function addSectionRow(sec){
       const $li  = $('<li>').attr('data-id', sec.id).attr('data-depth', sec.depth).addClass('jprm-item jprm-section');
       const $toggle = $('<button type="button" class="jprm-toggle button button-small" title="Toggle">▸</button>').css({marginRight:'6px'});
+      const $right = $('<span class="jprm-actions">')
+        .append(actionIcon('dashicons-dismiss','Unassign section').attr('data-action','section-unassign'))
+        .append(' ')
+        .append(actionIcon('dashicons-trash','Delete section').attr('data-action','section-delete'));
       const $row = $('<div class="jprm-row">')
         .append($toggle)
         .append($('<span class="jprm-title">').text(sec.title))
-        .append($('<span class="jprm-meta">').text('#'+sec.id));
+        .append($right);
       $li.append($row);
       $ul.append($li);
       applyIndent($li, sec.depth);
 
-      // Items under this section
       const its = itemsBySection[sec.id] || [];
       if (its.length === 0) {
         const depth = sec.depth + 1;
@@ -157,10 +168,14 @@
             .attr('data-id', it.id)
             .attr('data-depth', depth)
             .attr('data-section-id', sec.id)
-            .addClass('jprm-item jprm-entry is-item'); // draggable now
+            .addClass('jprm-item jprm-entry is-item'); // draggable
+          const $right = $('<span class="jprm-actions">')
+            .append(actionIcon('dashicons-dismiss','Unassign item').attr('data-action','item-unassign'))
+            .append(' ')
+            .append(actionIcon('dashicons-trash','Delete item').attr('data-action','item-delete'));
           const $rowIt = $('<div class="jprm-row">')
             .append($('<span class="jprm-title">').text(it.price ? `${it.title} • ${it.price}` : it.title))
-            .append($('<span class="jprm-meta">').text('#'+it.id));
+            .append($right);
           $liIt.append($rowIt);
           $ul.append($liIt);
           applyIndent($liIt, depth);
@@ -172,17 +187,16 @@
 
     roots.forEach(addSectionRow);
 
-    // Fill right pane selects
+    // Right pane
     fillTargetSectionSelect();
-    fillExistingItemsSelect();
+    renderUnassignedCheckboxes();
 
-    // Init sortable with sections + items
+    // Init drag/drop
     initSortable($ul);
   }
 
   /* ---------------- Sortable (sections + items) ---------------- */
   function collectItemsForSave(){
-    // Scan DOM and compute section membership + per-section order
     const itemsPayload = [];
     let currentSectionId = 0;
     let orderInSection = -1;
@@ -193,7 +207,6 @@
         currentSectionId = parseInt($li.attr('data-id'),10);
         orderInSection = -1;
       } else if ($li.hasClass('is-item')) {
-        // ensure depth >= 1 and parent section exists above
         const depth = parseInt($li.attr('data-depth'),10) || 1;
         if (depth < 1 || !currentSectionId) return;
         orderInSection++;
@@ -208,11 +221,11 @@
   function initSortable($ul){
     try { $ul.sortable('destroy'); } catch(e){}
 
-    let dragBlock = null; // for section dragging: all descendant rows we move with it (after drop)
+    let dragBlock = null;
 
     $ul.sortable({
       placeholder: 'jprm-placeholder',
-      items: '> li.jprm-section, > li.is-item',   // sections and items are draggable
+      items: '> li.jprm-section, > li.is-item',
       handle: '.jprm-row',
       tolerance: 'pointer',
       helper: 'clone',
@@ -224,7 +237,6 @@
         const startDepth = parseInt(ui.item.attr('data-depth'),10) || 0;
 
         if (isSection) {
-          // collect all immediate following rows with depth > startDepth (subsections + items)
           dragBlock = [];
           let $next = ui.item.next();
           while ($next.length) {
@@ -243,14 +255,9 @@
       sort: function(e, ui){
         if (!drag) return;
         const deltaX = e.pageX - drag.startX;
-        const deltaDepth = Math.round(deltaX / INDENT);
-
-        let newDepth = drag.startDepth + deltaDepth;
+        let newDepth = drag.startDepth + Math.round(deltaX / INDENT);
         newDepth = clampDepth(newDepth, ui.placeholder);
-
-        // Items must be at least depth 1 (under some section)
         if (!drag.isSection && newDepth < 1) newDepth = 1;
-
         applyIndent(ui.placeholder, newDepth);
       },
       beforeStop: function(e, ui){
@@ -260,10 +267,8 @@
       stop: function(e, ui){
         $('body').removeClass('jprm-sorting');
 
-        // If section dragged, insert its previously collected descendant block right after it
         if (drag && drag.isSection && dragBlock && dragBlock.length) {
-          const $after = ui.item;
-          $(dragBlock).insertAfter($after);
+          $(dragBlock).insertAfter(ui.item);
         }
 
         drag = null;
@@ -273,14 +278,20 @@
   }
 
   /* ---------------- Expand/Collapse ---------------- */
-  function expandAll(){ $('#jprm-tree > li.jprm-item').show(); $('.jprm-toggle').text('▾'); }
   function collapseAll(){
     $('#jprm-tree > li.jprm-item').each(function(){
       const depth = parseInt($(this).attr('data-depth'),10) || 0;
       if (depth > 0) $(this).hide(); else $(this).show();
     });
     $('.jprm-toggle').text('▸');
+    $('#jprm-toggle-all').text('Expand all').attr('data-collapsed','1');
   }
+  function expandAll(){
+    $('#jprm-tree > li.jprm-item').show();
+    $('.jprm-toggle').text('▾');
+    $('#jprm-toggle-all').text('Collapse all').attr('data-collapsed','0');
+  }
+
   // Per-section toggle
   $(document).on('click', '.jprm-toggle', function(){
     const $sec = $(this).closest('li.jprm-section');
@@ -297,14 +308,82 @@
     }
   });
 
+  // Toggle button
+  $(document).on('click', '#jprm-toggle-all', function(){
+    const collapsed = $(this).attr('data-collapsed') === '1';
+    if (collapsed) expandAll(); else collapseAll();
+  });
+
+  /* ---------------- Actions: sections & items ---------------- */
+
+  // Section unassign / delete
+  $(document).on('click', '.jprm-section .jprm-act', function(e){
+    e.preventDefault();
+    const $sec = $(this).closest('li.jprm-section');
+    const sectionId = parseInt($sec.attr('data-id'),10);
+    const action = $(this).data('action');
+
+    if (!state.currentMenu || !sectionId) return;
+
+    if (action === 'section-unassign') {
+      if (!confirm('Unassign this section from the menu?')) return;
+      setLoading(true);
+      apiPost('menu-builder/section/unassign', { menu_id: state.currentMenu, section_id: sectionId })
+        .done(()=> $.when( loadSections(), loadItems(), loadUnassigned() ).then(renderList))
+        .fail((xhr)=> alert('Unassign failed: ' + (xhr.responseJSON?.message || 'Unknown error')))
+        .always(()=> setLoading(false));
+    }
+    if (action === 'section-delete') {
+      if (!confirm('Delete this section? (Only possible if it has no subsections/items)')) return;
+      setLoading(true);
+      apiPost('menu-builder/section/delete', { menu_id: state.currentMenu, section_id: sectionId })
+        .done(()=> $.when( loadSections(), loadItems(), loadUnassigned() ).then(renderList))
+        .fail((xhr)=> alert('Delete failed: ' + (xhr.responseJSON?.message || 'Unknown error')))
+        .always(()=> setLoading(false));
+    }
+  });
+
+  // Item unassign / delete
+  $(document).on('click', '.is-item .jprm-act', function(e){
+    e.preventDefault();
+    const $it = $(this).closest('li.is-item');
+    const id = parseInt($it.attr('data-id'),10);
+    const action = $(this).data('action');
+
+    if (!id) return;
+
+    if (action === 'item-unassign') {
+      if (!confirm('Remove this item from its section?')) return;
+      setLoading(true);
+      apiPost('menu-builder/item/unassign', { id })
+        .done(()=> $.when( loadItems(), loadUnassigned() ).then(renderList))
+        .fail((xhr)=> alert('Unassign failed: ' + (xhr.responseJSON?.message || 'Unknown error')))
+        .always(()=> setLoading(false));
+    }
+    if (action === 'item-delete') {
+      if (!confirm('Delete this item permanently?')) return;
+      setLoading(true);
+      apiPost('menu-builder/item/delete', { id })
+        .done(()=> $.when( loadItems(), loadUnassigned() ).then(renderList))
+        .fail((xhr)=> alert('Delete failed: ' + (xhr.responseJSON?.message || 'Unknown error')))
+        .always(()=> setLoading(false));
+    }
+  });
+
   /* ---------------- Events ---------------- */
   $(document).on('change', '#jprm-menu-select', function(){
     state.currentMenu = parseInt($(this).val(), 10) || null;
-    loadSections().then(loadItems).then(loadUnassigned).then(renderList);
+    $.when( loadSections(), loadItems(), loadUnassigned() ).then(function(){
+      renderList();
+      expandAll(); // keep expanded by default
+    });
   });
 
   $('#jprm-refresh').on('click', function(){
-    loadMenus().then(loadSections).then(loadItems).then(loadUnassigned).then(renderList);
+    $.when( loadMenus(), loadSections(), loadItems(), loadUnassigned() ).then(function(){
+      renderList();
+      expandAll();
+    });
   });
 
   $('#jprm-add-section').on('click', function(){
@@ -313,16 +392,15 @@
     if (!state.currentMenu) { alert('Select a Menu first.'); return; }
     setLoading(true);
     apiPost('menu-builder/section', { name: title, parent: 0, menu_id: state.currentMenu })
-      .done(()=> { $('#jprm-new-section-title').val(''); loadSections().then(loadItems).then(loadUnassigned).then(renderList); })
+      .done(()=> { $('#jprm-new-section-title').val(''); $.when( loadSections(), loadItems(), loadUnassigned() ).then(renderList); })
       .fail((xhr)=> { alert('Could not create section: ' + (xhr.responseJSON?.message || 'Unknown error')); })
       .always(()=> setLoading(false));
   });
 
-  // Save: sections + items
+  // Save: sections + items (and then reload fresh to avoid stale UI)
   $('#jprm-save').on('click', function(){
     if (!state.currentMenu) { alert('Select a Menu first.'); return; }
 
-    // 1) save sections (structure)
     const tree = (function collectSections(){
       const stack = [];
       const out = [];
@@ -338,33 +416,46 @@
       return out;
     })();
 
+    const itemsPayload = (function collectItemsForSave(){
+      const arr = [];
+      let currentSectionId = 0;
+      let orderInSection = -1;
+      $('#jprm-tree > li.jprm-item').each(function(){
+        const $li = $(this);
+        if ($li.hasClass('jprm-section')) {
+          currentSectionId = parseInt($li.attr('data-id'),10);
+          orderInSection = -1;
+        } else if ($li.hasClass('is-item')) {
+          const depth = parseInt($li.attr('data-depth'),10) || 1;
+          if (depth < 1 || !currentSectionId) return;
+          orderInSection++;
+          const id = parseInt($li.attr('data-id'),10);
+          arr.push({ id, section_id: currentSectionId, order: orderInSection });
+        }
+      });
+      return arr;
+    })();
+
     setLoading(true);
     apiPost('menu-builder/sections/order', { tree, menu_id: state.currentMenu })
-      .done((res)=> {
-        state.sections = res.sections || [];
-        // 2) save items order & section
-        const itemsPayload = collectItemsForSave();
-        return apiPost('menu-builder/items/order', { menu_id: state.currentMenu, items: itemsPayload });
-      })
-      .done((resItems)=>{
-        state.items = resItems.items || [];
-        // refresh unassigned (in case we moved new ones in)
-        return loadUnassigned();
-      })
-      .then(renderList)
+      .then(()=> apiPost('menu-builder/items/order', { menu_id: state.currentMenu, items: itemsPayload }))
+      .then(()=> $.when( loadSections(), loadItems(), loadUnassigned() ).then(renderList))
       .fail((xhr)=> { alert('Save failed: ' + (xhr.responseJSON?.message || 'Unknown error')); })
       .always(()=> setLoading(false));
   });
 
-  // Create new items (link provided)
-  $('#jprm-open-add-item').on('click', function(){ /* noop */ });
+  // Unassigned: select all
+  $(document).on('change', '#jprm-unassigned-all', function(){
+    const checked = $(this).is(':checked');
+    $('#jprm-unassigned-list input[type="checkbox"]').prop('checked', checked);
+  });
 
-  // Assign multi-select items to section
+  // Assign selected checkboxes
   $('#jprm-assign-item').on('click', function(){
     if (!state.currentMenu) { alert('Select a Menu first.'); return; }
     const secId = parseInt($('#jprm-item-target-section').val(), 10) || 0;
-    const ids = ($('#jprm-existing-item').val() || []).map(v => parseInt(v,10)).filter(Boolean);
-    if (!secId || !ids.length) { alert('Choose a section and one or more items.'); return; }
+    const ids = $('#jprm-unassigned-list input[type="checkbox"]:checked').map(function(){ return parseInt($(this).attr('data-id'),10); }).get();
+    if (!secId || !ids.length) { alert('Choose a section and at least one item.'); return; }
 
     setLoading(true);
     apiPost('menu-builder/item/assign-batch', { menu_id: state.currentMenu, section_id: secId, ids })
@@ -375,6 +466,9 @@
 
   // Boot
   $(function(){
-    loadMenus().then(loadSections).then(loadItems).then(loadUnassigned).then(renderList);
+    $.when( loadMenus(), loadSections(), loadItems(), loadUnassigned() ).then(function(){
+      renderList();
+      expandAll(); // default state
+    });
   });
 })(jQuery);

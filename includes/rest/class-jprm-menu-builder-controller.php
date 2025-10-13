@@ -74,6 +74,28 @@ class Menu_Builder_Controller extends WP_REST_Controller {
             ],
         ]]);
 
+        // Delete section (only if empty in this menu)
+        register_rest_route( $this->namespace, '/' . $this->rest_base . '/section/delete', [[
+            'methods'             => WP_REST_Server::CREATABLE,
+            'permission_callback' => static fn() => is_user_logged_in() && current_user_can('manage_categories'),
+            'callback'            => [ $this, 'delete_section' ],
+            'args'                => [
+                'menu_id'   => [ 'type'=>'integer', 'required'=>true ],
+                'section_id'=> [ 'type'=>'integer', 'required'=>true ],
+            ],
+        ]]);
+
+        // Unassign section from this menu (detach only)
+        register_rest_route( $this->namespace, '/' . $this->rest_base . '/section/unassign', [[
+            'methods'             => WP_REST_Server::CREATABLE,
+            'permission_callback' => static fn() => is_user_logged_in() && current_user_can('manage_categories'),
+            'callback'            => [ $this, 'unassign_section' ],
+            'args'                => [
+                'menu_id'   => [ 'type'=>'integer', 'required'=>true ],
+                'section_id'=> [ 'type'=>'integer', 'required'=>true ],
+            ],
+        ]]);
+
         // List items (assigned to this menu's sections) or unassigned
         register_rest_route( $this->namespace, '/' . $this->rest_base . '/items', [[
             'methods'             => WP_REST_Server::READABLE,
@@ -100,7 +122,7 @@ class Menu_Builder_Controller extends WP_REST_Controller {
             ],
         ]]);
 
-        // 🔹 Assign multiple items in one call (multi-select add)
+        // Assign multiple items to a section
         register_rest_route( $this->namespace, '/' . $this->rest_base . '/item/assign-batch', [[
             'methods'             => WP_REST_Server::CREATABLE,
             'permission_callback' => function( \WP_REST_Request $req ) {
@@ -118,7 +140,7 @@ class Menu_Builder_Controller extends WP_REST_Controller {
             ],
         ]]);
 
-        // 🔹 Save items order & section after drag (batch)
+        // Save items order & section after drag
         register_rest_route( $this->namespace, '/' . $this->rest_base . '/items/order', [[
             'methods'             => WP_REST_Server::CREATABLE,
             'permission_callback' => static fn() => is_user_logged_in() && current_user_can('edit_posts'),
@@ -126,6 +148,32 @@ class Menu_Builder_Controller extends WP_REST_Controller {
             'args'                => [
                 'menu_id' => [ 'type'=>'integer', 'required'=>true ],
                 'items'   => [ 'type'=>'array',   'required'=>true ], // [{id, section_id, order}]
+            ],
+        ]]);
+
+        // Unassign single item (remove from section)
+        register_rest_route( $this->namespace, '/' . $this->rest_base . '/item/unassign', [[
+            'methods'             => WP_REST_Server::CREATABLE,
+            'permission_callback' => function( \WP_REST_Request $req ) {
+                $pid = (int) $req->get_param('id');
+                return is_user_logged_in() && ( $pid > 0 ) && current_user_can( 'edit_post', $pid );
+            },
+            'callback'            => [ $this, 'unassign_item' ],
+            'args'                => [
+                'id' => [ 'type'=>'integer', 'required'=>true ],
+            ],
+        ]]);
+
+        // Delete single item
+        register_rest_route( $this->namespace, '/' . $this->rest_base . '/item/delete', [[
+            'methods'             => WP_REST_Server::CREATABLE,
+            'permission_callback' => function( \WP_REST_Request $req ) {
+                $pid = (int) $req->get_param('id');
+                return is_user_logged_in() && ( $pid > 0 ) && current_user_can( 'delete_post', $pid );
+            },
+            'callback'            => [ $this, 'delete_item' ],
+            'args'                => [
+                'id' => [ 'type'=>'integer', 'required'=>true ],
             ],
         ]]);
     }
@@ -220,6 +268,7 @@ class Menu_Builder_Controller extends WP_REST_Controller {
             }
         }
 
+        // Return fresh sections
         $r = new \WP_REST_Request( 'GET' );
         $r->set_param( 'menu_id', $menu_id );
         return $this->get_sections( $r );
@@ -420,7 +469,7 @@ class Menu_Builder_Controller extends WP_REST_Controller {
         // Validate that section_ids belong to this menu
         foreach ( $items as $it ) {
             $sid = isset($it['section_id']) ? (int) $it['section_id'] : 0;
-            if ( $sid <= 0 ) continue; // items must be under a section; we skip invalid
+            if ( $sid <= 0 ) continue;
             $owner = (int) get_term_meta( $sid, '_jprm_menu_term_id', true );
             if ( $owner !== $menu_id ) {
                 return new WP_Error( 'jprm_wrong_menu', __( 'Section does not belong to selected Menu.', 'jprm' ), [ 'status' => 400 ] );
@@ -438,9 +487,92 @@ class Menu_Builder_Controller extends WP_REST_Controller {
             update_post_meta( $pid, '_jprm_order_in_section', $ord );
         }
 
-        // Return fresh items list
+        // Return fresh items (assigned)
         $r = new \WP_REST_Request( 'GET' );
         $r->set_param( 'menu_id', $menu_id );
         return $this->list_items( $r );
+    }
+
+    /** Unassign item (remove term) */
+    public function unassign_item( \WP_REST_Request $req ) {
+        $pid = (int) $req->get_param('id');
+        if ( $pid <= 0 ) return new WP_Error( 'jprm_bad_input', __( 'Missing item.', 'jprm' ), [ 'status' => 400 ] );
+
+        wp_set_post_terms( $pid, [], 'jprm_section', false );
+        delete_post_meta( $pid, '_jprm_order_in_section' );
+
+        return rest_ensure_response([ 'ok' => 1, 'id' => $pid ]);
+    }
+
+    /** Delete item */
+    public function delete_item( \WP_REST_Request $req ) {
+        $pid = (int) $req->get_param('id');
+        if ( $pid <= 0 ) return new WP_Error( 'jprm_bad_input', __( 'Missing item.', 'jprm' ), [ 'status' => 400 ] );
+
+        $res = wp_delete_post( $pid, true );
+        if ( ! $res ) return new WP_Error( 'jprm_delete_failed', __( 'Could not delete item.', 'jprm' ), [ 'status' => 500 ] );
+
+        return rest_ensure_response([ 'ok' => 1, 'id' => $pid ]);
+    }
+
+    /** Delete section (only if empty for this menu) */
+    public function delete_section( \WP_REST_Request $req ) {
+        $menu_id    = (int) $req->get_param('menu_id');
+        $section_id = (int) $req->get_param('section_id');
+
+        if ( (int) get_term_meta( $section_id, '_jprm_menu_term_id', true ) !== $menu_id ) {
+            return new WP_Error( 'jprm_wrong_menu', __( 'Section does not belong to selected Menu.', 'jprm' ), [ 'status' => 400 ] );
+        }
+
+        // Ensure no child sections belonging to this menu
+        $children = get_terms([
+            'taxonomy'   => 'jprm_section',
+            'hide_empty' => false,
+            'parent'     => $section_id,
+            'fields'     => 'ids',
+        ]);
+        foreach ( (array) $children as $cid ) {
+            if ( (int) get_term_meta( $cid, '_jprm_menu_term_id', true ) === $menu_id ) {
+                return new WP_Error( 'jprm_not_empty', __( 'Section has subsections. Remove them first.', 'jprm' ), [ 'status' => 400 ] );
+            }
+        }
+
+        // Ensure no items in this section
+        $q = new \WP_Query([
+            'post_type'      => $this->item_post_type,
+            'posts_per_page' => 1,
+            'post_status'    => 'any',
+            'tax_query'      => [[
+                'taxonomy' => 'jprm_section',
+                'field'    => 'term_id',
+                'terms'    => [ $section_id ],
+                'include_children' => false,
+            ]],
+            'fields'         => 'ids',
+            'no_found_rows'  => true,
+        ]);
+        if ( $q->have_posts() ) {
+            return new WP_Error( 'jprm_not_empty', __( 'Section has items. Unassign or move them first.', 'jprm' ), [ 'status' => 400 ] );
+        }
+
+        $res = wp_delete_term( $section_id, 'jprm_section' );
+        if ( is_wp_error( $res ) ) return $res;
+
+        return rest_ensure_response([ 'ok' => 1, 'section_id' => $section_id ]);
+    }
+
+    /** Unassign section (detach from menu; set owner=0 and parent=0) */
+    public function unassign_section( \WP_REST_Request $req ) {
+        $menu_id    = (int) $req->get_param('menu_id');
+        $section_id = (int) $req->get_param('section_id');
+
+        if ( (int) get_term_meta( $section_id, '_jprm_menu_term_id', true ) !== $menu_id ) {
+            return new WP_Error( 'jprm_wrong_menu', __( 'Section does not belong to selected Menu.', 'jprm' ), [ 'status' => 400 ] );
+        }
+
+        update_term_meta( $section_id, '_jprm_menu_term_id', 0 );
+        wp_update_term( $section_id, 'jprm_section', [ 'parent' => 0 ] );
+
+        return rest_ensure_response([ 'ok' => 1, 'section_id' => $section_id ]);
     }
 }
