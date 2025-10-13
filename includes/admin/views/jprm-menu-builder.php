@@ -6,11 +6,13 @@
         <label for="jprm-menu-select"><?php esc_html_e('Select Menu:', 'jprm'); ?></label>
         <select id="jprm-menu-select"></select>
         <button class="button button-secondary" id="jprm-refresh"><?php esc_html_e('Refresh', 'jprm'); ?></button>
+        <button class="button" id="jprm-expand"><?php esc_html_e('Expand all', 'jprm'); ?></button>
+        <button class="button" id="jprm-collapse"><?php esc_html_e('Collapse all', 'jprm'); ?></button>
         <span class="spinner is-active" id="jprm-loading" style="display:none;"></span>
     </div>
 
     <div class="jprm-columns">
-        <!-- LEFT: Sections -->
+        <!-- LEFT: Sections + items -->
         <div class="jprm-left">
             <div class="card">
                 <h2><?php esc_html_e('Sections', 'jprm'); ?></h2>
@@ -19,8 +21,6 @@
 
                 <div class="jprm-actions">
                     <button class="button button-primary" id="jprm-save"><?php esc_html_e('Save Structure', 'jprm'); ?></button>
-                    <button class="button" id="jprm-expand"><?php esc_html_e('Expand all', 'jprm'); ?></button>
-                    <button class="button" id="jprm-collapse"><?php esc_html_e('Collapse all', 'jprm'); ?></button>
                 </div>
             </div>
         </div>
@@ -39,13 +39,13 @@
             </div>
 
             <div class="card" style="margin-top:16px;">
-                <h2><?php esc_html_e('Add Item', 'jprm'); ?></h2>
+                <h2><?php esc_html_e('Add Existing Items', 'jprm'); ?></h2>
                 <div class="jprm-form">
                     <label style="display:block;margin-bottom:6px;"><?php esc_html_e('Target Section', 'jprm'); ?></label>
                     <select id="jprm-item-target-section" style="width:100%;max-width:100%;"></select>
 
-                    <label style="display:block;margin:10px 0 6px;"><?php esc_html_e('Existing Items (unassigned)', 'jprm'); ?></label>
-                    <select id="jprm-existing-item" style="width:100%;max-width:100%;"></select>
+                    <label style="display:block;margin:10px 0 6px;"><?php esc_html_e('Unassigned Items (multi-select)', 'jprm'); ?></label>
+                    <select id="jprm-existing-item" multiple size="8" style="width:100%;max-width:100%;"></select>
 
                     <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
                         <button class="button button-primary" id="jprm-assign-item"><?php esc_html_e('Add to Section', 'jprm'); ?></button>
@@ -55,7 +55,7 @@
                     </div>
                 </div>
                 <p class="description" style="margin-top:8px;">
-                    <?php esc_html_e('Pick an existing item and add it to the selected Section. In the next step, we’ll allow dragging items directly.', 'jprm'); ?>
+                    <?php esc_html_e('Select one or more items and add them to the chosen Section.', 'jprm'); ?>
                 </p>
             </div>
         </div>

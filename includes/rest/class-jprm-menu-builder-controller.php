@@ -3,7 +3,6 @@ namespace JelloPoint\RestaurantMenu\REST;
 
 use WP_REST_Controller;
 use WP_REST_Server;
-use WP_REST_Request;
 use WP_Error;
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -13,11 +12,11 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * - Menus: taxonomy 'jprm_menu'
  * - Sections: taxonomy 'jprm_section' (hierarchical, owned by a Menu via _jprm_menu_term_id)
  * - Items: CPT (default 'jprm_menu_item'), linked to sections via term relationship 'jprm_section'
- * - Sibling order: sections => _jprm_term_order (term meta); items => _jprm_order_in_section (post meta)
+ * - Order: sections => _jprm_term_order (term meta); items => _jprm_order_in_section (post meta)
  */
 class Menu_Builder_Controller extends WP_REST_Controller {
 
-    /** ✅ Adjust these if your CPT/meta keys differ */
+    /** ✅ Adjust if your CPT / price meta differ */
     private string $item_post_type = 'jprm_menu_item';
     private string $item_price_key = '_jprm_price';
 
@@ -75,21 +74,21 @@ class Menu_Builder_Controller extends WP_REST_Controller {
             ],
         ]]);
 
-        // 🔹 List items under sections of a menu (read-only)
+        // List items (assigned to this menu's sections) or unassigned
         register_rest_route( $this->namespace, '/' . $this->rest_base . '/items', [[
             'methods'             => WP_REST_Server::READABLE,
             'permission_callback' => static fn() => is_user_logged_in() && current_user_can('edit_posts'),
-            'callback'            => [ $this, 'list_items' ], // not get_items() to avoid WP_REST_Controller signature
+            'callback'            => [ $this, 'list_items' ], // not get_items()
             'args'                => [
                 'menu_id'    => [ 'type'=>'integer', 'required'=>true ],
                 'unassigned' => [ 'type'=>'boolean', 'required'=>false, 'default'=>false ],
             ],
         ]]);
 
-        // 🔹 Assign an existing item to a section (safe, single action)
+        // Assign a single existing item to a section
         register_rest_route( $this->namespace, '/' . $this->rest_base . '/item/assign', [[
             'methods'             => WP_REST_Server::CREATABLE,
-            'permission_callback' => function( WP_REST_Request $req ) {
+            'permission_callback' => function( \WP_REST_Request $req ) {
                 $pid = (int) $req->get_param('id');
                 return is_user_logged_in() && ( $pid > 0 ) && current_user_can( 'edit_post', $pid );
             },
@@ -100,9 +99,38 @@ class Menu_Builder_Controller extends WP_REST_Controller {
                 'section_id' => [ 'type'=>'integer', 'required'=>true ],
             ],
         ]]);
+
+        // 🔹 Assign multiple items in one call (multi-select add)
+        register_rest_route( $this->namespace, '/' . $this->rest_base . '/item/assign-batch', [[
+            'methods'             => WP_REST_Server::CREATABLE,
+            'permission_callback' => function( \WP_REST_Request $req ) {
+                $ids = (array) $req->get_param('ids');
+                foreach ( $ids as $pid ) {
+                    if ( ! current_user_can( 'edit_post', (int) $pid ) ) return false;
+                }
+                return is_user_logged_in();
+            },
+            'callback'            => [ $this, 'assign_item_batch' ],
+            'args'                => [
+                'menu_id'    => [ 'type'=>'integer', 'required'=>true ],
+                'ids'        => [ 'type'=>'array',   'required'=>true ],
+                'section_id' => [ 'type'=>'integer', 'required'=>true ],
+            ],
+        ]]);
+
+        // 🔹 Save items order & section after drag (batch)
+        register_rest_route( $this->namespace, '/' . $this->rest_base . '/items/order', [[
+            'methods'             => WP_REST_Server::CREATABLE,
+            'permission_callback' => static fn() => is_user_logged_in() && current_user_can('edit_posts'),
+            'callback'            => [ $this, 'save_items_order' ],
+            'args'                => [
+                'menu_id' => [ 'type'=>'integer', 'required'=>true ],
+                'items'   => [ 'type'=>'array',   'required'=>true ], // [{id, section_id, order}]
+            ],
+        ]]);
     }
 
-    /** ---------- Handlers ---------- */
+    /* ---------------- Menus & Sections ---------------- */
 
     public function get_menus( \WP_REST_Request $req ) {
         $terms = get_terms([
@@ -110,23 +138,16 @@ class Menu_Builder_Controller extends WP_REST_Controller {
             'hide_empty' => false,
         ]);
 
-        // Seed a default "Main Menu" once if none exist
+        // Seed default Main Menu if none
         if ( ! is_wp_error( $terms ) && empty( $terms ) && current_user_can( 'manage_categories' ) ) {
             $seed = wp_insert_term( __( 'Main Menu', 'jprm' ), 'jprm_menu' );
             if ( ! is_wp_error( $seed ) ) {
-                $terms = get_terms([
-                    'taxonomy'   => 'jprm_menu',
-                    'hide_empty' => false,
-                ]);
+                $terms = get_terms([ 'taxonomy' => 'jprm_menu', 'hide_empty' => false ]);
             }
         }
-
         if ( is_wp_error( $terms ) ) return $terms;
 
-        $items = array_map(static function($t){
-            return [ 'id' => (int) $t->term_id, 'title' => $t->name ];
-        }, $terms );
-
+        $items = array_map(static fn($t) => [ 'id' => (int) $t->term_id, 'title' => $t->name ], $terms );
         return rest_ensure_response([ 'menus' => $items ]);
     }
 
@@ -241,15 +262,15 @@ class Menu_Builder_Controller extends WP_REST_Controller {
         ]);
     }
 
+    /* ---------------- Items ---------------- */
+
     /**
-     * 🔹 Read-only: list items attached to sections of the given menu.
-     * If ?unassigned=1, returns items that are NOT attached to any section owned by this menu.
+     * List items attached to this menu's sections, or unassigned (?unassigned=1).
      */
     public function list_items( \WP_REST_Request $req ) {
         $menu_id    = (int) $req->get_param('menu_id');
         $unassigned = (bool) $req->get_param('unassigned');
 
-        // Find section ids for this menu
         $all_section_ids = get_terms([
             'taxonomy'   => 'jprm_section',
             'hide_empty' => false,
@@ -264,7 +285,6 @@ class Menu_Builder_Controller extends WP_REST_Controller {
             }
         }
 
-        // Query items of this CPT (we’ll filter by section later for unassigned)
         $q = new \WP_Query([
             'post_type'      => $this->item_post_type,
             'posts_per_page' => -1,
@@ -283,10 +303,8 @@ class Menu_Builder_Controller extends WP_REST_Controller {
             $belongs_to_menu = $section_id && in_array( $section_id, $section_ids, true );
 
             if ( $unassigned ) {
-                // unassigned = no section or section not owned by this menu
                 if ( $belongs_to_menu ) continue;
             } else {
-                // assigned for this menu only
                 if ( ! $belongs_to_menu ) continue;
             }
 
@@ -300,7 +318,6 @@ class Menu_Builder_Controller extends WP_REST_Controller {
             ];
         }
 
-        // Sort assigned by order_in_section within each section for stable display
         if ( ! $unassigned ) {
             usort( $items, static function( $a, $b ) {
                 if ( $a['section_id'] !== $b['section_id'] ) return 0;
@@ -312,10 +329,7 @@ class Menu_Builder_Controller extends WP_REST_Controller {
         return rest_ensure_response([ 'items' => $items ]);
     }
 
-    /**
-     * 🔹 Assign an existing item to a section for this menu.
-     * Sets the 'jprm_section' term and appends to end of that section order.
-     */
+    /** Assign one item to a section (append to end) */
     public function assign_item( \WP_REST_Request $req ) {
         $menu_id    = (int) $req->get_param('menu_id');
         $pid        = (int) $req->get_param('id');
@@ -325,7 +339,6 @@ class Menu_Builder_Controller extends WP_REST_Controller {
             return new WP_Error( 'jprm_bad_input', __( 'Missing item or section.', 'jprm' ), [ 'status' => 400 ] );
         }
 
-        // Validate section belongs to this menu
         $owner = (int) get_term_meta( $section_id, '_jprm_menu_term_id', true );
         if ( $owner !== $menu_id ) {
             return new WP_Error( 'jprm_wrong_menu', __( 'Section does not belong to selected Menu.', 'jprm' ), [ 'status' => 400 ] );
@@ -335,7 +348,7 @@ class Menu_Builder_Controller extends WP_REST_Controller {
         $res = wp_set_post_terms( $pid, [ $section_id ], 'jprm_section', false );
         if ( is_wp_error( $res ) ) return $res;
 
-        // Append to end of section order
+        // Append to end
         $siblings = new \WP_Query([
             'post_type'      => $this->item_post_type,
             'posts_per_page' => -1,
@@ -355,14 +368,79 @@ class Menu_Builder_Controller extends WP_REST_Controller {
         }
         update_post_meta( $pid, '_jprm_order_in_section', $max + 1 );
 
-        // Return the updated item shape
-        return rest_ensure_response([
-            'id'               => $pid,
-            'title'            => get_the_title( $pid ),
-            'price'            => (string) get_post_meta( $pid, $this->item_price_key, true ),
-            'section_id'       => $section_id,
-            'order_in_section' => (int) get_post_meta( $pid, '_jprm_order_in_section', true ),
-            'badges'           => [],
+        return rest_ensure_response([ 'ok' => 1, 'id' => $pid ]);
+    }
+
+    /** Assign multiple items to a section (append in sequence) */
+    public function assign_item_batch( \WP_REST_Request $req ) {
+        $menu_id    = (int) $req->get_param('menu_id');
+        $ids        = array_map('intval', (array) $req->get_param('ids') );
+        $section_id = (int) $req->get_param('section_id');
+
+        $owner = (int) get_term_meta( $section_id, '_jprm_menu_term_id', true );
+        if ( $owner !== $menu_id ) {
+            return new WP_Error( 'jprm_wrong_menu', __( 'Section does not belong to selected Menu.', 'jprm' ), [ 'status' => 400 ] );
+        }
+
+        // Current max order
+        $siblings = new \WP_Query([
+            'post_type'      => $this->item_post_type,
+            'posts_per_page' => -1,
+            'post_status'    => 'any',
+            'tax_query'      => [[
+                'taxonomy' => 'jprm_section',
+                'field'    => 'term_id',
+                'terms'    => [ $section_id ],
+                'include_children' => false,
+            ]],
+            'fields'         => 'ids',
+            'no_found_rows'  => true,
         ]);
+        $next = 0;
+        foreach ( (array) $siblings->posts as $sid ) {
+            $next = max( $next, (int) get_post_meta( $sid, '_jprm_order_in_section', true ) );
+        }
+
+        foreach ( $ids as $pid ) {
+            if ( $pid <= 0 ) continue;
+            if ( ! current_user_can( 'edit_post', $pid ) ) continue;
+            wp_set_post_terms( $pid, [ $section_id ], 'jprm_section', false );
+            $next++;
+            update_post_meta( $pid, '_jprm_order_in_section', $next );
+        }
+
+        return rest_ensure_response([ 'ok' => 1, 'assigned' => array_values($ids) ]);
+    }
+
+    /** Save items order & section (batch) */
+    public function save_items_order( \WP_REST_Request $req ) {
+        $menu_id = (int) $req->get_param('menu_id');
+        $items   = (array) $req->get_param('items'); // [{id,section_id,order}]
+
+        // Validate that section_ids belong to this menu
+        foreach ( $items as $it ) {
+            $sid = isset($it['section_id']) ? (int) $it['section_id'] : 0;
+            if ( $sid <= 0 ) continue; // items must be under a section; we skip invalid
+            $owner = (int) get_term_meta( $sid, '_jprm_menu_term_id', true );
+            if ( $owner !== $menu_id ) {
+                return new WP_Error( 'jprm_wrong_menu', __( 'Section does not belong to selected Menu.', 'jprm' ), [ 'status' => 400 ] );
+            }
+        }
+
+        foreach ( $items as $it ) {
+            $pid  = isset($it['id']) ? (int) $it['id'] : 0;
+            $sid  = isset($it['section_id']) ? (int) $it['section_id'] : 0;
+            $ord  = isset($it['order']) ? (int) $it['order'] : 0;
+            if ( $pid <= 0 || $sid <= 0 ) continue;
+            if ( ! current_user_can( 'edit_post', $pid ) ) continue;
+
+            wp_set_post_terms( $pid, [ $sid ], 'jprm_section', false );
+            update_post_meta( $pid, '_jprm_order_in_section', $ord );
+        }
+
+        // Return fresh items list
+        $r = new \WP_REST_Request( 'GET' );
+        $r->set_param( 'menu_id', $menu_id );
+        return $this->list_items( $r );
     }
 }
