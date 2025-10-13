@@ -7,12 +7,20 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * Admin screen for Menu Builder: adds submenu, enqueues assets with cache-busting,
  * and outputs the builder view.
  *
- * NOTE: The class name is deliberately `Menu_Builder` to match your main plugin bootstrap.
+ * Class name and methods are aligned with the plugin bootstrap:
+ * - static hooks()  -> calls init()  (to satisfy older bootstraps)
+ * - static init()   -> attaches WP hooks
  */
 class Menu_Builder {
 
     const SLUG = 'jprm-menu-builder';
 
+    /** Back-compat entrypoint expected by your main plugin */
+    public static function hooks() : void {
+        self::init();
+    }
+
+    /** Actual hook registrations */
     public static function init() : void {
         add_action( 'admin_menu', [ __CLASS__, 'register_page' ] );
         add_action( 'admin_enqueue_scripts', [ __CLASS__, 'enqueue' ] );
@@ -23,7 +31,7 @@ class Menu_Builder {
          * Adjust $parent_slug if your plugin uses a different parent menu.
          * Common options:
          * - 'jprm' (custom top-level menu slug you created)
-         * - 'edit.php?post_type=jprm_menu_item' (if you anchor under the CPT)
+         * - 'edit.php?post_type=jprm_menu_item' (anchor under the CPT)
          */
         $parent_slug = 'jprm';
 
