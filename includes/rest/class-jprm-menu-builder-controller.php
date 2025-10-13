@@ -151,7 +151,7 @@ class Menu_Builder_Controller extends WP_REST_Controller {
             ],
         ]]);
 
-        // Unassign single item (remove from section)
+        // Unassign single item (remove term)
         register_rest_route( $this->namespace, '/' . $this->rest_base . '/item/unassign', [[
             'methods'             => WP_REST_Server::CREATABLE,
             'permission_callback' => function( \WP_REST_Request $req ) {
@@ -164,14 +164,14 @@ class Menu_Builder_Controller extends WP_REST_Controller {
             ],
         ]]);
 
-        // Delete single item
+        // ❗ Delete single item — use a non-conflicting method name
         register_rest_route( $this->namespace, '/' . $this->rest_base . '/item/delete', [[
             'methods'             => WP_REST_Server::CREATABLE,
             'permission_callback' => function( \WP_REST_Request $req ) {
                 $pid = (int) $req->get_param('id');
                 return is_user_logged_in() && ( $pid > 0 ) && current_user_can( 'delete_post', $pid );
             },
-            'callback'            => [ $this, 'delete_item' ],
+            'callback'            => [ $this, 'delete_item_handler' ], // <-- renamed
             'args'                => [
                 'id' => [ 'type'=>'integer', 'required'=>true ],
             ],
@@ -504,8 +504,8 @@ class Menu_Builder_Controller extends WP_REST_Controller {
         return rest_ensure_response([ 'ok' => 1, 'id' => $pid ]);
     }
 
-    /** Delete item */
-    public function delete_item( \WP_REST_Request $req ) {
+    /** ❗Delete item — renamed to avoid clashing with WP_REST_Controller::delete_item() */
+    public function delete_item_handler( \WP_REST_Request $req ) {
         $pid = (int) $req->get_param('id');
         if ( $pid <= 0 ) return new WP_Error( 'jprm_bad_input', __( 'Missing item.', 'jprm' ), [ 'status' => 400 ] );
 
