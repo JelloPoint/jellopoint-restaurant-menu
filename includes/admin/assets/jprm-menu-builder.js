@@ -17,6 +17,37 @@
     });
   }
 
+  /** ---------------- Diagnostics (visible if JPRM_MENU_BUILDER.debug) ---------------- */
+  function runDiagnostics(){
+    const $wrap = $('<div class="jprm-diag" style="margin:10px 0;padding:8px;border:1px solid #ccd0d4;background:#fffff8;"></div>');
+    $wrap.append('<strong>Diagnostics:</strong> ');
+    const $ping = $('<span> ping… </span>');
+    const $menus = $('<span> menus… </span>');
+    const $secs = $('<span> sections… </span>');
+    const $items = $('<span> items… </span>');
+    $wrap.append($ping).append($menus).append($secs).append($items);
+    $('.jprm-menu-builder-wrap .jprm-toolbar').after($wrap);
+
+    apiGet('ping').done(()=> $ping.text(' ping ✓ '))
+                  .fail((e)=> $ping.text(' ping ✗ ' + (e.status||'err')));
+
+    apiGet('menu-builder/menus').done((r)=>{
+      $menus.text(' menus: ' + (r.menus ? r.menus.length : 0) + ' ');
+    }).fail((e)=> $menus.text(' menus ✗ ' + (e.status||'err') + ' '));
+
+    $(document).on('change', '#jprm-menu-select', function(){
+      const mid = parseInt($(this).val(),10)||0;
+      if(!mid){ $secs.text(' sections: 0 '); $items.text(' items: 0 '); return; }
+      apiGet('menu-builder/sections?menu_id='+mid).done((r)=>{
+        $secs.text(' sections: ' + (r.sections? r.sections.length:0) + ' ');
+      }).fail((e)=> $secs.text(' sections ✗ ' + (e.status||'err') + ' '));
+      apiGet('menu-builder/items?menu_id='+mid).done((r)=>{
+        $items.text(' items: ' + (r.items? r.items.length:0) + ' ');
+        console.debug('[JPRM] Items sample:', r.items?.slice(0,5));
+      }).fail((e)=> $items.text(' items ✗ ' + (e.status||'err') + ' '));
+    });
+  }
+
   /** ---------------- Local state ---------------- */
   const state = { menus: [], sections: [], items: [], currentMenu: null };
   const INDENT = 28;     // px per depth (applied to entire li)
@@ -116,21 +147,32 @@
 
       // Insert items under this section (read-only)
       const its = itemsBySection[sec.id] || [];
-      its.forEach(it => {
+      if (its.length === 0) {
+        // 🔹 Visual hint so we know render ran and this section has no items
         const depth = sec.depth + 1;
-        const $liIt  = $('<li>')
-          .attr('data-id', it.id)
-          .attr('data-depth', depth)
-          .attr('data-section-id', sec.id)
-          .addClass('jprm-item jprm-entry is-item'); // not draggable
-        const label = it.price ? `${it.title} • ${it.price}` : it.title;
-        const $rowIt = $('<div class="jprm-row">')
-          .append($('<span class="jprm-title">').text(label))
-          .append($('<span class="jprm-meta">').text('#'+it.id));
-        $liIt.append($rowIt);
-        $ul.append($liIt);
-        applyIndent($liIt, depth);
-      });
+        const $hint = $('<li>').addClass('jprm-item jprm-entry').attr('data-depth', depth);
+        $hint.append($('<div class="jprm-row">').append(
+          $('<span class="jprm-title">').css('opacity', .6).text('— No items in this section —')
+        ));
+        $ul.append($hint);
+        applyIndent($hint, depth);
+      } else {
+        its.forEach(it => {
+          const depth = sec.depth + 1;
+          const $liIt  = $('<li>')
+            .attr('data-id', it.id)
+            .attr('data-depth', depth)
+            .attr('data-section-id', sec.id)
+            .addClass('jprm-item jprm-entry is-item'); // not draggable
+          const label = it.price ? `${it.title} • ${it.price}` : it.title;
+          const $rowIt = $('<div class="jprm-row">')
+            .append($('<span class="jprm-title">').text(label))
+            .append($('<span class="jprm-meta">').text('#'+it.id));
+          $liIt.append($rowIt);
+          $ul.append($liIt);
+          applyIndent($liIt, depth);
+        });
+      }
 
       (sec.children || []).forEach(addSectionRow);
     }
@@ -234,7 +276,6 @@
     apiPost('menu-builder/sections/order', { tree, menu_id: state.currentMenu })
       .done((res)=> {
         state.sections = res.sections || [];
-        // refresh items as section hierarchy might have changed (depths)
         loadItems().then(renderList);
       })
       .fail((xhr)=> {
@@ -247,5 +288,8 @@
   $('#jprm-collapse').on('click', collapseAll);
 
   // Boot
-  $(function(){ loadMenus().then(loadSections).then(loadItems).then(renderList); });
+  $(function(){
+    if (window.JPRM_MENU_BUILDER && JPRM_MENU_BUILDER.debug) runDiagnostics();
+    loadMenus().then(loadSections).then(loadItems).then(renderList);
+  });
 })(jQuery);

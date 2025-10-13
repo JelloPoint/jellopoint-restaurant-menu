@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  */
 class Menu_Builder_Controller extends WP_REST_Controller {
 
-    /** Adjust these if your CPT/meta keys differ */
+    /** ✅ Adjust these if your CPT/meta keys differ */
     private string $item_post_type = 'jprm_menu_item';
     private string $item_price_key = '_jprm_price';
 
@@ -79,7 +79,7 @@ class Menu_Builder_Controller extends WP_REST_Controller {
         register_rest_route( $this->namespace, '/' . $this->rest_base . '/items', [[
             'methods'             => WP_REST_Server::READABLE,
             'permission_callback' => static fn() => is_user_logged_in() && current_user_can('edit_posts'),
-            'callback'            => [ $this, 'list_items' ], // <— renamed to avoid signature clash
+            'callback'            => [ $this, 'list_items' ], // use a unique name (avoid WP_REST_Controller::get_items signature)
             'args'                => [
                 'menu_id' => [ 'type'=>'integer', 'required'=>true ],
             ],
@@ -280,7 +280,7 @@ class Menu_Builder_Controller extends WP_REST_Controller {
                 'price'            => (string) get_post_meta( $pid, $this->item_price_key, true ),
                 'section_id'       => $section_id,
                 'order_in_section' => (int) get_post_meta( $pid, '_jprm_order_in_section', true ),
-                'badges'           => [], // fill later if you store them; placeholder
+                'badges'           => [], // placeholder
             ];
         }
         wp_reset_postdata();

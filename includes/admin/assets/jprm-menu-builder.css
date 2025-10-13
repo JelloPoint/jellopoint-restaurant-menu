@@ -22,7 +22,6 @@
   align-items: center;
   padding: 8px 10px;
   cursor: move;
-  /* We keep text padding constant; horizontal indent comes from li margin-left */
 }
 .jprm-title { font-weight: 500; flex: 1 1 auto; }
 .jprm-meta  { opacity: .6; font-size: 11px; }
@@ -30,7 +29,7 @@
 /* 🔹 Top-level tint for clarity */
 .jprm-item[data-depth="0"] > .jprm-row { background: #f6f7f7; }
 
-/* Drag placeholder (its indent also set inline via JS) */
+/* Drag placeholder */
 .jprm-placeholder {
   border: 2px dashed #c3c4c7;
   background: #f6f7f7;

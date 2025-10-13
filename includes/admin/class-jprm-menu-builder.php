@@ -3,45 +3,84 @@ namespace JelloPoint\RestaurantMenu\Admin;
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-class Menu_Builder {
+/**
+ * Admin screen for Menu Builder: adds submenu, enqueues assets with cache-busting,
+ * and outputs the builder view.
+ */
+class JPRM_Menu_Builder {
+
     const SLUG = 'jprm-menu-builder';
 
-    public function __construct() {}
-
-    public function hooks() : void {
-        add_action( 'admin_menu', [ $this, 'add_submenu' ], 60 ); // keep existing order; add near end
-        add_action( 'admin_enqueue_scripts', [ $this, 'enqueue' ] );
+    public static function init() : void {
+        add_action( 'admin_menu', [ __CLASS__, 'register_page' ] );
+        add_action( 'admin_enqueue_scripts', [ __CLASS__, 'enqueue' ] );
     }
 
-    public function add_submenu() : void {
-    // Use your real parent menu slug
-    $default_parent = 'jellopoint';
-    $parent_slug    = apply_filters( 'jprm/admin/menu_builder_parent', $default_parent );
+    public static function register_page() : void {
+        // Adjust parent slug to your plugin's parent menu if different
+        $parent_slug = 'jprm'; // e.g., 'jprm' or 'edit.php?post_type=jprm_menu_item'
+        add_submenu_page(
+            $parent_slug,
+            __( 'Menu Builder', 'jprm' ),
+            __( 'Menu Builder (beta)', 'jprm' ),
+            'edit_posts',
+            self::SLUG,
+            [ __CLASS__, 'render' ],
+            30
+        );
+    }
 
-    add_submenu_page(
-        $parent_slug,
-        __( 'Menu Builder', 'jprm' ),
-        __( 'Menu Builder (beta)', 'jprm' ),
-        'edit_posts',
-        self::SLUG,
-        [ $this, 'render' ],
-        99
-    );
-}
+    public static function enqueue( string $hook ) : void {
+        // Load only on our screen
+        if ( empty( $_GET['page'] ) || $_GET['page'] !== self::SLUG ) return;
 
-public function enqueue( $hook ) : void {
-    if ( strpos( (string) $hook, self::SLUG ) === false ) return;
-    $asset_url = plugin_dir_url( dirname( __FILE__, 2 ) ) . 'includes/admin/assets/';
-    wp_enqueue_style( 'jprm-menu-builder', $asset_url . 'jprm-menu-builder.css', [], '1.1.0' );
-    wp_enqueue_script( 'jquery-ui-sortable' );
-    wp_enqueue_script( 'jprm-menu-builder', $asset_url . 'jprm-menu-builder.js', [ 'jquery', 'jquery-ui-sortable' ], '1.1.0', true );
-    wp_localize_script( 'jprm-menu-builder', 'JPRM_MENU_BUILDER', [
-        'root'  => esc_url_raw( rest_url( 'jprm/v1' ) ),
-        'nonce' => wp_create_nonce( 'wp_rest' ),
-    ] );
-}
+        // Paths
+        $js_rel  = 'includes/admin/assets/jprm-menu-builder.js';
+        $css_rel = 'includes/admin/assets/jprm-menu-builder.css';
 
-    public function render() : void {
-        require __DIR__ . '/views/jprm-menu-builder.php';
+        $js_path  = trailingslashit( JPRM_PLUGIN_PATH ) . $js_rel;
+        $css_path = trailingslashit( JPRM_PLUGIN_PATH ) . $css_rel;
+
+        $js_url  = trailingslashit( JPRM_PLUGIN_URL )  . $js_rel;
+        $css_url = trailingslashit( JPRM_PLUGIN_URL )  . $css_rel;
+
+        // Core dependency
+        wp_enqueue_script( 'jquery-ui-sortable' );
+
+        // Cache-busted enqueue
+        wp_enqueue_script(
+            'jprm-menu-builder',
+            $js_url,
+            [ 'jquery', 'jquery-ui-sortable' ],
+            @filemtime( $js_path ) ?: time(),
+            true
+        );
+
+        // Localize REST info + diagnostics toggle
+        wp_localize_script( 'jprm-menu-builder', 'JPRM_MENU_BUILDER', [
+            'root'  => esc_url_raw( rest_url( 'jprm/v1' ) ),
+            'nonce' => wp_create_nonce( 'wp_rest' ),
+            'debug' => true, // set to false to hide diagnostics
+        ] );
+
+        wp_enqueue_style(
+            'jprm-menu-builder',
+            $css_url,
+            [],
+            @filemtime( $css_path ) ?: time()
+        );
+    }
+
+    public static function render() : void {
+        // Use your existing view file
+        $view = trailingslashit( JPRM_PLUGIN_PATH ) . 'includes/admin/views/jprm-menu-builder.php';
+        if ( file_exists( $view ) ) {
+            require $view;
+            return;
+        }
+
+        // Minimal fallback output if view missing
+        echo '<div class="wrap"><h1>' . esc_html__( 'Menu Builder', 'jprm' ) . '</h1>';
+        echo '<p>' . esc_html__( 'View file not found.', 'jprm' ) . '</p></div>';
     }
 }
