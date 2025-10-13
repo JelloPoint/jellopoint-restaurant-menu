@@ -14,16 +14,24 @@
 }
 
 /* Distinguish: sections vs items */
-#jprm-tree .jprm-section > .jprm-row { background:#f6f7f7; } /* sections = light grey */
-#jprm-tree .jprm-entry > .jprm-row   { background:#fff; }     /* items = white */
+#jprm-tree .jprm-section > .jprm-row { background:#f6f7f7; }
+#jprm-tree .jprm-entry   > .jprm-row { background:#fff; }
 
-/* Drag handle: hidden by default, appears on hover/focus */
+/* NEW: bold section titles only */
+#jprm-tree .jprm-section > .jprm-row .jprm-title { font-weight: 600; }
+
+/* Drag handle: show on hover only */
 .jprm-handle { cursor:move; opacity:0; pointer-events:none; transition:opacity .12s ease; }
 .jprm-item:hover .jprm-handle,
 .jprm-handle:focus-visible { opacity:.8; pointer-events:auto; }
 
 /* Actions (right side) */
 .jprm-actions { margin-left:auto; display:flex; gap:8px; }
+
+/* NEW: extra top padding for bottom buttons row */
+.card > .jprm-actions { margin-top: 12px; padding-top: 10px; }
+
+/* Action icons */
 .jprm-act { cursor:pointer; opacity:.8; }
 .jprm-act:hover { opacity:1; }
 

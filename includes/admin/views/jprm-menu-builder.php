@@ -7,8 +7,8 @@
         <select id="jprm-menu-select"></select>
         <button class="button button-secondary" id="jprm-refresh"><?php esc_html_e('Refresh', 'jprm'); ?></button>
 
-        <!-- ✅ Single toggle button (JS updates label between Collapse/Expand all) -->
-        <button class="button" id="jprm-toggle-all" data-collapsed="0">
+        <!-- Top toggle (class-based so JS can sync multiple buttons) -->
+        <button class="button jprm-toggle-all" data-collapsed="0">
             <?php esc_html_e('Collapse all', 'jprm'); ?>
         </button>
 
@@ -25,6 +25,10 @@
 
                 <div class="jprm-actions">
                     <button class="button button-primary" id="jprm-save"><?php esc_html_e('Save Structure', 'jprm'); ?></button>
+                    <!-- Bottom toggle (mirrors top one) -->
+                    <button class="button jprm-toggle-all" data-collapsed="0">
+                        <?php esc_html_e('Collapse all', 'jprm'); ?>
+                    </button>
                 </div>
             </div>
         </div>
