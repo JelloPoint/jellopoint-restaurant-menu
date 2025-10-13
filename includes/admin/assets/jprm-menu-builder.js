@@ -17,7 +17,7 @@
     });
   }
 
-  /** ---------------- Diagnostics (visible if JPRM_MENU_BUILDER.debug) ---------------- */
+  /** ---------------- Diagnostics (visible if debug: true) ---------------- */
   function runDiagnostics(){
     const $wrap = $('<div class="jprm-diag" style="margin:10px 0;padding:8px;border:1px solid #ccd0d4;background:#fffff8;"></div>');
     $wrap.append('<strong>Diagnostics:</strong> ');
@@ -50,7 +50,7 @@
 
   /** ---------------- Local state ---------------- */
   const state = { menus: [], sections: [], items: [], currentMenu: null };
-  const INDENT = 28;     // px per depth (applied to entire li)
+  const INDENT = 28;
   const MAX_DEPTH = 6;
   let drag = null;
 
@@ -93,12 +93,10 @@
       });
   }
 
-  /** ---------------- Build & render ---------------- */
+  /** ---------------- Helpers ---------------- */
   function applyIndent($li, depth){
     $li.attr('data-depth', depth);
-    // Entire box indent:
     $li.css('margin-left', (depth * INDENT) + 'px');
-    // Keep row padding small/consistent:
     $li.find('> .jprm-row').css('padding-left', '10px');
   }
 
@@ -114,19 +112,42 @@
     return depth;
   }
 
-  function renderList(){
-    // Build tree of sections to compute depths
+  function buildSectionTree(){
     const byId = {}; state.sections.forEach(s => byId[s.id] = { ...s, depth: 0, children: [] });
     const roots = [];
     state.sections.forEach(s => {
       if (s.parent_id && byId[s.parent_id]) byId[s.parent_id].children.push(byId[s.id]);
       else roots.push(byId[s.id]);
     });
-    (function setDepth(nodes, d){
+    (function setDepth(nodes,d){
       nodes.forEach(n => { n.depth = d; if (n.children) setDepth(n.children, d+1); });
     })(roots, 0);
+    const flat = [];
+    (function walk(nodes){ nodes.forEach(n => { flat.push({ id:n.id, title:n.title, depth:n.depth }); walk(n.children||[]); }); })(roots);
+    return { roots, flat };
+  }
 
-    // Map items by section
+  function fillTargetSectionSelect(){
+    const $sel = $('#jprm-item-target-section').empty();
+    const tree = buildSectionTree();
+    if (!tree.flat.length) {
+      $sel.append($('<option>').text('— No sections —').prop('disabled', true));
+      return;
+    }
+    tree.flat.forEach(s => {
+      // safer than '— '.repeat() in older browsers
+      const indent = new Array(s.depth + 1).join('— ');
+      $sel.append($('<option>').val(s.id).text(indent + s.title));
+    });
+    // select first by default
+    $sel.val(tree.flat[0].id);
+  }
+
+  /** ---------------- Render ---------------- */
+  function renderList(){
+    const tree = buildSectionTree();
+
+    // items grouped by section
     const itemsBySection = {};
     state.items.forEach(it => {
       if (!itemsBySection[it.section_id]) itemsBySection[it.section_id] = [];
@@ -145,10 +166,8 @@
       $ul.append($li);
       applyIndent($li, sec.depth);
 
-      // Insert items under this section (read-only)
       const its = itemsBySection[sec.id] || [];
       if (its.length === 0) {
-        // 🔹 Visual hint so we know render ran and this section has no items
         const depth = sec.depth + 1;
         const $hint = $('<li>').addClass('jprm-item jprm-entry').attr('data-depth', depth);
         $hint.append($('<div class="jprm-row">').append(
@@ -163,7 +182,7 @@
             .attr('data-id', it.id)
             .attr('data-depth', depth)
             .attr('data-section-id', sec.id)
-            .addClass('jprm-item jprm-entry is-item'); // not draggable
+            .addClass('jprm-item jprm-entry is-item'); // read-only in Step 1
           const label = it.price ? `${it.title} • ${it.price}` : it.title;
           const $rowIt = $('<div class="jprm-row">')
             .append($('<span class="jprm-title">').text(label))
@@ -177,7 +196,10 @@
       (sec.children || []).forEach(addSectionRow);
     }
 
-    roots.forEach(addSectionRow);
+    tree.roots.forEach(addSectionRow);
+
+    // 🔹 populate the right-pane Target Section select now that sections are known
+    fillTargetSectionSelect();
 
     // Only sections draggable for now
     initSortable($ul);
@@ -282,6 +304,17 @@
         alert('Could not save order: ' + (xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Unknown error'));
       })
       .always(()=> setLoading(false));
+  });
+
+  // 🔹 Right pane: Add Item (opens editor in new tab)
+  $('#jprm-open-add-item').on('click', function(e){
+    e.preventDefault();
+    const url = (JPRM_MENU_BUILDER && JPRM_MENU_BUILDER.admin_new_item_url) ? JPRM_MENU_BUILDER.admin_new_item_url : '';
+    if (!url) { alert('Cannot determine the item editor URL.'); return; }
+    const secId = parseInt($('#jprm-item-target-section').val(), 10) || 0;
+    // We cannot pre-assign taxonomy via GET reliably; this is just a convenience link.
+    const finalUrl = url + (secId ? ('&jprm_section=' + encodeURIComponent(secId)) : '');
+    window.open(finalUrl, '_blank', 'noopener'); // should not be blocked (direct user click)
   });
 
   $('#jprm-expand').on('click', expandAll);

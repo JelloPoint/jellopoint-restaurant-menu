@@ -4,71 +4,30 @@ namespace JelloPoint\RestaurantMenu\Admin;
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 /**
- * Admin screen for Menu Builder: always attach submenu, cache-busted assets,
- * diagnostics toggle, and a safe "Add Item" link to the post-new editor.
+ * Admin screen for Menu Builder: attaches submenu under the existing Jellopoint
+ * top-level menu, enqueues cache-busted assets, and renders the builder view.
  *
- * Compatible with older bootstraps that call Menu_Builder::hooks().
+ * Back-compat: main plugin may call Menu_Builder::hooks(), which aliases to init().
  */
 class Menu_Builder {
 
-    const SLUG = 'jprm-menu-builder';
-    const PARENT_SLUG = 'jprm'; // we will create this top-level parent if it doesn't exist
+    const SLUG        = 'jprm-menu-builder';
+    const PARENT_SLUG = 'jellopoint'; // ✅ your existing parent menu slug
 
     /** Back-compat entrypoint expected by your main plugin */
     public static function hooks() : void { self::init(); }
 
-    /** Actual hook registrations */
+    /** Register hooks */
     public static function init() : void {
-        // Make sure our parent menu exists before adding submenu
-        add_action( 'admin_menu', [ __CLASS__, 'ensure_parent_menu' ], 9 );
-        add_action( 'admin_menu', [ __CLASS__, 'register_page' ], 10 );
+        // Only register our submenu — DO NOT create a new top-level
+        add_action( 'admin_menu', [ __CLASS__, 'register_page' ], 20 );
         add_action( 'admin_enqueue_scripts', [ __CLASS__, 'enqueue' ] );
     }
 
-    /**
-     * Ensure the top-level parent exists so the submenu never disappears.
-     * If another class already added it, this will do nothing.
-     */
-    public static function ensure_parent_menu() : void {
-        global $menu;
-        $parent_exists = false;
-        if ( is_array( $menu ) ) {
-            foreach ( $menu as $m ) {
-                if ( isset( $m[2] ) && $m[2] === self::PARENT_SLUG ) {
-                    $parent_exists = true;
-                    break;
-                }
-            }
-        }
-
-        if ( $parent_exists ) return;
-
-        // Create a light-weight parent page with a link to the builder
-        add_menu_page(
-            __( 'Restaurant Menus', 'jprm' ),
-            __( 'Restaurant Menus', 'jprm' ),
-            'edit_posts',
-            self::PARENT_SLUG,
-            [ __CLASS__, 'render_parent' ],
-            'dashicons-clipboard',
-            56
-        );
-    }
-
-    /** Simple landing for the parent; points to the builder */
-    public static function render_parent() : void {
-        $builder_url = admin_url( 'admin.php?page=' . self::SLUG );
-        echo '<div class="wrap">';
-        echo '<h1>' . esc_html__( 'Restaurant Menus', 'jprm' ) . '</h1>';
-        echo '<p><a class="button button-primary" href="' . esc_url( $builder_url ) . '">' .
-                esc_html__( 'Open Menu Builder', 'jprm' ) . '</a></p>';
-        echo '</div>';
-    }
-
-    /** Register the Menu Builder submenu under our guaranteed parent */
+    /** Add the Menu Builder submenu under the existing parent */
     public static function register_page() : void {
         add_submenu_page(
-            self::PARENT_SLUG,                               // parent (now guaranteed)
+            self::PARENT_SLUG,                          // parent: Jellopoint (already exists)
             __( 'Menu Builder', 'jprm' ),
             __( 'Menu Builder (beta)', 'jprm' ),
             'edit_posts',
@@ -78,7 +37,7 @@ class Menu_Builder {
         );
     }
 
-    /** Enqueue cache-busted assets and localize REST + admin URLs */
+    /** Enqueue cache-busted assets + localized vars used by the UI */
     public static function enqueue( string $hook ) : void {
         if ( empty( $_GET['page'] ) || $_GET['page'] !== self::SLUG ) return;
 
@@ -101,11 +60,11 @@ class Menu_Builder {
             true
         );
 
-        // Localize REST info + diagnostics + admin URLs for "Add Item"
+        // If your CPT slug differs, change 'jprm_menu_item' below.
         wp_localize_script( 'jprm-menu-builder', 'JPRM_MENU_BUILDER', [
             'root'                => esc_url_raw( rest_url( 'jprm/v1' ) ),
             'nonce'               => wp_create_nonce( 'wp_rest' ),
-            'debug'               => true, // set false to hide diagnostics
+            'debug'               => true, // set to false to hide the Diagnostics stripe
             'admin_new_item_url'  => admin_url( 'post-new.php?post_type=jprm_menu_item' ),
         ] );
 
@@ -120,10 +79,7 @@ class Menu_Builder {
     /** Render the builder view */
     public static function render() : void {
         $view = trailingslashit( JPRM_PLUGIN_PATH ) . 'includes/admin/views/jprm-menu-builder.php';
-        if ( file_exists( $view ) ) {
-            require $view;
-            return;
-        }
+        if ( file_exists( $view ) ) { require $view; return; }
 
         echo '<div class="wrap"><h1>' . esc_html__( 'Menu Builder', 'jprm' ) . '</h1>';
         echo '<p>' . esc_html__( 'View file not found at includes/admin/views/jprm-menu-builder.php', 'jprm' ) . '</p></div>';
