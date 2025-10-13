@@ -6,8 +6,10 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 /**
  * Admin screen for Menu Builder: adds submenu, enqueues assets with cache-busting,
  * and outputs the builder view.
+ *
+ * NOTE: The class name is deliberately `Menu_Builder` to match your main plugin bootstrap.
  */
-class JPRM_Menu_Builder {
+class Menu_Builder {
 
     const SLUG = 'jprm-menu-builder';
 
@@ -17,8 +19,14 @@ class JPRM_Menu_Builder {
     }
 
     public static function register_page() : void {
-        // Adjust parent slug to your plugin's parent menu if different
-        $parent_slug = 'jprm'; // e.g., 'jprm' or 'edit.php?post_type=jprm_menu_item'
+        /**
+         * Adjust $parent_slug if your plugin uses a different parent menu.
+         * Common options:
+         * - 'jprm' (custom top-level menu slug you created)
+         * - 'edit.php?post_type=jprm_menu_item' (if you anchor under the CPT)
+         */
+        $parent_slug = 'jprm';
+
         add_submenu_page(
             $parent_slug,
             __( 'Menu Builder', 'jprm' ),
@@ -31,7 +39,7 @@ class JPRM_Menu_Builder {
     }
 
     public static function enqueue( string $hook ) : void {
-        // Load only on our screen
+        // Only load assets on our screen
         if ( empty( $_GET['page'] ) || $_GET['page'] !== self::SLUG ) return;
 
         // Paths
@@ -47,7 +55,7 @@ class JPRM_Menu_Builder {
         // Core dependency
         wp_enqueue_script( 'jquery-ui-sortable' );
 
-        // Cache-busted enqueue
+        // Cache-busted enqueue so updates are always loaded
         wp_enqueue_script(
             'jprm-menu-builder',
             $js_url,
@@ -60,7 +68,7 @@ class JPRM_Menu_Builder {
         wp_localize_script( 'jprm-menu-builder', 'JPRM_MENU_BUILDER', [
             'root'  => esc_url_raw( rest_url( 'jprm/v1' ) ),
             'nonce' => wp_create_nonce( 'wp_rest' ),
-            'debug' => true, // set to false to hide diagnostics
+            'debug' => true, // set to false to hide diagnostics bar
         ] );
 
         wp_enqueue_style(
@@ -72,15 +80,14 @@ class JPRM_Menu_Builder {
     }
 
     public static function render() : void {
-        // Use your existing view file
         $view = trailingslashit( JPRM_PLUGIN_PATH ) . 'includes/admin/views/jprm-menu-builder.php';
         if ( file_exists( $view ) ) {
             require $view;
             return;
         }
 
-        // Minimal fallback output if view missing
+        // Minimal fallback if view missing
         echo '<div class="wrap"><h1>' . esc_html__( 'Menu Builder', 'jprm' ) . '</h1>';
-        echo '<p>' . esc_html__( 'View file not found.', 'jprm' ) . '</p></div>';
+        echo '<p>' . esc_html__( 'View file not found at includes/admin/views/jprm-menu-builder.php', 'jprm' ) . '</p></div>';
     }
 }
