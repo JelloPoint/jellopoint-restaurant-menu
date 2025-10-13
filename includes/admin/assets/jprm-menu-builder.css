@@ -14,12 +14,13 @@
 }
 
 /* Distinguish: sections vs items */
-#jprm-tree .jprm-section > .jprm-row { background:#f6f7f7; /* WP light grey */ }
-#jprm-tree .jprm-entry > .jprm-row { background:#fff; }
+#jprm-tree .jprm-section > .jprm-row { background:#f6f7f7; } /* sections = light grey */
+#jprm-tree .jprm-entry > .jprm-row   { background:#fff; }     /* items = white */
 
-/* Drag handle */
-.jprm-handle { cursor:move; opacity:.75; }
-.jprm-handle:before { line-height:1.2; }
+/* Drag handle: hidden by default, appears on hover/focus */
+.jprm-handle { cursor:move; opacity:0; pointer-events:none; transition:opacity .12s ease; }
+.jprm-item:hover .jprm-handle,
+.jprm-handle:focus-visible { opacity:.8; pointer-events:auto; }
 
 /* Actions (right side) */
 .jprm-actions { margin-left:auto; display:flex; gap:8px; }
