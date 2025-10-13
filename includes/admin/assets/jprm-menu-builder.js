@@ -65,7 +65,6 @@
   function applyIndent($li, depth){
     $li.attr('data-depth', depth);
     $li.css('margin-left', (depth * INDENT) + 'px');
-    $li.find('> .jprm-row').css('padding-left', '10px');
   }
   function clampDepth(depth, $placeholder){
     depth = Math.max(0, Math.min(MAX_DEPTH, depth));
@@ -102,12 +101,12 @@
   }
   function renderUnassignedCheckboxes(){
     const $box = $('#jprm-unassigned-list').empty();
-    if (!state.unassigned.length) { $box.append($('<div>').css('opacity',.7).text('— No unassigned items —')); return; }
+    if (!state.unassigned.length) { $box.append($('<div>').addClass('jprm-muted').text('— No unassigned items —')); return; }
     state.unassigned.forEach(it => {
       const id = 'ua-'+it.id;
       const label = it.price ? `${it.title} • ${it.price}` : it.title;
-      const $row = $('<label for="'+id+'">').css({display:'block', padding:'4px 2px'});
-      $row.append($('<input type="checkbox">').attr('id', id).attr('data-id', it.id).css('margin-right','6px'));
+      const $row = $('<label for="'+id+'">').addClass('jprm-ua-row');
+      $row.append($('<input type="checkbox">').attr('id', id).attr('data-id', it.id));
       $row.append($('<span>').text(label));
       $box.append($row);
     });
@@ -134,17 +133,16 @@
     const $ul = $('#jprm-tree').empty().removeClass().addClass('jprm-flat');
 
     function actionIcon(cls, title){
-      return $('<span class="dashicons '+cls+' jprm-act" title="'+title+'">').css({cursor:'pointer',opacity:.8});
+      return $('<span class="dashicons '+cls+' jprm-act" title="'+title+'">');
     }
 
     function addSectionRow(sec){
       const $li  = $('<li>').attr('data-id', sec.id).attr('data-depth', sec.depth).addClass('jprm-item jprm-section');
-      const $toggle = $('<button type="button" class="jprm-toggle button button-small" title="Toggle">▾</button>').css({marginRight:'6px'});
+      const $toggle = $('<button type="button" class="jprm-toggle button button-small" title="Toggle">▾</button>');
       const $right = $('<span class="jprm-actions">')
-        .append(actionIcon('dashicons-dismiss','Unassign section').attr('data-action','section-unassign'))
-        .append(' ')
-        .append(actionIcon('dashicons-trash','Delete section').attr('data-action','section-delete'));
+        .append(actionIcon('dashicons-dismiss','Unassign section').attr('data-action','section-unassign'));
       const $row = $('<div class="jprm-row">')
+        .append($('<span class="jprm-handle dashicons dashicons-move" title="Drag section"></span>'))
         .append($toggle)
         .append($('<span class="jprm-title">').text(sec.title))
         .append($right);
@@ -157,7 +155,7 @@
         const depth = sec.depth + 1;
         const $hint = $('<li>').addClass('jprm-item jprm-entry').attr('data-depth', depth);
         $hint.append($('<div class="jprm-row">').append(
-          $('<span class="jprm-title">').css('opacity', .6).text('— No items in this section —')
+          $('<span class="jprm-title jprm-muted">').text('— No items in this section —')
         ));
         $ul.append($hint);
         applyIndent($hint, depth);
@@ -168,12 +166,11 @@
             .attr('data-id', it.id)
             .attr('data-depth', depth)
             .attr('data-section-id', sec.id)
-            .addClass('jprm-item jprm-entry is-item'); // draggable
+            .addClass('jprm-item jprm-entry is-item');
           const $right = $('<span class="jprm-actions">')
-            .append(actionIcon('dashicons-dismiss','Unassign item').attr('data-action','item-unassign'))
-            .append(' ')
-            .append(actionIcon('dashicons-trash','Delete item').attr('data-action','item-delete'));
+            .append(actionIcon('dashicons-dismiss','Unassign item').attr('data-action','item-unassign'));
           const $rowIt = $('<div class="jprm-row">')
+            .append($('<span class="jprm-handle dashicons dashicons-move" title="Drag item"></span>'))
             .append($('<span class="jprm-title">').text(it.price ? `${it.title} • ${it.price}` : it.title))
             .append($right);
           $liIt.append($rowIt);
@@ -199,40 +196,15 @@
   }
 
   /* ---------------- Sortable (sections + items) ---------------- */
-  function collectItemsForSave(){
-    const itemsPayload = [];
-    let currentSectionId = 0;
-    let orderInSection = -1;
-
-    $('#jprm-tree > li.jprm-item').each(function(){
-      const $li = $(this);
-      if ($li.hasClass('jprm-section')) {
-        currentSectionId = parseInt($li.attr('data-id'),10);
-        orderInSection = -1;
-      } else if ($li.hasClass('is-item')) {
-        const depth = parseInt($li.attr('data-depth'),10) || 1;
-        if (depth < 1 || !currentSectionId) return;
-        orderInSection++;
-        const id = parseInt($li.attr('data-id'),10);
-        itemsPayload.push({ id, section_id: currentSectionId, order: orderInSection });
-        $li.attr('data-section-id', currentSectionId);
-      }
-    });
-    return itemsPayload;
-  }
-
   function initSortable($ul){
     try { $ul.sortable('destroy'); } catch(e){}
 
-    // --- Build a multi-row helper for section drags & hide originals during drag
     function buildSectionHelper($item){
       const startDepth = parseInt($item.attr('data-depth'),10) || 0;
-      const $helper = $('<div class="jprm-helper-group">').css({opacity:0.95});
-      // clone section row
+      const $helper = $('<div class="jprm-helper-group">');
       const $secClone = $item.clone();
       $helper.append($secClone);
 
-      // collect descendants (subsections + items) and hide originals during drag
       const block = [];
       let $next = $item.next();
       while ($next.length) {
@@ -240,7 +212,6 @@
         if (d > startDepth) {
           block.push($next[0]);
           $helper.append($next.clone());
-          // hide original so it doesn't sit in old place
           $next.data('jprm-old-display', $next.css('display'));
           $next.css('display','none').addClass('jprm-drag-hidden');
           $next = $next.next();
@@ -248,10 +219,8 @@
           break;
         }
       }
-      // store for stop
       $item.data('jprm-drag-block', block);
       $item.data('jprm-start-depth', startDepth);
-      // ensure visual indent on clones
       $helper.find('> li').each(function(){
         const d = parseInt($(this).attr('data-depth'),10) || 0;
         $(this).css('margin-left', (d * INDENT) + 'px');
@@ -268,59 +237,72 @@
       }
     }
 
+    function enforceItemDepth(ui){
+      // Items cannot be indented/outdented horizontally.
+      // Force their depth to be (nearest previous section depth + 1).
+      if (!drag || drag.isSection) return;
+      let $prev = ui.placeholder.prev();
+      let sectionDepth = 0;
+      while ($prev.length) {
+        if ($prev.hasClass('jprm-section')) {
+          sectionDepth = parseInt($prev.attr('data-depth'),10) || 0;
+          break;
+        }
+        $prev = $prev.prev();
+      }
+      const newDepth = sectionDepth + 1;
+      applyIndent(ui.placeholder, newDepth);
+    }
+
     $ul.sortable({
       placeholder: 'jprm-placeholder',
       items: '> li.jprm-section, > li.is-item',
-      handle: '.jprm-row',
+      handle: '.jprm-handle', // drag only via the handle (≡)
       tolerance: 'pointer',
       forcePlaceholderSize: true,
-
-      // 🔹 Multi-row visual when dragging a section
       helper: function(e, item){
-        if ($(item).hasClass('jprm-section')) {
-          return buildSectionHelper($(item));
-        }
-        return item.clone();
+        if ($(item).hasClass('jprm-section')) return buildSectionHelper($(item));
+        return item.clone(); // item helper is single-row
       },
-
       start: function(e, ui){
         $('body').addClass('jprm-sorting');
 
         const isSection = ui.item.hasClass('jprm-section');
         const startDepth = parseInt(ui.item.attr('data-depth'),10) || 0;
-
         drag = { startX: e.pageX, startDepth, isSection, $item: ui.item };
+
         ui.placeholder.height(ui.item.outerHeight());
         applyIndent(ui.placeholder, startDepth);
 
-        // make sure placeholder doesn't sit between items for sections
-        snapPlaceholderForSection(ui);
+        if (isSection) snapPlaceholderForSection(ui);
+        else enforceItemDepth(ui);
       },
-
       sort: function(e, ui){
         if (!drag) return;
-        const deltaX = e.pageX - drag.startX;
-        let newDepth = drag.startDepth + Math.round(deltaX / INDENT);
-        newDepth = clampDepth(newDepth, ui.placeholder);
-        if (!drag.isSection && newDepth < 1) newDepth = 1;
 
-        snapPlaceholderForSection(ui);
-        applyIndent(ui.placeholder, newDepth);
+        if (drag.isSection) {
+          // allow horizontal change for sections only
+          const deltaX = e.pageX - drag.startX;
+          let newDepth = drag.startDepth + Math.round(deltaX / INDENT);
+          newDepth = clampDepth(newDepth, ui.placeholder);
+          snapPlaceholderForSection(ui);
+          applyIndent(ui.placeholder, newDepth);
+        } else {
+          // items: vertical only — keep placeholder aligned to nearest section depth + 1
+          enforceItemDepth(ui);
+        }
       },
-
       beforeStop: function(e, ui){
         const depth = parseInt(ui.placeholder.attr('data-depth'),10) || 0;
         applyIndent(ui.item, depth);
       },
-
       stop: function(e, ui){
         $('body').removeClass('jprm-sorting');
 
-        // If a section was dragged, reattach all its descendants after it (immediate visual result)
+        // If a section was dragged, reattach its hidden descendants after it
         if (drag && drag.isSection) {
           const block = ui.item.data('jprm-drag-block') || [];
           if (block.length) {
-            // re-show and move each original node after the dropped section
             for (let i=0;i<block.length;i++){
               const $n = $(block[i]);
               $n.css('display', $n.data('jprm-old-display') || '');
@@ -338,11 +320,8 @@
 
   /* ---------------- Expand/Collapse ---------------- */
   function setToggleAllLabel(collapsed){
-    if (collapsed) {
-      $('#jprm-toggle-all').text('Expand all').attr('data-collapsed','1');
-    } else {
-      $('#jprm-toggle-all').text('Collapse all').attr('data-collapsed','0');
-    }
+    $('#jprm-toggle-all').text(collapsed ? 'Expand all' : 'Collapse all')
+                         .attr('data-collapsed', collapsed ? '1' : '0');
   }
   function collapseAll(){
     $('#jprm-tree > li.jprm-item').each(function(){
@@ -383,14 +362,12 @@
   });
 
   /* ---------------- Actions: sections & items ---------------- */
-
-  // Section unassign / delete
+  // Section unassign (trash removed)
   $(document).on('click', '.jprm-section .jprm-act', function(e){
     e.preventDefault();
     const $sec = $(this).closest('li.jprm-section');
     const sectionId = parseInt($sec.attr('data-id'),10);
     const action = $(this).data('action');
-
     if (!state.currentMenu || !sectionId) return;
 
     if (action === 'section-unassign') {
@@ -401,23 +378,14 @@
         .fail((xhr)=> alert('Unassign failed: ' + (xhr.responseJSON?.message || 'Unknown error')))
         .always(()=> setLoading(false));
     }
-    if (action === 'section-delete') {
-      if (!confirm('Delete this section? (Only possible if it has no subsections/items)')) return;
-      setLoading(true);
-      apiPost('menu-builder/section/delete', { menu_id: state.currentMenu, section_id: sectionId })
-        .done(()=> chainLoadAndRender(true))
-        .fail((xhr)=> alert('Delete failed: ' + (xhr.responseJSON?.message || 'Unknown error')))
-        .always(()=> setLoading(false));
-    }
   });
 
-  // Item unassign / delete
+  // Item unassign (trash removed)
   $(document).on('click', '.is-item .jprm-act', function(e){
     e.preventDefault();
     const $it = $(this).closest('li.is-item');
     const id = parseInt($it.attr('data-id'),10);
     const action = $(this).data('action');
-
     if (!id) return;
 
     if (action === 'item-unassign') {
@@ -428,19 +396,10 @@
         .fail((xhr)=> alert('Unassign failed: ' + (xhr.responseJSON?.message || 'Unknown error')))
         .always(()=> setLoading(false));
     }
-    if (action === 'item-delete') {
-      if (!confirm('Delete this item permanently?')) return;
-      setLoading(true);
-      apiPost('menu-builder/item/delete', { id })
-        .done(()=> chainLoadAndRender(false))
-        .fail((xhr)=> alert('Delete failed: ' + (xhr.responseJSON?.message || 'Unknown error')))
-        .always(()=> setLoading(false));
-    }
   });
 
   /* ---------------- Save & Events ---------------- */
   function chainLoadAndRender(expand){
-    // sequential chain to avoid first-load race
     return loadSections()
       .then(()=> loadItems())
       .then(()=> loadUnassigned())
@@ -534,7 +493,7 @@
       .always(()=> setLoading(false));
   });
 
-  // Boot — sequential chain to avoid race that hid menu on first load
+  // First load: sequential chain
   $(function(){
     loadMenus()
       .then(()=> loadSections())

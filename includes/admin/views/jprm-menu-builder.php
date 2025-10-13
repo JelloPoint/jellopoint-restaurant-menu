@@ -6,6 +6,7 @@
         <label for="jprm-menu-select"><?php esc_html_e('Select Menu:', 'jprm'); ?></label>
         <select id="jprm-menu-select"></select>
         <button class="button button-secondary" id="jprm-refresh"><?php esc_html_e('Refresh', 'jprm'); ?></button>
+        <!-- Single toggle button that switches label between Collapse/Expand all -->
         <button class="button" id="jprm-toggle-all" data-collapsed="0"><?php esc_html_e('Collapse all', 'jprm'); ?></button>
         <span class="spinner is-active" id="jprm-loading" style="display:none;"></span>
     </div>
