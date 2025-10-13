@@ -42,5 +42,8 @@
 /* Forms on the right */
 .jprm-form input[type="text"] { width: 100%; box-sizing: border-box; }
 
+/* 🔹 Items are read-only (cursor) */
+.jprm-entry .jprm-row { cursor: default; }
+
 /* Prevent selection while sorting */
 body.jprm-sorting { -webkit-user-select: none; -moz-user-select: none; user-select: none; }
