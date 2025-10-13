@@ -25,7 +25,7 @@
             </div>
         </div>
 
-        <!-- RIGHT: Add Section -->
+        <!-- RIGHT: Add Section + Add Item -->
         <div class="jprm-right">
             <div class="card">
                 <h2><?php esc_html_e('Add Section', 'jprm'); ?></h2>
@@ -35,6 +35,21 @@
                 </div>
                 <p class="description" style="margin-top:8px;">
                     <?php esc_html_e('Tip: drag slightly to the right to create a sub-section; drag left to outdent.', 'jprm'); ?>
+                </p>
+            </div>
+
+            <div class="card" style="margin-top:16px;">
+                <h2><?php esc_html_e('Add Item', 'jprm'); ?></h2>
+                <div class="jprm-form">
+                    <label for="jprm-item-target-section" style="display:block;margin-bottom:6px;"><?php esc_html_e('Target Section', 'jprm'); ?></label>
+                    <select id="jprm-item-target-section" style="width:100%;max-width:100%;"></select>
+
+                    <button class="button" id="jprm-open-add-item" style="margin-top:8px;">
+                        <?php esc_html_e('Create Item in Editor (new tab)', 'jprm'); ?>
+                    </button>
+                </div>
+                <p class="description" style="margin-top:8px;">
+                    <?php esc_html_e('This opens the standard editor. In Step 2 we’ll add quick-add and drag items between sections directly here.', 'jprm'); ?>
                 </p>
             </div>
         </div>
