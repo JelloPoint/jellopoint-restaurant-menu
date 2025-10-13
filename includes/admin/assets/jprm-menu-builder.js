@@ -49,8 +49,8 @@
   }
 
   /** ---------------- Local state ---------------- */
-  const state = { menus: [], sections: [], items: [], currentMenu: null };
-  const INDENT = 28;
+  const state = { menus: [], sections: [], items: [], unassigned: [], currentMenu: null };
+  const INDENT = 28;     // px per depth (applied to entire li)
   const MAX_DEPTH = 6;
   let drag = null;
 
@@ -93,10 +93,20 @@
       });
   }
 
+  function loadUnassigned(){
+    if (!state.currentMenu) { state.unassigned = []; return $.Deferred().resolve().promise(); }
+    return apiGet('menu-builder/items?menu_id='+state.currentMenu+'&unassigned=1')
+      .done((res)=>{
+        state.unassigned = res.items || [];
+      });
+  }
+
   /** ---------------- Helpers ---------------- */
   function applyIndent($li, depth){
     $li.attr('data-depth', depth);
+    // Entire box indent:
     $li.css('margin-left', (depth * INDENT) + 'px');
+    // Keep row padding small/consistent:
     $li.find('> .jprm-row').css('padding-left', '10px');
   }
 
@@ -135,19 +145,29 @@
       return;
     }
     tree.flat.forEach(s => {
-      // safer than '— '.repeat() in older browsers
       const indent = new Array(s.depth + 1).join('— ');
       $sel.append($('<option>').val(s.id).text(indent + s.title));
     });
-    // select first by default
     $sel.val(tree.flat[0].id);
+  }
+
+  function fillExistingItemsSelect(){
+    const $sel = $('#jprm-existing-item').empty();
+    if (!state.unassigned.length) {
+      $sel.append($('<option>').text('— No unassigned items —').prop('disabled', true));
+      return;
+    }
+    state.unassigned.forEach(it => {
+      const label = it.price ? `${it.title} • ${it.price}` : it.title;
+      $sel.append($('<option>').val(it.id).text(label));
+    });
+    $sel.val(state.unassigned[0].id);
   }
 
   /** ---------------- Render ---------------- */
   function renderList(){
+    // Build tree of sections to compute depths
     const tree = buildSectionTree();
-
-    // items grouped by section
     const itemsBySection = {};
     state.items.forEach(it => {
       if (!itemsBySection[it.section_id]) itemsBySection[it.section_id] = [];
@@ -198,8 +218,9 @@
 
     tree.roots.forEach(addSectionRow);
 
-    // 🔹 populate the right-pane Target Section select now that sections are known
+    // Right pane selects
     fillTargetSectionSelect();
+    fillExistingItemsSelect();
 
     // Only sections draggable for now
     initSortable($ul);
@@ -271,11 +292,11 @@
   /** ---------------- Events ---------------- */
   $(document).on('change', '#jprm-menu-select', function(){
     state.currentMenu = parseInt($(this).val(), 10) || null;
-    loadSections().then(loadItems).then(renderList);
+    loadSections().then(loadItems).then(loadUnassigned).then(renderList);
   });
 
   $('#jprm-refresh').on('click', function(){
-    loadMenus().then(loadSections).then(loadItems).then(renderList);
+    loadMenus().then(loadSections).then(loadItems).then(loadUnassigned).then(renderList);
   });
 
   $('#jprm-add-section').on('click', function(){
@@ -284,7 +305,7 @@
     if (!state.currentMenu) { alert('Select a Menu first.'); return; }
     setLoading(true);
     apiPost('menu-builder/section', { name: title, parent: 0, menu_id: state.currentMenu })
-      .done(()=> { $('#jprm-new-section-title').val(''); loadSections().then(loadItems).then(renderList); })
+      .done(()=> { $('#jprm-new-section-title').val(''); loadSections().then(loadItems).then(loadUnassigned).then(renderList); })
       .fail((xhr)=> {
         alert('Could not create section: ' + (xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Unknown error'));
       })
@@ -298,7 +319,7 @@
     apiPost('menu-builder/sections/order', { tree, menu_id: state.currentMenu })
       .done((res)=> {
         state.sections = res.sections || [];
-        loadItems().then(renderList);
+        loadItems().then(loadUnassigned).then(renderList);
       })
       .fail((xhr)=> {
         alert('Could not save order: ' + (xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Unknown error'));
@@ -306,15 +327,28 @@
       .always(()=> setLoading(false));
   });
 
-  // 🔹 Right pane: Add Item (opens editor in new tab)
+  // 🔹 Right pane: Create new item (opens editor)
   $('#jprm-open-add-item').on('click', function(e){
-    e.preventDefault();
-    const url = (JPRM_MENU_BUILDER && JPRM_MENU_BUILDER.admin_new_item_url) ? JPRM_MENU_BUILDER.admin_new_item_url : '';
-    if (!url) { alert('Cannot determine the item editor URL.'); return; }
+    // href set server-side; keep as-is
+  });
+
+  // 🔹 Right pane: Assign existing item to section
+  $('#jprm-assign-item').on('click', function(){
+    if (!state.currentMenu) { alert('Select a Menu first.'); return; }
     const secId = parseInt($('#jprm-item-target-section').val(), 10) || 0;
-    // We cannot pre-assign taxonomy via GET reliably; this is just a convenience link.
-    const finalUrl = url + (secId ? ('&jprm_section=' + encodeURIComponent(secId)) : '');
-    window.open(finalUrl, '_blank', 'noopener'); // should not be blocked (direct user click)
+    const itemId = parseInt($('#jprm-existing-item').val(), 10) || 0;
+    if (!secId || !itemId) { alert('Choose a section and an item.'); return; }
+
+    setLoading(true);
+    apiPost('menu-builder/item/assign', { menu_id: state.currentMenu, section_id: secId, id: itemId })
+      .done(()=> {
+        // Refresh both lists
+        $.when( loadItems(), loadUnassigned() ).then(renderList);
+      })
+      .fail((xhr)=> {
+        alert('Could not assign item: ' + (xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Unknown error'));
+      })
+      .always(()=> setLoading(false));
   });
 
   $('#jprm-expand').on('click', expandAll);
@@ -323,6 +357,6 @@
   // Boot
   $(function(){
     if (window.JPRM_MENU_BUILDER && JPRM_MENU_BUILDER.debug) runDiagnostics();
-    loadMenus().then(loadSections).then(loadItems).then(renderList);
+    loadMenus().then(loadSections).then(loadItems).then(loadUnassigned).then(renderList);
   });
 })(jQuery);

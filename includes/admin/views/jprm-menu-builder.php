@@ -25,7 +25,7 @@
             </div>
         </div>
 
-        <!-- RIGHT: Add Section + Add Item -->
+        <!-- RIGHT: Add Section + Existing Items -->
         <div class="jprm-right">
             <div class="card">
                 <h2><?php esc_html_e('Add Section', 'jprm'); ?></h2>
@@ -41,15 +41,21 @@
             <div class="card" style="margin-top:16px;">
                 <h2><?php esc_html_e('Add Item', 'jprm'); ?></h2>
                 <div class="jprm-form">
-                    <label for="jprm-item-target-section" style="display:block;margin-bottom:6px;"><?php esc_html_e('Target Section', 'jprm'); ?></label>
+                    <label style="display:block;margin-bottom:6px;"><?php esc_html_e('Target Section', 'jprm'); ?></label>
                     <select id="jprm-item-target-section" style="width:100%;max-width:100%;"></select>
 
-                    <button class="button" id="jprm-open-add-item" style="margin-top:8px;">
-                        <?php esc_html_e('Create Item in Editor (new tab)', 'jprm'); ?>
-                    </button>
+                    <label style="display:block;margin:10px 0 6px;"><?php esc_html_e('Existing Items (unassigned)', 'jprm'); ?></label>
+                    <select id="jprm-existing-item" style="width:100%;max-width:100%;"></select>
+
+                    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+                        <button class="button button-primary" id="jprm-assign-item"><?php esc_html_e('Add to Section', 'jprm'); ?></button>
+                        <a class="button" id="jprm-open-add-item" target="_blank" rel="noopener">
+                            <?php esc_html_e('Create Item in Editor (new tab)', 'jprm'); ?>
+                        </a>
+                    </div>
                 </div>
                 <p class="description" style="margin-top:8px;">
-                    <?php esc_html_e('This opens the standard editor. In Step 2 we’ll add quick-add and drag items between sections directly here.', 'jprm'); ?>
+                    <?php esc_html_e('Pick an existing item and add it to the selected Section. In the next step, we’ll allow dragging items directly.', 'jprm'); ?>
                 </p>
             </div>
         </div>
