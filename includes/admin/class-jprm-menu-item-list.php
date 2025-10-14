@@ -1,0 +1,451 @@
+<?php
+namespace JelloPoint\RestaurantMenu\Admin;
+
+if ( ! defined( 'ABSPATH' ) ) exit;
+
+/**
+ * Admin List Table enhancements for the Menu Items CPT.
+ *
+ * CPT: jprm_menu_item
+ * Taxonomies:
+ *  - jprm_section (hierarchical) — items attach here
+ *  - jprm_menu (flat) — section "owner" via term meta _jprm_menu_term_id
+ *
+ * Columns:
+ *  - Menu (derived from item's section owner)
+ *  - Section
+ *  - Price(s)
+ *
+ * Filters:
+ *  - Menu (dropdown of jprm_menu)
+ *  - Section (dropdown of jprm_section limited to selected menu)
+ *
+ * Bulk actions:
+ *  - Assign to Section (dropdown injected near bulk action UI)
+ *  - Unassign from Section
+ */
+class Menu_Item_List {
+
+	// Adjust keys if your schema differs
+	const CPT                = 'jprm_menu_item';
+	const TAX_SECTION        = 'jprm_section';
+	const TAX_MENU           = 'jprm_menu';
+	const META_SECTION_ORDER = '_jprm_order_in_section';
+	const META_MENU_OWNER    = '_jprm_menu_term_id'; // on section term (term meta)
+	const META_PRICE_SINGLE  = '_jprm_price';
+	const META_PRICE_MULTI   = '_jprm_prices';       // array (optional)
+
+	public static function init() : void {
+		// Columns
+		add_filter( 'manage_edit-' . self::CPT . '_columns', [ __CLASS__, 'columns' ], 20 );
+		add_action( 'manage_' . self::CPT . '_posts_custom_column', [ __CLASS__, 'column_content' ], 10, 2 );
+		add_filter( 'manage_edit-' . self::CPT . '_sortable_columns', [ __CLASS__, 'sortable_columns' ] );
+
+		// Filters in list screen
+		add_action( 'restrict_manage_posts', [ __CLASS__, 'filters' ] );
+		add_filter( 'parse_query', [ __CLASS__, 'apply_filters_to_query' ] );
+
+		// Bulk actions
+		add_filter( 'bulk_actions-edit-' . self::CPT, [ __CLASS__, 'register_bulk_actions' ] );
+		add_filter( 'handle_bulk_actions-edit-' . self::CPT, [ __CLASS__, 'handle_bulk_actions' ], 10, 3 );
+		add_action( 'admin_notices', [ __CLASS__, 'bulk_admin_notice' ] );
+
+		// Inject a <select> for "Assign to Section" near the bulk action dropdown
+		add_action( 'admin_footer-edit.php', [ __CLASS__, 'inject_bulk_assign_selector' ] );
+	}
+
+	/* ---------------- Columns ---------------- */
+
+	public static function columns( array $cols ) : array {
+		// Keep title first, then add our columns before date.
+		$new = [];
+		foreach ( $cols as $key => $label ) {
+			if ( 'date' === $key ) {
+				$new['jprm_menu']    = __( 'Menu', 'jprm' );
+				$new['jprm_section'] = __( 'Section', 'jprm' );
+				$new['jprm_prices']  = __( 'Price(s)', 'jprm' );
+			}
+			$new[ $key ] = $label;
+		}
+		// If 'date' was missing, ensure ours are present
+		$new += [
+			'jprm_menu'    => __( 'Menu', 'jprm' ),
+			'jprm_section' => __( 'Section', 'jprm' ),
+			'jprm_prices'  => __( 'Price(s)', 'jprm' ),
+		];
+		return $new;
+	}
+
+	public static function sortable_columns( array $cols ) : array {
+		// Not making Menu/Section sortable (taxonomy-sort is noisy); price is also non-trivial.
+		return $cols;
+	}
+
+	public static function column_content( string $col, int $post_id ) : void {
+		if ( 'jprm_menu' === $col ) {
+			$menu_name = self::derive_menu_name_for_item( $post_id );
+			echo esc_html( $menu_name ?: '—' );
+			return;
+		}
+		if ( 'jprm_section' === $col ) {
+			$terms = wp_get_post_terms( $post_id, self::TAX_SECTION );
+			if ( is_wp_error( $terms ) || empty( $terms ) ) { echo '—'; return; }
+			// Show first + count remainder (typically single)
+			$first = $terms[0];
+			$more  = max( 0, count( $terms ) - 1 );
+			echo esc_html( $first->name );
+			if ( $more ) echo ' +' . intval( $more );
+			return;
+		}
+		if ( 'jprm_prices' === $col ) {
+			echo wp_kses_post( self::render_prices_cell( $post_id ) );
+			return;
+		}
+	}
+
+	/* ---------------- Filters (Menus + Sections) ---------------- */
+
+	public static function filters( string $post_type ) : void {
+		if ( $post_type !== self::CPT ) return;
+
+		$sel_menu_id    = isset( $_GET['jprm_filter_menu'] ) ? intval( $_GET['jprm_filter_menu'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
+		$sel_section_id = isset( $_GET['jprm_filter_section'] ) ? intval( $_GET['jprm_filter_section'] ) : 0; // phpcs:ignore
+
+		// MENUS
+		$menus = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false ] );
+		echo '<label for="jprm_filter_menu" class="screen-reader-text">' . esc_html__( 'Filter by Menu', 'jprm' ) . '</label>';
+		echo '<select name="jprm_filter_menu" id="jprm_filter_menu" class="postform">';
+		echo '<option value="0">' . esc_html__( 'All Menus', 'jprm' ) . '</option>';
+		if ( ! is_wp_error( $menus ) ) {
+			foreach ( $menus as $m ) {
+				printf(
+					'<option value="%d"%s>%s</option>',
+					intval( $m->term_id ),
+					selected( $sel_menu_id, intval( $m->term_id ), false ),
+					esc_html( $m->name )
+				);
+			}
+		}
+		echo '</select>';
+
+		// SECTIONS (limited to selected menu if any)
+		$sections = get_terms( [
+			'taxonomy'   => self::TAX_SECTION,
+			'hide_empty' => false,
+			'fields'     => 'all',
+		] );
+		$opts = [];
+		if ( ! is_wp_error( $sections ) ) {
+			// Build a flat list with depths and filter by owner menu if chosen
+			$by_id = [];
+			foreach ( $sections as $t ) {
+				$owner = intval( get_term_meta( $t->term_id, self::META_MENU_OWNER, true ) );
+				if ( $sel_menu_id && $owner !== $sel_menu_id ) continue;
+				$by_id[ $t->term_id ] = [ 'term' => $t, 'children' => [] ];
+			}
+			foreach ( $by_id as $id => &$node ) {
+				$p = $node['term']->parent;
+				if ( $p && isset( $by_id[ $p ] ) ) $by_id[ $p ]['children'][] = &$node;
+			}
+			unset( $node );
+
+			$roots = array_filter( $by_id, static fn( $n ) => ! $n['term']->parent || ! isset( $by_id[ $n['term']->parent ] ) );
+
+			$flat = [];
+			$walk = static function( $nodes, $depth ) use ( &$flat, &$walk ) {
+				foreach ( $nodes as $n ) {
+					$flat[] = [ 'id' => $n['term']->term_id, 'name' => $n['term']->name, 'depth' => $depth ];
+					if ( ! empty( $n['children'] ) ) $walk( $n['children'], $depth + 1 );
+				}
+			};
+			$walk( $roots, 0 );
+
+			$opts = $flat;
+		}
+
+		echo '<label for="jprm_filter_section" class="screen-reader-text">' . esc_html__( 'Filter by Section', 'jprm' ) . '</label>';
+		echo '<select name="jprm_filter_section" id="jprm_filter_section" class="postform">';
+		echo '<option value="0">' . esc_html__( 'All Sections', 'jprm' ) . '</option>';
+		foreach ( $opts as $o ) {
+			$indent = str_repeat( '— ', max( 0, $o['depth'] ) );
+			printf(
+				'<option value="%d"%s>%s%s</option>',
+				intval( $o['id'] ),
+				selected( $sel_section_id, intval( $o['id'] ), false ),
+				esc_html( $indent ),
+				esc_html( $o['name'] )
+			);
+		}
+		echo '</select>';
+	}
+
+	public static function apply_filters_to_query( \WP_Query $q ) : void {
+		global $pagenow;
+		if ( $pagenow !== 'edit.php' ) return;
+		if ( empty( $q->query ) || ( $q->get( 'post_type' ) !== self::CPT ) ) return;
+
+		$menu_id    = isset( $_GET['jprm_filter_menu'] ) ? intval( $_GET['jprm_filter_menu'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
+		$section_id = isset( $_GET['jprm_filter_section'] ) ? intval( $_GET['jprm_filter_section'] ) : 0; // phpcs:ignore
+
+		$tax_query = (array) $q->get( 'tax_query', [] );
+
+		if ( $section_id ) {
+			$tax_query[] = [
+				'taxonomy' => self::TAX_SECTION,
+				'field'    => 'term_id',
+				'terms'    => [ $section_id ],
+				'include_children' => true,
+			];
+		} elseif ( $menu_id ) {
+			// Limit to sections owned by this menu
+			$all = get_terms( [ 'taxonomy' => self::TAX_SECTION, 'hide_empty' => false, 'fields' => 'ids' ] );
+			$ids = [];
+			if ( ! is_wp_error( $all ) ) {
+				foreach ( $all as $tid ) {
+					if ( intval( get_term_meta( $tid, self::META_MENU_OWNER, true ) ) === $menu_id ) {
+						$ids[] = intval( $tid );
+					}
+				}
+			}
+			$ids = array_values( array_unique( $ids ) );
+			if ( $ids ) {
+				$tax_query[] = [
+					'taxonomy' => self::TAX_SECTION,
+					'field'    => 'term_id',
+					'terms'    => $ids,
+					'include_children' => true,
+				];
+			} else {
+				// No sections for this menu → show none
+				$tax_query[] = [
+					'taxonomy' => self::TAX_SECTION,
+					'field'    => 'term_id',
+					'terms'    => [ -1 ],
+				];
+			}
+		}
+
+		if ( $tax_query ) $q->set( 'tax_query', $tax_query );
+	}
+
+	/* ---------------- Bulk actions ---------------- */
+
+	public static function register_bulk_actions( array $actions ) : array {
+		$actions['jprm_assign_section']   = __( 'Assign to Section…', 'jprm' );
+		$actions['jprm_unassign_section'] = __( 'Unassign from Section', 'jprm' );
+		return $actions;
+	}
+
+	public static function handle_bulk_actions( string $redirect_url, string $action, array $post_ids ) : string {
+		if ( $action !== 'jprm_assign_section' && $action !== 'jprm_unassign_section' ) {
+			return $redirect_url;
+		}
+
+		$done = 0;
+		if ( $action === 'jprm_unassign_section' ) {
+			foreach ( $post_ids as $pid ) {
+				if ( ! current_user_can( 'edit_post', $pid ) ) continue;
+				wp_set_post_terms( $pid, [], self::TAX_SECTION, false );
+				delete_post_meta( $pid, self::META_SECTION_ORDER );
+				$done++;
+			}
+			return add_query_arg( [ 'jprm_bulk_unassigned' => $done ], $redirect_url );
+		}
+
+		// Assign requires a section ID
+		$target_section = isset( $_REQUEST['jprm_target_section'] ) ? intval( $_REQUEST['jprm_target_section'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
+		if ( $target_section <= 0 ) {
+			return add_query_arg( [ 'jprm_bulk_error' => 1 ], $redirect_url );
+		}
+
+		// Append to end of that section's order
+		$existing = new \WP_Query( [
+			'post_type'      => self::CPT,
+			'posts_per_page' => -1,
+			'post_status'    => 'any',
+			'tax_query'      => [[
+				'taxonomy' => self::TAX_SECTION,
+				'field'    => 'term_id',
+				'terms'    => [ $target_section ],
+				'include_children' => false,
+			]],
+			'fields'         => 'ids',
+			'no_found_rows'  => true,
+		] );
+		$next = 0;
+		foreach ( (array) $existing->posts as $sid ) {
+			$next = max( $next, intval( get_post_meta( $sid, self::META_SECTION_ORDER, true ) ) );
+		}
+
+		foreach ( $post_ids as $pid ) {
+			if ( ! current_user_can( 'edit_post', $pid ) ) continue;
+			wp_set_post_terms( $pid, [ $target_section ], self::TAX_SECTION, false );
+			$next++;
+			update_post_meta( $pid, self::META_SECTION_ORDER, $next );
+			$done++;
+		}
+
+		return add_query_arg( [ 'jprm_bulk_assigned' => $done ], $redirect_url );
+	}
+
+	public static function bulk_admin_notice() : void {
+		if ( isset( $_GET['jprm_bulk_unassigned'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+			$c = intval( $_GET['jprm_bulk_unassigned'] );
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( _n( 'Unassigned %d item.', 'Unassigned %d items.', $c, 'jprm' ), $c ) ) . '</p></div>';
+		}
+		if ( isset( $_GET['jprm_bulk_assigned'] ) ) { // phpcs:ignore
+			$c = intval( $_GET['jprm_bulk_assigned'] );
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( _n( 'Assigned %d item.', 'Assigned %d items.', $c, 'jprm' ), $c ) ) . '</p></div>';
+		}
+		if ( isset( $_GET['jprm_bulk_error'] ) ) { // phpcs:ignore
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Please choose a Section for bulk assign.', 'jprm' ) . '</p></div>';
+		}
+	}
+
+	/**
+	 * Inject a Section <select> next to the Bulk actions dropdown when "Assign to Section…" is chosen.
+	 * To keep it simple, we list ALL sections grouped by their owning Menu.
+	 */
+	public static function inject_bulk_assign_selector() : void {
+		$screen = get_current_screen();
+		if ( ! $screen || $screen->id !== 'edit-' . self::CPT ) return;
+
+		// Build <select> with optgroups by menu
+		$menus = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false ] );
+		$sections = get_terms( [ 'taxonomy' => self::TAX_SECTION, 'hide_empty' => false ] );
+
+		$by_menu = [];
+		if ( ! is_wp_error( $sections ) ) {
+			foreach ( $sections as $t ) {
+				$owner = intval( get_term_meta( $t->term_id, self::META_MENU_OWNER, true ) );
+				$by_menu[ $owner ][] = $t;
+			}
+		}
+
+		?>
+		<script>
+		(function(){
+			function buildSelectHtml(){
+				var html = '<select name="jprm_target_section" id="jprm_target_section" style="margin-left:6px;">';
+				html += '<option value="0"><?php echo esc_js( __( '— choose Section —', 'jprm' ) ); ?></option>';
+				<?php
+				if ( ! is_wp_error( $menus ) ) {
+					foreach ( $menus as $m ) {
+						printf( "html += '<optgroup label=\"%s\">';\n", esc_js( $m->name ) );
+						if ( ! empty( $by_menu[ $m->term_id ] ) ) {
+							// Flatten with indentation
+							$tree = self::flatten_sections_with_depth( $by_menu[ $m->term_id ] );
+							foreach ( $tree as $row ) {
+								printf(
+									"html += '<option value=\"%d\">%s%s</option>';\n",
+									intval( $row['id'] ),
+									esc_js( str_repeat( '— ', $row['depth'] ) ),
+									esc_js( $row['name'] )
+								);
+							}
+						}
+						echo "html += '</optgroup>';\n";
+					}
+				}
+				?>
+				html += '</select>';
+				return html;
+			}
+
+			function ensureSelector($which){
+				var $bulk = jQuery($which);
+				if (!$bulk.length) return;
+				if ($bulk.find('#jprm_target_section').length) return;
+				$bulk.append( buildSelectHtml() );
+			}
+
+			// When the user selects the bulk action "Assign to Section…", show the selector
+			jQuery(document).on('change', 'select[name="action"], select[name="action2"]', function(){
+				var val = jQuery(this).val();
+				if (val === 'jprm_assign_section') {
+					if (this.name === 'action') ensureSelector('#bulk-action-selector-top');
+					if (this.name === 'action2') ensureSelector('#bulk-action-selector-bottom');
+				} else {
+					jQuery('#jprm_target_section').remove();
+				}
+			});
+		})();
+		</script>
+		<?php
+	}
+
+	/* ---------------- Helpers ---------------- */
+
+	private static function derive_menu_name_for_item( int $post_id ) : string {
+		$terms = wp_get_post_terms( $post_id, self::TAX_SECTION, [ 'fields' => 'all' ] );
+		if ( is_wp_error( $terms ) || empty( $terms ) ) return '';
+		$first = $terms[0];
+		$owner_menu_id = intval( get_term_meta( $first->term_id, self::META_MENU_OWNER, true ) );
+		if ( ! $owner_menu_id ) return '';
+		$m = get_term( $owner_menu_id, self::TAX_MENU );
+		return ( $m && ! is_wp_error( $m ) ) ? $m->name : '';
+	}
+
+	private static function render_prices_cell( int $post_id ) : string {
+		$single = get_post_meta( $post_id, self::META_PRICE_SINGLE, true );
+		$multi  = get_post_meta( $post_id, self::META_PRICE_MULTI, true );
+
+		// If a structured price repository exists, prefer it (optional)
+		if ( empty( $multi ) && class_exists( '\JelloPoint\RestaurantMenu\Storage\Price_Schema' ) ) {
+			// You can extend here to read via your repository if needed.
+			// Keeping it simple: rely on _jprm_prices if present.
+		}
+
+		if ( is_array( $multi ) && ! empty( $multi ) ) {
+			// Expect array of arrays like [ ['label'=>'Small','price'=>'5'], ... ]
+			$pieces = [];
+			foreach ( $multi as $row ) {
+				$label = isset( $row['label'] ) ? trim( (string) $row['label'] ) : '';
+				$price = isset( $row['price'] ) ? trim( (string) $row['price'] ) : '';
+				if ( $label !== '' && $price !== '' ) $pieces[] = sprintf( '%s %s', esc_html( $label ), esc_html( $price ) );
+				elseif ( $price !== '' )          $pieces[] = esc_html( $price );
+			}
+			if ( empty( $pieces ) ) return esc_html( $single ?: '—' );
+			// Compact: show up to 3
+			$show = array_slice( $pieces, 0, 3 );
+			$more = max( 0, count( $pieces ) - 3 );
+			$out  = esc_html( implode( ' • ', $show ) );
+			if ( $more ) $out .= ' <span class="description">+' . intval( $more ) . ' ' . esc_html__( 'more', 'jprm' ) . '</span>';
+			return $out;
+		}
+
+		if ( $single !== '' && $single !== null ) {
+			return esc_html( (string) $single );
+		}
+		return '—';
+	}
+
+	/**
+	 * Flatten a list of section terms into [ [id,name,depth], ... ] respecting hierarchy.
+	 * Input array may be unordered; we rebuild a mini tree first.
+	 */
+	private static function flatten_sections_with_depth( array $terms ) : array {
+		$by = [];
+		foreach ( $terms as $t ) $by[ $t->term_id ] = [ 't' => $t, 'children' => [] ];
+		foreach ( $by as $id => &$n ) {
+			$p = $n['t']->parent;
+			if ( $p && isset( $by[ $p ] ) ) $by[ $p ]['children'][] = &$n;
+		}
+		unset( $n );
+		$roots = array_filter( $by, static fn( $n ) => ! $n['t']->parent || ! isset( $by[ $n['t']->parent ] ) );
+
+		$out = [];
+		$walk = static function( $nodes, $d ) use ( &$out, &$walk ) {
+			foreach ( $nodes as $n ) {
+				$out[] = [
+					'id'    => $n['t']->term_id,
+					'name'  => $n['t']->name,
+					'depth' => $d,
+				];
+				if ( ! empty( $n['children'] ) ) $walk( $n['children'], $d + 1 );
+			}
+		};
+		$walk( $roots, 0 );
+		return $out;
+	}
+}

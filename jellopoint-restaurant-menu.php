@@ -57,6 +57,10 @@ require_once JPRM_PLUGIN_PATH . 'includes/admin/badges-post-bootstrap.php';
 require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-menu-builder.php';
 require_once JPRM_PLUGIN_PATH . 'includes/rest/class-jprm-menu-builder-controller.php';
 
+// Admin: Items list table enhancements
+require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-menu-item-list.php';
+\JelloPoint\RestaurantMenu\Admin\Menu_Item_List::init();
+
 // Register routes for ALL contexts (front + admin).
 add_action( 'rest_api_init', function () {
     // Sanity: if class isn’t loaded, bail early (prevents fatal).
