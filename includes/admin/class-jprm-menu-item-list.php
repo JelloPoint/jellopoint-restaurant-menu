@@ -5,35 +5,22 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 /**
  * Admin List Table enhancements for the Menu Items CPT.
- *
- * CPT: jprm_menu_item
- * Taxonomies:
- *  - jprm_section (hierarchical) — items attach here
- *  - jprm_menu (flat) — section "owner" via term meta _jprm_menu_term_id
- *
- * Columns:
- *  - Menu (derived from item's section owner)
- *  - Section
- *  - Price(s)
- *
- * Filters:
- *  - Menu (dropdown of jprm_menu)
- *  - Section (dropdown of jprm_section limited to selected menu)
- *
- * Bulk actions:
- *  - Assign to Section (dropdown injected near bulk action UI)
- *  - Unassign from Section
  */
 class Menu_Item_List {
 
-	// Adjust keys if your schema differs
 	const CPT                = 'jprm_menu_item';
 	const TAX_SECTION        = 'jprm_section';
 	const TAX_MENU           = 'jprm_menu';
+
 	const META_SECTION_ORDER = '_jprm_order_in_section';
-	const META_MENU_OWNER    = '_jprm_menu_term_id'; // on section term (term meta)
-	const META_PRICE_SINGLE  = '_jprm_price';
-	const META_PRICE_MULTI   = '_jprm_prices';       // array (optional)
+
+	// Price meta keys (we'll probe these)
+	const META_PRICE_SINGLE_PRI = '_jprm_price';
+	const META_PRICE_SINGLE_ALT = [ '_price', 'price' ];
+	const META_PRICE_MULTI      = '_jprm_prices'; // serialized array or JSON
+
+	// Section -> menu owner term meta
+	const META_MENU_OWNER       = '_jprm_menu_term_id';
 
 	public static function init() : void {
 		// Columns
@@ -50,34 +37,39 @@ class Menu_Item_List {
 		add_filter( 'handle_bulk_actions-edit-' . self::CPT, [ __CLASS__, 'handle_bulk_actions' ], 10, 3 );
 		add_action( 'admin_notices', [ __CLASS__, 'bulk_admin_notice' ] );
 
-		// Inject a <select> for "Assign to Section" near the bulk action dropdown
+		// Inject selector for bulk-assign
 		add_action( 'admin_footer-edit.php', [ __CLASS__, 'inject_bulk_assign_selector' ] );
 	}
 
 	/* ---------------- Columns ---------------- */
 
 	public static function columns( array $cols ) : array {
-		// Keep title first, then add our columns before date.
+		// Remove the WP Date column entirely
+		if ( isset( $cols['date'] ) ) unset( $cols['date'] );
+
+		// Keep title first, then add ours
 		$new = [];
 		foreach ( $cols as $key => $label ) {
-			if ( 'date' === $key ) {
+			$new[ $key ] = $label;
+			if ( 'title' === $key ) {
 				$new['jprm_menu']    = __( 'Menu', 'jprm' );
 				$new['jprm_section'] = __( 'Section', 'jprm' );
 				$new['jprm_prices']  = __( 'Price(s)', 'jprm' );
 			}
-			$new[ $key ] = $label;
 		}
-		// If 'date' was missing, ensure ours are present
+
+		// If title wasn't there for some reason, ensure ours exist
 		$new += [
 			'jprm_menu'    => __( 'Menu', 'jprm' ),
 			'jprm_section' => __( 'Section', 'jprm' ),
 			'jprm_prices'  => __( 'Price(s)', 'jprm' ),
 		];
+
 		return $new;
 	}
 
 	public static function sortable_columns( array $cols ) : array {
-		// Not making Menu/Section sortable (taxonomy-sort is noisy); price is also non-trivial.
+		// Leave these non-sortable (taxonomy/meta sorting is noisy/slow)
 		return $cols;
 	}
 
@@ -90,9 +82,7 @@ class Menu_Item_List {
 		if ( 'jprm_section' === $col ) {
 			$terms = wp_get_post_terms( $post_id, self::TAX_SECTION );
 			if ( is_wp_error( $terms ) || empty( $terms ) ) { echo '—'; return; }
-			// Show first + count remainder (typically single)
-			$first = $terms[0];
-			$more  = max( 0, count( $terms ) - 1 );
+			$first = $terms[0]; $more = max( 0, count( $terms ) - 1 );
 			echo esc_html( $first->name );
 			if ( $more ) echo ' +' . intval( $more );
 			return;
@@ -108,7 +98,7 @@ class Menu_Item_List {
 	public static function filters( string $post_type ) : void {
 		if ( $post_type !== self::CPT ) return;
 
-		$sel_menu_id    = isset( $_GET['jprm_filter_menu'] ) ? intval( $_GET['jprm_filter_menu'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
+		$sel_menu_id    = isset( $_GET['jprm_filter_menu'] ) ? intval( $_GET['jprm_filter_menu'] ) : 0; // phpcs:ignore
 		$sel_section_id = isset( $_GET['jprm_filter_section'] ) ? intval( $_GET['jprm_filter_section'] ) : 0; // phpcs:ignore
 
 		// MENUS
@@ -128,15 +118,10 @@ class Menu_Item_List {
 		}
 		echo '</select>';
 
-		// SECTIONS (limited to selected menu if any)
-		$sections = get_terms( [
-			'taxonomy'   => self::TAX_SECTION,
-			'hide_empty' => false,
-			'fields'     => 'all',
-		] );
+		// SECTIONS limited by selected menu (if any)
+		$sections = get_terms( [ 'taxonomy' => self::TAX_SECTION, 'hide_empty' => false, 'fields' => 'all' ] );
 		$opts = [];
 		if ( ! is_wp_error( $sections ) ) {
-			// Build a flat list with depths and filter by owner menu if chosen
 			$by_id = [];
 			foreach ( $sections as $t ) {
 				$owner = intval( get_term_meta( $t->term_id, self::META_MENU_OWNER, true ) );
@@ -148,7 +133,6 @@ class Menu_Item_List {
 				if ( $p && isset( $by_id[ $p ] ) ) $by_id[ $p ]['children'][] = &$node;
 			}
 			unset( $node );
-
 			$roots = array_filter( $by_id, static fn( $n ) => ! $n['term']->parent || ! isset( $by_id[ $n['term']->parent ] ) );
 
 			$flat = [];
@@ -159,7 +143,6 @@ class Menu_Item_List {
 				}
 			};
 			$walk( $roots, 0 );
-
 			$opts = $flat;
 		}
 
@@ -184,20 +167,19 @@ class Menu_Item_List {
 		if ( $pagenow !== 'edit.php' ) return;
 		if ( empty( $q->query ) || ( $q->get( 'post_type' ) !== self::CPT ) ) return;
 
-		$menu_id    = isset( $_GET['jprm_filter_menu'] ) ? intval( $_GET['jprm_filter_menu'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
+		$menu_id    = isset( $_GET['jprm_filter_menu'] ) ? intval( $_GET['jprm_filter_menu'] ) : 0; // phpcs:ignore
 		$section_id = isset( $_GET['jprm_filter_section'] ) ? intval( $_GET['jprm_filter_section'] ) : 0; // phpcs:ignore
 
 		$tax_query = (array) $q->get( 'tax_query', [] );
 
 		if ( $section_id ) {
 			$tax_query[] = [
-				'taxonomy' => self::TAX_SECTION,
-				'field'    => 'term_id',
-				'terms'    => [ $section_id ],
+				'taxonomy'         => self::TAX_SECTION,
+				'field'            => 'term_id',
+				'terms'            => [ $section_id ],
 				'include_children' => true,
 			];
 		} elseif ( $menu_id ) {
-			// Limit to sections owned by this menu
 			$all = get_terms( [ 'taxonomy' => self::TAX_SECTION, 'hide_empty' => false, 'fields' => 'ids' ] );
 			$ids = [];
 			if ( ! is_wp_error( $all ) ) {
@@ -208,21 +190,16 @@ class Menu_Item_List {
 				}
 			}
 			$ids = array_values( array_unique( $ids ) );
-			if ( $ids ) {
-				$tax_query[] = [
-					'taxonomy' => self::TAX_SECTION,
-					'field'    => 'term_id',
-					'terms'    => $ids,
-					'include_children' => true,
-				];
-			} else {
-				// No sections for this menu → show none
-				$tax_query[] = [
-					'taxonomy' => self::TAX_SECTION,
-					'field'    => 'term_id',
-					'terms'    => [ -1 ],
-				];
-			}
+			$tax_query[] = $ids ? [
+				'taxonomy'         => self::TAX_SECTION,
+				'field'            => 'term_id',
+				'terms'            => $ids,
+				'include_children' => true,
+			] : [
+				'taxonomy' => self::TAX_SECTION,
+				'field'    => 'term_id',
+				'terms'    => [ -1 ],
+			];
 		}
 
 		if ( $tax_query ) $q->set( 'tax_query', $tax_query );
@@ -242,6 +219,7 @@ class Menu_Item_List {
 		}
 
 		$done = 0;
+
 		if ( $action === 'jprm_unassign_section' ) {
 			foreach ( $post_ids as $pid ) {
 				if ( ! current_user_can( 'edit_post', $pid ) ) continue;
@@ -252,13 +230,11 @@ class Menu_Item_List {
 			return add_query_arg( [ 'jprm_bulk_unassigned' => $done ], $redirect_url );
 		}
 
-		// Assign requires a section ID
-		$target_section = isset( $_REQUEST['jprm_target_section'] ) ? intval( $_REQUEST['jprm_target_section'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
+		$target_section = isset( $_REQUEST['jprm_target_section'] ) ? intval( $_REQUEST['jprm_target_section'] ) : 0; // phpcs:ignore
 		if ( $target_section <= 0 ) {
 			return add_query_arg( [ 'jprm_bulk_error' => 1 ], $redirect_url );
 		}
 
-		// Append to end of that section's order
 		$existing = new \WP_Query( [
 			'post_type'      => self::CPT,
 			'posts_per_page' => -1,
@@ -289,7 +265,7 @@ class Menu_Item_List {
 	}
 
 	public static function bulk_admin_notice() : void {
-		if ( isset( $_GET['jprm_bulk_unassigned'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+		if ( isset( $_GET['jprm_bulk_unassigned'] ) ) { // phpcs:ignore
 			$c = intval( $_GET['jprm_bulk_unassigned'] );
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( _n( 'Unassigned %d item.', 'Unassigned %d items.', $c, 'jprm' ), $c ) ) . '</p></div>';
 		}
@@ -302,16 +278,11 @@ class Menu_Item_List {
 		}
 	}
 
-	/**
-	 * Inject a Section <select> next to the Bulk actions dropdown when "Assign to Section…" is chosen.
-	 * To keep it simple, we list ALL sections grouped by their owning Menu.
-	 */
 	public static function inject_bulk_assign_selector() : void {
 		$screen = get_current_screen();
 		if ( ! $screen || $screen->id !== 'edit-' . self::CPT ) return;
 
-		// Build <select> with optgroups by menu
-		$menus = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false ] );
+		$menus    = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false ] );
 		$sections = get_terms( [ 'taxonomy' => self::TAX_SECTION, 'hide_empty' => false ] );
 
 		$by_menu = [];
@@ -333,7 +304,6 @@ class Menu_Item_List {
 					foreach ( $menus as $m ) {
 						printf( "html += '<optgroup label=\"%s\">';\n", esc_js( $m->name ) );
 						if ( ! empty( $by_menu[ $m->term_id ] ) ) {
-							// Flatten with indentation
 							$tree = self::flatten_sections_with_depth( $by_menu[ $m->term_id ] );
 							foreach ( $tree as $row ) {
 								printf(
@@ -351,15 +321,12 @@ class Menu_Item_List {
 				html += '</select>';
 				return html;
 			}
-
 			function ensureSelector($which){
 				var $bulk = jQuery($which);
 				if (!$bulk.length) return;
 				if ($bulk.find('#jprm_target_section').length) return;
 				$bulk.append( buildSelectHtml() );
 			}
-
-			// When the user selects the bulk action "Assign to Section…", show the selector
 			jQuery(document).on('change', 'select[name="action"], select[name="action2"]', function(){
 				var val = jQuery(this).val();
 				if (val === 'jprm_assign_section') {
@@ -387,43 +354,83 @@ class Menu_Item_List {
 	}
 
 	private static function render_prices_cell( int $post_id ) : string {
-		$single = get_post_meta( $post_id, self::META_PRICE_SINGLE, true );
-		$multi  = get_post_meta( $post_id, self::META_PRICE_MULTI, true );
+		// 1) Multi price array (preferred)
+		$multi_raw = get_post_meta( $post_id, self::META_PRICE_MULTI, true );
+		$multi = [];
 
-		// If a structured price repository exists, prefer it (optional)
-		if ( empty( $multi ) && class_exists( '\JelloPoint\RestaurantMenu\Storage\Price_Schema' ) ) {
-			// You can extend here to read via your repository if needed.
-			// Keeping it simple: rely on _jprm_prices if present.
+		if ( is_array( $multi_raw ) ) {
+			$multi = $multi_raw;
+		} elseif ( is_string( $multi_raw ) && $multi_raw !== '' ) {
+			// maybe JSON encoded array
+			$dec = json_decode( $multi_raw, true );
+			if ( is_array( $dec ) ) $multi = $dec;
 		}
 
-		if ( is_array( $multi ) && ! empty( $multi ) ) {
-			// Expect array of arrays like [ ['label'=>'Small','price'=>'5'], ... ]
+		if ( ! empty( $multi ) ) {
 			$pieces = [];
 			foreach ( $multi as $row ) {
 				$label = isset( $row['label'] ) ? trim( (string) $row['label'] ) : '';
 				$price = isset( $row['price'] ) ? trim( (string) $row['price'] ) : '';
-				if ( $label !== '' && $price !== '' ) $pieces[] = sprintf( '%s %s', esc_html( $label ), esc_html( $price ) );
-				elseif ( $price !== '' )          $pieces[] = esc_html( $price );
+				if ( $label !== '' && $price !== '' ) { $pieces[] = sprintf( '%s %s', esc_html( $label ), esc_html( $price ) ); }
+				elseif ( $price !== '' )            { $pieces[] = esc_html( $price ); }
 			}
-			if ( empty( $pieces ) ) return esc_html( $single ?: '—' );
-			// Compact: show up to 3
-			$show = array_slice( $pieces, 0, 3 );
-			$more = max( 0, count( $pieces ) - 3 );
-			$out  = esc_html( implode( ' • ', $show ) );
-			if ( $more ) $out .= ' <span class="description">+' . intval( $more ) . ' ' . esc_html__( 'more', 'jprm' ) . '</span>';
-			return $out;
+			if ( $pieces ) {
+				$show = array_slice( $pieces, 0, 3 );
+				$more = max( 0, count( $pieces ) - 3 );
+				$out  = esc_html( implode( ' • ', $show ) );
+				if ( $more ) $out .= ' <span class="description">+' . intval( $more ) . ' ' . esc_html__( 'more', 'jprm' ) . '</span>';
+				return $out;
+			}
 		}
 
+		// 2) Single price (primary key)
+		$single = get_post_meta( $post_id, self::META_PRICE_SINGLE_PRI, true );
 		if ( $single !== '' && $single !== null ) {
 			return esc_html( (string) $single );
 		}
+
+		// 3) Single price (fallback keys)
+		foreach ( self::META_PRICE_SINGLE_ALT as $alt ) {
+			$v = get_post_meta( $post_id, $alt, true );
+			if ( $v !== '' && $v !== null ) {
+				return esc_html( (string) $v );
+			}
+		}
+
+		// 4) Last resort: if a repository exists, try common static methods
+		if ( class_exists( '\JelloPoint\RestaurantMenu\Storage\Price_Repository' ) ) {
+			try {
+				$repo = \JelloPoint\RestaurantMenu\Storage\Price_Repository::class;
+
+				if ( method_exists( $repo, 'get_prices_for_post' ) ) {
+					$prices = $repo::get_prices_for_post( $post_id );
+				} elseif ( method_exists( $repo, 'for_post' ) ) {
+					$prices = $repo::for_post( $post_id );
+				} elseif ( method_exists( $repo, 'instance' ) ) {
+					$inst = $repo::instance();
+					$prices = method_exists( $inst, 'get_prices_for_post' ) ? $inst->get_prices_for_post( $post_id ) : [];
+				} else {
+					$prices = [];
+				}
+
+				if ( is_array( $prices ) && ! empty( $prices ) ) {
+					$parts = [];
+					foreach ( $prices as $p ) {
+						$label = is_array( $p ) && isset( $p['label'] ) ? $p['label'] : '';
+						$price = is_array( $p ) && isset( $p['price'] ) ? $p['price'] : ( is_scalar( $p ) ? $p : '' );
+						if ( $label !== '' && $price !== '' ) { $parts[] = sprintf( '%s %s', esc_html( (string) $label ), esc_html( (string) $price ) ); }
+						elseif ( $price !== '' )              { $parts[] = esc_html( (string) $price ); }
+					}
+					if ( $parts ) return esc_html( implode( ' • ', $parts ) );
+				}
+			} catch ( \Throwable $e ) {
+				// fail silent in UI
+			}
+		}
+
 		return '—';
 	}
 
-	/**
-	 * Flatten a list of section terms into [ [id,name,depth], ... ] respecting hierarchy.
-	 * Input array may be unordered; we rebuild a mini tree first.
-	 */
 	private static function flatten_sections_with_depth( array $terms ) : array {
 		$by = [];
 		foreach ( $terms as $t ) $by[ $t->term_id ] = [ 't' => $t, 'children' => [] ];
@@ -437,11 +444,7 @@ class Menu_Item_List {
 		$out = [];
 		$walk = static function( $nodes, $d ) use ( &$out, &$walk ) {
 			foreach ( $nodes as $n ) {
-				$out[] = [
-					'id'    => $n['t']->term_id,
-					'name'  => $n['t']->name,
-					'depth' => $d,
-				];
+				$out[] = [ 'id' => $n['t']->term_id, 'name' => $n['t']->name, 'depth' => $d ];
 				if ( ! empty( $n['children'] ) ) $walk( $n['children'], $d + 1 );
 			}
 		};
