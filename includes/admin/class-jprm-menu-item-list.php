@@ -358,7 +358,8 @@ class Menu_Item_List {
 	 * Render Price(s) column using ONLY meta 'jprm_price'.
 	 * Accepts:
 	 *  - {"mode":"single","price":"3",...}
-	 *  - {"mode":"multi","prices":[{"label":"Small","price":"5"},...]}
+	 *  - {"mode":"multi","rows":[{"label_ref":"pl-1","value":"8,50"}, ...]}
+	 *    (also supports rows[].label if present)
 	 */
 	private static function render_prices_cell( int $post_id ) : string {
 		$raw = get_post_meta( $post_id, self::META_PRICE_PRIMARY, true );
@@ -381,34 +382,37 @@ class Menu_Item_List {
 			}
 
 			if ( $mode === 'multi' ) {
-				$list = [];
-				// Allow a few common container keys inside the same meta
-				foreach ( [ 'prices', 'rows', 'options', 'values' ] as $k ) {
-					if ( isset( $raw[ $k ] ) && is_array( $raw[ $k ] ) ) {
-						$list = $raw[ $k ];
-						break;
+				// Your shape: rows[] with value + label_ref (or label)
+				$list = is_array( $raw['rows'] ?? null ) ? $raw['rows'] : [];
+				if ( ! $list ) return '—';
+
+				$pieces = [];
+				foreach ( $list as $row ) {
+					$label = '';
+					if ( isset( $row['label'] ) && $row['label'] !== '' ) {
+						$label = (string) $row['label'];
+					} elseif ( isset( $row['label_ref'] ) && $row['label_ref'] !== '' ) {
+						$label = (string) $row['label_ref'];
+					}
+					$price = isset( $row['value'] ) ? trim( (string) $row['value'] ) : ''; // note: "value", not "price"
+
+					if ( $label !== '' && $price !== '' ) {
+						$pieces[] = esc_html( $label . ' ' . $price );
+					} elseif ( $price !== '' ) {
+						$pieces[] = esc_html( $price );
 					}
 				}
-				if ( $list ) {
-					$pieces = [];
-					foreach ( $list as $row ) {
-						$label = isset( $row['label'] ) ? trim( (string) $row['label'] ) : '';
-						$price = isset( $row['price'] ) ? trim( (string) $row['price'] ) : '';
-						if ( $label !== '' && $price !== '' ) { $pieces[] = sprintf( '%s %s', esc_html( $label ), esc_html( $price ) ); }
-						elseif ( $price !== '' )              { $pieces[] = esc_html( $price ); }
-					}
-					if ( $pieces ) {
-						$show = array_slice( $pieces, 0, 3 );
-						$more = max( 0, count( $pieces ) - 3 );
-						$out  = esc_html( implode( ' • ', $show ) );
-						if ( $more ) $out .= ' <span class="description">+' . intval( $more ) . ' ' . esc_html__( 'more', 'jprm' ) . '</span>';
-						return $out;
-					}
+				if ( $pieces ) {
+					$show = array_slice( $pieces, 0, 3 );
+					$more = max( 0, count( $pieces ) - 3 );
+					$out  = esc_html( implode( ' • ', $show ) );
+					if ( $more ) $out .= ' <span class="description">+' . intval( $more ) . ' ' . esc_html__( 'more', 'jprm' ) . '</span>';
+					return $out;
 				}
 				return '—';
 			}
 
-			// Unknown shape but array contains 'price'
+			// Unknown shape but array contains a 'price'
 			if ( isset( $raw['price'] ) && $raw['price'] !== '' ) {
 				return esc_html( (string) $raw['price'] );
 			}
