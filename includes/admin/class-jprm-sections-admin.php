@@ -14,10 +14,11 @@ class Sections_Admin {
 		add_filter( 'manage_edit-' . self::TAX_SECTION . '_columns', [ __CLASS__, 'columns' ] );
 		add_action( 'manage_' . self::TAX_SECTION . '_custom_column', [ __CLASS__, 'print_column' ], 10, 3 );
 
-		// Filter UI on the terms screen (top “tablenav”)
-		add_action( 'manage_terms_extra_tablenav', [ __CLASS__, 'filter_dropdown' ], 10, 1 );
-		// Apply selected filter to the terms query
-		add_filter( 'get_terms_args', [ __CLASS__, 'apply_filter' ], 10, 2 );
+		// Filter UI (terms screen toolbar) — NOTE: 2 args ($which, $taxonomy)
+		add_action( 'manage_terms_extra_tablenav', [ __CLASS__, 'filter_dropdown' ], 10, 2 );
+
+		// Apply selected filter to the terms query (reliable in admin)
+		add_action( 'pre_get_terms', [ __CLASS__, 'apply_filter' ] );
 
 		// Add/Edit form fields (Owner Menu selector)
 		add_action( self::TAX_SECTION . '_add_form_fields',  [ __CLASS__, 'add_field' ] );
@@ -31,7 +32,6 @@ class Sections_Admin {
 	/* ================= Columns ================= */
 
 	public static function columns( $cols ) {
-		// Insert our Menu column after the Name column
 		$new = [];
 		foreach ( $cols as $k => $v ) {
 			$new[ $k ] = $v;
@@ -39,26 +39,17 @@ class Sections_Admin {
 				$new['jprm_menu'] = __( 'Menu', 'jprm' );
 			}
 		}
-		if ( ! isset( $new['jprm_menu'] ) ) {
-			$new['jprm_menu'] = __( 'Menu', 'jprm' );
-		}
-		// Optional clean-up: remove “Slug” column if you don’t want it
+		if ( ! isset( $new['jprm_menu'] ) ) $new['jprm_menu'] = __( 'Menu', 'jprm' );
+		// Optional: remove “Slug” column if you prefer cleaner UI
 		if ( isset( $new['slug'] ) ) unset( $new['slug'] );
 		return $new;
 	}
 
-	/**
-	 * IMPORTANT: this is an ACTION on term rows; we must echo content.
-	 */
+	/** Action: must echo content */
 	public static function print_column( $out, $column_name, $term_id ) {
-		if ( 'jprm_menu' !== $column_name ) {
-			return;
-		}
+		if ( 'jprm_menu' !== $column_name ) return;
 		$owner = (int) get_term_meta( $term_id, self::META_MENU_OWNER, true );
-		if ( ! $owner ) {
-			echo '—';
-			return;
-		}
+		if ( ! $owner ) { echo '—'; return; }
 		$menu = get_term( $owner, self::TAX_MENU );
 		echo ( $menu && ! is_wp_error( $menu ) ) ? esc_html( $menu->name ) : '—';
 	}
@@ -66,16 +57,11 @@ class Sections_Admin {
 	/* ================= Filter UI ================= */
 
 	/**
-	 * Renders the “Filter by Menu” dropdown on the Sections terms screen.
-	 * Hook: manage_terms_extra_tablenav ($which = 'top' or 'bottom')
+	 * Renders “Filter by Menu” on Sections terms screen (top toolbar).
+	 * Hook signature passes $which ('top'|'bottom') and $taxonomy.
 	 */
-	public static function filter_dropdown( $which ) : void {
-		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
-		if ( ! $screen || empty( $screen->taxonomy ) || $screen->taxonomy !== self::TAX_SECTION ) {
-			return;
-		}
-		// Show only on the TOP toolbar
-		if ( $which !== 'top' ) return;
+	public static function filter_dropdown( $which, $taxonomy ) : void {
+		if ( $taxonomy !== self::TAX_SECTION || $which !== 'top' ) return;
 
 		$sel   = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
 		$menus = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false ] );
@@ -95,31 +81,29 @@ class Sections_Admin {
 			}
 		}
 		echo '</select>';
-		submit_button( __( 'Filter' ), 'secondary', 'filter_action', false ); // adds a Filter button
+		submit_button( __( 'Filter' ), 'secondary', 'filter_action', false );
 		echo '</div>';
 	}
 
 	/**
-	 * Applies the selected Menu filter to get_terms() on the Sections list screen.
-	 * Hook: get_terms_args
+	 * Applies the selected Menu filter to the Sections list query.
+	 * This runs for admin list tables (edit-tags.php), including when post_type is present.
 	 */
-	public static function apply_filter( $args, $taxonomies ) {
-		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
-		if ( ! $screen || empty( $screen->taxonomy ) || $screen->taxonomy !== self::TAX_SECTION ) {
-			return $args;
-		}
-		if ( ! in_array( self::TAX_SECTION, (array) $taxonomies, true ) ) {
-			return $args;
-		}
+	public static function apply_filter( \WP_Term_Query $query ) : void {
+		if ( ! is_admin() ) return;
+
+		$taxonomies = (array) $query->query_vars['taxonomy'];
+		if ( ! in_array( self::TAX_SECTION, $taxonomies, true ) ) return;
 
 		$menu_id = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
 		if ( $menu_id > 0 ) {
-			$args['meta_query'][] = [
+			$mq = (array) ( $query->query_vars['meta_query'] ?? [] );
+			$mq[] = [
 				'key'   => self::META_MENU_OWNER,
 				'value' => (string) $menu_id,
 			];
+			$query->query_vars['meta_query'] = $mq;
 		}
-		return $args;
 	}
 
 	/* ================= Add/Edit fields ================= */
