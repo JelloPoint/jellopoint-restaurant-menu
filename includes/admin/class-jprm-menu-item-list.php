@@ -9,6 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * - Filters: Menu + Section (Section list limited by selected Menu)
  * - Bulk actions: Assign to Section…, Unassign from Section
  * - Prices: reads ONLY meta 'jprm_price'
+ * - Multi-prices: "Multiple prices (N)" toggle reveals full list
  */
 class Menu_Item_List {
 
@@ -39,7 +40,7 @@ class Menu_Item_List {
 		add_filter( 'handle_bulk_actions-edit-' . self::CPT, [ __CLASS__, 'handle_bulk_actions' ], 10, 3 );
 		add_action( 'admin_notices', [ __CLASS__, 'bulk_admin_notice' ] );
 
-		// Inject selector for bulk-assign
+		// Inject selector for bulk-assign + tiny JS for toggling multi-prices
 		add_action( 'admin_footer-edit.php', [ __CLASS__, 'inject_bulk_assign_selector' ] );
 	}
 
@@ -85,7 +86,7 @@ class Menu_Item_List {
 			return;
 		}
 		if ( 'jprm_prices' === $col ) {
-			echo wp_kses_post( self::render_prices_cell( $post_id ) );
+			echo self::render_prices_cell( $post_id ); // already escaped inside
 			return;
 		}
 	}
@@ -297,6 +298,7 @@ class Menu_Item_List {
 		?>
 		<script>
 		(function(){
+			/* ------- Bulk-assign section selector ------- */
 			function buildSelectHtml(){
 				var html = '<select name="jprm_target_section" id="jprm_target_section" style="margin-left:6px;">';
 				html += '<option value="0"><?php echo esc_js( __( '— choose Section —', 'jprm' ) ); ?></option>';
@@ -337,6 +339,14 @@ class Menu_Item_List {
 					jQuery('#jprm_target_section').remove();
 				}
 			});
+
+			/* ------- Toggle for "Multiple prices (N)" ------- */
+			jQuery(document).on('click', '.jprm-multi-toggle', function(e){
+				e.preventDefault();
+				var target = jQuery(this).attr('data-target');
+				if (!target) return;
+				jQuery('#'+target).toggle();
+			});
 		})();
 		</script>
 		<?php
@@ -352,6 +362,62 @@ class Menu_Item_List {
 		if ( ! $owner_menu_id ) return '';
 		$m = get_term( $owner_menu_id, self::TAX_MENU );
 		return ( $m && ! is_wp_error( $m ) ) ? $m->name : '';
+	}
+
+	/**
+	 * Resolve a label reference code (e.g. "pl-2") to its display text,
+	 * using the Labels Store if available.
+	 */
+	private static function resolve_label_ref( string $label_ref ) : string {
+		$label_ref = trim( $label_ref );
+		if ( $label_ref === '' ) return '';
+
+		// Try a couple of likely APIs without changing data sources
+		// (We only use your Labels Store; no meta fallbacks.)
+		try {
+			if ( class_exists( '\JelloPoint\RestaurantMenu\Data\Labels_Store' ) ) {
+				$cls = '\JelloPoint\RestaurantMenu\Data\Labels_Store';
+
+				// Preferred: instance() + get_label_name($key) or name_for($key)
+				if ( method_exists( $cls, 'instance' ) ) {
+					$inst = $cls::instance();
+
+					if ( method_exists( $inst, 'get_label_name' ) ) {
+						$name = $inst->get_label_name( $label_ref );
+						if ( is_string( $name ) && $name !== '' ) return $name;
+					}
+					if ( method_exists( $inst, 'name_for' ) ) {
+						$name = $inst->name_for( $label_ref );
+						if ( is_string( $name ) && $name !== '' ) return $name;
+					}
+					if ( method_exists( $inst, 'get' ) ) {
+						$val = $inst->get( $label_ref );
+						if ( is_array( $val ) && isset( $val['label'] ) && $val['label'] !== '' ) return (string) $val['label'];
+						if ( is_string( $val ) && $val !== '' ) return $val;
+					}
+				}
+
+				// Static helpers (if present)
+				if ( method_exists( $cls, 'get_label_name' ) ) {
+					$name = $cls::get_label_name( $label_ref );
+					if ( is_string( $name ) && $name !== '' ) return $name;
+				}
+				if ( method_exists( $cls, 'name_for' ) ) {
+					$name = $cls::name_for( $label_ref );
+					if ( is_string( $name ) && $name !== '' ) return $name;
+				}
+				if ( method_exists( $cls, 'get' ) ) {
+					$val = $cls::get( $label_ref );
+					if ( is_array( $val ) && isset( $val['label'] ) && $val['label'] !== '' ) return (string) $val['label'];
+					if ( is_string( $val ) && $val !== '' ) return $val;
+				}
+			}
+		} catch ( \Throwable $e ) {
+			// keep silent in UI
+		}
+
+		// Fallback to raw ref if no mapping available in Labels Store
+		return $label_ref;
 	}
 
 	/**
@@ -382,34 +448,41 @@ class Menu_Item_List {
 			}
 
 			if ( $mode === 'multi' ) {
-				// Your shape: rows[] with value + label_ref (or label)
 				$list = is_array( $raw['rows'] ?? null ) ? $raw['rows'] : [];
 				if ( ! $list ) return '—';
 
-				$pieces = [];
+				$lines = [];
 				foreach ( $list as $row ) {
 					$label = '';
 					if ( isset( $row['label'] ) && $row['label'] !== '' ) {
 						$label = (string) $row['label'];
 					} elseif ( isset( $row['label_ref'] ) && $row['label_ref'] !== '' ) {
-						$label = (string) $row['label_ref'];
+						$label = self::resolve_label_ref( (string) $row['label_ref'] );
 					}
-					$price = isset( $row['value'] ) ? trim( (string) $row['value'] ) : ''; // note: "value", not "price"
+					$price = isset( $row['value'] ) ? trim( (string) $row['value'] ) : '';
 
 					if ( $label !== '' && $price !== '' ) {
-						$pieces[] = esc_html( $label . ' ' . $price );
+						$lines[] = esc_html( $label . ' — ' . $price );
 					} elseif ( $price !== '' ) {
-						$pieces[] = esc_html( $price );
+						$lines[] = esc_html( $price );
 					}
 				}
-				if ( $pieces ) {
-					$show = array_slice( $pieces, 0, 3 );
-					$more = max( 0, count( $pieces ) - 3 );
-					$out  = esc_html( implode( ' • ', $show ) );
-					if ( $more ) $out .= ' <span class="description">+' . intval( $more ) . ' ' . esc_html__( 'more', 'jprm' ) . '</span>';
-					return $out;
-				}
-				return '—';
+				if ( ! $lines ) return '—';
+
+				// Collapsed view: "Multiple prices (N)" → click to toggle full list
+				$target_id = 'jprm-mprices-' . $post_id;
+				$count     = count( $lines );
+				$link      = sprintf(
+					'<a href="#" class="jprm-multi-toggle" data-target="%s">%s</a>',
+					esc_attr( $target_id ),
+					esc_html( sprintf( __( 'Multiple prices (%d)', 'jprm' ), $count ) )
+				);
+
+				$list_html = '<div id="' . esc_attr( $target_id ) . '" style="display:none;margin-top:4px;">' .
+				             implode( '<br>', $lines ) .
+				             '</div>';
+
+				return $link . $list_html;
 			}
 
 			// Unknown shape but array contains a 'price'
