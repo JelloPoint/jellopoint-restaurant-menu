@@ -14,13 +14,13 @@ class Menu_Item_List {
 
 	const META_SECTION_ORDER = '_jprm_order_in_section';
 
-	// Price meta keys (we'll probe these)
-	const META_PRICE_SINGLE_PRI = '_jprm_price';
-	const META_PRICE_SINGLE_ALT = [ '_price', 'price' ];
-	const META_PRICE_MULTI      = '_jprm_prices'; // serialized array or JSON
+	// Price meta keys (now prioritizing jprm_price as you use)
+	const META_PRICE_PRIMARY  = 'jprm_price';      // JSON / array {mode:'single'|'multi', price:'...', ...}
+	const META_PRICE_MULTI    = '_jprm_prices';    // optional: serialized array or JSON (legacy/alt)
+	const META_PRICE_FALLBACK = [ '_jprm_price', '_price', 'price' ]; // last-resort fallbacks
 
 	// Section -> menu owner term meta
-	const META_MENU_OWNER       = '_jprm_menu_term_id';
+	const META_MENU_OWNER     = '_jprm_menu_term_id';
 
 	public static function init() : void {
 		// Columns
@@ -69,8 +69,7 @@ class Menu_Item_List {
 	}
 
 	public static function sortable_columns( array $cols ) : array {
-		// Leave these non-sortable (taxonomy/meta sorting is noisy/slow)
-		return $cols;
+		return $cols; // no custom sorters
 	}
 
 	public static function column_content( string $col, int $post_id ) : void {
@@ -354,25 +353,69 @@ class Menu_Item_List {
 	}
 
 	private static function render_prices_cell( int $post_id ) : string {
-		// 1) Multi price array (preferred)
+		// A) Your primary store: meta 'jprm_price' (array or JSON or scalar)
+		$raw = get_post_meta( $post_id, self::META_PRICE_PRIMARY, true );
+
+		// Normalize to array if it's JSON
+		if ( is_string( $raw ) && $raw !== '' ) {
+			$maybe = json_decode( $raw, true );
+			if ( json_last_error() === JSON_ERROR_NONE && is_array( $maybe ) ) {
+				$raw = $maybe;
+			}
+		}
+
+		// If it's an array like {"mode":"single","price":"3",...}
+		if ( is_array( $raw ) ) {
+			$mode  = isset( $raw['mode'] ) ? strtolower( (string) $raw['mode'] ) : '';
+			if ( $mode === 'single' ) {
+				$p = isset( $raw['price'] ) ? (string) $raw['price'] : '';
+				return $p !== '' ? esc_html( $p ) : '—';
+			}
+			if ( $mode === 'multi' ) {
+				// Try the common container keys
+				$candidates = [];
+				foreach ( [ 'prices', 'rows', 'options', 'values' ] as $k ) {
+					if ( isset( $raw[ $k ] ) && is_array( $raw[ $k ] ) ) { $candidates = $raw[ $k ]; break; }
+				}
+				if ( $candidates ) {
+					$pieces = [];
+					foreach ( $candidates as $row ) {
+						$label = isset( $row['label'] ) ? trim( (string) $row['label'] ) : '';
+						$price = isset( $row['price'] ) ? trim( (string) $row['price'] ) : '';
+						if ( $label !== '' && $price !== '' ) $pieces[] = sprintf( '%s %s', esc_html( $label ), esc_html( $price ) );
+						elseif ( $price !== '' )              $pieces[] = esc_html( $price );
+					}
+					if ( $pieces ) {
+						$show = array_slice( $pieces, 0, 3 );
+						$more = max( 0, count( $pieces ) - 3 );
+						$out  = esc_html( implode( ' • ', $show ) );
+						if ( $more ) $out .= ' <span class="description">+' . intval( $more ) . ' ' . esc_html__( 'more', 'jprm' ) . '</span>';
+						return $out;
+					}
+				}
+			}
+			// Unknown shape → try common keys
+			if ( isset( $raw['price'] ) && $raw['price'] !== '' ) {
+				return esc_html( (string) $raw['price'] );
+			}
+		}
+
+		// B) Optional legacy multi: _jprm_prices
 		$multi_raw = get_post_meta( $post_id, self::META_PRICE_MULTI, true );
 		$multi = [];
-
 		if ( is_array( $multi_raw ) ) {
 			$multi = $multi_raw;
 		} elseif ( is_string( $multi_raw ) && $multi_raw !== '' ) {
-			// maybe JSON encoded array
 			$dec = json_decode( $multi_raw, true );
 			if ( is_array( $dec ) ) $multi = $dec;
 		}
-
 		if ( ! empty( $multi ) ) {
 			$pieces = [];
 			foreach ( $multi as $row ) {
 				$label = isset( $row['label'] ) ? trim( (string) $row['label'] ) : '';
 				$price = isset( $row['price'] ) ? trim( (string) $row['price'] ) : '';
 				if ( $label !== '' && $price !== '' ) { $pieces[] = sprintf( '%s %s', esc_html( $label ), esc_html( $price ) ); }
-				elseif ( $price !== '' )            { $pieces[] = esc_html( $price ); }
+				elseif ( $price !== '' )              { $pieces[] = esc_html( $price ); }
 			}
 			if ( $pieces ) {
 				$show = array_slice( $pieces, 0, 3 );
@@ -383,36 +426,25 @@ class Menu_Item_List {
 			}
 		}
 
-		// 2) Single price (primary key)
-		$single = get_post_meta( $post_id, self::META_PRICE_SINGLE_PRI, true );
-		if ( $single !== '' && $single !== null ) {
-			return esc_html( (string) $single );
-		}
-
-		// 3) Single price (fallback keys)
-		foreach ( self::META_PRICE_SINGLE_ALT as $alt ) {
-			$v = get_post_meta( $post_id, $alt, true );
+		// C) Fallback scalar price keys if someone saved plain numbers
+		foreach ( self::META_PRICE_FALLBACK as $key ) {
+			$v = get_post_meta( $post_id, $key, true );
 			if ( $v !== '' && $v !== null ) {
 				return esc_html( (string) $v );
 			}
 		}
 
-		// 4) Last resort: if a repository exists, try common static methods
+		// D) As a last resort, try a repository if present
 		if ( class_exists( '\JelloPoint\RestaurantMenu\Storage\Price_Repository' ) ) {
 			try {
 				$repo = \JelloPoint\RestaurantMenu\Storage\Price_Repository::class;
-
-				if ( method_exists( $repo, 'get_prices_for_post' ) ) {
-					$prices = $repo::get_prices_for_post( $post_id );
-				} elseif ( method_exists( $repo, 'for_post' ) ) {
-					$prices = $repo::for_post( $post_id );
-				} elseif ( method_exists( $repo, 'instance' ) ) {
+				$prices = [];
+				if ( method_exists( $repo, 'get_prices_for_post' ) )       $prices = $repo::get_prices_for_post( $post_id );
+				elseif ( method_exists( $repo, 'for_post' ) )              $prices = $repo::for_post( $post_id );
+				elseif ( method_exists( $repo, 'instance' ) ) {
 					$inst = $repo::instance();
-					$prices = method_exists( $inst, 'get_prices_for_post' ) ? $inst->get_prices_for_post( $post_id ) : [];
-				} else {
-					$prices = [];
+					if ( method_exists( $inst, 'get_prices_for_post' ) ) $prices = $inst->get_prices_for_post( $post_id );
 				}
-
 				if ( is_array( $prices ) && ! empty( $prices ) ) {
 					$parts = [];
 					foreach ( $prices as $p ) {
@@ -424,7 +456,7 @@ class Menu_Item_List {
 					if ( $parts ) return esc_html( implode( ' • ', $parts ) );
 				}
 			} catch ( \Throwable $e ) {
-				// fail silent in UI
+				// Silent in UI
 			}
 		}
 
@@ -439,7 +471,13 @@ class Menu_Item_List {
 			if ( $p && isset( $by[ $p ] ) ) $by[ $p ]['children'][] = &$n;
 		}
 		unset( $n );
-		$roots = array_filter( $by, static fn( $n ) => ! $n['t']->parent || ! isset( $by[ $n['t']->parent ] ) );
+		$roots = array_filter( $by, static fn( $n ) => ! $n['t']->parent || ! isset( $by[ $n]['t']->parent ] );
+
+		// Fix: correct root detection
+		$roots = array_filter( $by, static function( $n ) use ( $by ) {
+			$p = $n['t']->parent;
+			return ! $p || ! isset( $by[ $p ] );
+		} );
 
 		$out = [];
 		$walk = static function( $nodes, $d ) use ( &$out, &$walk ) {
