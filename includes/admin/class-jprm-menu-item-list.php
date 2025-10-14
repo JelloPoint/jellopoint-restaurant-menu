@@ -5,6 +5,10 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 /**
  * Admin List Table enhancements for the Menu Items CPT.
+ * - Columns: Menu / Section / Price(s)
+ * - Filters: Menu + Section (Section list limited by selected Menu)
+ * - Bulk actions: Assign to Section…, Unassign from Section
+ * - Prices: reads ONLY meta 'jprm_price'
  */
 class Menu_Item_List {
 
@@ -14,13 +18,11 @@ class Menu_Item_List {
 
 	const META_SECTION_ORDER = '_jprm_order_in_section';
 
-	// Price meta keys (now prioritizing jprm_price as you use)
-	const META_PRICE_PRIMARY  = 'jprm_price';      // JSON / array {mode:'single'|'multi', price:'...', ...}
-	const META_PRICE_MULTI    = '_jprm_prices';    // optional: serialized array or JSON (legacy/alt)
-	const META_PRICE_FALLBACK = [ '_jprm_price', '_price', 'price' ]; // last-resort fallbacks
+	// Your canonical price meta
+	const META_PRICE_PRIMARY = 'jprm_price'; // JSON/array like {"mode":"single","price":"3",...}
 
-	// Section -> menu owner term meta
-	const META_MENU_OWNER     = '_jprm_menu_term_id';
+	// Section -> menu owner term meta (on the section term)
+	const META_MENU_OWNER    = '_jprm_menu_term_id';
 
 	public static function init() : void {
 		// Columns
@@ -44,10 +46,9 @@ class Menu_Item_List {
 	/* ---------------- Columns ---------------- */
 
 	public static function columns( array $cols ) : array {
-		// Remove the WP Date column entirely
+		// Remove WP Date column entirely
 		if ( isset( $cols['date'] ) ) unset( $cols['date'] );
 
-		// Keep title first, then add ours
 		$new = [];
 		foreach ( $cols as $key => $label ) {
 			$new[ $key ] = $label;
@@ -57,14 +58,11 @@ class Menu_Item_List {
 				$new['jprm_prices']  = __( 'Price(s)', 'jprm' );
 			}
 		}
-
-		// If title wasn't there for some reason, ensure ours exist
 		$new += [
 			'jprm_menu'    => __( 'Menu', 'jprm' ),
 			'jprm_section' => __( 'Section', 'jprm' ),
 			'jprm_prices'  => __( 'Price(s)', 'jprm' ),
 		];
-
 		return $new;
 	}
 
@@ -132,7 +130,10 @@ class Menu_Item_List {
 				if ( $p && isset( $by_id[ $p ] ) ) $by_id[ $p ]['children'][] = &$node;
 			}
 			unset( $node );
-			$roots = array_filter( $by_id, static fn( $n ) => ! $n['term']->parent || ! isset( $by_id[ $n['term']->parent ] ) );
+			$roots = array_filter( $by_id, static function( $n ) use ( $by_id ) {
+				$p = $n['term']->parent;
+				return ! $p || ! isset( $by_id[ $p ] );
+			} );
 
 			$flat = [];
 			$walk = static function( $nodes, $depth ) use ( &$flat, &$walk ) {
@@ -219,7 +220,7 @@ class Menu_Item_List {
 
 		$done = 0;
 
-		if ( $action === 'jprm_unassign_section' ) {
+		if ( 'jprm_unassign_section' === $action ) {
 			foreach ( $post_ids as $pid ) {
 				if ( ! current_user_can( 'edit_post', $pid ) ) continue;
 				wp_set_post_terms( $pid, [], self::TAX_SECTION, false );
@@ -234,6 +235,7 @@ class Menu_Item_List {
 			return add_query_arg( [ 'jprm_bulk_error' => 1 ], $redirect_url );
 		}
 
+		// Append to end of that section's order
 		$existing = new \WP_Query( [
 			'post_type'      => self::CPT,
 			'posts_per_page' => -1,
@@ -352,38 +354,48 @@ class Menu_Item_List {
 		return ( $m && ! is_wp_error( $m ) ) ? $m->name : '';
 	}
 
+	/**
+	 * Render Price(s) column using ONLY meta 'jprm_price'.
+	 * Accepts:
+	 *  - {"mode":"single","price":"3",...}
+	 *  - {"mode":"multi","prices":[{"label":"Small","price":"5"},...]}
+	 */
 	private static function render_prices_cell( int $post_id ) : string {
-		// A) Your primary store: meta 'jprm_price' (array or JSON or scalar)
 		$raw = get_post_meta( $post_id, self::META_PRICE_PRIMARY, true );
 
-		// Normalize to array if it's JSON
+		// If it's a JSON string, decode to array
 		if ( is_string( $raw ) && $raw !== '' ) {
-			$maybe = json_decode( $raw, true );
-			if ( json_last_error() === JSON_ERROR_NONE && is_array( $maybe ) ) {
-				$raw = $maybe;
+			$dec = json_decode( $raw, true );
+			if ( json_last_error() === JSON_ERROR_NONE && is_array( $dec ) ) {
+				$raw = $dec;
 			}
 		}
 
-		// If it's an array like {"mode":"single","price":"3",...}
+		// Array path (preferred)
 		if ( is_array( $raw ) ) {
-			$mode  = isset( $raw['mode'] ) ? strtolower( (string) $raw['mode'] ) : '';
+			$mode = isset( $raw['mode'] ) ? strtolower( (string) $raw['mode'] ) : '';
+
 			if ( $mode === 'single' ) {
 				$p = isset( $raw['price'] ) ? (string) $raw['price'] : '';
 				return $p !== '' ? esc_html( $p ) : '—';
 			}
+
 			if ( $mode === 'multi' ) {
-				// Try the common container keys
-				$candidates = [];
+				$list = [];
+				// Allow a few common container keys inside the same meta
 				foreach ( [ 'prices', 'rows', 'options', 'values' ] as $k ) {
-					if ( isset( $raw[ $k ] ) && is_array( $raw[ $k ] ) ) { $candidates = $raw[ $k ]; break; }
+					if ( isset( $raw[ $k ] ) && is_array( $raw[ $k ] ) ) {
+						$list = $raw[ $k ];
+						break;
+					}
 				}
-				if ( $candidates ) {
+				if ( $list ) {
 					$pieces = [];
-					foreach ( $candidates as $row ) {
+					foreach ( $list as $row ) {
 						$label = isset( $row['label'] ) ? trim( (string) $row['label'] ) : '';
 						$price = isset( $row['price'] ) ? trim( (string) $row['price'] ) : '';
-						if ( $label !== '' && $price !== '' ) $pieces[] = sprintf( '%s %s', esc_html( $label ), esc_html( $price ) );
-						elseif ( $price !== '' )              $pieces[] = esc_html( $price );
+						if ( $label !== '' && $price !== '' ) { $pieces[] = sprintf( '%s %s', esc_html( $label ), esc_html( $price ) ); }
+						elseif ( $price !== '' )              { $pieces[] = esc_html( $price ); }
 					}
 					if ( $pieces ) {
 						$show = array_slice( $pieces, 0, 3 );
@@ -393,87 +405,43 @@ class Menu_Item_List {
 						return $out;
 					}
 				}
+				return '—';
 			}
-			// Unknown shape → try common keys
+
+			// Unknown shape but array contains 'price'
 			if ( isset( $raw['price'] ) && $raw['price'] !== '' ) {
 				return esc_html( (string) $raw['price'] );
 			}
+
+			return '—';
 		}
 
-		// B) Optional legacy multi: _jprm_prices
-		$multi_raw = get_post_meta( $post_id, self::META_PRICE_MULTI, true );
-		$multi = [];
-		if ( is_array( $multi_raw ) ) {
-			$multi = $multi_raw;
-		} elseif ( is_string( $multi_raw ) && $multi_raw !== '' ) {
-			$dec = json_decode( $multi_raw, true );
-			if ( is_array( $dec ) ) $multi = $dec;
-		}
-		if ( ! empty( $multi ) ) {
-			$pieces = [];
-			foreach ( $multi as $row ) {
-				$label = isset( $row['label'] ) ? trim( (string) $row['label'] ) : '';
-				$price = isset( $row['price'] ) ? trim( (string) $row['price'] ) : '';
-				if ( $label !== '' && $price !== '' ) { $pieces[] = sprintf( '%s %s', esc_html( $label ), esc_html( $price ) ); }
-				elseif ( $price !== '' )              { $pieces[] = esc_html( $price ); }
-			}
-			if ( $pieces ) {
-				$show = array_slice( $pieces, 0, 3 );
-				$more = max( 0, count( $pieces ) - 3 );
-				$out  = esc_html( implode( ' • ', $show ) );
-				if ( $more ) $out .= ' <span class="description">+' . intval( $more ) . ' ' . esc_html__( 'more', 'jprm' ) . '</span>';
-				return $out;
-			}
-		}
-
-		// C) Fallback scalar price keys if someone saved plain numbers
-		foreach ( self::META_PRICE_FALLBACK as $key ) {
-			$v = get_post_meta( $post_id, $key, true );
-			if ( $v !== '' && $v !== null ) {
-				return esc_html( (string) $v );
-			}
-		}
-
-		// D) As a last resort, try a repository if present
-		if ( class_exists( '\JelloPoint\RestaurantMenu\Storage\Price_Repository' ) ) {
-			try {
-				$repo = \JelloPoint\RestaurantMenu\Storage\Price_Repository::class;
-				$prices = [];
-				if ( method_exists( $repo, 'get_prices_for_post' ) )       $prices = $repo::get_prices_for_post( $post_id );
-				elseif ( method_exists( $repo, 'for_post' ) )              $prices = $repo::for_post( $post_id );
-				elseif ( method_exists( $repo, 'instance' ) ) {
-					$inst = $repo::instance();
-					if ( method_exists( $inst, 'get_prices_for_post' ) ) $prices = $inst->get_prices_for_post( $post_id );
-				}
-				if ( is_array( $prices ) && ! empty( $prices ) ) {
-					$parts = [];
-					foreach ( $prices as $p ) {
-						$label = is_array( $p ) && isset( $p['label'] ) ? $p['label'] : '';
-						$price = is_array( $p ) && isset( $p['price'] ) ? $p['price'] : ( is_scalar( $p ) ? $p : '' );
-						if ( $label !== '' && $price !== '' ) { $parts[] = sprintf( '%s %s', esc_html( (string) $label ), esc_html( (string) $price ) ); }
-						elseif ( $price !== '' )              { $parts[] = esc_html( (string) $price ); }
-					}
-					if ( $parts ) return esc_html( implode( ' • ', $parts ) );
-				}
-			} catch ( \Throwable $e ) {
-				// Silent in UI
-			}
+		// Scalar path (number stored directly in meta)
+		if ( is_scalar( $raw ) && $raw !== '' && $raw !== null ) {
+			return esc_html( (string) $raw );
 		}
 
 		return '—';
 	}
 
+	/**
+	 * Flatten a list of section terms into [ [id,name,depth], ... ] respecting hierarchy.
+	 * Input array may be unordered; we rebuild a mini tree first.
+	 */
 	private static function flatten_sections_with_depth( array $terms ) : array {
 		$by = [];
 		foreach ( $terms as $t ) $by[ $t->term_id ] = [ 't' => $t, 'children' => [] ];
+
+		// build children links
 		foreach ( $by as $id => &$n ) {
 			$p = $n['t']->parent;
-			if ( $p && isset( $by[ $p ] ) ) $by[ $p ]['children'][] = &$n;
+			if ( $p && isset( $by[ $p ] ) ) {
+				$by[ $p ]['children'][] = &$n;
+			}
 		}
 		unset( $n );
-		$roots = array_filter( $by, static fn( $n ) => ! $n['t']->parent || ! isset( $by[ $n]['t']->parent ] );
 
-		// Fix: correct root detection
+		// roots = terms whose parent is 0 or not in this subset
 		$roots = array_filter( $by, static function( $n ) use ( $by ) {
 			$p = $n['t']->parent;
 			return ! $p || ! isset( $by[ $p ] );
@@ -483,7 +451,9 @@ class Menu_Item_List {
 		$walk = static function( $nodes, $d ) use ( &$out, &$walk ) {
 			foreach ( $nodes as $n ) {
 				$out[] = [ 'id' => $n['t']->term_id, 'name' => $n['t']->name, 'depth' => $d ];
-				if ( ! empty( $n['children'] ) ) $walk( $n['children'], $d + 1 );
+				if ( ! empty( $n['children'] ) ) {
+					$walk( $n['children'], $d + 1 );
+				}
 			}
 		};
 		$walk( $roots, 0 );
