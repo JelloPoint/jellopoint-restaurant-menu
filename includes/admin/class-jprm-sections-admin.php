@@ -14,7 +14,7 @@ class Sections_Admin {
 		add_filter( 'manage_edit-' . self::TAX_SECTION . '_columns', [ __CLASS__, 'columns' ] );
 		add_action( 'manage_' . self::TAX_SECTION . '_custom_column', [ __CLASS__, 'print_column' ], 10, 3 );
 
-		// Filtering (hard guarantee)
+		// Filtering (works regardless of admin quirks)
 		add_action( 'pre_get_terms', [ __CLASS__, 'apply_filter' ] );
 		add_action( 'terms_clauses', [ __CLASS__, 'enforce_filter_sql' ], 10, 3 );
 
@@ -26,22 +26,21 @@ class Sections_Admin {
 		add_action( 'created_' . self::TAX_SECTION, [ __CLASS__, 'save_on_create' ], 10, 2 );
 		add_action( 'edited_'  . self::TAX_SECTION, [ __CLASS__, 'save_on_edit' ],   10, 2 );
 
-		// UI polish + FORCE filter UI into toolbar
-		add_action( 'admin_head-edit-tags.php',    [ __CLASS__, 'inject_admin_css_js' ] );
-		add_action( 'admin_footer-edit-tags.php',  [ __CLASS__, 'force_toolbar_filter' ] );
+		// UI polish + force toolbar filter + AJAX swap
+		add_action( 'admin_head-edit-tags.php',   [ __CLASS__, 'inject_admin_css_js' ] );
+		add_action( 'admin_footer-edit-tags.php', [ __CLASS__, 'force_toolbar_filter' ] );
 	}
 
 	/* ================= Columns ================= */
 
 	public static function columns( $cols ) {
-        // Add a Menu column, drop Slug for cleaner UI
 		$new = [];
 		foreach ( $cols as $k => $v ) {
 			$new[ $k ] = $v;
 			if ( 'name' === $k ) $new['jprm_menu'] = __( 'Menu', 'jprm' );
 		}
 		if ( ! isset( $new['jprm_menu'] ) ) $new['jprm_menu'] = __( 'Menu', 'jprm' );
-		if ( isset( $new['slug'] ) ) unset( $new['slug'] );
+		if ( isset( $new['slug'] ) ) unset( $new['slug'] ); // cleaner UI
 		return $new;
 	}
 
@@ -55,7 +54,7 @@ class Sections_Admin {
 
 	/* ================= Filtering logic ================= */
 
-	// Applies at WP_Term_Query arg level (works on admin list)
+	// Apply at query-vars level
 	public static function apply_filter( \WP_Term_Query $query ) : void {
 		if ( ! is_admin() ) return;
 		$taxonomies = (array) ( $query->query_vars['taxonomy'] ?? [] );
@@ -69,7 +68,7 @@ class Sections_Admin {
 		}
 	}
 
-	// Enforce with SQL JOIN+WHERE to be absolutely sure
+	// Enforce at SQL level (JOIN termmeta + WHERE owner) to be bullet-proof
 	public static function enforce_filter_sql( $clauses, $taxonomies, $args ) {
 		if ( ! is_admin() ) return $clauses;
 		if ( empty( $taxonomies ) || ! in_array( self::TAX_SECTION, (array) $taxonomies, true ) ) return $clauses;
@@ -148,7 +147,6 @@ class Sections_Admin {
 		$term  = get_term( $term_id, self::TAX_SECTION );
 		if ( ! $term || is_wp_error( $term ) ) return;
 
-		// Inherit from parent if any
 		if ( $term->parent ) {
 			$po = (int) get_term_meta( $term->parent, self::META_MENU_OWNER, true );
 			if ( $po ) $owner = $po;
@@ -163,7 +161,6 @@ class Sections_Admin {
 		$chosen = isset( $_POST['jprm_owner_menu'] ) ? (int) $_POST['jprm_owner_menu'] : 0; // phpcs:ignore
 		$final  = $chosen;
 
-		// If parent exists, force inheritance
 		if ( $term->parent ) {
 			$po = (int) get_term_meta( $term->parent, self::META_MENU_OWNER, true );
 			if ( $po ) $final = $po;
@@ -236,7 +233,7 @@ class Sections_Admin {
 	}
 
 	/**
-	 * Force a populated filter control into the TOP toolbar, regardless of theme/admin quirks.
+	 * Force a populated filter control into the TOP toolbar + wire robust AJAX swap.
 	 */
 	public static function force_toolbar_filter() : void {
 		$tax = isset( $_GET['taxonomy'] ) ? sanitize_key( $_GET['taxonomy'] ) : ''; // phpcs:ignore
@@ -276,19 +273,72 @@ class Sections_Admin {
 				topActions.prepend(wrap);
 			}
 
-			// Submit on change for quick filtering (no AJAX to avoid conflicts)
-			function bindChangeSubmit(){
+			// AJAX swap: change -> fetch -> replace pieces
+			function ajaxify(){
 				var sel = document.getElementById('jprm_filter_menu');
 				if (!sel) return;
+
 				sel.addEventListener('change', function(){
 					var form = document.getElementById('posts-filter');
-					if (form) form.submit();
+					if (!form) { this.form && this.form.submit(); return; }
+
+					var url = new URL(window.location.href);
+					url.searchParams.set('jprm_filter_menu', this.value || '0');
+					url.searchParams.delete('paged');
+
+					// Simple loading state
+					document.body.classList.add('loading');
+
+					fetch(url.toString(), {
+						method: 'GET',
+						credentials: 'same-origin',
+						headers: { 'X-Requested-With': 'XMLHttpRequest' }
+					})
+					.then(function(r){ return r.text(); })
+					.then(function(html){
+						var doc = new DOMParser().parseFromString(html, 'text/html');
+
+						// Replace table body
+						var newBody = doc.querySelector('#the-list');
+						var curBody = document.getElementById('the-list');
+						if (newBody && curBody) curBody.innerHTML = newBody.innerHTML;
+
+						// Replace subsubsub (views: All / Most Used ...)
+						var newViews = doc.querySelector('.subsubsub');
+						var curViews = document.querySelector('.subsubsub');
+						if (newViews && curViews) curViews.innerHTML = newViews.innerHTML;
+
+						// Replace counts (“displaying-num”)
+						var newCount = doc.querySelector('.tablenav.top .displaying-num');
+						var curCount = document.querySelector('.tablenav.top .displaying-num');
+						if (newCount && curCount) curCount.innerHTML = newCount.innerHTML;
+
+						// Replace paginations (top & bottom)
+						var newTopPag = doc.querySelector('.tablenav.top .tablenav-pages');
+						var curTopPag = document.querySelector('.tablenav.top .tablenav-pages');
+						if (newTopPag && curTopPag) curTopPag.innerHTML = newTopPag.innerHTML;
+						var newBotPag = doc.querySelector('.tablenav.bottom .tablenav-pages');
+						var curBotPag = document.querySelector('.tablenav.bottom .tablenav-pages');
+						if (newBotPag && curBotPag) curBotPag.innerHTML = newBotPag.innerHTML;
+
+						// Persist new URL
+						if (history && history.replaceState) {
+							history.replaceState({}, '', url.toString());
+						}
+					})
+					.catch(function(){
+						// Fall back to classic submit
+						if (sel.form) sel.form.submit();
+					})
+					.finally(function(){
+						document.body.classList.remove('loading');
+					});
 				});
 			}
 
 			document.addEventListener('DOMContentLoaded', function(){
 				ensureFilter();
-				bindChangeSubmit();
+				ajaxify();
 			});
 		})();
 		</script>
