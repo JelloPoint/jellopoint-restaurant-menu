@@ -10,13 +10,13 @@ class Sections_Admin {
 	const META_MENU_OWNER = '_jprm_menu_term_id';
 
 	public static function init() : void {
-        // Columns
+		// Columns
 		add_filter( 'manage_edit-' . self::TAX_SECTION . '_columns', [ __CLASS__, 'columns' ] );
 		add_action( 'manage_' . self::TAX_SECTION . '_custom_column', [ __CLASS__, 'print_column' ], 10, 3 );
 
-		// Filter UI + query constraints
-		add_action( 'manage_terms_extra_tablenav', [ __CLASS__, 'filter_dropdown' ], 10, 1 );
+		// Filtering (hard guarantee)
 		add_action( 'pre_get_terms', [ __CLASS__, 'apply_filter' ] );
+		add_action( 'terms_clauses', [ __CLASS__, 'enforce_filter_sql' ], 10, 3 );
 
 		// Add/Edit fields (Owner Menu selector)
 		add_action( self::TAX_SECTION . '_add_form_fields',  [ __CLASS__, 'add_field' ] );
@@ -26,25 +26,25 @@ class Sections_Admin {
 		add_action( 'created_' . self::TAX_SECTION, [ __CLASS__, 'save_on_create' ], 10, 2 );
 		add_action( 'edited_'  . self::TAX_SECTION, [ __CLASS__, 'save_on_edit' ],   10, 2 );
 
-		// UI polish + AJAX filter script
-		add_action( 'admin_head-edit-tags.php', [ __CLASS__, 'inject_admin_css_js' ] );
+		// UI polish + FORCE filter UI into toolbar
+		add_action( 'admin_head-edit-tags.php',    [ __CLASS__, 'inject_admin_css_js' ] );
+		add_action( 'admin_footer-edit-tags.php',  [ __CLASS__, 'force_toolbar_filter' ] );
 	}
 
 	/* ================= Columns ================= */
 
 	public static function columns( $cols ) {
+        // Add a Menu column, drop Slug for cleaner UI
 		$new = [];
 		foreach ( $cols as $k => $v ) {
 			$new[ $k ] = $v;
 			if ( 'name' === $k ) $new['jprm_menu'] = __( 'Menu', 'jprm' );
 		}
 		if ( ! isset( $new['jprm_menu'] ) ) $new['jprm_menu'] = __( 'Menu', 'jprm' );
-		// Optional: remove “Slug” for a cleaner UI
 		if ( isset( $new['slug'] ) ) unset( $new['slug'] );
 		return $new;
 	}
 
-	/** Action: must echo content */
 	public static function print_column( $out, $column_name, $term_id ) {
 		if ( 'jprm_menu' !== $column_name ) return;
 		$owner = (int) get_term_meta( $term_id, self::META_MENU_OWNER, true );
@@ -53,88 +53,49 @@ class Sections_Admin {
 		echo ( $menu && ! is_wp_error( $menu ) ) ? esc_html( $menu->name ) : '—';
 	}
 
-	/* ================= Filter UI ================= */
+	/* ================= Filtering logic ================= */
 
-	/**
-	 * Render “Filter by Menu” on Sections toolbar.
-	 * Hook provides only $which ('top'|'bottom'); taxonomy is in the query.
-	 */
-	public static function filter_dropdown( $which ) : void {
-		if ( $which !== 'top' ) return;
-
-		$taxonomy = isset( $_GET['taxonomy'] ) ? sanitize_key( $_GET['taxonomy'] ) : ''; // phpcs:ignore
-		if ( $taxonomy !== self::TAX_SECTION ) return;
-
-		$selected = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
-
-		echo '<div class="alignleft actions jprm-sections-filter">';
-		echo '<label class="screen-reader-text" for="jprm_filter_menu">' . esc_html__( 'Filter by Menu', 'jprm' ) . '</label>';
-
-		// Robust server-side population
-		wp_dropdown_categories( [
-			'show_option_all' => __( 'All Menus', 'jprm' ),
-			'orderby'         => 'name',
-			'hide_empty'      => 0,
-			'taxonomy'        => self::TAX_MENU,
-			'name'            => 'jprm_filter_menu',
-			'id'              => 'jprm_filter_menu',
-			'selected'        => $selected,
-			'hierarchical'    => false,
-			'class'           => 'postform',
-			'value_field'     => 'term_id',
-		] );
-
-		submit_button( __( 'Filter' ), 'secondary', 'filter_action', false );
-		echo '</div>';
-	}
-
-	/**
-	 * Apply selected Menu filter to the Sections list query.
-	 * Uses a clauses filter to guarantee the JOIN + WHERE are applied.
-	 */
+	// Applies at WP_Term_Query arg level (works on admin list)
 	public static function apply_filter( \WP_Term_Query $query ) : void {
 		if ( ! is_admin() ) return;
-
 		$taxonomies = (array) ( $query->query_vars['taxonomy'] ?? [] );
 		if ( ! in_array( self::TAX_SECTION, $taxonomies, true ) ) return;
 
 		$menu_id = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
-		if ( $menu_id <= 0 ) return;
+		if ( $menu_id > 0 ) {
+			$mq   = (array) ( $query->query_vars['meta_query'] ?? [] );
+			$mq[] = [ 'key' => self::META_MENU_OWNER, 'value' => (string) $menu_id ];
+			$query->query_vars['meta_query'] = $mq;
+		}
+	}
 
-		// Attach a one-off terms_clauses filter for this request
-		add_filter( 'terms_clauses', function( $clauses, $taxonomies, $args ) use ( $menu_id ) {
-			global $wpdb;
+	// Enforce with SQL JOIN+WHERE to be absolutely sure
+	public static function enforce_filter_sql( $clauses, $taxonomies, $args ) {
+		if ( ! is_admin() ) return $clauses;
+		if ( empty( $taxonomies ) || ! in_array( self::TAX_SECTION, (array) $taxonomies, true ) ) return $clauses;
 
-			// Only for our taxonomy
-			if ( empty( $taxonomies ) || ! in_array( self::TAX_SECTION, (array) $taxonomies, true ) ) {
-				return $clauses;
-			}
+		$menu_id = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
+		if ( $menu_id <= 0 ) return $clauses;
 
-			// JOIN termmeta (aliased)
-			if ( strpos( $clauses['join'], 'termmeta jprm_tmeta' ) === false ) {
-				$clauses['join'] .= " LEFT JOIN {$wpdb->termmeta} AS jprm_tmeta
-					ON ( {$wpdb->terms}.term_id = jprm_tmeta.term_id )";
-			}
+		global $wpdb;
 
-			// WHERE owner = selected menu
-			$owner_where = $wpdb->prepare(
-				" ( jprm_tmeta.meta_key = %s AND jprm_tmeta.meta_value = %s ) ",
-				self::META_MENU_OWNER,
-				(string) $menu_id
-			);
+		if ( strpos( $clauses['join'], 'termmeta jprm_tmeta' ) === false ) {
+			$clauses['join'] .= " LEFT JOIN {$wpdb->termmeta} AS jprm_tmeta
+				ON ( {$wpdb->terms}.term_id = jprm_tmeta.term_id )";
+		}
 
-			// Bind to the taxonomy (in case multiple tax queried)
-			$tax_where = $wpdb->prepare( " {$wpdb->term_taxonomy}.taxonomy = %s ", self::TAX_SECTION );
+		$owner_where = $wpdb->prepare(
+			" ( jprm_tmeta.meta_key = %s AND jprm_tmeta.meta_value = %s ) ",
+			self::META_MENU_OWNER,
+			(string) $menu_id
+		);
+		$tax_where = $wpdb->prepare( " {$wpdb->term_taxonomy}.taxonomy = %s ", self::TAX_SECTION );
 
-			$clauses['where'] .= " AND {$tax_where} AND {$owner_where} ";
-
-			// Ensure distinct (avoid duplicates due to join)
-			if ( strpos( $clauses['fields'], 'DISTINCT' ) === false ) {
-				$clauses['fields'] = 'DISTINCT ' . $clauses['fields'];
-			}
-
-			return $clauses;
-		}, 10, 3 );
+		$clauses['where']  .= " AND {$tax_where} AND {$owner_where} ";
+		if ( strpos( $clauses['fields'], 'DISTINCT' ) === false ) {
+			$clauses['fields'] = 'DISTINCT ' . $clauses['fields'];
+		}
+		return $clauses;
 	}
 
 	/* ================= Add/Edit fields ================= */
@@ -231,12 +192,11 @@ class Sections_Admin {
 		}
 	}
 
-	/* ================= UI polish + AJAX filter ================= */
+	/* ================= UI polish + forced toolbar filter ================= */
 
 	public static function inject_admin_css_js() : void {
 		$tax = isset( $_GET['taxonomy'] ) ? sanitize_key( $_GET['taxonomy'] ) : ''; // phpcs:ignore
 		if ( $tax !== self::TAX_SECTION ) return;
-
 		?>
 		<style>
 			/* Hide Slug on add + edit */
@@ -257,64 +217,78 @@ class Sections_Admin {
 			function renameLabels(){
 				var hdr = document.querySelector('.wrap .form-wrap > h2') || document.querySelector('.tag-add-form h2');
 				if (hdr && /Add\s+Category/i.test(hdr.textContent)) hdr.textContent = 'Add Section';
-
 				var parentAdd = document.querySelector('#addtag .form-field.term-parent-wrap > label');
 				if (parentAdd) parentAdd.textContent = 'Parent Section';
-
 				var parentEdit = document.querySelector('.edit-tag-form .form-field.term-parent-wrap th label');
 				if (parentEdit) parentEdit.textContent = 'Parent Section';
-
 				var srch = document.querySelector('label[for="tag-search-input"]');
 				if (srch) srch.textContent = 'Search Sections:';
 				var inp = document.getElementById('tag-search-input');
 				if (inp) inp.placeholder = 'Search Sections';
 			}
+			document.addEventListener('DOMContentLoaded', function(){
+				moveOwnerToTop();
+				renameLabels();
+			});
+		})();
+		</script>
+		<?php
+	}
 
-			// AJAX filter: swap table & pagination in-place
-			function ajaxFilter(){
+	/**
+	 * Force a populated filter control into the TOP toolbar, regardless of theme/admin quirks.
+	 */
+	public static function force_toolbar_filter() : void {
+		$tax = isset( $_GET['taxonomy'] ) ? sanitize_key( $_GET['taxonomy'] ) : ''; // phpcs:ignore
+		if ( $tax !== self::TAX_SECTION ) return;
+
+		$selected = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
+		$menus    = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false ] );
+
+		$options  = '<option value="0">' . esc_html__( 'All Menus', 'jprm' ) . '</option>';
+		if ( ! is_wp_error( $menus ) ) {
+			foreach ( $menus as $m ) {
+				$sel = ( $selected === (int) $m->term_id ) ? ' selected' : '';
+				$options .= '<option value="' . (int) $m->term_id . '"' . $sel . '>' . esc_html( $m->name ) . '</option>';
+			}
+		}
+
+		?>
+		<script>
+		(function(){
+			function ensureFilter(){
+				var form   = document.getElementById('posts-filter');
+				if (!form) return;
+
+				// If already present, leave it.
+				if (document.getElementById('jprm_filter_menu')) return;
+
+				var topActions = form.querySelector('.tablenav.top .actions') || form.querySelector('.tablenav.top');
+				if (!topActions) return;
+
+				var wrap = document.createElement('div');
+				wrap.className = 'alignleft actions jprm-sections-filter';
+				wrap.innerHTML =
+					'<label class="screen-reader-text" for="jprm_filter_menu"><?php echo esc_js( __( 'Filter by Menu', 'jprm' ) ); ?></label>' +
+					'<select name="jprm_filter_menu" id="jprm_filter_menu" class="postform"><?php echo $options; ?></select>' +
+					'<input type="submit" name="filter_action" class="button" value="<?php echo esc_js( __( 'Filter', 'jprm' ) ); ?>">';
+
+				topActions.prepend(wrap);
+			}
+
+			// Submit on change for quick filtering (no AJAX to avoid conflicts)
+			function bindChangeSubmit(){
 				var sel = document.getElementById('jprm_filter_menu');
-				if(!sel) return;
+				if (!sel) return;
 				sel.addEventListener('change', function(){
-					var form   = document.getElementById('posts-filter');
-					if(!form){ this.form && this.form.submit(); return; }
-
-					// Build new URL with selected filter
-					var url = new URL(window.location.href);
-					url.searchParams.set('jprm_filter_menu', this.value || '0');
-					// Reset to first page when filtering
-					url.searchParams.delete('paged');
-
-					// Fetch and replace table + paginations
-					fetch(url.toString(), { credentials: 'same-origin' })
-						.then(function(r){ return r.text(); })
-						.then(function(html){
-							var doc = new DOMParser().parseFromString(html, 'text/html');
-							var newBody = doc.querySelector('#the-list');
-							var newTopPag = doc.querySelector('.tablenav.top .tablenav-pages');
-							var newBotPag = doc.querySelector('.tablenav.bottom .tablenav-pages');
-							var curBody = document.getElementById('the-list');
-							if (newBody && curBody) curBody.innerHTML = newBody.innerHTML;
-							var curTopPag = document.querySelector('.tablenav.top .tablenav-pages');
-							if (curTopPag && newTopPag) curTopPag.innerHTML = newTopPag.innerHTML;
-							var curBotPag = document.querySelector('.tablenav.bottom .tablenav-pages');
-							if (curBotPag && newBotPag) curBotPag.innerHTML = newBotPag.innerHTML;
-
-							// Update URL (so refresh keeps filter)
-							if (history && history.replaceState) {
-								history.replaceState({}, '', url.toString());
-							}
-						})
-						.catch(function(){
-							// Fallback: normal submit if anything fails
-							if (sel.form) sel.form.submit();
-						});
+					var form = document.getElementById('posts-filter');
+					if (form) form.submit();
 				});
 			}
 
 			document.addEventListener('DOMContentLoaded', function(){
-				moveOwnerToTop();
-				renameLabels();
-				ajaxFilter();
+				ensureFilter();
+				bindChangeSubmit();
 			});
 		})();
 		</script>
