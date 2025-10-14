@@ -10,77 +10,119 @@ class Sections_Admin {
 	const META_MENU_OWNER = '_jprm_menu_term_id';
 
 	public static function init() : void {
-		// Columns
+		// Columns for the Sections (taxonomy) list table
 		add_filter( 'manage_edit-' . self::TAX_SECTION . '_columns', [ __CLASS__, 'columns' ] );
-		add_filter( 'manage_' . self::TAX_SECTION . '_custom_column', [ __CLASS__, 'column_content' ], 10, 3 );
+		add_action( 'manage_' . self::TAX_SECTION . '_custom_column', [ __CLASS__, 'print_column' ], 10, 3 );
 
-		// Filter by Menu
-		add_action( 'restrict_manage_posts', [ __CLASS__, 'filter_dropdown' ] );
+		// Filter UI on the terms screen (top “tablenav”)
+		add_action( 'manage_terms_extra_tablenav', [ __CLASS__, 'filter_dropdown' ], 10, 1 );
+		// Apply selected filter to the terms query
 		add_filter( 'get_terms_args', [ __CLASS__, 'apply_filter' ], 10, 2 );
 
-		// Add/Edit fields
+		// Add/Edit form fields (Owner Menu selector)
 		add_action( self::TAX_SECTION . '_add_form_fields',  [ __CLASS__, 'add_field' ] );
 		add_action( self::TAX_SECTION . '_edit_form_fields', [ __CLASS__, 'edit_field' ], 10, 2 );
 
-		// Save + cascade
+		// Save + cascade owner
 		add_action( 'created_' . self::TAX_SECTION, [ __CLASS__, 'save_on_create' ], 10, 2 );
 		add_action( 'edited_'  . self::TAX_SECTION, [ __CLASS__, 'save_on_edit' ],   10, 2 );
 	}
 
-	/* ===== Columns ===== */
+	/* ================= Columns ================= */
 
 	public static function columns( $cols ) {
+		// Insert our Menu column after the Name column
 		$new = [];
 		foreach ( $cols as $k => $v ) {
 			$new[ $k ] = $v;
-			if ( 'name' === $k ) $new['jprm_menu'] = __( 'Menu', 'jprm' );
+			if ( 'name' === $k ) {
+				$new['jprm_menu'] = __( 'Menu', 'jprm' );
+			}
 		}
-		if ( ! isset( $new['jprm_menu'] ) ) $new['jprm_menu'] = __( 'Menu', 'jprm' );
-		if ( isset( $new['slug'] ) ) unset( $new['slug'] ); // optional cleanup
+		if ( ! isset( $new['jprm_menu'] ) ) {
+			$new['jprm_menu'] = __( 'Menu', 'jprm' );
+		}
+		// Optional clean-up: remove “Slug” column if you don’t want it
+		if ( isset( $new['slug'] ) ) unset( $new['slug'] );
 		return $new;
 	}
 
-	public static function column_content( $out, $col, $term_id ) {
-		if ( 'jprm_menu' !== $col ) return $out;
+	/**
+	 * IMPORTANT: this is an ACTION on term rows; we must echo content.
+	 */
+	public static function print_column( $out, $column_name, $term_id ) {
+		if ( 'jprm_menu' !== $column_name ) {
+			return;
+		}
 		$owner = (int) get_term_meta( $term_id, self::META_MENU_OWNER, true );
-		if ( ! $owner ) return '—';
+		if ( ! $owner ) {
+			echo '—';
+			return;
+		}
 		$menu = get_term( $owner, self::TAX_MENU );
-		return $menu && ! is_wp_error( $menu ) ? esc_html( $menu->name ) : '—';
+		echo ( $menu && ! is_wp_error( $menu ) ) ? esc_html( $menu->name ) : '—';
 	}
 
-	/* ===== Filter ===== */
+	/* ================= Filter UI ================= */
 
-	public static function filter_dropdown( $post_type ) {
-		$screen = get_current_screen();
-		if ( ! $screen || $screen->taxonomy !== self::TAX_SECTION ) return;
+	/**
+	 * Renders the “Filter by Menu” dropdown on the Sections terms screen.
+	 * Hook: manage_terms_extra_tablenav ($which = 'top' or 'bottom')
+	 */
+	public static function filter_dropdown( $which ) : void {
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		if ( ! $screen || empty( $screen->taxonomy ) || $screen->taxonomy !== self::TAX_SECTION ) {
+			return;
+		}
+		// Show only on the TOP toolbar
+		if ( $which !== 'top' ) return;
 
-		$sel = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
+		$sel   = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
 		$menus = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false ] );
 
-		echo '<label for="jprm_filter_menu" class="screen-reader-text">' . esc_html__( 'Filter by Menu', 'jprm' ) . '</label>';
+		echo '<div class="alignleft actions">';
+		echo '<label class="screen-reader-text" for="jprm_filter_menu">' . esc_html__( 'Filter by Menu', 'jprm' ) . '</label>';
 		echo '<select name="jprm_filter_menu" id="jprm_filter_menu" class="postform">';
 		echo '<option value="0">' . esc_html__( 'All Menus', 'jprm' ) . '</option>';
-		if ( ! is_wp_error( $menus ) ) foreach ( $menus as $m ) {
-			printf( '<option value="%d"%s>%s</option>',
-				(int) $m->term_id,
-				selected( $sel, (int) $m->term_id, false ),
-				esc_html( $m->name )
-			);
+		if ( ! is_wp_error( $menus ) ) {
+			foreach ( $menus as $m ) {
+				printf(
+					'<option value="%d"%s>%s</option>',
+					(int) $m->term_id,
+					selected( $sel, (int) $m->term_id, false ),
+					esc_html( $m->name )
+				);
+			}
 		}
 		echo '</select>';
+		submit_button( __( 'Filter' ), 'secondary', 'filter_action', false ); // adds a Filter button
+		echo '</div>';
 	}
 
+	/**
+	 * Applies the selected Menu filter to get_terms() on the Sections list screen.
+	 * Hook: get_terms_args
+	 */
 	public static function apply_filter( $args, $taxonomies ) {
-		if ( ! is_admin() ) return $args;
-		if ( empty( $_GET['taxonomy'] ) || $_GET['taxonomy'] !== self::TAX_SECTION ) return $args; // phpcs:ignore
-		$menu_id = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0;       // phpcs:ignore
-		if ( $menu_id > 0 && in_array( self::TAX_SECTION, (array) $taxonomies, true ) ) {
-			$args['meta_query'][] = [ 'key' => self::META_MENU_OWNER, 'value' => (string) $menu_id ];
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		if ( ! $screen || empty( $screen->taxonomy ) || $screen->taxonomy !== self::TAX_SECTION ) {
+			return $args;
+		}
+		if ( ! in_array( self::TAX_SECTION, (array) $taxonomies, true ) ) {
+			return $args;
+		}
+
+		$menu_id = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
+		if ( $menu_id > 0 ) {
+			$args['meta_query'][] = [
+				'key'   => self::META_MENU_OWNER,
+				'value' => (string) $menu_id,
+			];
 		}
 		return $args;
 	}
 
-	/* ===== Add/Edit fields ===== */
+	/* ================= Add/Edit fields ================= */
 
 	public static function add_field() {
 		$menus = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false ] );
@@ -102,8 +144,9 @@ class Sections_Admin {
 		$menus   = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false ] );
 		$current = (int) get_term_meta( $term->term_id, self::META_MENU_OWNER, true );
 		$parent  = (int) $term->parent;
-		$hint    = $parent ? __( 'Owner usually inherits from parent; changing it cascades to children.', 'jprm' )
-		                   : __( 'Choose the menu that owns this section.', 'jprm' );
+		$hint    = $parent
+			? __( 'Owner usually inherits from parent; changing it cascades to children.', 'jprm' )
+			: __( 'Choose the menu that owns this section.', 'jprm' );
 		?>
 		<tr class="form-field term-owner-wrap">
 			<th scope="row"><label for="jprm_owner_menu"><?php esc_html_e( 'Owner Menu', 'jprm' ); ?></label></th>
@@ -122,7 +165,7 @@ class Sections_Admin {
 		<?php
 	}
 
-	/* ===== Save & cascade ===== */
+	/* ================= Save & cascade ================= */
 
 	public static function save_on_create( $term_id, $tt_id ) {
 		$owner = isset( $_POST['jprm_owner_menu'] ) ? (int) $_POST['jprm_owner_menu'] : 0; // phpcs:ignore
@@ -138,12 +181,13 @@ class Sections_Admin {
 	}
 
 	public static function save_on_edit( $term_id, $tt_id ) {
-		$term  = get_term( $term_id, self::TAX_SECTION );
+		$term = get_term( $term_id, self::TAX_SECTION );
 		if ( ! $term || is_wp_error( $term ) ) return;
 
 		$chosen = isset( $_POST['jprm_owner_menu'] ) ? (int) $_POST['jprm_owner_menu'] : 0; // phpcs:ignore
 		$final  = $chosen;
 
+		// If parent exists, force inheritance
 		if ( $term->parent ) {
 			$po = (int) get_term_meta( $term->parent, self::META_MENU_OWNER, true );
 			if ( $po ) $final = $po;
@@ -157,8 +201,13 @@ class Sections_Admin {
 	}
 
 	private static function cascade_children( int $parent_id, int $owner_menu_id ) : void {
-		$children = get_terms( [ 'taxonomy' => self::TAX_SECTION, 'parent' => $parent_id, 'hide_empty' => false ] );
+		$children = get_terms( [
+			'taxonomy'   => self::TAX_SECTION,
+			'parent'     => $parent_id,
+			'hide_empty' => false,
+		] );
 		if ( is_wp_error( $children ) || empty( $children ) ) return;
+
 		foreach ( $children as $child ) {
 			if ( (int) get_term_meta( $child->term_id, self::META_MENU_OWNER, true ) !== $owner_menu_id ) {
 				update_term_meta( $child->term_id, self::META_MENU_OWNER, $owner_menu_id );
