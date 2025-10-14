@@ -14,11 +14,11 @@ class Sections_Admin {
 		add_filter( 'manage_edit-' . self::TAX_SECTION . '_columns', [ __CLASS__, 'columns' ] );
 		add_action( 'manage_' . self::TAX_SECTION . '_custom_column', [ __CLASS__, 'print_column' ], 10, 3 );
 
-		// Filter UI + apply
-		add_action( 'manage_terms_extra_tablenav', [ __CLASS__, 'filter_dropdown' ], 10, 2 );
+		// Filter UI (correct hook signature: 1 arg)
+		add_action( 'manage_terms_extra_tablenav', [ __CLASS__, 'filter_dropdown' ], 10, 1 );
 		add_action( 'pre_get_terms', [ __CLASS__, 'apply_filter' ] );
 
-		// Add/Edit fields (Owner Menu selector)
+		// Add/Edit form fields (Owner Menu selector)
 		add_action( self::TAX_SECTION . '_add_form_fields',  [ __CLASS__, 'add_field' ] );
 		add_action( self::TAX_SECTION . '_edit_form_fields', [ __CLASS__, 'edit_field' ], 10, 2 );
 
@@ -26,7 +26,7 @@ class Sections_Admin {
 		add_action( 'created_' . self::TAX_SECTION, [ __CLASS__, 'save_on_create' ], 10, 2 );
 		add_action( 'edited_'  . self::TAX_SECTION, [ __CLASS__, 'save_on_edit' ],   10, 2 );
 
-		// UI polish (hide slug, rename labels, move owner field)
+		// UI polish (hide slug, rename labels, move Owner field to very top on add form)
 		add_action( 'admin_head-edit-tags.php', [ __CLASS__, 'inject_admin_css_js' ] );
 	}
 
@@ -39,7 +39,7 @@ class Sections_Admin {
 			if ( 'name' === $k ) $new['jprm_menu'] = __( 'Menu', 'jprm' );
 		}
 		if ( ! isset( $new['jprm_menu'] ) ) $new['jprm_menu'] = __( 'Menu', 'jprm' );
-		// Optional cleanup
+		// Optional: remove “Slug”
 		if ( isset( $new['slug'] ) ) unset( $new['slug'] );
 		return $new;
 	}
@@ -56,18 +56,20 @@ class Sections_Admin {
 	/* ================= Filter UI ================= */
 
 	/**
-	 * Render “Filter by Menu” on the Sections terms toolbar.
-	 * Hook passes $which ('top'|'bottom') and $taxonomy.
+	 * Render “Filter by Menu” on Sections toolbar.
+	 * Hook provides only $which ('top'|'bottom'), so read taxonomy from the query.
 	 */
-	public static function filter_dropdown( $which, $taxonomy ) : void {
-		if ( $taxonomy !== self::TAX_SECTION || $which !== 'top' ) return;
+	public static function filter_dropdown( $which ) : void {
+		if ( $which !== 'top' ) return;
+
+		$taxonomy = isset( $_GET['taxonomy'] ) ? sanitize_key( $_GET['taxonomy'] ) : ''; // phpcs:ignore
+		if ( $taxonomy !== self::TAX_SECTION ) return;
 
 		$selected = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
 
 		echo '<div class="alignleft actions jprm-sections-filter">';
 		echo '<label class="screen-reader-text" for="jprm_filter_menu">' . esc_html__( 'Filter by Menu', 'jprm' ) . '</label>';
 
-		// Use wp_dropdown_categories for robust population
 		wp_dropdown_categories( [
 			'show_option_all' => __( 'All Menus', 'jprm' ),
 			'orderby'         => 'name',
@@ -206,58 +208,40 @@ class Sections_Admin {
 			/* Hide Slug on add + edit */
 			.taxonomy-<?php echo esc_attr( self::TAX_SECTION ); ?> .form-field.term-slug-wrap,
 			.taxonomy-<?php echo esc_attr( self::TAX_SECTION ); ?> .term-slug-wrap { display:none !important; }
-			/* Tighten list table a bit */
-			.taxonomy-<?php echo esc_attr( self::TAX_SECTION ); ?> .wp-list-table .column-description { width:30%; }
-			.taxonomy-<?php echo esc_attr( self::TAX_SECTION ); ?> .wp-list-table .column-jprm_menu { width:20%; }
 		</style>
 		<script>
 		(function(){
-			function renameAddBox(){
-				// Left add box header: ".wrap .form-wrap > h2" (older) or ".tag-add-form h2" (newer)
+			function moveOwnerToTopInAddForm(){
+				var addForm = document.getElementById('addtag');
+				if (!addForm) return;
+				var owner = addForm.querySelector('.form-field.term-owner-wrap');
+				var nameWrap = addForm.querySelector('.form-field.term-name-wrap');
+				if (owner && nameWrap && owner !== nameWrap.previousElementSibling) {
+					nameWrap.parentNode.insertBefore(owner, nameWrap); // -> Owner Menu FIRST
+				}
+			}
+			function renameLabels(){
+				// Left header: "Add Category" -> "Add Section"
 				var hdr = document.querySelector('.wrap .form-wrap > h2') || document.querySelector('.tag-add-form h2');
-				if (hdr && /Add\s+Category/i.test(hdr.textContent)) hdr.textContent = 'Add Section';
+				if (hdr) hdr.textContent = 'Add Section';
 
-				// Parent Category -> Parent Section (add form)
-				var parentAdd = document.querySelector('.form-field.term-parent-wrap > label');
+				// Parent label (add form)
+				var parentAdd = document.querySelector('#addtag .form-field.term-parent-wrap > label');
 				if (parentAdd) parentAdd.textContent = 'Parent Section';
 
-				// Move Owner Menu above Description (add)
-				var ownerAdd = document.querySelector('.form-field.term-owner-wrap');
-				var descAdd  = document.querySelector('.form-field.term-description-wrap');
-				if (ownerAdd && descAdd && ownerAdd.previousElementSibling !== descAdd) {
-					descAdd.parentNode.insertBefore(ownerAdd, descAdd);
-				}
-			}
-			function renameEditForm(){
-				var form = document.querySelector('.edit-tag-form');
-				if (!form) return;
+				// Parent label (edit form)
+				var parentEdit = document.querySelector('.edit-tag-form .form-field.term-parent-wrap th label');
+				if (parentEdit) parentEdit.textContent = 'Parent Section';
 
-				// Parent Category -> Parent Section (edit form)
-				var lbl = form.querySelector('.form-field.term-parent-wrap th label');
-				if (lbl) lbl.textContent = 'Parent Section';
-
-				// Move Owner Menu above Description (edit)
-				var owner = form.querySelector('.form-field.term-owner-wrap');
-				var desc  = form.querySelector('.form-field.term-description-wrap');
-				if (owner && desc && owner.previousElementSibling !== desc) {
-					desc.parentNode.insertBefore(owner, desc);
-				}
-			}
-			function renameSearch(){
-				// "Search Categories" -> "Search Sections"
-				var label = document.querySelector('label[for="tag-search-input"]');
-				if (label && /Search\s+Categories/i.test(label.textContent)) {
-					label.textContent = 'Search Sections:';
-				}
+				// Search label / placeholder
+				var srch = document.querySelector('label[for="tag-search-input"]');
+				if (srch) srch.textContent = 'Search Sections:';
 				var inp = document.getElementById('tag-search-input');
-				if (inp && (!inp.placeholder || /Categories/i.test(inp.placeholder))) {
-					inp.placeholder = 'Search Sections';
-				}
+				if (inp) inp.placeholder = 'Search Sections';
 			}
 			document.addEventListener('DOMContentLoaded', function(){
-				renameAddBox();
-				renameEditForm();
-				renameSearch();
+				moveOwnerToTopInAddForm();
+				renameLabels();
 			});
 		})();
 		</script>
