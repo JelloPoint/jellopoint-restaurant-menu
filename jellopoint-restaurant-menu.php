@@ -61,6 +61,10 @@ require_once JPRM_PLUGIN_PATH . 'includes/rest/class-jprm-menu-builder-controlle
 require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-menu-item-list.php';
 \JelloPoint\RestaurantMenu\Admin\Menu_Item_List::init();
 
+// Sections admin polish (Menu column, filter, owner select + cascade)
+require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-sections-admin.php';
+\JelloPoint\RestaurantMenu\Admin\Sections_Admin::init();
+
 // Register routes for ALL contexts (front + admin).
 add_action( 'rest_api_init', function () {
     // Sanity: if class isn’t loaded, bail early (prevents fatal).

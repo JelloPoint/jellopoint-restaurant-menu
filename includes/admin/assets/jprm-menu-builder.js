@@ -5,6 +5,18 @@
   const state = { menus:[], sections:[], items:[], unassigned:[], currentMenu:null };
   const INDENT = 28, MAX_DEPTH = 6;
   let drag = null;
+
+  function toast(msg){ window.alert(msg); } // simple + reliable
+
+  function apiFailToMessage(xhr){
+    try {
+      const j = xhr && xhr.responseJSON ? xhr.responseJSON : null;
+      if (j && j.code === 'jprm_cross_menu') return 'That action is blocked: sections/items cannot move across different Menus.';
+      if (j && j.message) return j.message;
+    } catch(e){}
+    return 'Unknown error';
+  }
+
   function setLoading(on){ $('#jprm-loading')[on?'show':'hide'](); }
 
   function loadMenus(){
@@ -201,9 +213,12 @@
       if(!confirm('Unassign this section from the menu?')) return;
       setLoading(true);
       apiPost('menu-builder/section/unassign',{menu_id:state.currentMenu,section_id:sectionId})
-        .done(()=> chainLoadAndRender(true)).fail(x=>alert('Unassign failed: '+(x.responseJSON?.message||'Unknown error'))).always(()=>setLoading(false));
+        .done(()=> chainLoadAndRender(true))
+        .fail(x=>toast(apiFailToMessage(x)))
+        .always(()=>setLoading(false));
     }
   });
+
   $(document).on('click','.is-item .jprm-act',function(e){
     e.preventDefault();
     const id=parseInt($(this).closest('li.is-item').attr('data-id'),10); if(!id) return;
@@ -211,7 +226,9 @@
       if(!confirm('Remove this item from its section?')) return;
       setLoading(true);
       apiPost('menu-builder/item/unassign',{id})
-        .done(()=> chainLoadAndRender(false)).fail(x=>alert('Unassign failed: '+(x.responseJSON?.message||'Unknown error'))).always(()=>setLoading(false));
+        .done(()=> chainLoadAndRender(false))
+        .fail(x=>toast(apiFailToMessage(x)))
+        .always(()=>setLoading(false));
     }
   });
 
@@ -224,17 +241,18 @@
 
   $('#jprm-add-section').on('click',function(){
     const title=$('#jprm-new-section-title').val().trim();
-    if(!title) return alert('Please enter a section title.');
-    if(!state.currentMenu) return alert('Select a Menu first.');
+    if(!title) return toast('Please enter a section title.');
+    if(!state.currentMenu) return toast('Select a Menu first.');
     setLoading(true);
     apiPost('menu-builder/section',{name:title,parent:0,menu_id:state.currentMenu})
       .done(()=>{ $('#jprm-new-section-title').val(''); chainLoadAndRender(true); })
-      .fail(x=>alert('Could not create section: '+(x.responseJSON?.message||'Unknown error')))
+      .fail(x=>toast(apiFailToMessage(x)))
       .always(()=>setLoading(false));
   });
 
   $('#jprm-save').on('click',function(){
-    if(!state.currentMenu) return alert('Select a Menu first.');
+    if(!state.currentMenu) return toast('Select a Menu first.');
+
     const tree=(function(){
       const stack=[], out=[];
       $('#jprm-tree > li.jprm-section').each(function(idx){
@@ -243,6 +261,7 @@
       });
       return out;
     })();
+
     const itemsPayload=(function(){
       const arr=[]; let currentSectionId=0, order=-1;
       $('#jprm-tree > li.jprm-item').each(function(){
@@ -257,20 +276,20 @@
     apiPost('menu-builder/sections/order',{tree,menu_id:state.currentMenu})
       .then(()=>apiPost('menu-builder/items/order',{menu_id:state.currentMenu,items:itemsPayload}))
       .then(()=>chainLoadAndRender(true))
-      .fail(x=>alert('Save failed: '+(x.responseJSON?.message||'Unknown error')))
+      .fail(x=>toast(apiFailToMessage(x)))
       .always(()=>setLoading(false));
   });
 
   $(document).on('change','#jprm-unassigned-all',function(){ $('#jprm-unassigned-list input[type="checkbox"]').prop('checked', $(this).is(':checked')); });
   $('#jprm-assign-item').on('click',function(){
-    if(!state.currentMenu) return alert('Select a Menu first.');
+    if(!state.currentMenu) return toast('Select a Menu first.');
     const secId=parseInt($('#jprm-item-target-section').val(),10)||0;
     const ids=$('#jprm-unassigned-list input[type="checkbox"]:checked').map(function(){return parseInt($(this).attr('data-id'),10);}).get();
-    if(!secId||!ids.length) return alert('Choose a section and at least one item.');
+    if(!secId||!ids.length) return toast('Choose a section and at least one item.');
     setLoading(true);
     apiPost('menu-builder/item/assign-batch',{menu_id:state.currentMenu,section_id:secId,ids})
       .done(()=>chainLoadAndRender(false))
-      .fail(x=>alert('Could not assign items: '+(x.responseJSON?.message||'Unknown error')))
+      .fail(x=>toast(apiFailToMessage(x)))
       .always(()=>setLoading(false));
   });
 
