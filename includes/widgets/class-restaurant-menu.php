@@ -2,10 +2,8 @@
 /**
  * Elementor Widget: JelloPoint Restaurant Menu
  *
- * NOTE: This is a clean drop-in that preserves existing behaviour and control IDs.
- * - Dynamic vs Static source modes are unchanged.
- * - DOM/CSS classes are unchanged.
- * - Meta/option names are unchanged (jprm_desc, jprm_price, jprm_price_labels_v2).
+ * Clean drop-in (fixed) — avoids clashing with Elementor\Controls_Stack::render_static()
+ * by renaming our internal static-mode renderer to render_static_mode().
  *
  * @package JelloPoint\RestaurantMenu
  */
@@ -88,9 +86,9 @@ final class Restaurant_Menu extends Widget_Base {
 				$id   = isset( $row['id'] ) ? (string) $row['id'] : '';
 				$slug = isset( $row['slug'] ) ? (string) $row['slug'] : '';
 				if ( $id || $slug ) {
-					$key_id          = $id ? 'id:' . $id : null;
-					$key_slug        = $slug ? 'slug:' . $slug : null;
-					$normalized_row  = [
+					$key_id         = $id ? 'id:' . $id : null;
+					$key_slug       = $slug ? 'slug:' . $slug : null;
+					$normalized_row = [
 						'id'      => $id,
 						'slug'    => $slug,
 						'name'    => isset( $row['name'] ) ? (string) $row['name'] : '',
@@ -405,7 +403,7 @@ final class Restaurant_Menu extends Widget_Base {
 
 		// Legacy: if items are present and no explicit mode, render static.
 		if ( 'static' === $mode || ( null === $mode && ! empty( $settings['items'] ) ) ) {
-			$this->render_static( $settings );
+			$this->render_static_mode( $settings );
 			return;
 		}
 
@@ -413,11 +411,14 @@ final class Restaurant_Menu extends Widget_Base {
 		$this->render_dynamic( $settings );
 	}
 
-	/** Render Static list (repeater) */
-	protected function render_static( array $settings ) : void {
-		$items            = isset( $settings['items'] ) && is_array( $settings['items'] ) ? $settings['items'] : [];
-		$presentation     = isset( $settings['label_presentation'] ) ? (string) $settings['label_presentation'] : 'icon';
-		$label_pos        = isset( $settings['label_position'] ) ? (string) $settings['label_position'] : 'left';
+	/** Render Static list (repeater) — renamed to avoid Elementor method clash */
+	protected function render_static_mode( array $settings ) : void {
+		$items        = isset( $settings['items'] ) && is_array( $settings['items'] ) ? $settings['items'] : [];
+		// Keep these to preserve DOM shape if/when labels are added to static later.
+		$presentation = isset( $settings['label_presentation'] ) ? (string) $settings['label_presentation'] : 'icon';
+		$label_pos    = isset( $settings['label_position'] ) ? (string) $settings['label_position'] : 'left';
+		(void) $presentation;
+		(void) $label_pos;
 
 		if ( empty( $items ) ) {
 			echo '<div class="jp-menu jp-menu--empty">' . esc_html__( 'No items defined.', 'jellopoint-restaurant-menu' ) . '</div>';
@@ -441,7 +442,7 @@ final class Restaurant_Menu extends Widget_Base {
 			}
 
 			if ( '' !== $price ) {
-				// Static items have no labels; keep DOM shape consistent.
+				// Static items have no labels today; keep DOM shape consistent.
 				$value_html = '<span class="jp-menu__value jp-col-price">' . esc_html( $price ) . '</span>';
 				echo '<div class="jp-menu__price">' . $value_html . '</div>';
 			}
