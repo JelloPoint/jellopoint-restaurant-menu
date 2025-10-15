@@ -140,8 +140,13 @@ class Items_List_Filters {
 		if ( ! $screen || $screen->post_type !== self::CPT_ITEM ) return;
 
 		$handle = 'jprm-items-list';
-		$src    = plugins_url( 'includes/admin/assets/jprm-items-list.js', dirname( __FILE__ ) ); // points to includes/admin/assets/…
-		wp_enqueue_script( $handle, $src, [ 'wp-api-fetch' ], JPRM_PLUGIN_VERSION ?? false, true );
+
+		// URL to includes/admin/assets/jprm-items-list.js
+		$src_dir  = plugin_dir_path( __FILE__ ) . 'assets/jprm-items-list.js';
+		$src_url  = plugin_dir_url( __FILE__ ) . 'assets/jprm-items-list.js';
+		$version  = file_exists( $src_dir ) ? filemtime( $src_dir ) : false;
+
+		wp_enqueue_script( $handle, $src_url, [], $version, true );
 
 		wp_localize_script( $handle, 'JPRM_ITEMS', [
 			'rest' => [
