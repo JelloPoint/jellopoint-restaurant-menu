@@ -7,14 +7,12 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * Lightweight UI tweaks for the jprm_section taxonomy:
  * - List page: "Add Section" button text
  * - Edit page: hide Slug, "Edit Section" heading, "Parent Section" label
- * (non-destructive; only CSS/JS in admin)
  */
 class Sections_UX {
 
 	const TAX = 'jprm_section';
 
 	public static function init() : void {
-		// Inject on both list/add (edit-tags.php) and single edit (term.php)
 		add_action( 'admin_head-edit-tags.php', [ __CLASS__, 'inject_css_js' ] );
 		add_action( 'admin_head-term.php',      [ __CLASS__, 'inject_css_js' ] );
 	}
@@ -31,11 +29,11 @@ class Sections_UX {
 		<script>
 		(function(){
 			function ready(fn){ if(document.readyState!=='loading'){fn();} else {document.addEventListener('DOMContentLoaded',fn);} }
+			function isSectionScreen(){ return document.body.classList.contains('taxonomy-<?php echo esc_js(self::TAX); ?>'); }
 
 			function tweakListPage(){
-				if (!document.body.classList.contains('taxonomy-<?php echo esc_js(self::TAX); ?>')) return;
-
-				// Left add box submit button text -> "Add Section"
+				if (!isSectionScreen()) return;
+				// Left add box submit button -> "Add Section"
 				var addSubmit = document.querySelector('#addtag input#submit, #addtag button#submit, .tag-add-form input[type="submit"], .tag-add-form button[type="submit"]');
 				if (addSubmit) {
 					if (addSubmit.tagName === 'INPUT') addSubmit.value = 'Add Section';
@@ -45,17 +43,39 @@ class Sections_UX {
 			}
 
 			function tweakEditPage(){
-				if (!document.body.classList.contains('taxonomy-<?php echo esc_js(self::TAX); ?>')) return;
+				if (!isSectionScreen()) return;
 
-				// Change "Edit Category" heading -> "Edit Section" (term.php)
+				// H1: "Edit Category" -> "Edit Section" (best-effort; if not present, leave as-is)
 				var h1 = document.querySelector('.wrap > h1');
-				if (h1 && /Edit\s+Category/i.test(h1.textContent)) {
-					h1.textContent = h1.textContent.replace(/Edit\s+Category/i, 'Edit Section');
+				if (h1 && /Category/i.test(h1.textContent)) {
+					h1.textContent = h1.textContent.replace(/Category/gi, 'Section');
 				}
 
-				// Parent Category -> Parent Section
-				var parentLabel = document.querySelector('.edit-tag-form .form-field.term-parent-wrap th label');
-				if (parentLabel) parentLabel.textContent = 'Parent Section';
+				// Robustly rename Parent label to "Parent Section" on term.php.
+				// Different WP versions / themes render the label in different places.
+				var candidates = [
+					// Classic table layout
+					'.edit-tag-form .form-field.term-parent-wrap th label',
+					// Sometimes the label is a div/label combo
+					'.edit-tag-form .form-field.term-parent-wrap label',
+					// Fallback: any label inside the parent wrap
+					'.term-parent-wrap label'
+				];
+				var renamed = false;
+				for (var i=0; i<candidates.length; i++) {
+					var el = document.querySelector(candidates[i]);
+					if (el) {
+						el.textContent = 'Parent Section';
+						renamed = true;
+					}
+				}
+
+				// Also adjust any ARIA / title attributes that might show tooltips/help
+				var parentSelect = document.querySelector('.term-parent-wrap select');
+				if (parentSelect) {
+					parentSelect.setAttribute('aria-label', 'Parent Section');
+					parentSelect.setAttribute('title', 'Parent Section');
+				}
 			}
 
 			ready(function(){
