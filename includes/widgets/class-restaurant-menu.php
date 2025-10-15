@@ -2,8 +2,9 @@
 /**
  * Elementor Widget: JelloPoint Restaurant Menu
  *
- * Clean drop-in (fixed) — avoids clashing with Elementor\Controls_Stack::render_static()
- * by renaming our internal static-mode renderer to render_static_mode().
+ * Drop-in: restores label/icon rendering + stable DOM wrappers for CSS,
+ * keeps Dynamic/Static behaviour and control IDs unchanged, and avoids
+ * clashing with Elementor\Controls_Stack::render_static().
  *
  * @package JelloPoint\RestaurantMenu
  */
@@ -41,14 +42,16 @@ final class Restaurant_Menu extends Widget_Base {
 	}
 
 	public function get_style_depends() {
-		// Make sure 'jprm-menu' is registered by the plugin bootstrap.
 		return [ 'jprm-menu' ];
 	}
 
 	public function get_script_depends() {
-		// Intentionally empty for now; ready for future JS needs.
 		return [];
 	}
+
+	/* ---------------------------
+	 *  Helpers
+	 * --------------------------- */
 
 	/** Build a select list of terms for a taxonomy (id => name) */
 	protected function get_terms_options( string $taxonomy ) : array {
@@ -69,91 +72,141 @@ final class Restaurant_Menu extends Widget_Base {
 		return $out;
 	}
 
-	/** Read saved price labels (option jprm_price_labels_v2) and map by both id and slug */
+	/**
+	 * Read saved price labels (option jprm_price_labels_v2) and map by both id and slug.
+	 * Be liberal with keys: support legacy shapes (icon, iconId, attachment_id).
+	 */
 	protected function build_label_map() : array {
 		$map     = [];
 		$raw_opt = get_option( 'jprm_price_labels_v2' );
+
 		if ( is_array( $raw_opt ) ) {
 			foreach ( $raw_opt as $row ) {
+				if ( ! is_array( $row ) ) {
+					continue;
+				}
 				$id   = isset( $row['id'] ) ? (string) $row['id'] : '';
 				$slug = isset( $row['slug'] ) ? (string) $row['slug'] : '';
-				if ( $id || $slug ) {
-					$key_id         = $id ? 'id:' . $id : null;
-					$key_slug       = $slug ? 'slug:' . $slug : null;
-					$normalized_row = [
-						'id'      => $id,
-						'slug'    => $slug,
-						'name'    => isset( $row['name'] ) ? (string) $row['name'] : '',
-						'icon_id' => isset( $row['icon_id'] ) ? (int) $row['icon_id'] : 0,
-					];
-					if ( $key_id ) {
-						$map[ $key_id ] = $normalized_row;
+
+				// Name.
+				$name = '';
+				if ( isset( $row['name'] ) ) {
+					$name = (string) $row['name'];
+				} elseif ( isset( $row['label'] ) ) {
+					$name = (string) $row['label'];
+				}
+
+				// Icon id (accept various legacy keys).
+				$icon_id = 0;
+				foreach ( [ 'icon_id', 'iconId', 'icon', 'attachment_id', 'attachmentId' ] as $k ) {
+					if ( isset( $row[ $k ] ) && (int) $row[ $k ] > 0 ) {
+						$icon_id = (int) $row[ $k ];
+						break;
 					}
-					if ( $key_slug ) {
-						$map[ $key_slug ] = $normalized_row;
-					}
+				}
+
+				if ( ! $id && ! $slug ) {
+					continue;
+				}
+
+				$normalized = [
+					'id'      => $id,
+					'slug'    => $slug,
+					'name'    => $name,
+					'icon_id' => $icon_id,
+				];
+
+				if ( $id ) {
+					$map[ 'id:' . $id ] = $normalized;
+				}
+				if ( $slug ) {
+					$map[ 'slug:' . $slug ] = $normalized;
 				}
 			}
 		}
+
 		return $map;
 	}
 
-	/** Find a label row by flexible ref (id or slug) */
+	/**
+	 * Find a label row by flexible ref (accept: ['type'=>'id'|'slug','value'=>..], raw int id, numeric-string id, or slug).
+	 */
 	protected function resolve_label_ref( array $label_map, $ref ) : ?array {
+		// Structured ref: ['type' => 'id'|'slug', 'value' => '...'].
 		if ( is_array( $ref ) && isset( $ref['type'], $ref['value'] ) ) {
 			$type = (string) $ref['type'];
 			$val  = (string) $ref['value'];
 			$key  = ( 'id' === $type ? 'id:' . $val : 'slug:' . $val );
 			return $label_map[ $key ] ?? null;
 		}
-		if ( is_string( $ref ) && '' !== $ref ) {
-			// Try slug first, then id.
-			return $label_map[ 'slug:' . $ref ] ?? ( $label_map[ 'id:' . $ref ] ?? null );
+
+		// Plain integer (id).
+		if ( is_int( $ref ) ) {
+			return $label_map[ 'id:' . (string) $ref ] ?? null;
 		}
+
+		// String: maybe numeric id, else slug.
+		if ( is_string( $ref ) && $ref !== '' ) {
+			if ( ctype_digit( $ref ) ) {
+				return $label_map[ 'id:' . $ref ] ?? null;
+			}
+			return $label_map[ 'slug:' . $ref ] ?? null;
+		}
+
 		return null;
 	}
 
 	/** Render a label (icon/text/both) */
 	protected function render_label_html( array $label, string $presentation ) : string {
-		$name    = isset( $label['name'] ) ? $label['name'] : '';
+		$name    = isset( $label['name'] ) ? (string) $label['name'] : '';
 		$icon_id = isset( $label['icon_id'] ) ? (int) $label['icon_id'] : 0;
 
 		$parts = [];
-		if ( 'icon' === $presentation || 'both' === $presentation ) {
-			if ( $icon_id ) {
-				$img = wp_get_attachment_image( $icon_id, 'thumbnail', false, [ 'class' => 'jp-label__icon' ] );
-				if ( $img ) {
-					$parts[] = $img;
-				}
+		if ( ( 'icon' === $presentation || 'both' === $presentation ) && $icon_id ) {
+			$img = wp_get_attachment_image( $icon_id, 'thumbnail', false, [ 'class' => 'jp-label__icon' ] );
+			if ( $img ) {
+				$parts[] = $img;
 			}
 		}
-		if ( 'text' === $presentation || 'both' === $presentation ) {
-			if ( '' !== $name ) {
-				$parts[] = '<span class="jp-label__text">' . esc_html( $name ) . '</span>';
-			}
+		if ( ( 'text' === $presentation || 'both' === $presentation ) && $name !== '' ) {
+			$parts[] = '<span class="jp-label__text">' . esc_html( $name ) . '</span>';
 		}
+
 		if ( empty( $parts ) ) {
 			return '';
 		}
-		return '<span class="jp-label">' . implode( '', $parts ) . '</span>';
+		return implode( '', $parts );
 	}
 
-	/** Render a price value with optional label on left/right */
+	/**
+	 * Render a price value with optional label on left/right.
+	 * DOM structure designed to match legacy CSS expectations.
+	 */
 	protected function render_price_value( string $price, ?array $label, string $presentation, string $label_pos ) : string {
-		$label_html = $label ? $this->render_label_html( $label, $presentation ) : '';
-		$value_html = '<span class="jp-menu__value jp-col-price">' . esc_html( $price ) . '</span>';
-		if ( $label_html ) {
+		$label_inner = $label ? $this->render_label_html( $label, $presentation ) : '';
+		$value_html  = '<span class="jp-menu__value jp-col-price">' . esc_html( $price ) . '</span>';
+
+		$left  = '';
+		$right = '';
+
+		if ( $label_inner ) {
 			if ( 'left' === $label_pos ) {
-				return '<div class="jp-menu__price">' . $label_html . $value_html . '</div>';
+				$left = '<span class="jp-label jp-label--left">' . $label_inner . '</span>';
+			} else {
+				$right = '<span class="jp-label jp-label--right">' . $label_inner . '</span>';
 			}
-			return '<div class="jp-menu__price">' . $value_html . $label_html . '</div>';
 		}
-		return '<div class="jp-menu__price">' . $value_html . '</div>';
+
+		return '<div class="jp-menu__price">' . $left . $value_html . $right . '</div>';
 	}
 
-	/** Render the price block for a single item from stored meta (single or multi) */
+	/**
+	 * Render the price block from stored meta (supports legacy shapes):
+	 * - Single: { type:'single', price:'...', label:'slug' | '12' | {type,value} | label_id | label_slug }
+	 * - Multi:  { type:'multi', rows:[ { price:'...', label:... | label_id | label_slug }, ... ] }
+	 */
 	protected function render_price_block_from_meta( $prices_meta, array $label_map, string $presentation, string $label_pos ) : string {
-		// $prices_meta can be JSON string or structured array.
+		// $prices_meta can be JSON or structured array.
 		if ( is_string( $prices_meta ) && $prices_meta ) {
 			$decoded = json_decode( $prices_meta, true );
 			if ( is_array( $decoded ) ) {
@@ -166,11 +219,26 @@ final class Restaurant_Menu extends Widget_Base {
 
 		$type = isset( $prices_meta['type'] ) ? (string) $prices_meta['type'] : 'single';
 
+		// Helper to extract a label "ref" from various keys (label / label_id / label_slug).
+		$extract_ref = function( array $row ) {
+			if ( isset( $row['label'] ) ) {
+				return $row['label'];
+			}
+			if ( isset( $row['label_id'] ) ) {
+				return $row['label_id']; // numeric or string id.
+			}
+			if ( isset( $row['label_slug'] ) ) {
+				return $row['label_slug']; // slug string.
+			}
+			return null;
+		};
+
 		$html = '';
 
 		if ( 'single' === $type ) {
 			$price = isset( $prices_meta['price'] ) ? (string) $prices_meta['price'] : '';
-			$lab   = isset( $prices_meta['label'] ) ? $prices_meta['label'] : null; // slug/id or ref-array.
+			$lab   = $extract_ref( $prices_meta );
+
 			$lab_r = $this->resolve_label_ref( $label_map, $lab );
 
 			if ( '' !== $price ) {
@@ -181,13 +249,17 @@ final class Restaurant_Menu extends Widget_Base {
 			if ( $rows ) {
 				$html .= '<div class="jp-menu__prices jp-menu__prices--multi">';
 				foreach ( $rows as $row ) {
+					if ( ! is_array( $row ) ) {
+						continue;
+					}
 					$price = isset( $row['price'] ) ? (string) $row['price'] : '';
-					$lab   = isset( $row['label'] ) ? $row['label'] : null;
+					if ( '' === $price ) {
+						continue;
+					}
+					$lab   = $extract_ref( $row );
 					$lab_r = $this->resolve_label_ref( $label_map, $lab );
 
-					if ( '' !== $price ) {
-						$html .= $this->render_price_value( $price, $lab_r, $presentation, $label_pos );
-					}
+					$html .= $this->render_price_value( $price, $lab_r, $presentation, $label_pos );
 				}
 				$html .= '</div>';
 			}
@@ -197,7 +269,6 @@ final class Restaurant_Menu extends Widget_Base {
 	}
 
 	protected function sanitize_allowed_html_desc() : array {
-		// Keep description flexible but safe.
 		return [
 			'br'     => [],
 			'em'     => [],
@@ -205,6 +276,10 @@ final class Restaurant_Menu extends Widget_Base {
 			'span'   => [ 'class' => [] ],
 		];
 	}
+
+	/* ---------------------------
+	 *  Controls
+	 * --------------------------- */
 
 	protected function register_controls() {
 
@@ -380,6 +455,10 @@ final class Restaurant_Menu extends Widget_Base {
 		$this->end_controls_section();
 	}
 
+	/* ---------------------------
+	 *  Rendering
+	 * --------------------------- */
+
 	public function render() {
 		$settings = $this->get_settings_for_display();
 
@@ -398,7 +477,7 @@ final class Restaurant_Menu extends Widget_Base {
 	/** Render Static list (repeater) — renamed to avoid Elementor method clash */
 	protected function render_static_mode( array $settings ) : void {
 		$items        = isset( $settings['items'] ) && is_array( $settings['items'] ) ? $settings['items'] : [];
-		// Keep these to preserve DOM shape if/when labels are added to static later.
+		// Keep these to preserve DOM shape if we add static labels later.
 		$presentation = isset( $settings['label_presentation'] ) ? (string) $settings['label_presentation'] : 'icon';
 		$label_pos    = isset( $settings['label_position'] ) ? (string) $settings['label_position'] : 'left';
 
@@ -424,7 +503,6 @@ final class Restaurant_Menu extends Widget_Base {
 			}
 
 			if ( '' !== $price ) {
-				// Static items have no labels today; keep DOM shape consistent.
 				$value_html = '<span class="jp-menu__value jp-col-price">' . esc_html( $price ) . '</span>';
 				echo '<div class="jp-menu__price">' . $value_html . '</div>';
 			}
