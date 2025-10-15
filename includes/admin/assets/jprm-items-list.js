@@ -80,7 +80,6 @@
 
 		// If no menu selected, done.
 		if (!menuId || menuId === '0') {
-			// Keep 'All' selected
 			secSel.value = '0';
 			return Promise.resolve();
 		}
@@ -98,12 +97,19 @@
 		})
 		.then(function(r){ return r.json(); })
 		.then(function(data){
-			if (!Array.isArray(data)) return;
+			// Accept both:
+			// 1) { sections: [ { id,title,... } ] }
+			// 2) [ { term_id,name,... } ]
+			var arr = Array.isArray(data) ? data : (data && Array.isArray(data.sections) ? data.sections : []);
+			if (!arr) return;
 
-			data.forEach(function(s){
+			arr.forEach(function(s){
+				var val = s.term_id != null ? String(s.term_id) : (s.id != null ? String(s.id) : null);
+				var label = s.name != null ? s.name : (s.title != null ? s.title : null);
+				if (val == null || label == null) return;
 				var o = document.createElement('option');
-				o.value = String(s.term_id);
-				o.textContent = s.name;
+				o.value = val;
+				o.textContent = label;
 				secSel.appendChild(o);
 			});
 
