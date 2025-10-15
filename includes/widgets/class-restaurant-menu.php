@@ -20,10 +20,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 final class Restaurant_Menu extends Widget_Base {
 
-	/* ---------------------------
-	 *  Widget identity
-	 * --------------------------- */
-
 	public function get_name() {
 		return 'jprm_restaurant_menu';
 	}
@@ -53,10 +49,6 @@ final class Restaurant_Menu extends Widget_Base {
 		// Intentionally empty for now; ready for future JS needs.
 		return [];
 	}
-
-	/* ---------------------------
-	 *  Helpers
-	 * --------------------------- */
 
 	/** Build a select list of terms for a taxonomy (id => name) */
 	protected function get_terms_options( string $taxonomy ) : array {
@@ -213,10 +205,6 @@ final class Restaurant_Menu extends Widget_Base {
 			'span'   => [ 'class' => [] ],
 		];
 	}
-
-	/* ---------------------------
-	 *  Controls
-	 * --------------------------- */
 
 	protected function register_controls() {
 
@@ -392,10 +380,6 @@ final class Restaurant_Menu extends Widget_Base {
 		$this->end_controls_section();
 	}
 
-	/* ---------------------------
-	 *  Rendering
-	 * --------------------------- */
-
 	public function render() {
 		$settings = $this->get_settings_for_display();
 
@@ -417,8 +401,6 @@ final class Restaurant_Menu extends Widget_Base {
 		// Keep these to preserve DOM shape if/when labels are added to static later.
 		$presentation = isset( $settings['label_presentation'] ) ? (string) $settings['label_presentation'] : 'icon';
 		$label_pos    = isset( $settings['label_position'] ) ? (string) $settings['label_position'] : 'left';
-		(void) $presentation;
-		(void) $label_pos;
 
 		if ( empty( $items ) ) {
 			echo '<div class="jp-menu jp-menu--empty">' . esc_html__( 'No items defined.', 'jellopoint-restaurant-menu' ) . '</div>';
