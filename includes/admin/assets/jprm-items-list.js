@@ -2,16 +2,11 @@
 	'use strict';
 
 	function qs(id){ return document.getElementById(id); }
-
-	function onReady(fn){
-		if (document.readyState !== 'loading') fn();
-		else document.addEventListener('DOMContentLoaded', fn);
-	}
+	function onReady(fn){ if (document.readyState !== 'loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
 
 	function isItemsList(){
-		var body = document.body;
-		return body && body.classList.contains('post-type-jprm_menu_item') &&
-		       body.classList.contains('wp-admin');
+		var b = document.body;
+		return b && b.classList.contains('wp-admin') && b.classList.contains('post-type-jprm_menu_item');
 	}
 
 	function buildURLWithParams(params){
@@ -23,8 +18,7 @@
 				url.searchParams.set(k, params[k]);
 			}
 		});
-		// Reset pagination on filter change
-		url.searchParams.delete('paged');
+		url.searchParams.delete('paged'); // reset pagination on filter change
 		return url;
 	}
 
@@ -48,15 +42,11 @@
 		if (newViews && curViews) curViews.innerHTML = newViews.innerHTML;
 	}
 
-	function ajaxRefresh(){
-		var menuSel = qs(JPRM_ITEMS.qs.menu);
-		var secSel  = qs(JPRM_ITEMS.qs.section);
-		if (!menuSel || !secSel) return;
-
+	function ajaxRefresh(menuSel, secSel){
 		var url = buildURLWithParams({
 			post_type: 'jprm_menu_item',
-			[JPRM_ITEMS.qs.menu]: menuSel.value || '0',
-			[JPRM_ITEMS.qs.section]: secSel.value || '0'
+			[JPRM_ITEMS.qs.menu]: menuSel ? (menuSel.value || '0') : '0',
+			[JPRM_ITEMS.qs.section]: secSel ? (secSel.value || '0') : '0'
 		});
 
 		fetch(url.toString(), {
@@ -66,31 +56,38 @@
 		.then(function(r){ return r.text(); })
 		.then(function(html){
 			replaceListFromHTML(html);
-			if (history && history.replaceState) {
-				history.replaceState({}, '', url.toString());
-			}
+			if (history && history.replaceState) history.replaceState({}, '', url.toString());
 		})
 		.catch(function(){
-			// Fallback: submit the form normally
 			var form = document.getElementById('posts-filter');
-			if (form) form.submit();
+			if (form) form.submit(); // graceful fallback
 		});
 	}
 
-	function populateSections(menuId){
+	function populateSections(menuId, keepValue){
 		var secSel = qs(JPRM_ITEMS.qs.section);
 		if (!secSel) return Promise.resolve();
 
-		// Clear and show "All Sections" while loading
+		// current selection from URL (for keeping selection on load)
+		var currentFromURL = new URL(window.location.href).searchParams.get(JPRM_ITEMS.qs.section) || '0';
+
+		// Reset to "All Sections" while loading
 		secSel.innerHTML = '';
 		var opt = document.createElement('option');
 		opt.value = '0';
 		opt.textContent = JPRM_ITEMS.labels.allSections || 'All Sections';
 		secSel.appendChild(opt);
 
+		// If no menu selected, done.
+		if (!menuId || menuId === '0') {
+			// Keep 'All' selected
+			secSel.value = '0';
+			return Promise.resolve();
+		}
+
 		// Build REST URL
 		var url = new URL(JPRM_ITEMS.rest.sectionsByMenu);
-		url.searchParams.set('menu_id', menuId || '0');
+		url.searchParams.set('menu_id', menuId);
 
 		return fetch(url.toString(), {
 			credentials: 'same-origin',
@@ -101,17 +98,30 @@
 		})
 		.then(function(r){ return r.json(); })
 		.then(function(data){
-			// Expecting array of sections { term_id, name }
 			if (!Array.isArray(data)) return;
+
 			data.forEach(function(s){
 				var o = document.createElement('option');
 				o.value = String(s.term_id);
 				o.textContent = s.name;
 				secSel.appendChild(o);
 			});
+
+			// Restore previous section if it still exists and keepValue is true
+			if (keepValue) {
+				var desired = currentFromURL;
+				if (desired && secSel.querySelector('option[value="'+desired+'"]')) {
+					secSel.value = desired;
+				} else {
+					secSel.value = '0';
+				}
+			} else {
+				secSel.value = '0';
+			}
 		})
 		.catch(function(){
-			/* keep "All Sections" only if REST fails */
+			// Leave it as "All Sections" if REST fails
+			secSel.value = '0';
 		});
 	}
 
@@ -120,16 +130,19 @@
 		var secSel  = qs(JPRM_ITEMS.qs.section);
 		if (!menuSel || !secSel) return;
 
+		// Initial population on page load (keep current section if valid)
+		populateSections(menuSel.value || '0', /*keepValue=*/true).then(function(){
+			// If page loaded with menu but section not valid, it will be reset to '0'.
+		});
+
 		menuSel.addEventListener('change', function(){
-			populateSections(menuSel.value).then(function(){
-				// reset section to All on menu change
-				secSel.value = '0';
-				ajaxRefresh();
+			populateSections(menuSel.value, /*keepValue=*/false).then(function(){
+				ajaxRefresh(menuSel, secSel);
 			});
 		});
 
 		secSel.addEventListener('change', function(){
-			ajaxRefresh();
+			ajaxRefresh(menuSel, secSel);
 		});
 	}
 
