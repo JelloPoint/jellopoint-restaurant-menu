@@ -6,8 +6,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 /**
  * UI + data tweaks for the jprm_menu taxonomy:
  * - Rename Category/Categories -> Menu/Menus (list/add/edit)
- * - Hide Slug (list/add/edit)
- * - Hide Parent field (list/add/edit)
+ * - Hide Slug & Parent (list/add/edit)
+ * - Remove Slug column (list)
  * - Enforce no parent on save (menus never hierarchical)
  */
 class Menus_Admin {
@@ -32,13 +32,9 @@ class Menus_Admin {
 		return $cols;
 	}
 
-	/**
-	 * Force parent=0 on insert/update for this taxonomy (defensive).
-	 */
+	/** Force parent=0 on insert/update for this taxonomy (defensive). */
 	public static function force_no_parent( $data, $taxonomy, $args ) {
-		if ( $taxonomy === self::TAX ) {
-			$data['parent'] = 0;
-		}
+		if ( $taxonomy === self::TAX ) $data['parent'] = 0;
 		return $data;
 	}
 
@@ -65,15 +61,29 @@ class Menus_Admin {
 				var addHdr = document.querySelector('.wrap .form-wrap > h2') || document.querySelector('.tag-add-form h2');
 				if (addHdr && /Add\s+Category/i.test(addHdr.textContent)) addHdr.textContent = 'Add Menu';
 
-				// Search label + placeholder in list view
-				var searchLbl = document.querySelector('label[for="tag-search-input"]');
+				// Left add box submit button text (covers input/button variants)
+				var addSubmit = document.querySelector('#addtag input#submit, #addtag button#submit, .tag-add-form input[type="submit"], .tag-add-form button[type="submit"]');
+				if (addSubmit) {
+					if (addSubmit.tagName === 'INPUT') addSubmit.value = 'Add Menu';
+					else addSubmit.textContent = 'Add Menu';
+					addSubmit.setAttribute('aria-label', 'Add Menu');
+				}
+
+				// Search label + placeholder (top right)
+				// WP usually uses label[for="tag-search-input"]; add broader fallbacks.
+				var searchLbl = document.querySelector('label[for="tag-search-input"]') ||
+				                document.querySelector('.search-form label') ||
+				                document.querySelector('.search-box label');
 				if (searchLbl) searchLbl.textContent = 'Search Menus:';
-				var searchInp = document.getElementById('tag-search-input');
+
+				var searchInp = document.getElementById('tag-search-input') ||
+				                document.querySelector('.search-form input[type="search"], .search-form input[type="text"]');
 				if (searchInp) searchInp.placeholder = 'Search Menus';
 
 				// Page title & subnav text
 				var h1 = document.querySelector('.wrap > h1');
 				if (h1) h1.textContent = h1.textContent.replace(/Categories/gi, 'Menus').replace(/\bCategory\b/gi, 'Menu');
+
 				document.querySelectorAll('.subsubsub a').forEach(function(a){
 					a.textContent = a.textContent.replace(/Categories/gi, 'Menus').replace(/\bCategory\b/gi, 'Menu');
 				});
