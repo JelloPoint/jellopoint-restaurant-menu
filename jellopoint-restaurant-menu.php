@@ -74,6 +74,8 @@ require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-menus-admin.php';
 require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-sections-ux.php';
 \JelloPoint\RestaurantMenu\Admin\Sections_UX::init();
 
+require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-items-list-filters.php';
+\JelloPoint\RestaurantMenu\Admin\Items_List_Filters::init();
 
 // Register routes for ALL contexts (front + admin).
 add_action( 'rest_api_init', function () {
