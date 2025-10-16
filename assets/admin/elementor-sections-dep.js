@@ -1,145 +1,122 @@
-(function($){
+(function ($) {
 	'use strict';
 
 	/**
-	 * Utils
+	 * REST fetch helper
 	 */
-	function isOurWidget(panelView) {
-		try { return panelView?.model?.get('widgetType') === 'jprm_restaurant_menu'; }
-		catch(e){ return false; }
-	}
-
-	async function fetchSections(menuId){
-		if(!menuId){ return {}; }
+	async function fetchSections(menuId) {
+		if (!menuId) return {};
 		try {
-			const root  = (window.JPRMRest && JPRMRest.root) ? JPRMRest.root : (window.wpApiSettings ? wpApiSettings.root : '/wp-json/');
-			const nonce = (window.JPRMRest && JPRMRest.nonce) ? JPRMRest.nonce : (window.wpApiSettings ? wpApiSettings.nonce : null);
-			const url   = root.replace(/\/+$/,'') + '/jprm/v1/sections?menu=' + encodeURIComponent(menuId);
-
+			const root =
+				(window.JPRMRest && JPRMRest.root)
+					? JPRMRest.root
+					: (window.wpApiSettings ? wpApiSettings.root : '/wp-json/');
+			const nonce =
+				(window.JPRMRest && JPRMRest.nonce)
+					? JPRMRest.nonce
+					: (window.wpApiSettings ? wpApiSettings.nonce : null);
+			const url = root.replace(/\/+$/, '') + '/jprm/v1/sections?menu=' + encodeURIComponent(menuId);
 			const headers = nonce ? { 'X-WP-Nonce': nonce } : {};
 			const res = await fetch(url, { credentials: 'include', headers });
-			if(!res.ok){ return {}; }
+			if (!res.ok) return {};
 			const data = await res.json();
-			return (data && typeof data === 'object') ? data : {};
-		} catch(e){
+			return data && typeof data === 'object' ? data : {};
+		} catch (e) {
 			return {};
 		}
 	}
 
 	/**
-	 * Safely set options + value on a control using Elementor's panel API,
-	 * falling back to DOM manipulation when needed.
+	 * Apply options to Sections control
 	 */
-	function applyOptionsToSections(panelView, optionsMap) {
-		// Try official control view first.
-		const controlView = panelView.getControlView && panelView.getControlView('sections');
-		const newOptions  = optionsMap || {};
-		const newKeys     = Object.keys(newOptions);
-
-		// Determine current selection (keep intersection with new options).
-		let current = [];
+	function applySectionsOptions(panel, options) {
 		try {
-			const modelVal = panelView.model.getSetting('sections');
-			if (Array.isArray(modelVal)) current = modelVal;
-		} catch(e){ /* noop */ }
+			const control = panel.getControlView('sections');
+			const map = options || {};
+			const ids = Object.keys(map);
+			const current = panel.model.getSetting('sections') || [];
+			const keep = current.filter(v => ids.includes(String(v)));
 
-		const keep = current.filter(v => newKeys.includes(String(v)));
+			control.model.set('options', map);
+			panel.model.setSetting('sections', keep);
+			control.render();
 
-		// Update via ControlView (preferred).
-		if (controlView && controlView.model) {
-			// Set options into the control model then re-render.
-			controlView.model.set('options', newOptions);
-			// Set the value to intersection of previous selection.
-			panelView.model.setSetting('sections', keep);
-
-			// Re-render control UI.
-			if (typeof controlView.render === 'function') controlView.render();
-
-			// Ensure select2 reflects the new list.
-			const $select = controlView.$el.find('[data-setting="sections"]');
-			if ($select.length) {
-				$select.val(keep).trigger('change');
+			const $sel = control.$el.find('[data-setting="sections"]');
+			if ($sel.length) {
+				$sel.val(keep).trigger('change');
 			}
-			return;
-		}
-
-		// Fallback: DOM-only (works but Elementor may re-render later).
-		const $panel    = panelView.$el;
-		const $sections = $panel.find('[data-setting="sections"]');
-		if ($sections.length) {
-			const selected = keep.map(String);
-			$sections.find('option').remove();
-			newKeys.forEach(function(id){
-				const opt = new Option(newOptions[id], id, false, selected.includes(id));
-				$sections.append(opt);
-			});
-			$sections.val(selected).trigger('change');
+		} catch (e) {
+			// fallback: DOM
+			const $sel = panel.$el.find('[data-setting="sections"]');
+			if ($sel.length) {
+				const current = $sel.val() || [];
+				$sel.find('option').remove();
+				for (const id in options) {
+					$sel.append(new Option(options[id], id, false, current.includes(id)));
+				}
+				$sel.trigger('change');
+			}
 		}
 	}
 
 	/**
-	 * Wire up the Menu -> Sections dependency.
+	 * Core logic to hook Menu control change
 	 */
-	function hookPanel(panelView){
-		if(!isOurWidget(panelView)){ return; }
+	async function bindDependency(panel) {
+		if (!panel?.model?.get('widgetType') || panel.model.get('widgetType') !== 'jprm_restaurant_menu') return;
 
-		const controlMenu    = panelView.getControlView && panelView.getControlView('menus');
-		const $panel         = panelView.$el;
-		const $menuSelectDom = $panel.find('[data-setting="menus"]'); // fallback
-
-		// Helper to get current menu id (string).
-		const getMenuId = () => {
-			try {
-				const v = panelView.model.getSetting('menus');
-				if (v === null || v === undefined) return '';
-				return Array.isArray(v) ? (v[0] || '') : String(v || '');
-			} catch(e) {
-				const domVal = $menuSelectDom.val();
-				return Array.isArray(domVal) ? (domVal[0] || '') : (domVal || '');
-			}
+		const getMenuVal = () => {
+			const val = panel.model.getSetting('menus');
+			return Array.isArray(val) ? val[0] : val || '';
 		};
 
-		// Initial population on open.
-		(function initialPopulate(){
-			const mid = getMenuId();
-			if (mid) {
-				fetchSections(mid).then(map => applyOptionsToSections(panelView, map));
-			} else {
-				applyOptionsToSections(panelView, {}); // clear sections when no menu
-			}
-		})();
-
-		// Listen for changes via control view (preferred).
-		if (controlMenu && controlMenu.$el) {
-			controlMenu.$el.on('change', '[data-setting="menus"]', function(){
-				const mid = getMenuId();
-				if (!mid) {
-					applyOptionsToSections(panelView, {});
-					return;
-				}
-				fetchSections(mid).then(map => applyOptionsToSections(panelView, map));
-			});
-		}
-
-		// Fallback: listen directly on DOM (in case control view isn’t available yet).
-		$menuSelectDom.on('change', function(){
-			const mid = getMenuId();
-			if (!mid) {
-				applyOptionsToSections(panelView, {});
+		async function refreshSections() {
+			const menuId = getMenuVal();
+			if (!menuId) {
+				applySectionsOptions(panel, {});
 				return;
 			}
-			fetchSections(mid).then(map => applyOptionsToSections(panelView, map));
-		});
+			const map = await fetchSections(menuId);
+			applySectionsOptions(panel, map);
+		}
+
+		// Initial fill
+		await refreshSections();
+
+		// Watch for Menu control changes (poll until exists)
+		let tries = 0;
+		const watchInterval = setInterval(() => {
+			const $menuSel = panel.$el.find('[data-setting="menus"]');
+			if ($menuSel.length || tries++ > 40) {
+				clearInterval(watchInterval);
+				if ($menuSel.length) {
+					$menuSel.on('change', refreshSections);
+				}
+			}
+		}, 250);
 	}
 
 	/**
-	 * Elementor editor lifecycle
+	 * Wait until Elementor editor + panel API are ready
 	 */
-	$(window).on('elementor:init', function(){
-		// When a widget panel opens.
-		elementor.hooks.addAction('panel/open_editor/widget', function(panelView){
-			// Delay a tick to allow control views to mount (prevents race conditions).
-			setTimeout(function(){ hookPanel(panelView); }, 50);
-		});
-	});
+	function startHook() {
+		const hook = (panel) => {
+			setTimeout(() => bindDependency(panel), 200);
+		};
+
+		// Newer Elementor versions
+		if (elementor?.on) {
+			elementor.on('panel:open_editor', hook);
+		}
+
+		// Older fallback
+		elementor.hooks.addAction('panel/open_editor/widget', hook);
+	}
+
+	// Ensure we attach after the editor is fully booted
+	if (window.elementor && elementor.on) {
+		startHook();
+	} else {
+		$(window).on('elementor/editor/init', startHook);
+	}
 })(jQuery);
