@@ -9,12 +9,15 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Editor-only AJAX endpoints used by Elementor UI.
  *
  * - jprm_sections_by_menu: returns sections for a selected Menu, with hierarchy in labels.
- *   Preference:
- *     A) Section term-meta linking to menu (see accepted meta keys).
- *     B) Option 'jprm_sections_catalog' (array: menu_id => [section_ids]).
- *     C) Fallback: ALL sections (hierarchical), so the control is always usable.
+ *   Source of truth (Option 1):
+ *     A) Section term-meta **_jprm_menu_id** (single integer) linking a section to a menu.
+ *     B) Option 'jprm_sections_catalog' (array: menu_id => [section_ids]) as an optional, additive registry.
+ *     C) Fallback: ALL sections (hierarchical), so the selector stays usable even if no mapping exists yet.
  */
 final class Editor_Endpoints {
+
+	/** The single, canonical term-meta key on jprm_section that stores the owning menu's term_id. */
+	private const SECTION_MENU_META_KEY = '_jprm_menu_id';
 
 	public static function init(): void {
 		add_action( 'wp_ajax_jprm_sections_by_menu', [ __CLASS__, 'ajax_sections_by_menu' ] );
@@ -22,6 +25,9 @@ final class Editor_Endpoints {
 
 	/**
 	 * AJAX: return available Sections for a Menu (hierarchical labels).
+	 *
+	 * Action: jprm_sections_by_menu
+	 * Params: menu (string|int), _ajax_nonce (via JPRMAjax.nonce)
 	 */
 	public static function ajax_sections_by_menu(): void {
 		if ( ! current_user_can( 'edit_posts' ) ) {
@@ -37,10 +43,10 @@ final class Editor_Endpoints {
 			wp_send_json_success( [] );
 		}
 
-		// A) Sections explicitly linked via section term-meta.
-		$ids = self::get_section_ids_from_termmeta( $menu_id );
+		// A) Sections explicitly linked via canonical section term-meta key.
+		$ids = self::get_section_ids_from_meta( $menu_id );
 
-		// B) Also include option-mapped catalog, if present.
+		// B) Also include optional registry in option (if present).
 		$opt = get_option( 'jprm_sections_catalog' );
 		if ( is_array( $opt ) && ! empty( $opt[ $menu_id ] ) && is_array( $opt[ $menu_id ] ) ) {
 			$ids = array_merge( $ids, array_map( 'intval', $opt[ $menu_id ] ) );
@@ -94,54 +100,28 @@ final class Editor_Endpoints {
 	}
 
 	/**
-	 * Discover sections that "belong" to a menu via term meta on jprm_section.
-	 * Accepted meta keys (any one is enough):
-	 *   jprm_menu_id, _jprm_menu_id, jprm_menu, _jprm_menu, menu_id, _menu_id, jprm_menu_ids, _jprm_menu_ids
-	 * Values can be a single ID, array of IDs, or CSV.
+	 * Get section IDs linked to a menu via the canonical meta key on jprm_section.
+	 * Key: _jprm_menu_id (integer menu term_id)
 	 *
-	 * @return int[] section term IDs
+	 * @return int[]
 	 */
-	private static function get_section_ids_from_termmeta( int $menu_id ): array {
+	private static function get_section_ids_from_meta( int $menu_id ): array {
 		$terms = get_terms( [ 'taxonomy' => 'jprm_section', 'hide_empty' => false ] );
 		if ( empty( $terms ) || is_wp_error( $terms ) ) {
 			return [];
 		}
 
-		$keys = [
-			'jprm_menu_id', '_jprm_menu_id',
-			'jprm_menu',    '_jprm_menu',
-			'menu_id',      '_menu_id',
-			'jprm_menu_ids','_jprm_menu_ids',
-		];
-
 		$out = [];
 		foreach ( $terms as $t ) {
-			foreach ( $keys as $k ) {
-				$val = get_term_meta( $t->term_id, $k, true );
-				if ( empty( $val ) ) {
-					continue;
-				}
-				// Normalize to array of ints.
-				$list = [];
-				if ( is_array( $val ) ) {
-					$list = $val;
-				} elseif ( is_string( $val ) ) {
-					// Split CSV if necessary.
-					$list = preg_split( '/\s*,\s*/', $val );
-				} else {
-					$list = [ $val ];
-				}
-				$list = array_unique( array_map( 'intval', array_filter( $list, static function( $v ) {
-					return ( '' !== $v && $v !== null );
-				} ) ) );
-
-				if ( in_array( $menu_id, $list, true ) ) {
-					$out[] = (int) $t->term_id;
-					break; // next term
-				}
+			$val = get_term_meta( $t->term_id, self::SECTION_MENU_META_KEY, true );
+			if ( $val === '' || $val === null ) {
+				continue;
+			}
+			$linked_menu = (int) $val;
+			if ( $linked_menu === $menu_id ) {
+				$out[] = (int) $t->term_id;
 			}
 		}
-
 		return $out;
 	}
 
