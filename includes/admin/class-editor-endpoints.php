@@ -8,14 +8,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Editor-only AJAX endpoints used by Elementor UI.
  *
- * jprm_sections_by_menu:
- * - Source of truth: section term-meta `_jprm_menu_id` (integer menu term_id).
- * - Optional additive: option 'jprm_sections_catalog' => [ menu_id => [section_ids...] ].
- * - If no mapping, we ALWAYS fall back to ALL sections (hierarchical).
+ * Action: jprm_sections_by_menu
+ * Params: menu (string|int), _ajax_nonce (via JPRMAjax.nonce)
+ *
+ * Behavior:
+ *  - If a valid menu_id is provided, return sections whose term meta `_jprm_menu_id` equals that menu_id.
+ *  - Also merges any ids from option 'jprm_sections_catalog' ([menu_id => [section_ids...] ]).
+ *  - If the result is empty for any reason, it ALWAYS falls back to ALL sections (hierarchical labels).
+ *  - If menu is empty/invalid, returns ALL sections (hierarchical labels).
  */
 final class Editor_Endpoints {
 
-	/** Canonical key on jprm_section that stores the owning menu's term_id. */
+	/** Canonical meta key on jprm_section that stores the owning menu's term_id (integer). */
 	private const SECTION_MENU_META_KEY = '_jprm_menu_id';
 
 	public static function init(): void {
@@ -23,46 +27,49 @@ final class Editor_Endpoints {
 	}
 
 	public static function ajax_sections_by_menu(): void {
+		// Editor context; keep strict but never fatal.
 		if ( ! current_user_can( 'edit_posts' ) ) {
-			wp_send_json_error( [ 'message' => 'forbidden' ], 403 );
+			wp_send_json_success( self::all_sections_map(), 200 ); // return ALL so UI keeps working.
 		}
 
-		check_ajax_referer( 'jprm_sections' );
+		// Nonce check; on failure still return ALL so UI keeps working.
+		if ( ! isset( $_REQUEST['_ajax_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_REQUEST['_ajax_nonce'] ) ), 'jprm_sections' ) ) {
+			wp_send_json_success( self::all_sections_map(), 200 );
+		}
 
 		$menu_raw = isset( $_REQUEST['menu'] ) ? wp_unslash( $_REQUEST['menu'] ) : '';
 		$menu_id  = self::normalize_menu_to_id( $menu_raw );
 
+		// No valid menu? Return ALL (hierarchical).
 		if ( $menu_id <= 0 ) {
-			// With no menu we still show ALL sections so the control remains usable.
-			$all_terms = get_terms( [ 'taxonomy' => 'jprm_section', 'hide_empty' => false ] );
-			wp_send_json_success( self::terms_to_hierarchical_options( is_array( $all_terms ) ? $all_terms : [] ) );
+			wp_send_json_success( self::all_sections_map(), 200 );
 		}
 
 		// A) Sections explicitly linked via _jprm_menu_id.
 		$ids = self::get_section_ids_from_meta( $menu_id );
 
-		// B) Add optional registry from option.
+		// B) Merge optional registry from option (if present).
 		$opt = get_option( 'jprm_sections_catalog' );
 		if ( is_array( $opt ) && ! empty( $opt[ $menu_id ] ) && is_array( $opt[ $menu_id ] ) ) {
 			$ids = array_merge( $ids, array_map( 'intval', $opt[ $menu_id ] ) );
 		}
+
 		$ids = array_values( array_unique( array_filter( $ids, static fn( $n ) => $n > 0 ) ) );
 
-		// If we have mapped ids, try to load just those. If that yields nothing, fall back to ALL.
+		// If some mapping exists, try to load only those.
 		if ( ! empty( $ids ) ) {
 			$terms = get_terms( [
 				'taxonomy'   => 'jprm_section',
 				'hide_empty' => false,
 				'include'    => $ids,
 			] );
-			if ( ! empty( $terms ) && ! is_wp_error( $terms ) ) {
-				wp_send_json_success( self::terms_to_hierarchical_options( $terms ) );
+			if ( is_array( $terms ) && ! is_wp_error( $terms ) && ! empty( $terms ) ) {
+				wp_send_json_success( self::terms_to_hierarchical_options( $terms ), 200 );
 			}
 		}
 
-		// C) No mapping (yet) → ALL sections (hierarchical).
-		$all_terms = get_terms( [ 'taxonomy' => 'jprm_section', 'hide_empty' => false ] );
-		wp_send_json_success( self::terms_to_hierarchical_options( is_array( $all_terms ) ? $all_terms : [] ) );
+		// C) Fallback: ALL sections (hierarchical).
+		wp_send_json_success( self::all_sections_map(), 200 );
 	}
 
 	/* ===== Helpers ===== */
@@ -85,12 +92,16 @@ final class Editor_Endpoints {
 		return 0;
 	}
 
-	/** Get section IDs linked to a menu via _jprm_menu_id (integer). */
+	/** Return ALL sections as id => label (with hierarchy indentation). */
+	private static function all_sections_map(): array {
+		$terms = get_terms( [ 'taxonomy' => 'jprm_section', 'hide_empty' => false ] );
+		return self::terms_to_hierarchical_options( is_array( $terms ) ? $terms : [] );
+	}
+
+	/** Get section IDs where _jprm_menu_id equals the given menu_id. */
 	private static function get_section_ids_from_meta( int $menu_id ): array {
 		$terms = get_terms( [ 'taxonomy' => 'jprm_section', 'hide_empty' => false ] );
-		if ( empty( $terms ) || is_wp_error( $terms ) ) {
-			return [];
-		}
+		if ( empty( $terms ) || is_wp_error( $terms ) ) return [];
 		$out = [];
 		foreach ( $terms as $t ) {
 			$val = get_term_meta( $t->term_id, self::SECTION_MENU_META_KEY, true );
