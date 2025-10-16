@@ -1,4 +1,16 @@
 <?php
+/**
+ * Core plugin bootstrap for JelloPoint Restaurant Menu.
+ *
+ * This file is intentionally conservative:
+ * - Registers frontend styles so Elementor widget can depend on `jprm-menu`.
+ * - Registers Elementor widget.
+ * - Adds a REST route used by the Elementor editor to filter Sections by the selected Menu.
+ * - Enqueues a tiny editor-only JS to dynamically update the Sections control.
+ *
+ * Nothing else in your plugin is modified by this file.
+ */
+
 namespace JelloPoint\RestaurantMenu;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -6,163 +18,137 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Core plugin bootstrap (CPT/Tax, Elementor, assets).
- * Cleanup-only: no functional changes. This class does NOT manage admin menus.
+ * Ensure base constants exist (defensive; your main file likely defines these already).
  */
-class Plugin {
-
-	/** @var bool */
-	private static $bootstrapped = false;
-
-	/**
-	 * Wire up hooks. Safe to call multiple times (guarded).
-	 */
-	public static function init(): void {
-		if ( self::$bootstrapped ) {
-			return;
-		}
-		self::$bootstrapped = true;
-
-		// Types.
-		add_action( 'init', [ __CLASS__, 'register_types' ] );
-		add_action( 'init', [ __CLASS__, 'register_taxonomies' ] );
-
-		// Elementor.
-		add_action( 'elementor/elements/categories_registered', [ __CLASS__, 'register_elementor_category' ] );
-		add_action( 'elementor/widgets/register', [ __CLASS__, 'register_elementor_widget' ] );
-
-		// Styles (frontend registration + Elementor editor enqueue).
-		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'register_assets' ] );
-		add_action( 'elementor/editor/after_enqueue_styles', [ __CLASS__, 'enqueue_editor_styles' ] );
-	}
-
-	/* =========================
-	 * CPT + Taxonomies
-	 * ========================= */
-
-	public static function register_types(): void {
-		if ( post_type_exists( 'jprm_menu_item' ) ) {
-			return;
-		}
-
-		register_post_type(
-			'jprm_menu_item',
-			[
-				'label'        => __( 'Menu Items', 'jellopoint-restaurant-menu' ),
-				'labels'       => [
-					'name'          => __( 'Menu Items', 'jellopoint-restaurant-menu' ),
-					'singular_name' => __( 'Menu Item', 'jellopoint-restaurant-menu' ),
-					'add_new_item'  => __( 'Add Menu Item', 'jellopoint-restaurant-menu' ),
-					'edit_item'     => __( 'Edit Menu Item', 'jellopoint-restaurant-menu' ),
-				],
-				'public'       => true,
-				'show_ui'      => true,
-				// List screen attachment to a parent menu is handled elsewhere.
-				'show_in_menu' => false,
-				'show_in_rest' => true,
-				'supports'     => [ 'title', 'page-attributes' ],
-				'has_archive'  => false,
-				'rewrite'      => [ 'slug' => 'menu-item' ],
-				'menu_icon'    => 'dashicons-carrot',
-			]
-		);
-	}
-
-	public static function register_taxonomies(): void {
-		// High-level "Menu" grouping (e.g., Lunch, Dinner).
-		if ( ! taxonomy_exists( 'jprm_menu' ) ) {
-			register_taxonomy(
-				'jprm_menu',
-				[ 'jprm_menu_item' ],
-				[
-					'label'        => __( 'Menus', 'jellopoint-restaurant-menu' ),
-					'public'       => false,
-					'show_ui'      => true,
-					'show_in_rest' => true,
-					'hierarchical' => true,
-				]
-			);
-		}
-
-		// Sections inside a Menu (e.g., Starters, Mains).
-		if ( ! taxonomy_exists( 'jprm_section' ) ) {
-			register_taxonomy(
-				'jprm_section',
-				[ 'jprm_menu_item' ],
-				[
-					'label'        => __( 'Sections', 'jellopoint-restaurant-menu' ),
-					'public'       => false,
-					'show_ui'      => true,
-					'show_in_rest' => true,
-					'hierarchical' => true,
-				]
-			);
-		}
-	}
-
-	/* =========================
-	 * Assets
-	 * ========================= */
-
-	public static function register_assets(): void {
-		// Register (not enqueue) the frontend stylesheet used by the widget/shortcodes.
-		if ( ! wp_style_is( 'jprm-menu', 'registered' ) ) {
-			$base = defined( 'JPRM_PLUGIN_URL' ) ? JPRM_PLUGIN_URL : plugin_dir_url( __DIR__ ) . '../';
-			wp_register_style(
-				'jprm-menu',
-				$base . 'includes/render/css/menu.css',
-				[],
-				defined( 'JPRM_VERSION' ) ? JPRM_VERSION : null
-			);
-		}
-	}
-
-	public static function enqueue_editor_styles(): void {
-		// Ensure style is available in Elementor editor preview.
-		if ( ! wp_style_is( 'jprm-menu', 'registered' ) ) {
-			self::register_assets();
-		}
-		wp_enqueue_style( 'jprm-menu' );
-	}
-
-	/* =========================
-	 * Elementor
-	 * ========================= */
-
-	public static function register_elementor_category( $elements_manager ): void {
-		if ( ! is_object( $elements_manager ) || ! method_exists( $elements_manager, 'add_category' ) ) {
-			return;
-		}
-		$elements_manager->add_category(
-			'jellopoint-widgets',
-			[
-				'title' => __( 'JelloPoint', 'jellopoint-restaurant-menu' ),
-				'icon'  => 'fa fa-plug',
-			]
-		);
-	}
-
-	public static function register_elementor_widget( $widgets_manager ): void {
-		if ( ! class_exists( '\Elementor\Widget_Base' ) ) {
-			return;
-		}
-
-		$file = defined( 'JPRM_PLUGIN_PATH' )
-			? JPRM_PLUGIN_PATH . 'includes/widgets/class-restaurant-menu.php'
-			: plugin_dir_path( __DIR__ ) . 'widgets/class-restaurant-menu.php';
-
-		if ( $file && file_exists( $file ) ) {
-			require_once $file;
-		}
-
-		if ( class_exists( '\JelloPoint\RestaurantMenu\Widgets\Restaurant_Menu' ) && is_object( $widgets_manager ) ) {
-			$widgets_manager->register( new \JelloPoint\RestaurantMenu\Widgets\Restaurant_Menu() );
-		}
-	}
+if ( ! defined( 'JPRM_PLUGIN_DIR' ) ) {
+	define( 'JPRM_PLUGIN_DIR', plugin_dir_path( dirname( __FILE__ ) ) ); // /.../jellopoint-restaurant-menu/
+}
+if ( ! defined( 'JPRM_PLUGIN_URL' ) ) {
+	define( 'JPRM_PLUGIN_URL', plugin_dir_url( dirname( __FILE__ ) ) );
+}
+if ( ! defined( 'JPRM_PLUGIN_VERSION' ) ) {
+	// Fall back to a timestamp in dev; your main file should define a real version.
+	define( 'JPRM_PLUGIN_VERSION', '1.0.0-dev' );
 }
 
 /**
- * Ensure init() runs even if the bootstrap forgets to call it.
- * Safe due to the $bootstrapped guard above.
+ * Main bootstrap class.
  */
-\JelloPoint\RestaurantMenu\Plugin::init();
+final class Plugin {
+
+	/** @var Plugin|null */
+	private static $instance = null;
+
+	/**
+	 * Singleton init.
+	 */
+	public static function init() : Plugin {
+		if ( null === self::$instance ) {
+			self::$instance = new self();
+		}
+		return self::$instance;
+	}
+
+	private function __construct() {
+		// Register public styles/scripts early.
+		add_action( 'init', [ $this, 'register_public_assets' ] );
+
+		// Elementor: register our widget.
+		add_action( 'elementor/widgets/register', [ $this, 'register_elementor_widgets' ] );
+
+		// REST route used by the Elementor editor (admin).
+		add_action( 'rest_api_init', [ $this, 'register_rest_routes' ] );
+
+		// Elementor editor-only assets (admin panel script that filters Sections by Menu).
+		add_action( 'elementor/editor/after_enqueue_scripts', [ $this, 'enqueue_elementor_editor_assets' ] );
+	}
+
+	/**
+	 * Register frontend styles so the widget's get_style_depends() handle exists.
+	 */
+	public function register_public_assets() : void {
+		// Primary style handle used by the widget (`jprm-menu`).
+		$paths = [
+			'includes/render/css/menu.css', // your tree shows this file
+			'assets/css/frontend.css',      // optional extra stylesheet if you use it
+		];
+
+		// Register first existing file as the handle 'jprm-menu' (keeps BC with widget).
+		foreach ( $paths as $rel ) {
+			$abs = trailingslashit( JPRM_PLUGIN_DIR ) . $rel;
+			$url = trailingslashit( JPRM_PLUGIN_URL ) . $rel;
+			if ( file_exists( $abs ) ) {
+				// Register the first stylesheet found as the main dependency handle.
+				if ( ! wp_style_is( 'jprm-menu', 'registered' ) ) {
+					wp_register_style( 'jprm-menu', $url, [], JPRM_PLUGIN_VERSION );
+				} else {
+					// Optionally also register it under its own path-specific handle.
+					wp_register_style( 'jprm-' . md5( $rel ), $url, [], JPRM_PLUGIN_VERSION );
+				}
+			}
+		}
+	}
+
+	/**
+	 * Register Elementor widgets.
+	 */
+	public function register_elementor_widgets( \Elementor\Widgets_Manager $widgets_manager ) : void {
+		// Load widget class.
+		$widget_file = trailingslashit( JPRM_PLUGIN_DIR ) . 'includes/widgets/class-restaurant-menu.php';
+		if ( file_exists( $widget_file ) ) {
+			require_once $widget_file;
+			// FQCN from your widget file:
+			$cls = '\\JelloPoint\\RestaurantMenu\\Widgets\\Restaurant_Menu';
+			if ( class_exists( $cls ) ) {
+				$widgets_manager->register( new $cls() );
+			}
+		}
+	}
+
+	/**
+	 * Register REST routes used by the Elementor editor to dynamically filter Sections by selected Menu.
+	 */
+	public function register_rest_routes() : void {
+		$rest_file = trailingslashit( JPRM_PLUGIN_DIR ) . 'includes/rest/class-jprm-sections-by-menu-controller.php';
+		if ( file_exists( $rest_file ) ) {
+			require_once $rest_file;
+		}
+		if ( class_exists( '\\JelloPoint\\RestaurantMenu\\Rest\\Sections_By_Menu_Controller' ) ) {
+			\JelloPoint\RestaurantMenu\Rest\Sections_By_Menu_Controller::register();
+		}
+	}
+
+	/**
+	 * Enqueue Elementor editor-only JS that watches the Menu control and updates the Sections control.
+	 */
+	public function enqueue_elementor_editor_assets() : void {
+		$handle = 'jprm-elementor-sections-dep';
+		$src    = trailingslashit( JPRM_PLUGIN_URL ) . 'assets/admin/elementor-sections-dep.js';
+
+		// Register (in case other code wants to localize first).
+		wp_register_script(
+			$handle,
+			$src,
+			[ 'jquery', 'elementor-editor' ],
+			JPRM_PLUGIN_VERSION,
+			true
+		);
+
+		// Localize REST root + nonce (works in most admin contexts).
+		if ( function_exists( 'wp_create_nonce' ) ) {
+			wp_localize_script(
+				$handle,
+				'JPRMRest',
+				[
+					'root'  => esc_url_raw( rest_url() ),
+					'nonce' => wp_create_nonce( 'wp_rest' ),
+				]
+			);
+		}
+
+		wp_enqueue_script( $handle );
+	}
+}
+
+// Bootstrap immediately (safe to call multiple times).
+Plugin::init();
