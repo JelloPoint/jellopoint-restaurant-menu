@@ -9,17 +9,11 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
  * JelloPoint – Restaurant Menu (Elementor Widget)
- * Original working logic preserved.
- * Changes:
- *  - Added "Source Mode" (Dynamic/Static) control (editor-only UX).
- *  - Removed "Auto-detect context" control/logic.
- *  - Kept fallback "show all when empty" behavior.
- *  - Added hierarchical labels for Sections in the editor.
- *  - Filtering of Sections by selected Menu happens via AJAX hooked in the main plugin.
- *  - Panel layout reorganized into:
- *      * Data Source
- *      * Sections and Menus (with two display toggles)
- *      * Prices and Labels (moved labels controls here + headings)
+ * - Panel layout organized into:
+ *   • Data Source
+ *   • Sections and Menus (with two display toggles)
+ *   • Prices and Labels (Labels controls moved here)
+ * - Rendering logic unchanged (uses render()).
  */
 class Restaurant_Menu extends Widget_Base {
 
@@ -106,6 +100,7 @@ class Restaurant_Menu extends Widget_Base {
 		$menu_options    = $this->get_terms_options( 'jprm_menu' );
 		$section_options = $this->get_terms_options( 'jprm_section' );
 
+		// --- Data Source ---------------------------------------------------------
 		$this->start_controls_section( 'section_source', [ 'label' => __( 'Data Source', 'jellopoint-restaurant-menu' ) ] );
 
 		// Source Mode (UI only; rendering keeps legacy behavior when items exist)
@@ -237,7 +232,7 @@ class Restaurant_Menu extends Widget_Base {
 			'separator' => 'before',
 		] );
 
-		// (Move/add price-related controls here in the next step if needed)
+		// (Add/move price-related controls here later if needed)
 
 		$this->add_control( 'jprm_heading_labels', [
 			'type'      => Controls_Manager::HEADING,
@@ -297,7 +292,7 @@ class Restaurant_Menu extends Widget_Base {
 
 	/**
 	 * Render the widget on the frontend.
-	 * NOTE: We did not change any display logic here; only the panel layout was reorganized.
+	 * (No changes to behavior; only panel layout reorganized.)
 	 */
 	protected function render() {
 		$s = $this->get_settings_for_display();
@@ -339,11 +334,9 @@ class Restaurant_Menu extends Widget_Base {
 		$label_presentation = (string) ( $s['label_presentation'] ?? 'icon_text' );
 		$label_position     = (string) ( $s['label_position'] ?? 'right' );
 
-		// Explicit selections only (auto-detect removed)
 		$menus    = $this->normalize_to_slugs( $s['menus']    ?? [], 'jprm_menu' );
 		$sections = $this->normalize_to_slugs( $s['sections'] ?? [], 'jprm_section' );
 
-		// If nothing selected, optionally show all (when enabled).
 		if ( empty( $menus ) && empty( $sections ) && ( (string) ( $s['allow_all_when_empty'] ?? 'no' ) === 'yes' ) ) {
 			$all_menus    = get_terms( [ 'taxonomy' => 'jprm_menu', 'hide_empty' => true ] );
 			$all_sections = get_terms( [ 'taxonomy' => 'jprm_section', 'hide_empty' => true ] );
@@ -394,8 +387,8 @@ class Restaurant_Menu extends Widget_Base {
 		while ( $q->have_posts() ) {
 			$q->the_post();
 			$title = get_the_title();
-			$desc  = ''; // You can pull from meta if needed
-			$price = ''; // Prices are rendered by your render/price renderer elsewhere
+			$desc  = '';
+			$price = '';
 
 			echo '<div class="jp-menu__item">';
 			if ( $title !== '' ) {
@@ -407,19 +400,10 @@ class Restaurant_Menu extends Widget_Base {
 			if ( $price !== '' ) {
 				echo '<div class="jp-menu__price">' . esc_html( $price ) . '</div>';
 			}
-			// Labels presentation setup (class hooks)
 			echo '<div class="jp-menu__labels jp-menu__labels--pos-' . esc_attr( $label_position ) . ' jp-menu__labels--view-' . esc_attr( $label_presentation ) . '"></div>';
-
 			echo '</div>';
 		}
 		echo '</div>';
 		wp_reset_postdata();
-	}
-
-	/**
-	 * Elementor static preview for "Static" mode (Elementor expects this signature)
-	 */
-	public static function render_static() {
-		// Intentionally left minimal.
 	}
 }
