@@ -10,9 +10,9 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 /**
  * JelloPoint – Restaurant Menu (Elementor Widget)
  * - Layout & label/icon logic as approved.
- * - Uses STRICT term_id filtering for both Menu (single) and Sections (multi).
+ * - STRICT term_id filtering for Menu (single) & Sections (multi).
  * - Keeps "Fallback to all items" behaviour.
- * - No clash with Elementor\Controls_Stack::render_static().
+ * - Preview/render logic LEFT INTACT (only control sections reorganized).
  */
 final class Restaurant_Menu extends Widget_Base {
 
@@ -33,7 +33,7 @@ final class Restaurant_Menu extends Widget_Base {
 		if ( is_array( $terms ) ) {
 			foreach ( $terms as $t ) {
 				if ( is_object( $t ) && isset( $t->term_id, $t->name ) ) {
-					$out[ (string) $t->term_id ] = $t->name; // <-- keys are IDs (strings)
+					$out[ (string) $t->term_id ] = $t->name; // keys are IDs (strings)
 				}
 			}
 		}
@@ -44,6 +44,7 @@ final class Restaurant_Menu extends Widget_Base {
 		$menu_options    = $this->get_terms_options( 'jprm_menu' );
 		$section_options = $this->get_terms_options( 'jprm_section' );
 
+		/* --- Data Source (leave contents as-is; remove labels from here) -------- */
 		$this->start_controls_section( 'section_source', [ 'label' => __( 'Data Source', 'jellopoint-restaurant-menu' ) ] );
 
 		$this->add_control( 'data_mode', [
@@ -53,7 +54,7 @@ final class Restaurant_Menu extends Widget_Base {
 			'default' => 'dynamic',
 			'options' => [
 				'dynamic' => [ 'title' => __( 'Dynamic', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-database' ],
-				'static'  => [ 'title' => __( 'Static', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-editor-list-ul' ],
+				'static'  => [ 'title' => __( 'Static',  'jellopoint-restaurant-menu' ), 'icon' => 'eicon-editor-list-ul' ],
 			],
 		] );
 
@@ -113,34 +114,8 @@ final class Restaurant_Menu extends Widget_Base {
 			'condition'   => [ 'data_mode' => 'dynamic' ],
 		] );
 
-		$this->add_control( 'heading_labels', [
-			'label'     => __( 'Labels', 'jellopoint-restaurant-menu' ),
-			'type'      => Controls_Manager::HEADING,
-			'separator' => 'before',
-		] );
-
-		$this->add_control( 'label_presentation', [
-			'label'   => __( 'Label Presentation', 'jellopoint-restaurant-menu' ),
-			'type'    => Controls_Manager::SELECT,
-			'default' => 'icon_text',
-			'options' => [
-				'text'      => __( 'Text only', 'jellopoint-restaurant-menu' ),
-				'icon'      => __( 'Icon only', 'jellopoint-restaurant-menu' ),
-				'icon_text' => __( 'Icon + Text', 'jellopoint-restaurant-menu' ),
-			],
-		] );
-
-		$this->add_control( 'label_position', [
-			'label'   => __( 'Label Position', 'jellopoint-restaurant-menu' ),
-			'type'    => Controls_Manager::SELECT,
-			'default' => 'right',
-			'options' => [
-				'left'  => __( 'Left of price', 'jellopoint-restaurant-menu' ),
-				'right' => __( 'Right of price', 'jellopoint-restaurant-menu' ),
-			],
-		] );
-
-		// Static items (legacy keys: item_*).
+		// NOTE: label controls were moved to the new "Prices and Labels" section.
+		// Static items (legacy keys: item_*) remain here and are shown only in Static mode.
 		$rep = new Repeater();
 		$rep->add_control( 'item_title', [
 			'label'       => __( 'Title', 'jellopoint-restaurant-menu' ),
@@ -165,6 +140,76 @@ final class Restaurant_Menu extends Widget_Base {
 			'default'     => [],
 			'title_field' => '{{{ item_title }}}',
 			'condition'   => [ 'data_mode' => 'static' ],
+		] );
+
+		$this->end_controls_section();
+
+		/* --- Sections and Menus (expandable; SHOW/HIDE toggles only) ------------ */
+		$this->start_controls_section(
+			'jprm_section_sections_menus',
+			[ 'label' => __( 'Sections and Menus', 'jellopoint-restaurant-menu' ) ]
+		);
+
+		$this->add_control( 'show_section_name', [
+			'label'        => __( 'Show section name', 'jellopoint-restaurant-menu' ),
+			'type'         => Controls_Manager::SWITCHER,
+			'label_on'     => __( 'Show', 'jellopoint-restaurant-menu' ),
+			'label_off'    => __( 'Hide', 'jellopoint-restaurant-menu' ),
+			'return_value' => 'yes',
+			'default'      => 'yes',
+		] );
+
+		$this->add_control( 'show_section_description', [
+			'label'        => __( 'Show section description', 'jellopoint-restaurant-menu' ),
+			'type'         => Controls_Manager::SWITCHER,
+			'label_on'     => __( 'Show', 'jellopoint-restaurant-menu' ),
+			'label_off'    => __( 'Hide', 'jellopoint-restaurant-menu' ),
+			'return_value' => 'yes',
+			'default'      => 'yes',
+		] );
+
+		$this->end_controls_section();
+
+		/* --- Prices and Labels (expandable; labels moved here) ------------------ */
+		$this->start_controls_section(
+			'jprm_section_prices_labels',
+			[ 'label' => __( 'Prices and Labels', 'jellopoint-restaurant-menu' ) ]
+		);
+
+		// Small heading: Prices (placeholder; no logic changes)
+		$this->add_control( 'heading_prices', [
+			'label'     => __( 'Prices', 'jellopoint-restaurant-menu' ),
+			'type'      => Controls_Manager::HEADING,
+			'separator' => 'before',
+		] );
+
+		// Small heading: Labels
+		$this->add_control( 'heading_labels', [
+			'label'     => __( 'Labels', 'jellopoint-restaurant-menu' ),
+			'type'      => Controls_Manager::HEADING,
+			'separator' => 'before',
+		] );
+
+		// MOVED from Data Source (same setting IDs to keep render intact)
+		$this->add_control( 'label_presentation', [
+			'label'   => __( 'Label Presentation', 'jellopoint-restaurant-menu' ),
+			'type'    => Controls_Manager::SELECT,
+			'default' => 'icon_text',
+			'options' => [
+				'text'      => __( 'Text only', 'jellopoint-restaurant-menu' ),
+				'icon'      => __( 'Icon only', 'jellopoint-restaurant-menu' ),
+				'icon_text' => __( 'Icon + Text', 'jellopoint-restaurant-menu' ),
+			],
+		] );
+
+		$this->add_control( 'label_position', [
+			'label'   => __( 'Label Position', 'jellopoint-restaurant-menu' ),
+			'type'    => Controls_Manager::SELECT,
+			'default' => 'right',
+			'options' => [
+				'left'  => __( 'Left of price', 'jellopoint-restaurant-menu' ),
+				'right' => __( 'Right of price', 'jellopoint-restaurant-menu' ),
+			],
 		] );
 
 		$this->end_controls_section();
