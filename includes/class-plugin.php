@@ -7,7 +7,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Core plugin bootstrap (CPT/Tax, Elementor, assets).
- * Adds an AJAX endpoint for the Elementor editor to filter Sections by the selected Menu.
+ * Keep this file minimal: register types/tax, assets, Elementor glue, and load modular classes.
  */
 class Plugin {
 
@@ -23,7 +23,7 @@ class Plugin {
 		}
 		self::$bootstrapped = true;
 
-		// Types.
+		// Types & Taxonomies.
 		add_action( 'init', [ __CLASS__, 'register_types' ] );
 		add_action( 'init', [ __CLASS__, 'register_taxonomies' ] );
 
@@ -31,15 +31,39 @@ class Plugin {
 		add_action( 'elementor/elements/categories_registered', [ __CLASS__, 'register_elementor_category' ] );
 		add_action( 'elementor/widgets/register', [ __CLASS__, 'register_elementor_widget' ] );
 
-		// Styles (frontend registration + Elementor editor enqueue).
+		// Assets.
 		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'register_assets' ] );
 		add_action( 'elementor/editor/after_enqueue_styles', [ __CLASS__, 'enqueue_editor_styles' ] );
-
-		// Editor-only assets (JS that filters Sections list by selected Menu).
 		add_action( 'elementor/editor/after_enqueue_scripts', [ __CLASS__, 'enqueue_elementor_editor_assets' ] );
 
-		// AJAX endpoint for editor (no REST dependency).
-		add_action( 'wp_ajax_jprm_sections_by_menu', [ __CLASS__, 'ajax_sections_by_menu' ] );
+		// Load modular classes (editor endpoints, optional debug shortcode).
+		add_action( 'init', [ __CLASS__, 'load_modules' ], 11 );
+	}
+
+	/* =========================
+	 * Modules
+	 * ========================= */
+
+	public static function load_modules(): void {
+		$base_dir = defined( 'JPRM_PLUGIN_DIR' ) ? JPRM_PLUGIN_DIR : plugin_dir_path( __DIR__ ) . '../';
+
+		// Editor-only AJAX endpoints (Elementor panel helpers).
+		$editor_endpoints = trailingslashit( $base_dir ) . 'includes/admin/class-editor-endpoints.php';
+		if ( file_exists( $editor_endpoints ) ) {
+			require_once $editor_endpoints;
+			if ( class_exists( '\JelloPoint\RestaurantMenu\Admin\Editor_Endpoints' ) ) {
+				\JelloPoint\RestaurantMenu\Admin\Editor_Endpoints::init();
+			}
+		}
+
+		// Admin-only inspector shortcode ([jprm_inspect]) for quick diagnostics.
+		$inspector_sc = trailingslashit( $base_dir ) . 'includes/debug/class-inspector-shortcode.php';
+		if ( file_exists( $inspector_sc ) ) {
+			require_once $inspector_sc;
+			if ( class_exists( '\JelloPoint\RestaurantMenu\Debug\Inspector_Shortcode' ) ) {
+				\JelloPoint\RestaurantMenu\Debug\Inspector_Shortcode::init();
+			}
+		}
 	}
 
 	/* =========================
@@ -75,7 +99,7 @@ class Plugin {
 	}
 
 	public static function register_taxonomies(): void {
-		// High-level "Menu" grouping (e.g., Lunch, Dinner).
+		// Menus (e.g., Lunch, Dinner).
 		if ( ! taxonomy_exists( 'jprm_menu' ) ) {
 			register_taxonomy(
 				'jprm_menu',
@@ -126,25 +150,21 @@ class Plugin {
 		// Register (not enqueue) the frontend stylesheet used by the widget/shortcodes.
 		if ( ! wp_style_is( 'jprm-menu', 'registered' ) ) {
 			$base = defined( 'JPRM_PLUGIN_URL' ) ? JPRM_PLUGIN_URL : plugin_dir_url( __DIR__ ) . '../';
+			$rel  = 'includes/render/css/menu.css';
 
-			// Prefer includes/render/css/menu.css (per your tree)
-			$primary_rel = 'includes/render/css/menu.css';
-			$primary_abs = trailingslashit( defined('JPRM_PLUGIN_DIR') ? JPRM_PLUGIN_DIR : plugin_dir_path( __DIR__ ) . '../' ) . $primary_rel;
-			$primary_url = trailingslashit( $base ) . $primary_rel;
+			$abs  = trailingslashit( defined('JPRM_PLUGIN_DIR') ? JPRM_PLUGIN_DIR : plugin_dir_path( __DIR__ ) . '../' ) . $rel;
+			$url  = trailingslashit( $base ) . $rel;
+			$ver  = defined( 'JPRM_PLUGIN_VERSION' ) ? JPRM_PLUGIN_VERSION : null;
 
-			$ver = defined( 'JPRM_PLUGIN_VERSION' ) ? JPRM_PLUGIN_VERSION : null;
-
-			if ( file_exists( $primary_abs ) ) {
-				wp_register_style( 'jprm-menu', $primary_url, [], $ver );
+			if ( file_exists( $abs ) ) {
+				wp_register_style( 'jprm-menu', $url, [], $ver );
 			} else {
-				// Fallback (legacy path)
 				wp_register_style( 'jprm-menu', trailingslashit( $base ) . 'assets/css/frontend.css', [], $ver );
 			}
 		}
 	}
 
 	public static function enqueue_editor_styles(): void {
-		// Ensure style is available in Elementor editor preview.
 		if ( ! wp_style_is( 'jprm-menu', 'registered' ) ) {
 			self::register_assets();
 		}
@@ -187,13 +207,9 @@ class Plugin {
 	}
 
 	/* =========================
-	 * Editor UX assets (AJAX-based)
+	 * Elementor editor assets
 	 * ========================= */
 
-	/**
-	 * Enqueue Elementor editor-only JS that watches the Menu control and updates the Sections control.
-	 * Localize ajaxurl + nonce for secure calls.
-	 */
 	public static function enqueue_elementor_editor_assets(): void {
 		$base_url = defined('JPRM_PLUGIN_URL') ? JPRM_PLUGIN_URL : plugin_dir_url( __DIR__ ) . '../';
 		$handle   = 'jprm-elementor-sections-dep';
@@ -219,191 +235,7 @@ class Plugin {
 
 		wp_enqueue_script( $handle );
 	}
-
-	/**
-	 * AJAX: return **available Sections for a Menu** with hierarchy in labels.
-	 * Strategy (in priority order):
-	 *  A) Sections linked to the Menu via section term-meta (tolerant keys, any match).
-	 *  B) Sections listed in option 'jprm_sections_catalog' (array: menu_id => [section_ids]).
-	 *  C) Fallback: **all sections** (so the control stays useful even if nothing is mapped yet).
-	 *
-	 * NO filtering by “items in this menu” anymore (per your request).
-	 *
-	 * Action: jprm_sections_by_menu
-	 * Params: menu (string|int), _ajax_nonce (via JPRMAjax.nonce)
-	 */
-	public static function ajax_sections_by_menu(): void {
-		if ( ! current_user_can( 'edit_posts' ) ) {
-			wp_send_json_error( [ 'message' => 'forbidden' ], 403 );
-		}
-		check_ajax_referer( 'jprm_sections' );
-
-		$menu_raw = isset( $_REQUEST['menu'] ) ? wp_unslash( $_REQUEST['menu'] ) : '';
-		$menu_id  = self::normalize_menu_to_id( $menu_raw );
-		if ( $menu_id <= 0 ) {
-			wp_send_json_success( [] ); // empty map
-		}
-
-		// A) Sections explicitly linked to this menu via term meta.
-		$sections_ids = self::get_section_ids_from_termmeta( $menu_id );
-
-		// B) Add explicit catalog from option (if configured).
-		$opt = get_option( 'jprm_sections_catalog' );
-		if ( is_array( $opt ) && ! empty( $opt[ $menu_id ] ) && is_array( $opt[ $menu_id ] ) ) {
-			$sections_ids = array_merge( $sections_ids, array_map( 'intval', $opt[ $menu_id ] ) );
-		}
-
-		$sections_ids = array_values( array_unique( array_filter( $sections_ids, static fn( $n ) => $n > 0 ) ) );
-
-		$terms = [];
-		if ( ! empty( $sections_ids ) ) {
-			$terms = get_terms( [
-				'taxonomy'   => 'jprm_section',
-				'hide_empty' => false,
-				'include'    => $sections_ids,
-			] );
-		}
-
-		// C) Fallback: if no mapping exists, show **all sections**.
-		if ( empty( $terms ) || is_wp_error( $terms ) ) {
-			$terms = get_terms( [
-				'taxonomy'   => 'jprm_section',
-				'hide_empty' => false,
-			] );
-		}
-
-		$map = self::terms_to_hierarchical_options( is_array( $terms ) ? $terms : [] );
-
-		wp_send_json_success( $map );
-	}
-
-	/** Normalize menu input (id/slug/name) to term_id in taxonomy jprm_menu. */
-	private static function normalize_menu_to_id( $menu ): int {
-		if ( is_numeric( $menu ) ) {
-			$tid  = (int) $menu;
-			$term = get_term( $tid, 'jprm_menu' );
-			return ( $term && ! is_wp_error( $term ) ) ? (int) $term->term_id : 0;
-		}
-		$menu = (string) $menu;
-		if ( $menu === '' ) return 0;
-
-		$term = get_term_by( 'slug', $menu, 'jprm_menu' );
-		if ( $term && ! is_wp_error( $term ) ) return (int) $term->term_id;
-
-		$term = get_term_by( 'name', $menu, 'jprm_menu' );
-		if ( $term && ! is_wp_error( $term ) ) return (int) $term->term_id;
-
-		return 0;
-	}
-
-	/**
-	 * Discover sections that "belong" to a menu via term meta on jprm_section.
-	 * Accepted meta keys (any one is enough):
-	 *   jprm_menu_id, _jprm_menu_id, jprm_menu, _jprm_menu, menu_id, _menu_id, jprm_menu_ids, _jprm_menu_ids
-	 * Values can be a single ID, array of IDs, or CSV.
-	 *
-	 * @return int[] section term IDs
-	 */
-	private static function get_section_ids_from_termmeta( int $menu_id ): array {
-		$terms = get_terms( [ 'taxonomy' => 'jprm_section', 'hide_empty' => false ] );
-		if ( empty( $terms ) || is_wp_error( $terms ) ) {
-			return [];
-		}
-
-		$keys = [
-			'jprm_menu_id', '_jprm_menu_id',
-			'jprm_menu',    '_jprm_menu',
-			'menu_id',      '_menu_id',
-			'jprm_menu_ids','_jprm_menu_ids',
-		];
-
-		$out = [];
-		foreach ( $terms as $t ) {
-			foreach ( $keys as $k ) {
-				$val = get_term_meta( $t->term_id, $k, true );
-				if ( empty( $val ) ) {
-					continue;
-				}
-				// Normalize to array of ints.
-				$list = [];
-				if ( is_array( $val ) ) {
-					$list = $val;
-				} elseif ( is_string( $val ) ) {
-					// Split CSV if necessary.
-					$list = preg_split( '/\s*,\s*/', $val );
-				} else {
-					$list = [ $val ];
-				}
-				$list = array_unique( array_map( 'intval', array_filter( $list, static function( $v ) {
-					return ( '' !== $v && $v !== null );
-				} ) ) );
-
-				if ( in_array( $menu_id, $list, true ) ) {
-					$out[] = (int) $t->term_id;
-					break; // no need to check other keys for this term
-				}
-			}
-		}
-
-		return $out;
-	}
-
-	/**
-	 * Build a flat id => label map with hierarchy indentation for jprm_section terms.
-	 * Uses em-dash indentation ("— ") per depth level.
-	 *
-	 * @param \WP_Term[] $terms
-	 * @return array<string,string>
-	 */
-	private static function terms_to_hierarchical_options( array $terms ): array {
-		if ( empty( $terms ) ) {
-			return [];
-		}
-
-		// Index by parent
-		$by_parent = [];
-		foreach ( $terms as $t ) {
-			$by_parent[ (int) $t->parent ][] = $t;
-		}
-
-		$make_label = function( \WP_Term $term ): string {
-			$depth = count( get_ancestors( (int) $term->term_id, 'jprm_section', 'taxonomy' ) );
-			$indent = $depth > 0 ? str_repeat( '— ', $depth ) : '';
-			return $indent . $term->name;
-		};
-
-		$stack = isset( $by_parent[0] ) ? $by_parent[0] : [];
-		// Sort root level alphabetical for stable UX.
-		usort( $stack, static function( $a, $b ) {
-			return strcasecmp( $a->name, $b->name );
-		} );
-
-		$out = [];
-
-		$walk = function( $parent_id ) use ( &$walk, &$out, $by_parent, $make_label ) {
-			if ( empty( $by_parent[ $parent_id ] ) ) return;
-			$children = $by_parent[ $parent_id ];
-			usort( $children, static function( $a, $b ) {
-				return strcasecmp( $a->name, $b->name );
-			} );
-			foreach ( $children as $child ) {
-				$out[ (string) $child->term_id ] = $make_label( $child );
-				$walk( (int) $child->term_id );
-			}
-		};
-
-		// Emit root then descendents
-		foreach ( $stack as $root ) {
-			$out[ (string) $root->term_id ] = $make_label( $root );
-			$walk( (int) $root->term_id );
-		}
-
-		return $out;
-	}
 }
 
-/**
- * Ensure init() runs even if the bootstrap forgets to call it.
- * Safe due to the $bootstrapped guard above.
- */
+/** Bootstrap */
 \JelloPoint\RestaurantMenu\Plugin::init();
