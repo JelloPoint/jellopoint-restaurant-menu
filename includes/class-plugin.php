@@ -35,6 +35,36 @@ class Plugin {
 		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'register_assets' ] );
 		add_action( 'elementor/editor/after_enqueue_styles', [ __CLASS__, 'enqueue_editor_styles' ] );
 	}
+// REST route used by the Elementor editor to filter Sections by the chosen Menu.
+add_action( 'rest_api_init', function () {
+	$rest_file = trailingslashit( JPRM_PLUGIN_DIR ) . 'includes/rest/class-jprm-sections-by-menu-controller.php';
+	if ( file_exists( $rest_file ) ) {
+		require_once $rest_file;
+		if ( class_exists( '\JelloPoint\RestaurantMenu\Rest\Sections_By_Menu_Controller' ) ) {
+			\JelloPoint\RestaurantMenu\Rest\Sections_By_Menu_Controller::register();
+		}
+	}
+} );
+
+// Elementor editor-only JS that updates the Sections control when Menu changes.
+add_action( 'elementor/editor/after_enqueue_scripts', function () {
+	$handle = 'jprm-elementor-sections-dep';
+	wp_enqueue_script(
+		$handle,
+		trailingslashit( JPRM_PLUGIN_URL ) . 'assets/admin/elementor-sections-dep.js',
+		[ 'jquery', 'elementor-editor' ],
+		defined('JPRM_PLUGIN_VERSION') ? JPRM_PLUGIN_VERSION : time(),
+		true
+	);
+
+	// Pass REST root + nonce (works across admin contexts).
+	if ( function_exists( 'wp_create_nonce' ) ) {
+		wp_localize_script( $handle, 'JPRMRest', [
+			'root'  => esc_url_raw( rest_url() ),
+			'nonce' => wp_create_nonce( 'wp_rest' ),
+		] );
+	}
+} );
 
 	/* =========================
 	 * CPT + Taxonomies
