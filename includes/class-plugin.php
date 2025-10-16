@@ -7,8 +7,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Core plugin bootstrap (CPT/Tax, Elementor, assets).
- * This version keeps your original responsibilities and adds a small AJAX endpoint
- * for the Elementor editor to filter Sections by the selected Menu.
+ * Adds an AJAX endpoint for the Elementor editor to filter Sections by the selected Menu.
  */
 class Plugin {
 
@@ -39,7 +38,7 @@ class Plugin {
 		// Editor-only assets (JS that filters Sections list by selected Menu).
 		add_action( 'elementor/editor/after_enqueue_scripts', [ __CLASS__, 'enqueue_elementor_editor_assets' ] );
 
-		// --- NEW: AJAX endpoint for editor (no REST needed) ---
+		// AJAX endpoint for editor (no REST dependency).
 		add_action( 'wp_ajax_jprm_sections_by_menu', [ __CLASS__, 'ajax_sections_by_menu' ] );
 	}
 
@@ -222,7 +221,12 @@ class Plugin {
 	}
 
 	/**
-	 * AJAX: return sections used by items in a selected Menu (by term_id or slug).
+	 * AJAX: return sections **available for a Menu**, not just those used by items.
+	 * Strategy:
+	 *  - Gather sections assigned to items in the menu.
+	 *  - Also gather sections linked to the menu via section term-meta (tolerant keys).
+	 *  - If no mapping exists at all, fall back to "all sections".
+	 *
 	 * Action: jprm_sections_by_menu
 	 * Params: menu (string|int), _ajax_nonce (via JPRMAjax.nonce)
 	 */
@@ -238,10 +242,29 @@ class Plugin {
 			wp_send_json_success( [] ); // empty map
 		}
 
-		$sections = self::get_sections_for_menu( $menu_id, false );
+		// Sections used by items in this menu (normal then bypass-filters fallback).
+		$used = self::get_sections_for_menu_items( $menu_id, false );
+		if ( empty( $used ) ) {
+			$used = self::get_sections_for_menu_items( $menu_id, true );
+		}
+
+		// Sections explicitly linked to this menu via term meta (tolerant keys).
+		$catalog = self::get_sections_catalog_for_menu( $menu_id );
+
+		// Combine: prefer explicit catalog; add any used sections not already present.
+		$sections = ! empty( $catalog ) ? $catalog : [];
+		foreach ( $used as $id => $name ) {
+			$sections[ (string) $id ] = $name;
+		}
+
+		// If still empty, fall back to ALL sections so the control remains useful.
 		if ( empty( $sections ) ) {
-			// Fallback: bypass filters (WPML/Polylang tolerance)
-			$sections = self::get_sections_for_menu( $menu_id, true );
+			$terms = get_terms( [ 'taxonomy' => 'jprm_section', 'hide_empty' => false ] );
+			if ( is_array( $terms ) ) {
+				foreach ( $terms as $t ) {
+					$sections[ (string) $t->term_id ] = $t->name;
+				}
+			}
 		}
 
 		if ( ! empty( $sections ) ) {
@@ -271,7 +294,7 @@ class Plugin {
 	}
 
 	/** Query items in a menu and collect section terms used by those items. */
-	private static function get_sections_for_menu( int $menu_id, bool $suppress_filters ): array {
+	private static function get_sections_for_menu_items( int $menu_id, bool $suppress_filters ): array {
 		$q = new \WP_Query( [
 			'post_type'        => 'jprm_menu_item',
 			'post_status'      => 'publish',
@@ -301,6 +324,60 @@ class Plugin {
 			}
 		}
 		return $section_map;
+	}
+
+	/**
+	 * Discover sections that "belong" to a menu via term meta on jprm_section.
+	 * Accepted meta keys (any one is enough):
+	 *   jprm_menu_id, _jprm_menu_id, jprm_menu, _jprm_menu, menu_id, _menu_id, jprm_menu_ids, _jprm_menu_ids
+	 * Values can be a single ID, array of IDs, or CSV.
+	 */
+	private static function get_sections_catalog_for_menu( int $menu_id ): array {
+		$terms = get_terms( [ 'taxonomy' => 'jprm_section', 'hide_empty' => false ] );
+		if ( empty( $terms ) || is_wp_error( $terms ) ) {
+			return [];
+		}
+
+		$keys = [
+			'jprm_menu_id', '_jprm_menu_id',
+			'jprm_menu',    '_jprm_menu',
+			'menu_id',      '_menu_id',
+			'jprm_menu_ids','_jprm_menu_ids',
+		];
+
+		$out = [];
+		foreach ( $terms as $t ) {
+			$match = false;
+			foreach ( $keys as $k ) {
+				$val = get_term_meta( $t->term_id, $k, true );
+				if ( empty( $val ) ) {
+					continue;
+				}
+				// Normalize to array of ints.
+				$list = [];
+				if ( is_array( $val ) ) {
+					$list = $val;
+				} elseif ( is_string( $val ) ) {
+					// Split CSV if necessary.
+					$list = preg_split( '/\s*,\s*/', $val );
+				} else {
+					$list = [ $val ];
+				}
+				$list = array_unique( array_map( 'intval', array_filter( $list, static function( $v ) {
+					return ( '' !== $v && $v !== null );
+				} ) ) );
+
+				if ( in_array( $menu_id, $list, true ) ) {
+					$match = true;
+					break;
+				}
+			}
+			if ( $match ) {
+				$out[ (string) $t->term_id ] = $t->name;
+			}
+		}
+
+		return $out;
 	}
 }
 
