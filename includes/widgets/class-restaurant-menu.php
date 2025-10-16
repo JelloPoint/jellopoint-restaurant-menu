@@ -9,10 +9,9 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
  * JelloPoint – Restaurant Menu (Elementor Widget)
- * - Restored DOM + label/icon logic (as per your working version).
- * - Menu is single-select; Sections can be multi-select.
- * - Robust normalization (scalar/array) for term selections.
- * - Correct fallback-to-all behavior.
+ * - Layout & label/icon logic as approved.
+ * - Uses STRICT term_id filtering for both Menu (single) and Sections (multi).
+ * - Keeps "Fallback to all items" behaviour.
  * - No clash with Elementor\Controls_Stack::render_static().
  */
 final class Restaurant_Menu extends Widget_Base {
@@ -34,7 +33,7 @@ final class Restaurant_Menu extends Widget_Base {
 		if ( is_array( $terms ) ) {
 			foreach ( $terms as $t ) {
 				if ( is_object( $t ) && isset( $t->term_id, $t->name ) ) {
-					$out[ (string) $t->term_id ] = $t->name;
+					$out[ (string) $t->term_id ] = $t->name; // <-- keys are IDs (strings)
 				}
 			}
 		}
@@ -66,7 +65,7 @@ final class Restaurant_Menu extends Widget_Base {
 			'condition'    => [ 'data_mode' => 'dynamic' ],
 		] );
 
-		// MENU: single select (requested).
+		// MENU: single select (values are term_id as strings).
 		$this->add_control( 'menus', [
 			'label'     => __( 'Menu', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::SELECT,
@@ -75,7 +74,7 @@ final class Restaurant_Menu extends Widget_Base {
 			'condition' => [ 'data_mode' => 'dynamic' ],
 		] );
 
-		// SECTIONS: keep multi-select.
+		// SECTIONS: multi select (values are term_id as strings).
 		$this->add_control( 'sections', [
 			'label'     => __( 'Sections', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::SELECT2,
@@ -186,25 +185,25 @@ final class Restaurant_Menu extends Widget_Base {
 		}
 
 		$show_all           = ( isset( $s['show_all_when_empty'] ) && 'yes' === $s['show_all_when_empty'] );
-		$menu_sel           = $s['menus'] ?? '';      // single select: string or empty.
-		$sections_sel       = $s['sections'] ?? [];   // multi select: array.
+		$menu_sel           = $s['menus'] ?? '';      // single select: string term_id or ''.
+		$sections_sel       = $s['sections'] ?? [];   // multi select: array of term_id strings.
 		$orderby            = isset( $s['query_orderby'] ) ? (string) $s['query_orderby'] : 'menu_order';
 		$order              = isset( $s['query_order'] ) ? (string) $s['query_order'] : 'ASC';
 		$limit              = ( isset( $s['query_limit'] ) && is_numeric( $s['query_limit'] ) ) ? (int) $s['query_limit'] : 0;
 		$label_presentation = isset( $s['label_presentation'] ) ? (string) $s['label_presentation'] : 'icon_text';
 		$label_position     = isset( $s['label_position'] ) ? (string) $s['label_position'] : 'right';
 
-		// Normalize to arrays of slugs.
-		$menus_slugs    = $this->normalize_to_slugs( $menu_sel, 'jprm_menu' );
-		$sections_slugs = $this->normalize_to_slugs( $sections_sel, 'jprm_section' );
+		// Normalize to arrays of INT term IDs (strict).
+		$menu_ids     = $this->normalize_to_ids( $menu_sel );
+		$section_ids  = $this->normalize_to_ids( $sections_sel );
 
 		// If nothing selected and fallback off -> empty message.
-		if ( empty( $menus_slugs ) && empty( $sections_slugs ) && ! $show_all ) {
+		if ( empty( $menu_ids ) && empty( $section_ids ) && ! $show_all ) {
 			echo '<div class="jp-menu--empty">' . esc_html__( 'Select a Menu or Section to display items.', 'jellopoint-restaurant-menu' ) . '</div>';
 			return;
 		}
 
-		$items = $this->query_items( $menus_slugs, $sections_slugs, $orderby, $order, $limit, $show_all );
+		$items = $this->query_items( $menu_ids, $section_ids, $orderby, $order, $limit, $show_all );
 
 		if ( empty( $items ) ) {
 			echo '<div class="jp-menu--empty">' . esc_html__( 'No items found.', 'jellopoint-restaurant-menu' ) . '</div>';
@@ -281,57 +280,46 @@ final class Restaurant_Menu extends Widget_Base {
 	 * ========================= */
 
 	/**
-	 * Convert selected term input (scalar/array) to an array of slugs for given taxonomy.
-	 * Accepts:
-	 *  - '' or [] → []
-	 *  - numeric term_id → resolves to slug
-	 *  - slug string → kept
-	 *  - arrays of the above → flattened/unique
+	 * Convert Elementor control value(s) into an array of INTEGER term IDs.
+	 * Accepts: '', '12', 12, ['12','34'], [12,34] → [int,int]
 	 */
-	protected function normalize_to_slugs( $input, string $taxonomy ) : array {
-		if ( empty( $input ) && $input !== '0' ) return [];
+	protected function normalize_to_ids( $input ) : array {
+		if ( $input === '' || $input === null ) return [];
 		$vals = is_array( $input ) ? $input : [ $input ];
-		$slugs = [];
+		$out  = [];
 		foreach ( $vals as $v ) {
-			if ( is_string( $v ) && $v !== '' && ! ctype_digit( $v ) ) {
-				$slugs[] = $v;
-			} else {
-				$term = get_term( (int) $v, $taxonomy );
-				if ( $term && ! is_wp_error( $term ) && ! empty( $term->slug ) ) {
-					$slugs[] = $term->slug;
-				}
-			}
+			if ( $v === '' || $v === null ) continue;
+			$out[] = (int) $v;
 		}
-		return array_values( array_unique( $slugs ) );
+		return array_values( array_unique( array_filter( $out, fn($n) => $n > 0 ) ) );
 	}
 
 	/**
-	 * Query items. If both $menus_slugs and $sections_slugs are empty and $fallback_all is true,
-	 * returns all published items.
+	 * Query items. If both $menu_ids and $section_ids are empty and $fallback_all is true,
+	 * returns all published items. Filters STRICTLY by term_id (no slug ambiguity).
 	 */
-	protected function query_items( array $menus_slugs, array $sections_slugs, string $orderby, string $order, int $limit, bool $fallback_all ) : array {
+	protected function query_items( array $menu_ids, array $section_ids, string $orderby, string $order, int $limit, bool $fallback_all ) : array {
 		$args = [
-			'post_type'      => 'jprm_menu_item',
-			'post_status'    => 'publish',
-			'orderby'        => in_array( $orderby, [ 'menu_order','title','date' ], true ) ? $orderby : 'menu_order',
-			'order'          => ( strtoupper( $order ) === 'DESC' ) ? 'DESC' : 'ASC',
-			'posts_per_page' => ( $limit > 0 ) ? $limit : -1,
-			'suppress_filters' => false, // WPML/Polylang compatibility: respect current language filters.
+			'post_type'        => 'jprm_menu_item',
+			'post_status'      => 'publish',
+			'orderby'          => in_array( $orderby, [ 'menu_order','title','date' ], true ) ? $orderby : 'menu_order',
+			'order'            => ( strtoupper( $order ) === 'DESC' ) ? 'DESC' : 'ASC',
+			'posts_per_page'   => ( $limit > 0 ) ? $limit : -1,
+			'suppress_filters' => false, // WPML/Polylang friendly
 		];
 
 		$tax_query = [];
 
-		if ( ! empty( $menus_slugs ) ) {
-			$tax_query[] = [ 'taxonomy' => 'jprm_menu', 'field' => 'slug', 'terms' => $menus_slugs ];
+		if ( ! empty( $menu_ids ) ) {
+			$tax_query[] = [ 'taxonomy' => 'jprm_menu', 'field' => 'term_id', 'terms' => $menu_ids ];
 		}
-		if ( ! empty( $sections_slugs ) ) {
-			$tax_query[] = [ 'taxonomy' => 'jprm_section', 'field' => 'slug', 'terms' => $sections_slugs ];
+		if ( ! empty( $section_ids ) ) {
+			$tax_query[] = [ 'taxonomy' => 'jprm_section', 'field' => 'term_id', 'terms' => $section_ids ];
 		}
 
 		if ( ! empty( $tax_query ) ) {
 			$args['tax_query'] = $tax_query;
 		} elseif ( ! $fallback_all ) {
-			// No filters and fallback disabled → none.
 			return [];
 		}
 
