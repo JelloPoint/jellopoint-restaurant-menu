@@ -221,11 +221,13 @@ class Plugin {
 	}
 
 	/**
-	 * AJAX: return sections **available for a Menu**, not just those used by items.
-	 * Strategy:
-	 *  - Gather sections assigned to items in the menu.
-	 *  - Also gather sections linked to the menu via section term-meta (tolerant keys).
-	 *  - If no mapping exists at all, fall back to "all sections".
+	 * AJAX: return **available Sections for a Menu** with hierarchy in labels.
+	 * Strategy (in priority order):
+	 *  A) Sections linked to the Menu via section term-meta (tolerant keys, any match).
+	 *  B) Sections listed in option 'jprm_sections_catalog' (array: menu_id => [section_ids]).
+	 *  C) Fallback: **all sections** (so the control stays useful even if nothing is mapped yet).
+	 *
+	 * NO filtering by “items in this menu” anymore (per your request).
 	 *
 	 * Action: jprm_sections_by_menu
 	 * Params: menu (string|int), _ajax_nonce (via JPRMAjax.nonce)
@@ -242,36 +244,37 @@ class Plugin {
 			wp_send_json_success( [] ); // empty map
 		}
 
-		// Sections used by items in this menu (normal then bypass-filters fallback).
-		$used = self::get_sections_for_menu_items( $menu_id, false );
-		if ( empty( $used ) ) {
-			$used = self::get_sections_for_menu_items( $menu_id, true );
+		// A) Sections explicitly linked to this menu via term meta.
+		$sections_ids = self::get_section_ids_from_termmeta( $menu_id );
+
+		// B) Add explicit catalog from option (if configured).
+		$opt = get_option( 'jprm_sections_catalog' );
+		if ( is_array( $opt ) && ! empty( $opt[ $menu_id ] ) && is_array( $opt[ $menu_id ] ) ) {
+			$sections_ids = array_merge( $sections_ids, array_map( 'intval', $opt[ $menu_id ] ) );
 		}
 
-		// Sections explicitly linked to this menu via term meta (tolerant keys).
-		$catalog = self::get_sections_catalog_for_menu( $menu_id );
+		$sections_ids = array_values( array_unique( array_filter( $sections_ids, static fn( $n ) => $n > 0 ) ) );
 
-		// Combine: prefer explicit catalog; add any used sections not already present.
-		$sections = ! empty( $catalog ) ? $catalog : [];
-		foreach ( $used as $id => $name ) {
-			$sections[ (string) $id ] = $name;
+		$terms = [];
+		if ( ! empty( $sections_ids ) ) {
+			$terms = get_terms( [
+				'taxonomy'   => 'jprm_section',
+				'hide_empty' => false,
+				'include'    => $sections_ids,
+			] );
 		}
 
-		// If still empty, fall back to ALL sections so the control remains useful.
-		if ( empty( $sections ) ) {
-			$terms = get_terms( [ 'taxonomy' => 'jprm_section', 'hide_empty' => false ] );
-			if ( is_array( $terms ) ) {
-				foreach ( $terms as $t ) {
-					$sections[ (string) $t->term_id ] = $t->name;
-				}
-			}
+		// C) Fallback: if no mapping exists, show **all sections**.
+		if ( empty( $terms ) || is_wp_error( $terms ) ) {
+			$terms = get_terms( [
+				'taxonomy'   => 'jprm_section',
+				'hide_empty' => false,
+			] );
 		}
 
-		if ( ! empty( $sections ) ) {
-			asort( $sections, SORT_FLAG_CASE | SORT_NATURAL );
-		}
+		$map = self::terms_to_hierarchical_options( is_array( $terms ) ? $terms : [] );
 
-		wp_send_json_success( $sections );
+		wp_send_json_success( $map );
 	}
 
 	/** Normalize menu input (id/slug/name) to term_id in taxonomy jprm_menu. */
@@ -293,46 +296,15 @@ class Plugin {
 		return 0;
 	}
 
-	/** Query items in a menu and collect section terms used by those items. */
-	private static function get_sections_for_menu_items( int $menu_id, bool $suppress_filters ): array {
-		$q = new \WP_Query( [
-			'post_type'        => 'jprm_menu_item',
-			'post_status'      => 'publish',
-			'posts_per_page'   => -1,
-			'fields'           => 'ids',
-			'tax_query'        => [
-				[
-					'taxonomy' => 'jprm_menu',
-					'field'    => 'term_id',
-					'terms'    => [ $menu_id ],
-				],
-			],
-			'suppress_filters' => $suppress_filters,
-		] );
-
-		if ( empty( $q->posts ) ) {
-			return [];
-		}
-
-		$section_map = [];
-		foreach ( $q->posts as $pid ) {
-			$terms = wp_get_post_terms( $pid, 'jprm_section' );
-			if ( is_array( $terms ) ) {
-				foreach ( $terms as $t ) {
-					$section_map[ (string) $t->term_id ] = $t->name;
-				}
-			}
-		}
-		return $section_map;
-	}
-
 	/**
 	 * Discover sections that "belong" to a menu via term meta on jprm_section.
 	 * Accepted meta keys (any one is enough):
 	 *   jprm_menu_id, _jprm_menu_id, jprm_menu, _jprm_menu, menu_id, _menu_id, jprm_menu_ids, _jprm_menu_ids
 	 * Values can be a single ID, array of IDs, or CSV.
+	 *
+	 * @return int[] section term IDs
 	 */
-	private static function get_sections_catalog_for_menu( int $menu_id ): array {
+	private static function get_section_ids_from_termmeta( int $menu_id ): array {
 		$terms = get_terms( [ 'taxonomy' => 'jprm_section', 'hide_empty' => false ] );
 		if ( empty( $terms ) || is_wp_error( $terms ) ) {
 			return [];
@@ -347,7 +319,6 @@ class Plugin {
 
 		$out = [];
 		foreach ( $terms as $t ) {
-			$match = false;
 			foreach ( $keys as $k ) {
 				$val = get_term_meta( $t->term_id, $k, true );
 				if ( empty( $val ) ) {
@@ -368,13 +339,63 @@ class Plugin {
 				} ) ) );
 
 				if ( in_array( $menu_id, $list, true ) ) {
-					$match = true;
-					break;
+					$out[] = (int) $t->term_id;
+					break; // no need to check other keys for this term
 				}
 			}
-			if ( $match ) {
-				$out[ (string) $t->term_id ] = $t->name;
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Build a flat id => label map with hierarchy indentation for jprm_section terms.
+	 * Uses em-dash indentation ("— ") per depth level.
+	 *
+	 * @param \WP_Term[] $terms
+	 * @return array<string,string>
+	 */
+	private static function terms_to_hierarchical_options( array $terms ): array {
+		if ( empty( $terms ) ) {
+			return [];
+		}
+
+		// Index by parent
+		$by_parent = [];
+		foreach ( $terms as $t ) {
+			$by_parent[ (int) $t->parent ][] = $t;
+		}
+
+		$make_label = function( \WP_Term $term ): string {
+			$depth = count( get_ancestors( (int) $term->term_id, 'jprm_section', 'taxonomy' ) );
+			$indent = $depth > 0 ? str_repeat( '— ', $depth ) : '';
+			return $indent . $term->name;
+		};
+
+		$stack = isset( $by_parent[0] ) ? $by_parent[0] : [];
+		// Sort root level alphabetical for stable UX.
+		usort( $stack, static function( $a, $b ) {
+			return strcasecmp( $a->name, $b->name );
+		} );
+
+		$out = [];
+
+		$walk = function( $parent_id ) use ( &$walk, &$out, $by_parent, $make_label ) {
+			if ( empty( $by_parent[ $parent_id ] ) ) return;
+			$children = $by_parent[ $parent_id ];
+			usort( $children, static function( $a, $b ) {
+				return strcasecmp( $a->name, $b->name );
+			} );
+			foreach ( $children as $child ) {
+				$out[ (string) $child->term_id ] = $make_label( $child );
+				$walk( (int) $child->term_id );
 			}
+		};
+
+		// Emit root then descendents
+		foreach ( $stack as $root ) {
+			$out[ (string) $root->term_id ] = $make_label( $root );
+			$walk( (int) $root->term_id );
 		}
 
 		return $out;
