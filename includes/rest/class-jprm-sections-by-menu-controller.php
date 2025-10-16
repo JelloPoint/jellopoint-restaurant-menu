@@ -8,11 +8,7 @@ class Sections_By_Menu_Controller {
 	const NAMESPACE = 'jprm/v1';
 	const ROUTE     = '/sections';
 
-	public static function register() {
-		add_action( 'rest_api_init', [ __CLASS__, 'register_route' ] );
-	}
-
-	public static function register_route() {
+	public static function register() : void {
 		register_rest_route(
 			self::NAMESPACE,
 			self::ROUTE,
@@ -20,13 +16,13 @@ class Sections_By_Menu_Controller {
 				'methods'             => \WP_REST_Server::READABLE,
 				'callback'            => [ __CLASS__, 'handle' ],
 				'permission_callback' => function () {
-					// Only in admin/editor context; still harmless if public.
+					// Elementor editor context → user editing posts.
 					return current_user_can( 'edit_posts' );
 				},
 				'args'                => [
 					'menu' => [
-						'description' => 'Menu term ID (jprm_menu).',
-						'type'        => 'integer',
+						'description' => 'Menu (jprm_menu) as term ID or slug.',
+						'type'        => 'string',
 						'required'    => true,
 					],
 				],
@@ -34,54 +30,88 @@ class Sections_By_Menu_Controller {
 		);
 	}
 
+	/**
+	 * Normalize 'menu' to a valid term_id in taxonomy jprm_menu.
+	 */
+	protected static function normalize_menu_to_id( $menu ) : int {
+		if ( is_numeric( $menu ) ) {
+			$tid = (int) $menu;
+			$term = get_term( $tid, 'jprm_menu' );
+			return ( $term && ! is_wp_error( $term ) ) ? (int) $term->term_id : 0;
+		}
+		$menu = (string) $menu;
+		if ( '' === $menu ) {
+			return 0;
+		}
+		// Try slug first.
+		$term = get_term_by( 'slug', $menu, 'jprm_menu' );
+		if ( $term && ! is_wp_error( $term ) ) {
+			return (int) $term->term_id;
+		}
+		// Try name second.
+		$term = get_term_by( 'name', $menu, 'jprm_menu' );
+		if ( $term && ! is_wp_error( $term ) ) {
+			return (int) $term->term_id;
+		}
+		return 0;
+	}
+
 	public static function handle( \WP_REST_Request $req ) {
-		$menu_id = (int) $req->get_param( 'menu' );
+		$menu_raw = $req->get_param( 'menu' );
+		$menu_id  = self::normalize_menu_to_id( $menu_raw );
+
 		if ( $menu_id <= 0 ) {
-			return new \WP_Error( 'bad_request', 'Missing menu id', [ 'status' => 400 ] );
+			return rest_ensure_response( [] ); // empty map → "No results found" UI
 		}
 
-		// Query items under this Menu to discover used Sections.
-		$q = new \WP_Query( [
-			'post_type'      => 'jprm_menu_item',
-			'post_status'    => 'publish',
-			'posts_per_page' => -1,
-			'tax_query'      => [
-				[
-					'taxonomy' => 'jprm_menu',
-					'field'    => 'term_id',
-					'terms'    => [ $menu_id ],
+		// Query helper: collect section terms used by items in a given menu.
+		$get_sections_for_menu = function( bool $suppress_filters ) use ( $menu_id ) : array {
+			$q = new \WP_Query( [
+				'post_type'        => 'jprm_menu_item',
+				'post_status'      => 'publish',
+				'posts_per_page'   => -1,
+				'fields'           => 'ids',
+				'tax_query'        => [
+					[
+						'taxonomy' => 'jprm_menu',
+						'field'    => 'term_id',
+						'terms'    => [ $menu_id ],
+					],
 				],
-			],
-			'fields'         => 'ids',
-			'suppress_filters' => false, // WPML/Polylang friendly
-		] );
+				// When false: language/other filters active (default).
+				// When true: bypass filters (fallback to be extra tolerant).
+				'suppress_filters' => $suppress_filters,
+			] );
 
-		$section_counts = [];
-		if ( $q->posts ) {
+			if ( empty( $q->posts ) ) {
+				return [];
+			}
+
+			$section_map = [];
 			foreach ( $q->posts as $pid ) {
 				$terms = wp_get_post_terms( $pid, 'jprm_section' );
 				if ( is_array( $terms ) ) {
 					foreach ( $terms as $t ) {
-						if ( ! isset( $section_counts[ $t->term_id ] ) ) {
-							$section_counts[ $t->term_id ] = [ 'id' => $t->term_id, 'name' => $t->name, 'count' => 0 ];
-						}
-						$section_counts[ $t->term_id ]['count']++;
+						$section_map[ (string) $t->term_id ] = $t->name;
 					}
 				}
 			}
+			return $section_map;
+		};
+
+		// First pass: normal (respect language filters)
+		$sections = $get_sections_for_menu( false );
+
+		// Fallback: bypass filters in case editor context differs (WPML/Polylang)
+		if ( empty( $sections ) ) {
+			$sections = $get_sections_for_menu( true );
 		}
 
-		// Sort by name asc for nice UX.
-		uasort( $section_counts, function( $a, $b ) {
-			return strcasecmp( $a['name'], $b['name'] );
-		} );
-
-		// Return as a flat id=>label map (Elementor SELECT2 likes that).
-		$out = [];
-		foreach ( $section_counts as $row ) {
-			$out[ (string) $row['id'] ] = $row['name'];
+		// Sort for stable UI.
+		if ( ! empty( $sections ) ) {
+			asort( $sections, SORT_FLAG_CASE | SORT_NATURAL );
 		}
 
-		return rest_ensure_response( $out );
+		return rest_ensure_response( $sections );
 	}
 }
