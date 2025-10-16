@@ -40,13 +40,12 @@ final class Restaurant_Menu extends Widget_Base {
 		return $out;
 	}
 
-	public function register_controls() {
+	protected function register_controls() {
 		$menu_options    = $this->get_terms_options( 'jprm_menu' );
 		$section_options = $this->get_terms_options( 'jprm_section' );
 
 		$this->start_controls_section( 'section_source', [ 'label' => __( 'Data Source', 'jellopoint-restaurant-menu' ) ] );
 
-		// Source Mode (UI only; rendering keeps legacy behavior when items exist)
 		$this->add_control( 'data_mode', [
 			'label'   => __( 'Source Mode', 'jellopoint-restaurant-menu' ),
 			'type'    => Controls_Manager::CHOOSE,
@@ -58,110 +57,68 @@ final class Restaurant_Menu extends Widget_Base {
 			],
 		] );
 
-		// (Auto-detect context control removed)
-
 		$this->add_control( 'show_all_when_empty', [
-			'label'        => __( 'Fallback to all items when no menu/section', 'jellopoint-restaurant-menu' ),
+			'label'        => __( 'Fallback to all items when no Menu/Section', 'jellopoint-restaurant-menu' ),
 			'type'         => Controls_Manager::SWITCHER,
-			'label_on'     => __( 'Yes', 'jellopoint-restaurant-menu' ),
-			'label_off'    => __( 'No', 'jellopoint-restaurant-menu' ),
+			'default'      => 'yes',
 			'return_value' => 'yes',
-			'default'      => 'no',
+			'condition'    => [ 'data_mode' => 'dynamic' ],
 		] );
 
-		// MENUS: multi select (IDs as strings).
+		// MENU: single select (values are term_id as strings).
 		$this->add_control( 'menus', [
-			'label'       => __( 'Menus', 'jellopoint-restaurant-menu' ),
-			'description' => __( 'Choose Menus to include.', 'jellopoint-restaurant-menu' ),
-			'type'        => Controls_Manager::SELECT2,
-			'options'     => $menu_options,
-			'multiple'    => true,
+			'label'     => __( 'Menu', 'jellopoint-restaurant-menu' ),
+			'type'      => Controls_Manager::SELECT,
+			'multiple'  => false,
+			'options'   => $menu_options,
+			'condition' => [ 'data_mode' => 'dynamic' ],
 		] );
 
-		// SECTIONS: multi select (IDs as strings).
+		// SECTIONS: multi select (values are term_id as strings).
 		$this->add_control( 'sections', [
-			'label'       => __( 'Sections', 'jellopoint-restaurant-menu' ),
-			'description' => __( 'Choose Sections to include.', 'jellopoint-restaurant-menu' ),
-			'type'        => Controls_Manager::SELECT2,
-			'options'     => $section_options,
-			'multiple'    => true,
+			'label'     => __( 'Sections', 'jellopoint-restaurant-menu' ),
+			'type'      => Controls_Manager::SELECT2,
+			'multiple'  => true,
+			'options'   => $section_options,
+			'condition' => [ 'data_mode' => 'dynamic' ],
 		] );
 
 		$this->add_control( 'query_orderby', [
-			'label'   => __( 'Order by', 'jellopoint-restaurant-menu' ),
-			'type'    => Controls_Manager::SELECT,
-			'default' => 'menu_order',
-			'options' => [
-				'menu_order' => __( 'Menu order', 'jellopoint-restaurant-menu' ),
+			'label'     => __( 'Order By', 'jellopoint-restaurant-menu' ),
+			'type'      => Controls_Manager::SELECT,
+			'default'   => 'menu_order',
+			'options'   => [
+				'menu_order' => __( 'Menu Order', 'jellopoint-restaurant-menu' ),
 				'title'      => __( 'Title', 'jellopoint-restaurant-menu' ),
 				'date'       => __( 'Date', 'jellopoint-restaurant-menu' ),
 			],
+			'condition' => [ 'data_mode' => 'dynamic' ],
 		] );
 
 		$this->add_control( 'query_order', [
-			'label'   => __( 'Order', 'jellopoint-restaurant-menu' ),
-			'type'    => Controls_Manager::SELECT,
-			'default' => 'ASC',
-			'options' => [ 'ASC' => 'ASC', 'DESC' => 'DESC' ],
+			'label'     => __( 'Order', 'jellopoint-restaurant-menu' ),
+			'type'      => Controls_Manager::SELECT,
+			'default'   => 'ASC',
+			'options'   => [ 'ASC' => 'ASC', 'DESC' => 'DESC' ],
+			'condition' => [ 'data_mode' => 'dynamic' ],
 		] );
 
 		$this->add_control( 'query_limit', [
-			'label'       => __( 'Items limit', 'jellopoint-restaurant-menu' ),
-			'description' => __( 'Leave empty for no limit.', 'jellopoint-restaurant-menu' ),
+			'label'       => __( 'Max Items', 'jellopoint-restaurant-menu' ),
 			'type'        => Controls_Manager::NUMBER,
-			'min'         => 1,
+			'min'         => 0,
 			'step'        => 1,
+			'default'     => 0,
+			'description' => __( '0 = no limit', 'jellopoint-restaurant-menu' ),
+			'condition'   => [ 'data_mode' => 'dynamic' ],
 		] );
 
-		$this->end_controls_section();
-
-		// --- Sections and Menus (empty group except for display toggles) ----------
-		$this->start_controls_section(
-			'jprm_section_sections_menus',
-			[ 'label' => __( 'Sections and Menus', 'jellopoint-restaurant-menu' ) ]
-		);
-
-		$this->add_control( 'show_section_name', [
-			'label'        => __( 'Show section name', 'jellopoint-restaurant-menu' ),
-			'type'         => Controls_Manager::SWITCHER,
-			'label_on'     => __( 'Show', 'jellopoint-restaurant-menu' ),
-			'label_off'    => __( 'Hide', 'jellopoint-restaurant-menu' ),
-			'return_value' => 'yes',
-			'default'      => 'yes',
-		] );
-
-		$this->add_control( 'show_section_description', [
-			'label'        => __( 'Show section description', 'jellopoint-restaurant-menu' ),
-			'type'         => Controls_Manager::SWITCHER,
-			'label_on'     => __( 'Show', 'jellopoint-restaurant-menu' ),
-			'label_off'    => __( 'Hide', 'jellopoint-restaurant-menu' ),
-			'return_value' => 'yes',
-			'default'      => 'yes',
-		] );
-
-		$this->end_controls_section();
-
-		// --- Prices and Labels ----------------------------------------------------
-		$this->start_controls_section(
-			'jprm_section_prices_labels',
-			[ 'label' => __( 'Prices and Labels', 'jellopoint-restaurant-menu' ) ]
-		);
-
-		// Small heading: Prices (placeholder; logic untouched)
-		$this->add_control( 'heading_prices', [
-			'label'     => __( 'Prices', 'jellopoint-restaurant-menu' ),
-			'type'      => Controls_Manager::HEADING,
-			'separator' => 'before',
-		] );
-
-		// Small heading: Labels
 		$this->add_control( 'heading_labels', [
 			'label'     => __( 'Labels', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::HEADING,
 			'separator' => 'before',
 		] );
 
-		// Moved from Data Source (no functional change)
 		$this->add_control( 'label_presentation', [
 			'label'   => __( 'Label Presentation', 'jellopoint-restaurant-menu' ),
 			'type'    => Controls_Manager::SELECT,
@@ -183,48 +140,39 @@ final class Restaurant_Menu extends Widget_Base {
 			],
 		] );
 
-		$this->end_controls_section();
-
-		/* ---- Static items (shown only when Source Mode = static) ---- */
-		$this->start_controls_section(
-			'section_static',
-			[
-				'label'     => __( 'Static Items', 'jellopoint-restaurant-menu' ),
-				'condition' => [ 'data_mode' => 'static' ],
-			]
-		);
-
+		// Static items (legacy keys: item_*).
 		$rep = new Repeater();
-		$rep->add_control( 'item_title',        [ 'label' => __( 'Title', 'jellopoint-restaurant-menu' ),       'type' => Controls_Manager::TEXT ] );
-		$rep->add_control( 'item_description',  [ 'label' => __( 'Description', 'jellopoint-restaurant-menu' ), 'type' => Controls_Manager::TEXTAREA ] );
-		$rep->add_control( 'item_price',        [ 'label' => __( 'Price', 'jellopoint-restaurant-menu' ),       'type' => Controls_Manager::TEXT ] );
+		$rep->add_control( 'item_title', [
+			'label'       => __( 'Title', 'jellopoint-restaurant-menu' ),
+			'type'        => Controls_Manager::TEXT,
+			'label_block' => true,
+		] );
+		$rep->add_control( 'item_description', [
+			'label'       => __( 'Description', 'jellopoint-restaurant-menu' ),
+			'type'        => Controls_Manager::TEXTAREA,
+			'rows'        => 2,
+			'label_block' => true,
+		] );
+		$rep->add_control( 'item_price', [
+			'label' => __( 'Price', 'jellopoint-restaurant-menu' ),
+			'type'  => Controls_Manager::TEXT,
+		] );
 
 		$this->add_control( 'items', [
-			'label'       => __( 'Items', 'jellopoint-restaurant-menu' ),
+			'label'       => __( 'Static Items', 'jellopoint-restaurant-menu' ),
 			'type'        => Controls_Manager::REPEATER,
 			'fields'      => $rep->get_controls(),
+			'default'     => [],
 			'title_field' => '{{{ item_title }}}',
+			'condition'   => [ 'data_mode' => 'static' ],
 		] );
 
 		$this->end_controls_section();
 	}
 
 	/* =========================
-	 * Rendering
+	 * Render
 	 * ========================= */
-
-	/**
-	 * Normalize to array of INT term IDs (strings/ints accepted).
-	 */
-	protected function normalize_to_ids( $values ) : array {
-		$out = [];
-		foreach ( (array) $values as $v ) {
-			if ( $v === '' || $v === null ) continue;
-			$out[] = (int) $v;
-		}
-		return array_values( array_unique( array_filter( $out, fn( $n ) => $n > 0 ) ) );
-	}
-
 	public function render() {
 		$s = $this->get_settings_for_display();
 
@@ -256,36 +204,38 @@ final class Restaurant_Menu extends Widget_Base {
 		}
 
 		$items = $this->query_items( $menu_ids, $section_ids, $orderby, $order, $limit, $show_all );
+
 		if ( empty( $items ) ) {
 			echo '<div class="jp-menu--empty">' . esc_html__( 'No items found.', 'jellopoint-restaurant-menu' ) . '</div>';
 			return;
 		}
 
-		$label_map    = $this->build_label_map();
-		$presentation = $label_presentation;
-		$position     = $label_position;
+		$label_map = $this->build_label_map(); // id/slug => ['text','icon_id'].
 
 		echo '<ul class="jp-menu">';
 		foreach ( $items as $post ) {
 			$post_id = (int) $post->ID;
-
-			$title = get_the_title( $post_id );
-			$desc  = (string) get_post_meta( $post_id, 'jprm_desc', true );
-			$cfg   = $this->read_price_config( $post_id );
+			$title   = get_the_title( $post_id );
+			$desc    = get_post_meta( $post_id, 'jprm_desc', true );
+			$cfg     = $this->read_price_config( $post_id );
+			if ( empty( $cfg ) ) { continue; }
 
 			echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
+
+			// Left: title + description.
 			echo '  <div class="jp-menu__content">';
 			if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
-			if ( $desc  !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
+			if ( is_string($desc) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
 			echo '  </div>';
 
+			// Right: prices.
 			echo '  <div class="jp-menu__pricegroup">';
 
 			if ( $cfg['mode'] === 'single' && $cfg['price'] !== '' ) {
 				$resolved   = $this->resolve_label_ref( $cfg['label_ref'], $label_map, $cfg['icon_id'] ?? 0 );
-				$label_html = $this->label_html( $resolved['text'], (int) $resolved['icon_id'], $presentation, (bool) $cfg['hide_icon'] );
+				$label_html = $this->label_html( $resolved['text'], (int) $resolved['icon_id'], $label_presentation, (bool) $cfg['hide_icon'] );
 
-				if ( $position === 'left' ) {
+				if ( $label_position === 'left' ) {
 					echo '    <div class="jp-menu__price">';
 					echo '      <div class="jp-col-label">' . $label_html . '</div>';
 					echo '      <span class="jp-menu__value jp-col-price">' . esc_html( $cfg['price'] ) . '</span>';
@@ -298,35 +248,50 @@ final class Restaurant_Menu extends Widget_Base {
 				}
 			}
 
-			if ( $cfg['mode'] === 'matrix' && ! empty( $cfg['rows'] ) ) {
-				echo '    <div class="jp-menu__matrix">';
+			if ( $cfg['mode'] === 'multi' && ! empty( $cfg['rows'] ) ) {
 				foreach ( $cfg['rows'] as $row ) {
-					$row_price = $row['price'] ?? '';
-					if ( $row_price === '' ) { continue; }
+					$val = (string) ( $row['value'] ?? '' );
+					if ( $val === '' ) { continue; }
+					$resolved   = $this->resolve_label_ref( (string) ( $row['label_ref'] ?? '' ), $label_map, (int) ( $row['icon_id'] ?? 0 ) );
+					$label_html = $this->label_html( $resolved['text'], (int) $resolved['icon_id'], $label_presentation, (bool) ( $row['hide_icon'] ?? false ) );
 
-					$resolved   = $this->resolve_label_ref( $row['label_ref'] ?? '', $label_map, (int) ( $row['icon_id'] ?? 0 ) );
-					$label_html = $this->label_html( $resolved['text'], (int) $resolved['icon_id'], $presentation, (bool) ( $row['hide_icon'] ?? false ) );
-
-					if ( $position === 'left' ) {
-						echo '      <div class="jp-menu__price">';
-						echo '        <div class="jp-col-label">' . $label_html . '</div>';
-						echo '        <span class="jp-menu__value jp-col-price">' . esc_html( $row_price ) . '</span>';
-						echo '      </div>';
+					if ( $label_position === 'left' ) {
+						echo '    <div class="jp-menu__price">';
+						echo '      <div class="jp-col-label">' . $label_html . '</div>';
+						echo '      <span class="jp-menu__value jp-col-price">' . esc_html( $val ) . '</span>';
+						echo '    </div>';
 					} else {
-						echo '      <div class="jp-menu__price">';
-						echo '        <span class="jp-menu__value jp-col-price">' . esc_html( $row_price ) . '</span>';
-						echo '        <div class="jp-col-label">' . $label_html . '</div>';
-						echo '      </div>';
+						echo '    <div class="jp-menu__price">';
+						echo '      <span class="jp-menu__value jp-col-price">' . esc_html( $val ) . '</span>';
+						echo '      <div class="jp-col-label">' . $label_html . '</div>';
+						echo '    </div>';
 					}
 				}
-				echo '    </div>';
 			}
 
 			echo '  </div>'; // .jp-menu__pricegroup
-
 			echo '</div></li>';
 		}
 		echo '</ul>';
+	}
+
+	/* =========================
+	 * Data helpers
+	 * ========================= */
+
+	/**
+	 * Convert Elementor control value(s) into an array of INTEGER term IDs.
+	 * Accepts: '', '12', 12, ['12','34'], [12,34] → [int,int]
+	 */
+	protected function normalize_to_ids( $input ) : array {
+		if ( $input === '' || $input === null ) return [];
+		$vals = is_array( $input ) ? $input : [ $input ];
+		$out  = [];
+		foreach ( $vals as $v ) {
+			if ( $v === '' || $v === null ) continue;
+			$out[] = (int) $v;
+		}
+		return array_values( array_unique( array_filter( $out, fn($n) => $n > 0 ) ) );
 	}
 
 	/**
@@ -353,41 +318,75 @@ final class Restaurant_Menu extends Widget_Base {
 		}
 
 		if ( ! empty( $tax_query ) ) {
-			$args['tax_query'] = ( count( $tax_query ) > 1 ) ? array_merge( [ 'relation' => 'AND' ], $tax_query ) : $tax_query;
+			$args['tax_query'] = $tax_query;
 		} elseif ( ! $fallback_all ) {
 			return [];
 		}
 
 		$q = new \WP_Query( $args );
-		return $q->have_posts() ? $q->posts : [];
+		return is_array( $q->posts ?? null ) ? $q->posts : [];
 	}
 
-	/** Read price config JSON (meta: jprm_price). */
+	/** Read price config: meta jprm_price (JSON with mode/single/multi). */
 	protected function read_price_config( int $post_id ) : array {
-		$json = (string) get_post_meta( $post_id, 'jprm_price', true );
-		if ( $json === '' ) return [];
-		$data = json_decode( $json, true );
-		return is_array( $data ) ? $data : [];
-	}
+		$json = get_post_meta( $post_id, 'jprm_price', true );
+		if ( ! is_string( $json ) || $json === '' ) return [];
 
-	/** Resolve a label reference into text/icon pair from the labels map. */
-	protected function resolve_label_ref( $ref, array $labels, int $fallback_icon_id = 0 ) : array {
-		$out = [ 'text' => '', 'icon_id' => $fallback_icon_id ];
-		if ( is_string( $ref ) && $ref !== '' && isset( $labels[ $ref ] ) ) {
-			$val = $labels[ $ref ];
-			if ( is_array( $val ) ) {
-				$out['text']    = (string) ( $val['text'] ?? '' );
-				$out['icon_id'] = (int) ( $val['icon_id'] ?? $fallback_icon_id );
-			} elseif ( is_string( $val ) ) {
-				$out['text'] = $val;
+		$data = json_decode( $json, true );
+		if ( ! is_array( $data ) ) return [];
+
+		$mode = isset( $data['mode'] ) && in_array( $data['mode'], [ 'single', 'multi' ], true ) ? $data['mode'] : 'single';
+
+		$out = [ 'mode' => $mode, 'price' => '', 'rows' => [], 'label_ref' => '', 'hide_icon' => false, 'icon_id' => 0 ];
+
+		if ( $mode === 'single' ) {
+			$out['price']     = (string) ( $data['price'] ?? '' );
+			$out['label_ref'] = (string) ( $data['label_ref'] ?? '' );
+			$out['hide_icon'] = (bool)   ( $data['hide_icon'] ?? false );
+			$out['icon_id']   = (int)    ( $data['icon_id'] ?? 0 );
+		} else {
+			$rows = is_array( $data['rows'] ?? null ) ? $data['rows'] : [];
+			foreach ( $rows as $row ) {
+				$out['rows'][] = [
+					'value'     => (string) ( $row['value'] ?? '' ),
+					'label_ref' => (string) ( $row['label_ref'] ?? '' ),
+					'hide_icon' => (bool)   ( $row['hide_icon'] ?? false ),
+					'icon_id'   => (int)    ( $row['icon_id'] ?? 0 ),
+				];
 			}
 		}
 		return $out;
 	}
 
-	/** Build labels map (placeholder; real source elsewhere). */
+	/** Build label map from option jprm_price_labels_v2 (ids and slugs to text/icon_id). */
 	protected function build_label_map() : array {
-		return []; // keep existing behaviour; rendering tolerates empty labels gracefully.
+		$opt  = get_option( 'jprm_price_labels_v2' );
+		$list = is_string($opt) ? json_decode($opt, true) : ( is_array($opt) ? $opt : [] );
+		$map  = [];
+		if ( is_array($list) ) {
+			foreach ( $list as $row ) {
+				$id   = isset($row['id']) ? (string)$row['id'] : '';
+				$slug = isset($row['slug']) ? (string)$row['slug'] : '';
+				$lab  = isset($row['label']) ? (string)$row['label'] : '';
+				$ico  = isset($row['icon_id']) ? (int)$row['icon_id'] : 0;
+				if ( $id   !== '' ) $map[ $id ]   = [ 'text' => $lab, 'icon_id' => $ico ];
+				if ( $slug !== '' ) $map[ $slug ] = [ 'text' => $lab, 'icon_id' => $ico ];
+			}
+		}
+		return $map;
+ 	}
+
+	/** Resolve label_ref against registry; or treat ref as custom text with optional icon override */
+	protected function resolve_label_ref( string $ref, array $map, int $icon_override = 0 ) : array {
+		$ref = trim( $ref );
+		if ( $ref === '' ) {
+			return [ 'text' => '', 'icon_id' => $icon_override ];
+		}
+		if ( isset( $map[ $ref ] ) ) {
+			return [ 'text' => (string)$map[$ref]['text'], 'icon_id' => (int)$map[$ref]['icon_id'] ];
+		}
+		// Custom text; allow icon override.
+		return [ 'text' => $ref, 'icon_id' => $icon_override ];
 	}
 
 	/* =========================
