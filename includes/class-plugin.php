@@ -7,7 +7,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Core plugin bootstrap (CPT/Tax, Elementor, assets).
- * Cleanup-only: no functional changes. This class does NOT manage admin menus.
+ * This version keeps your original responsibilities and adds a small AJAX endpoint
+ * for the Elementor editor to filter Sections by the selected Menu.
  */
 class Plugin {
 
@@ -35,11 +36,11 @@ class Plugin {
 		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'register_assets' ] );
 		add_action( 'elementor/editor/after_enqueue_styles', [ __CLASS__, 'enqueue_editor_styles' ] );
 
-		// --- PATCH: dependent Sections in Elementor panel (admin-only) ---
-		// Editor-only script: dynamic Sections based on selected Menu.
+		// Editor-only assets (JS that filters Sections list by selected Menu).
 		add_action( 'elementor/editor/after_enqueue_scripts', [ __CLASS__, 'enqueue_elementor_editor_assets' ] );
-		// REST route for editor to fetch Sections by Menu.
-		add_action( 'rest_api_init', [ __CLASS__, 'register_rest_routes' ] );
+
+		// --- NEW: AJAX endpoint for editor (no REST needed) ---
+		add_action( 'wp_ajax_jprm_sections_by_menu', [ __CLASS__, 'ajax_sections_by_menu' ] );
 	}
 
 	/* =========================
@@ -187,26 +188,12 @@ class Plugin {
 	}
 
 	/* =========================
-	 * PATCH METHODS (editor UX)
+	 * Editor UX assets (AJAX-based)
 	 * ========================= */
 
 	/**
-	 * Register REST routes used by the Elementor editor to dynamically filter Sections by selected Menu.
-	 */
-	public static function register_rest_routes(): void {
-		$base_dir = defined('JPRM_PLUGIN_DIR') ? JPRM_PLUGIN_DIR : plugin_dir_path( __DIR__ ) . '../';
-		$rest_file = trailingslashit( $base_dir ) . 'includes/rest/class-jprm-sections-by-menu-controller.php';
-
-		if ( file_exists( $rest_file ) ) {
-			require_once $rest_file;
-		}
-		if ( class_exists( '\JelloPoint\RestaurantMenu\Rest\Sections_By_Menu_Controller' ) ) {
-			\JelloPoint\RestaurantMenu\Rest\Sections_By_Menu_Controller::register();
-		}
-	}
-
-	/**
 	 * Enqueue Elementor editor-only JS that watches the Menu control and updates the Sections control.
+	 * Localize ajaxurl + nonce for secure calls.
 	 */
 	public static function enqueue_elementor_editor_assets(): void {
 		$base_url = defined('JPRM_PLUGIN_URL') ? JPRM_PLUGIN_URL : plugin_dir_url( __DIR__ ) . '../';
@@ -221,19 +208,99 @@ class Plugin {
 			true
 		);
 
-		// Localize REST root + nonce (works in most admin contexts).
-		if ( function_exists( 'wp_create_nonce' ) ) {
-			wp_localize_script(
-				$handle,
-				'JPRMRest',
-				[
-					'root'  => esc_url_raw( rest_url() ),
-					'nonce' => wp_create_nonce( 'wp_rest' ),
-				]
-			);
-		}
+		// Provide ajaxurl + nonce to the script.
+		wp_localize_script(
+			$handle,
+			'JPRMAjax',
+			[
+				'url'   => admin_url( 'admin-ajax.php' ),
+				'nonce' => wp_create_nonce( 'jprm_sections' ),
+			]
+		);
 
 		wp_enqueue_script( $handle );
+	}
+
+	/**
+	 * AJAX: return sections used by items in a selected Menu (by term_id or slug).
+	 * Action: jprm_sections_by_menu
+	 * Params: menu (string|int), _ajax_nonce (via JPRMAjax.nonce)
+	 */
+	public static function ajax_sections_by_menu(): void {
+		if ( ! current_user_can( 'edit_posts' ) ) {
+			wp_send_json_error( [ 'message' => 'forbidden' ], 403 );
+		}
+		check_ajax_referer( 'jprm_sections' );
+
+		$menu_raw = isset( $_REQUEST['menu'] ) ? wp_unslash( $_REQUEST['menu'] ) : '';
+		$menu_id  = self::normalize_menu_to_id( $menu_raw );
+		if ( $menu_id <= 0 ) {
+			wp_send_json_success( [] ); // empty map
+		}
+
+		$sections = self::get_sections_for_menu( $menu_id, false );
+		if ( empty( $sections ) ) {
+			// Fallback: bypass filters (WPML/Polylang tolerance)
+			$sections = self::get_sections_for_menu( $menu_id, true );
+		}
+
+		if ( ! empty( $sections ) ) {
+			asort( $sections, SORT_FLAG_CASE | SORT_NATURAL );
+		}
+
+		wp_send_json_success( $sections );
+	}
+
+	/** Normalize menu input (id/slug/name) to term_id in taxonomy jprm_menu. */
+	private static function normalize_menu_to_id( $menu ): int {
+		if ( is_numeric( $menu ) ) {
+			$tid  = (int) $menu;
+			$term = get_term( $tid, 'jprm_menu' );
+			return ( $term && ! is_wp_error( $term ) ) ? (int) $term->term_id : 0;
+		}
+		$menu = (string) $menu;
+		if ( $menu === '' ) return 0;
+
+		$term = get_term_by( 'slug', $menu, 'jprm_menu' );
+		if ( $term && ! is_wp_error( $term ) ) return (int) $term->term_id;
+
+		$term = get_term_by( 'name', $menu, 'jprm_menu' );
+		if ( $term && ! is_wp_error( $term ) ) return (int) $term->term_id;
+
+		return 0;
+	}
+
+	/** Query items in a menu and collect section terms used by those items. */
+	private static function get_sections_for_menu( int $menu_id, bool $suppress_filters ): array {
+		$q = new \WP_Query( [
+			'post_type'        => 'jprm_menu_item',
+			'post_status'      => 'publish',
+			'posts_per_page'   => -1,
+			'fields'           => 'ids',
+			'tax_query'        => [
+				[
+					'taxonomy' => 'jprm_menu',
+					'field'    => 'term_id',
+					'terms'    => [ $menu_id ],
+				],
+			],
+			'suppress_filters' => $suppress_filters,
+		] );
+
+		if ( empty( $q->posts ) ) {
+			return [];
+		}
+
+		$section_map = [];
+		foreach ( $q->posts as $pid ) {
+			$terms = wp_get_post_terms( $pid, 'jprm_section' );
+			if ( is_array( $terms ) ) {
+				foreach ( $terms as $t ) {
+					$section_map[ (string) $t->term_id ] = $t->name;
+				}
+			}
+		}
+		return $section_map;
 	}
 }
 

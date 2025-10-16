@@ -2,38 +2,37 @@
 	'use strict';
 
 	const LOG_PREFIX = '[JPRM]';
-	function log() {
-		try { console.log.apply(console, [LOG_PREFIX].concat([].slice.call(arguments))); } catch(e){}
-	}
+	function log(){ try{ console.log.apply(console, [LOG_PREFIX].concat([].slice.call(arguments))); }catch(e){} }
 
-	/** REST fetch helper */
+	/** AJAX fetch helper (admin-ajax.php) */
 	async function fetchSections(menuId) {
 		if (!menuId) return {};
 		try {
-			const root =
-				(window.JPRMRest && JPRMRest.root)
-					? JPRMRest.root
-					: (window.wpApiSettings ? wpApiSettings.root : '/wp-json/');
-			const nonce =
-				(window.JPRMRest && JPRMRest.nonce)
-					? JPRMRest.nonce
-					: (window.wpApiSettings ? wpApiSettings.nonce : null);
-			const url = root.replace(/\/+$/, '') + '/jprm/v1/sections?menu=' + encodeURIComponent(menuId);
-			const headers = nonce ? { 'X-WP-Nonce': nonce } : {};
-			const res = await fetch(url, { credentials: 'include', headers });
-			if (!res.ok) { log('REST non-OK', res.status); return {}; }
+			const params = new URLSearchParams();
+			params.set('action', 'jprm_sections_by_menu');
+			params.set('menu', menuId);
+			params.set('_ajax_nonce', (window.JPRMAjax && JPRMAjax.nonce) ? JPRMAjax.nonce : '');
+
+			const res = await fetch((window.JPRMAjax ? JPRMAjax.url : ajaxurl), {
+				method: 'POST',
+				credentials: 'include',
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+				body: params.toString()
+			});
+			if (!res.ok) { log('AJAX non-OK', res.status); return {}; }
 			const data = await res.json();
-			return data && typeof data === 'object' ? data : {};
+			if (!data || !data.success) { log('AJAX payload not success', data); return {}; }
+			const map = data.data || {};
+			return (map && typeof map === 'object') ? map : {};
 		} catch (e) {
-			log('REST error', e);
+			log('AJAX error', e);
 			return {};
 		}
 	}
 
-	/** Apply options to the Sections control (model-first; fallback to DOM) */
+	/** Apply options to the Sections control (model-first; fallback DOM) */
 	function applySectionsOptions($panel, optionsMap) {
 		try {
-			// Try to find the control view through elementor panel if available
 			let controlView = null;
 			if (window.elementor && elementor.getPanelView) {
 				const panelView = elementor.getPanelView();
@@ -47,8 +46,6 @@
 
 			const map = optionsMap || {};
 			const ids = Object.keys(map);
-
-			// Determine current selection; keep only values still present.
 			let keep = [];
 			try {
 				if (window.elementor && elementor.getPanelView) {
@@ -62,12 +59,9 @@
 
 			if (controlView && controlView.model) {
 				controlView.model.set('options', map);
-				// Also set on the widget model:
 				const pv = elementor.getPanelView().getCurrentPanelView();
 				pv.model.setSetting('sections', keep);
-				// Re-render control:
 				if (typeof controlView.render === 'function') controlView.render();
-				// Sync Select2:
 				const $sel = controlView.$el.find('[data-setting="sections"]');
 				if ($sel.length) $sel.val(keep).trigger('change');
 				log('Applied via controlView. Options:', map, 'Keep:', keep);
@@ -84,17 +78,13 @@
 				});
 				$sel.val(selected).trigger('change');
 				log('Applied via DOM. Options:', map, 'Keep:', selected);
-			} else {
-				log('Sections select not found in panel');
 			}
 		} catch (e) {
 			log('applySectionsOptions error', e);
 		}
 	}
 
-	/** Read current Menu value from panel DOM or model */
 	function getMenuValue($panel) {
-		// Prefer model if available
 		try {
 			if (window.elementor && elementor.getPanelView) {
 				const pv = elementor.getPanelView().getCurrentPanelView();
@@ -102,13 +92,11 @@
 				return Array.isArray(val) ? (val[0] || '') : (val || '');
 			}
 		} catch(e){}
-		// Fallback: DOM
 		const $menu = $panel.find('[data-setting="menus"]');
 		const v = $menu.val();
 		return Array.isArray(v) ? (v[0] || '') : (v || '');
 	}
 
-	/** Handle changes (fetch + apply) */
 	async function refreshSectionsForPanel($panel) {
 		const mid = getMenuValue($panel);
 		if (!mid) {
@@ -116,12 +104,11 @@
 			applySectionsOptions($panel, {});
 			return;
 		}
-		log('Fetching sections for menu:', mid);
+		log('AJAX fetching sections for menu:', mid);
 		const map = await fetchSections(mid);
 		applySectionsOptions($panel, map);
 	}
 
-	/** Attach change listener to Menu select inside this panel */
 	function bindMenuChange($panel) {
 		const $menu = $panel.find('[data-setting="menus"]');
 		if (!$menu.length) {
@@ -143,10 +130,6 @@
 		$menu.on('change', () => refreshSectionsForPanel($panel));
 	}
 
-	/**
-	 * MutationObserver: watch the Elementor right panel, detect when our widget panel appears,
-	 * then hook up dependency logic.
-	 */
 	function startObservingPanel() {
 		const $panelRoot = $('.elementor-panel'); // main editor panel container
 		if (!$panelRoot.length) {
@@ -162,19 +145,14 @@
 				const $added = $(m.addedNodes);
 				$added.each(function () {
 					const $node = $(this);
-					// widget settings panel has data-widget_type attribute; check for our widget type.
-					// Elementor often wraps controls in .elementor-control-* inside the panel; we detect by presence of our controls.
 					const hasOurControls =
 						$node.find('[data-setting="menus"]').length &&
 						$node.find('[data-setting="sections"]').length;
-
-					// Also try to detect by header title text containing our widget name (fallback).
 					const titleText = $node.find('.elementor-panel-heading-title').text() || '';
 					const isOursByTitle = /Restaurant Menu \(JelloPoint\)/i.test(titleText);
 
 					if (hasOurControls || isOursByTitle) {
 						log('Our widget panel detected.');
-						// Bind change and do initial refresh.
 						bindMenuChange($node);
 						refreshSectionsForPanel($node);
 					}
@@ -184,23 +162,21 @@
 
 		observer.observe($panelRoot.get(0), { childList: true, subtree: true });
 
-		// Also run once in case the panel is already open when we start.
-		const $existingPanels = $panelRoot.find('[data-setting="menus"]').closest('.elementor-control').closest('.elementor-controls-stack, .elementor-panel');
-		if ($existingPanels.length) {
+		// If panel already open
+		const $existing = $panelRoot.find('[data-setting="menus"]');
+		if ($existing.length) {
 			log('Existing panel detected on load.');
-			const $p = $panelRoot; // apply to whole panel root; refresh will scope by selectors
+			const $p = $panelRoot;
 			bindMenuChange($p);
 			refreshSectionsForPanel($p);
 		}
 	}
 
-	/** Boot: ensure we’re in the editor */
 	function boot() {
-		log('Boot script loaded.');
+		log('Boot script (AJAX) loaded.');
 		startObservingPanel();
 	}
 
-	// Run when editor assets are ready
 	if (document.readyState === 'complete' || document.readyState === 'interactive') {
 		boot();
 	} else {
