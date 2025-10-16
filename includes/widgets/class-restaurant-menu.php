@@ -9,10 +9,11 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
  * JelloPoint – Restaurant Menu (Elementor Widget)
- * Restored layout & label logic exactly as in your working file, with minor fixes:
- *  - Fixed truncated strings/lines.
- *  - Fixed resolver variable name.
- *  - Avoids Elementor\Controls_Stack::render_static() clash by using render_static_list().
+ * - Restored DOM + label/icon logic (as per your working version).
+ * - Menu is single-select; Sections can be multi-select.
+ * - Robust normalization (scalar/array) for term selections.
+ * - Correct fallback-to-all behavior.
+ * - No clash with Elementor\Controls_Stack::render_static().
  */
 final class Restaurant_Menu extends Widget_Base {
 
@@ -40,7 +41,7 @@ final class Restaurant_Menu extends Widget_Base {
 		return $out;
 	}
 
-	public function register_controls() {
+	protected function register_controls() {
 		$menu_options    = $this->get_terms_options( 'jprm_menu' );
 		$section_options = $this->get_terms_options( 'jprm_section' );
 
@@ -58,23 +59,25 @@ final class Restaurant_Menu extends Widget_Base {
 		] );
 
 		$this->add_control( 'show_all_when_empty', [
-			'label'        => __( 'Fallback to all items when no menu/section', 'jellopoint-restaurant-menu' ),
+			'label'        => __( 'Fallback to all items when no Menu/Section', 'jellopoint-restaurant-menu' ),
 			'type'         => Controls_Manager::SWITCHER,
 			'default'      => 'yes',
 			'return_value' => 'yes',
 			'condition'    => [ 'data_mode' => 'dynamic' ],
 		] );
 
+		// MENU: single select (requested).
 		$this->add_control( 'menus', [
-			'label'     => __( 'Filter by Menus', 'jellopoint-restaurant-menu' ),
-			'type'      => Controls_Manager::SELECT2,
-			'multiple'  => true,
+			'label'     => __( 'Menu', 'jellopoint-restaurant-menu' ),
+			'type'      => Controls_Manager::SELECT,
+			'multiple'  => false,
 			'options'   => $menu_options,
 			'condition' => [ 'data_mode' => 'dynamic' ],
 		] );
 
+		// SECTIONS: keep multi-select.
 		$this->add_control( 'sections', [
-			'label'     => __( 'Filter by Sections', 'jellopoint-restaurant-menu' ),
+			'label'     => __( 'Sections', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::SELECT2,
 			'multiple'  => true,
 			'options'   => $section_options,
@@ -138,7 +141,7 @@ final class Restaurant_Menu extends Widget_Base {
 			],
 		] );
 
-		// Static items (uses item_* keys to match your renderer).
+		// Static items (legacy keys: item_*).
 		$rep = new Repeater();
 		$rep->add_control( 'item_title', [
 			'label'       => __( 'Title', 'jellopoint-restaurant-menu' ),
@@ -176,64 +179,64 @@ final class Restaurant_Menu extends Widget_Base {
 
 		$mode = isset( $s['data_mode'] ) ? (string) $s['data_mode'] : null;
 
-		// Legacy behaviour: if static items exist and no explicit mode, use static.
+		// Legacy: if static items exist and no explicit mode, use static.
 		if ( 'static' === $mode || ( null === $mode && ! empty( $s['items'] ) ) ) {
 			$this->render_static_list( is_array($s['items']) ? $s['items'] : [] );
 			return;
 		}
 
-		$show_all          = ( isset( $s['show_all_when_empty'] ) && 'yes' === $s['show_all_when_empty'] );
-		$menus             = isset( $s['menus'] ) ? (array) $s['menus'] : [];
-		$sections          = isset( $s['sections'] ) ? (array) $s['sections'] : [];
-		$orderby           = isset( $s['query_orderby'] ) ? (string) $s['query_orderby'] : 'menu_order';
-		$order             = isset( $s['query_order'] ) ? (string) $s['query_order'] : 'ASC';
-		$limit             = ( isset( $s['query_limit'] ) && is_numeric( $s['query_limit'] ) ) ? (int) $s['query_limit'] : 0;
-		$label_presentation= isset( $s['label_presentation'] ) ? (string) $s['label_presentation'] : 'icon_text';
-		$label_position    = isset( $s['label_position'] ) ? (string) $s['label_position'] : 'right';
+		$show_all           = ( isset( $s['show_all_when_empty'] ) && 'yes' === $s['show_all_when_empty'] );
+		$menu_sel           = $s['menus'] ?? '';      // single select: string or empty.
+		$sections_sel       = $s['sections'] ?? [];   // multi select: array.
+		$orderby            = isset( $s['query_orderby'] ) ? (string) $s['query_orderby'] : 'menu_order';
+		$order              = isset( $s['query_order'] ) ? (string) $s['query_order'] : 'ASC';
+		$limit              = ( isset( $s['query_limit'] ) && is_numeric( $s['query_limit'] ) ) ? (int) $s['query_limit'] : 0;
+		$label_presentation = isset( $s['label_presentation'] ) ? (string) $s['label_presentation'] : 'icon_text';
+		$label_position     = isset( $s['label_position'] ) ? (string) $s['label_position'] : 'right';
 
-		$menus    = $this->normalize_to_slugs( $menus, 'jprm_menu' );
-		$sections = $this->normalize_to_slugs( $sections, 'jprm_section' );
+		// Normalize to arrays of slugs.
+		$menus_slugs    = $this->normalize_to_slugs( $menu_sel, 'jprm_menu' );
+		$sections_slugs = $this->normalize_to_slugs( $sections_sel, 'jprm_section' );
 
-		if ( empty( $menus ) && empty( $sections ) && ! $show_all ) {
+		// If nothing selected and fallback off -> empty message.
+		if ( empty( $menus_slugs ) && empty( $sections_slugs ) && ! $show_all ) {
 			echo '<div class="jp-menu--empty">' . esc_html__( 'Select a Menu or Section to display items.', 'jellopoint-restaurant-menu' ) . '</div>';
 			return;
 		}
 
-		$items = $this->query_items( $menus, $sections, $orderby, $order, $limit );
+		$items = $this->query_items( $menus_slugs, $sections_slugs, $orderby, $order, $limit, $show_all );
+
 		if ( empty( $items ) ) {
 			echo '<div class="jp-menu--empty">' . esc_html__( 'No items found.', 'jellopoint-restaurant-menu' ) . '</div>';
 			return;
 		}
 
-		$label_map    = $this->build_label_map();
-		$presentation = $label_presentation;
-		$position     = $label_position;
+		$label_map = $this->build_label_map(); // id/slug => ['text','icon_id'].
 
 		echo '<ul class="jp-menu">';
 		foreach ( $items as $post ) {
 			$post_id = (int) $post->ID;
 			$title   = get_the_title( $post_id );
 			$desc    = get_post_meta( $post_id, 'jprm_desc', true );
-
-			$cfg = $this->read_price_config( $post_id );
+			$cfg     = $this->read_price_config( $post_id );
 			if ( empty( $cfg ) ) { continue; }
 
 			echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
 
-			// Left: title + description
+			// Left: title + description.
 			echo '  <div class="jp-menu__content">';
 			if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
 			if ( is_string($desc) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
 			echo '  </div>';
 
-			// Right: prices
+			// Right: prices.
 			echo '  <div class="jp-menu__pricegroup">';
 
 			if ( $cfg['mode'] === 'single' && $cfg['price'] !== '' ) {
 				$resolved   = $this->resolve_label_ref( $cfg['label_ref'], $label_map, $cfg['icon_id'] ?? 0 );
-				$label_html = $this->label_html( $resolved['text'], (int) $resolved['icon_id'], $presentation, (bool) $cfg['hide_icon'] );
+				$label_html = $this->label_html( $resolved['text'], (int) $resolved['icon_id'], $label_presentation, (bool) $cfg['hide_icon'] );
 
-				if ( $position === 'left' ) {
+				if ( $label_position === 'left' ) {
 					echo '    <div class="jp-menu__price">';
 					echo '      <div class="jp-col-label">' . $label_html . '</div>';
 					echo '      <span class="jp-menu__value jp-col-price">' . esc_html( $cfg['price'] ) . '</span>';
@@ -251,9 +254,9 @@ final class Restaurant_Menu extends Widget_Base {
 					$val = (string) ( $row['value'] ?? '' );
 					if ( $val === '' ) { continue; }
 					$resolved   = $this->resolve_label_ref( (string) ( $row['label_ref'] ?? '' ), $label_map, (int) ( $row['icon_id'] ?? 0 ) );
-					$label_html = $this->label_html( $resolved['text'], (int) $resolved['icon_id'], $presentation, (bool) ( $row['hide_icon'] ?? false ) );
+					$label_html = $this->label_html( $resolved['text'], (int) $resolved['icon_id'], $label_presentation, (bool) ( $row['hide_icon'] ?? false ) );
 
-					if ( $position === 'left' ) {
+					if ( $label_position === 'left' ) {
 						echo '    <div class="jp-menu__price">';
 						echo '      <div class="jp-col-label">' . $label_html . '</div>';
 						echo '      <span class="jp-menu__value jp-col-price">' . esc_html( $val ) . '</span>';
@@ -277,26 +280,63 @@ final class Restaurant_Menu extends Widget_Base {
 	 * Data helpers
 	 * ========================= */
 
-	protected function query_items( array $menus_slugs, array $sections_slugs, string $orderby, string $order, int $limit ) : array {
+	/**
+	 * Convert selected term input (scalar/array) to an array of slugs for given taxonomy.
+	 * Accepts:
+	 *  - '' or [] → []
+	 *  - numeric term_id → resolves to slug
+	 *  - slug string → kept
+	 *  - arrays of the above → flattened/unique
+	 */
+	protected function normalize_to_slugs( $input, string $taxonomy ) : array {
+		if ( empty( $input ) && $input !== '0' ) return [];
+		$vals = is_array( $input ) ? $input : [ $input ];
+		$slugs = [];
+		foreach ( $vals as $v ) {
+			if ( is_string( $v ) && $v !== '' && ! ctype_digit( $v ) ) {
+				$slugs[] = $v;
+			} else {
+				$term = get_term( (int) $v, $taxonomy );
+				if ( $term && ! is_wp_error( $term ) && ! empty( $term->slug ) ) {
+					$slugs[] = $term->slug;
+				}
+			}
+		}
+		return array_values( array_unique( $slugs ) );
+	}
+
+	/**
+	 * Query items. If both $menus_slugs and $sections_slugs are empty and $fallback_all is true,
+	 * returns all published items.
+	 */
+	protected function query_items( array $menus_slugs, array $sections_slugs, string $orderby, string $order, int $limit, bool $fallback_all ) : array {
 		$args = [
 			'post_type'      => 'jprm_menu_item',
 			'post_status'    => 'publish',
 			'orderby'        => in_array( $orderby, [ 'menu_order','title','date' ], true ) ? $orderby : 'menu_order',
 			'order'          => ( strtoupper( $order ) === 'DESC' ) ? 'DESC' : 'ASC',
 			'posts_per_page' => ( $limit > 0 ) ? $limit : -1,
+			'suppress_filters' => false, // WPML/Polylang compatibility: respect current language filters.
 		];
 
 		$tax_query = [];
+
 		if ( ! empty( $menus_slugs ) ) {
 			$tax_query[] = [ 'taxonomy' => 'jprm_menu', 'field' => 'slug', 'terms' => $menus_slugs ];
 		}
 		if ( ! empty( $sections_slugs ) ) {
 			$tax_query[] = [ 'taxonomy' => 'jprm_section', 'field' => 'slug', 'terms' => $sections_slugs ];
 		}
-		if ( ! empty( $tax_query ) ) { $args['tax_query'] = $tax_query; }
+
+		if ( ! empty( $tax_query ) ) {
+			$args['tax_query'] = $tax_query;
+		} elseif ( ! $fallback_all ) {
+			// No filters and fallback disabled → none.
+			return [];
+		}
 
 		$q = new \WP_Query( $args );
-		return $q->posts ?? [];
+		return is_array( $q->posts ?? null ) ? $q->posts : [];
 	}
 
 	/** Read price config: meta jprm_price (JSON with mode/single/multi). */
@@ -357,34 +397,13 @@ final class Restaurant_Menu extends Widget_Base {
 		if ( isset( $map[ $ref ] ) ) {
 			return [ 'text' => (string)$map[$ref]['text'], 'icon_id' => (int)$map[$ref]['icon_id'] ];
 		}
-		// Custom text path; allow row-defined icon_id override.
+		// Custom text; allow icon override.
 		return [ 'text' => $ref, 'icon_id' => $icon_override ];
 	}
 
 	/* =========================
-	 * Small helpers
+	 * Static renderer
 	 * ========================= */
-
-	/** Convert selected term IDs or slugs into slugs for the given taxonomy. */
-	protected function normalize_to_slugs( $values, string $taxonomy ) : array {
-		if ( empty( $values ) ) return [];
-		$slugs = [];
-		foreach ( (array) $values as $v ) {
-			// If it's a non-numeric string, assume it's already a slug.
-			if ( is_string( $v ) && ! ctype_digit( $v ) ) {
-				$slugs[] = $v;
-				continue;
-			}
-			// Numeric id: resolve to slug.
-			$term = get_term( (int) $v, $taxonomy );
-			if ( $term && ! is_wp_error( $term ) && isset( $term->slug ) && $term->slug !== '' ) {
-				$slugs[] = $term->slug;
-			}
-		}
-		return array_values( array_unique( $slugs ) );
-	}
-
-	/** Render static items list (legacy/unchanged keys item_title/item_description/item_price) */
 	protected function render_static_list( array $items ) : void {
 		echo '<ul class="jp-menu">';
 		foreach ( $items as $it ) {
