@@ -64,6 +64,15 @@ class Plugin {
 				\JelloPoint\RestaurantMenu\Debug\Inspector_Shortcode::init();
 			}
 		}
+
+		// NEW: Sections Meta UI (owning menu dropdown)
+		$sections_meta_ui = trailingslashit( $base_dir ) . 'includes/admin/class-jprm-sections-meta-ui.php';
+		if ( file_exists( $sections_meta_ui ) ) {
+			require_once $sections_meta_ui;
+		if ( class_exists( '\JelloPoint\RestaurantMenu\Admin\JPRM_Sections_Meta_UI' ) ) {
+		\JelloPoint\RestaurantMenu\Admin\JPRM_Sections_Meta_UI::init();
+	}
+}
 	}
 
 	/* =========================
