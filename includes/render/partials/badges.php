@@ -74,7 +74,7 @@ if ( ! function_exists( 'jprm_fetch_item_badges' ) ) {
 if ( ! function_exists( 'jprm_render_item_badges_html' ) ) {
 	/**
 	 * Render badges list.
-	 * $position: 'before'|'after' – relative to the item title.
+	 * $position: 'before' |'after' – relative to the item title.
 	 * $presentation: 'text'|'icon'|'icon_text' (reuse same control values as Labels).
 	 */
 	function jprm_render_item_badges_html( int $post_id, string $position, string $presentation ) : string {
