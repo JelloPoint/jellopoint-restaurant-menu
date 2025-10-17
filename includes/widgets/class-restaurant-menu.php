@@ -9,10 +9,10 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
  * JelloPoint – Restaurant Menu (Elementor Widget)
- * - Layout & label/icon logic as approved.
- * - STRICT term_id filtering for Menu (single) & Sections (multi).
- * - Keeps "Fallback to all items" behaviour.
- * - Preview/render logic now uses a reusable include for the price+labels block.
+ * - Left pane structure as agreed:
+ *   Data Source → Sections and Menus → Prices and Labels
+ * - Rendering of price+labels is delegated to includes/render/partials/price-block.php
+ * - Items WITHOUT price config are skipped (same behavior as before)
  */
 final class Restaurant_Menu extends Widget_Base {
 
@@ -24,15 +24,20 @@ final class Restaurant_Menu extends Widget_Base {
 	public function get_style_depends() { return [ 'jprm-menu' ]; }
 	public function get_script_depends() { return []; }
 
-	/** Require the price+labels partial once. */
-	private static function require_price_partial() : void {
+	/** Load the canonical price-block partial once. */
+	private static function require_price_partial_once() : void {
 		static $loaded = false;
-		if ( $loaded ) { return; }
+		if ( $loaded ) return;
+
 		$path = dirname( __DIR__ ) . '/render/partials/price-block.php'; // includes/render/partials/price-block.php
 		if ( is_readable( $path ) ) {
 			require_once $path;
-			$loaded = true;
+		} else {
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( '[JPRM] price-block.php not found/readable at: ' . $path );
+			}
 		}
+		$loaded = true;
 	}
 
 	/* =========================
@@ -65,7 +70,7 @@ final class Restaurant_Menu extends Widget_Base {
 			'default' => 'dynamic',
 			'options' => [
 				'dynamic' => [ 'title' => __( 'Dynamic', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-database' ],
-				'static'  => [ 'title' => __( 'Static',  'jellopoint-restaurant-menu' ), 'icon' => 'eicon-editor-list-ul' ],
+				'static'  => [ 'title' => __( 'Static', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-editor-list-ul' ],
 			],
 		] );
 
@@ -123,7 +128,7 @@ final class Restaurant_Menu extends Widget_Base {
 			'condition'   => [ 'data_mode' => 'dynamic' ],
 		] );
 
-		// Static items (legacy keys: item_*)
+		// Static mode controls
 		$rep = new Repeater();
 		$rep->add_control( 'item_title', [
 			'label'       => __( 'Title', 'jellopoint-restaurant-menu' ),
@@ -157,7 +162,6 @@ final class Restaurant_Menu extends Widget_Base {
 			'jprm_section_sections_menus',
 			[ 'label' => __( 'Sections and Menus', 'jellopoint-restaurant-menu' ) ]
 		);
-
 		$this->add_control( 'show_section_name', [
 			'label'        => __( 'Show section name', 'jellopoint-restaurant-menu' ),
 			'type'         => Controls_Manager::SWITCHER,
@@ -166,7 +170,6 @@ final class Restaurant_Menu extends Widget_Base {
 			'return_value' => 'yes',
 			'default'      => 'yes',
 		] );
-
 		$this->add_control( 'show_section_description', [
 			'label'        => __( 'Show section description', 'jellopoint-restaurant-menu' ),
 			'type'         => Controls_Manager::SWITCHER,
@@ -175,7 +178,6 @@ final class Restaurant_Menu extends Widget_Base {
 			'return_value' => 'yes',
 			'default'      => 'yes',
 		] );
-
 		$this->end_controls_section();
 
 		/* --- Prices and Labels (labels moved here) ------------------------------ */
@@ -183,19 +185,16 @@ final class Restaurant_Menu extends Widget_Base {
 			'jprm_section_prices_labels',
 			[ 'label' => __( 'Prices and Labels', 'jellopoint-restaurant-menu' ) ]
 		);
-
 		$this->add_control( 'heading_prices', [
 			'label'     => __( 'Prices', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::HEADING,
 			'separator' => 'before',
 		] );
-
 		$this->add_control( 'heading_labels', [
 			'label'     => __( 'Labels', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::HEADING,
 			'separator' => 'before',
 		] );
-
 		$this->add_control( 'label_presentation', [
 			'label'   => __( 'Label Presentation', 'jellopoint-restaurant-menu' ),
 			'type'    => Controls_Manager::SELECT,
@@ -206,7 +205,6 @@ final class Restaurant_Menu extends Widget_Base {
 				'icon_text' => __( 'Icon + Text', 'jellopoint-restaurant-menu' ),
 			],
 		] );
-
 		$this->add_control( 'label_position', [
 			'label'   => __( 'Label Position', 'jellopoint-restaurant-menu' ),
 			'type'    => Controls_Manager::SELECT,
@@ -216,7 +214,6 @@ final class Restaurant_Menu extends Widget_Base {
 				'right' => __( 'Right of price', 'jellopoint-restaurant-menu' ),
 			],
 		] );
-
 		$this->end_controls_section();
 	}
 
@@ -224,46 +221,42 @@ final class Restaurant_Menu extends Widget_Base {
 	 * Render
 	 * ========================= */
 	public function render() {
-		self::require_price_partial();
+		self::require_price_partial_once();
 
 		$s = $this->get_settings_for_display();
-
 		$mode = isset( $s['data_mode'] ) ? (string) $s['data_mode'] : null;
 
-		// Legacy: if static items exist and no explicit mode, use static.
+		// Static mode
 		if ( 'static' === $mode || ( null === $mode && ! empty( $s['items'] ) ) ) {
 			$this->render_static_list( is_array( $s['items'] ) ? $s['items'] : [] );
 			return;
 		}
 
 		$show_all           = ( isset( $s['show_all_when_empty'] ) && 'yes' === $s['show_all_when_empty'] );
-		$menu_sel           = $s['menus'] ?? '';      // single select: string term_id or ''.
-		$sections_sel       = $s['sections'] ?? [];   // multi select: array of term_id strings.
+		$menu_sel           = $s['menus'] ?? '';
+		$sections_sel       = $s['sections'] ?? [];
 		$orderby            = isset( $s['query_orderby'] ) ? (string) $s['query_orderby'] : 'menu_order';
 		$order              = isset( $s['query_order'] ) ? (string) $s['query_order'] : 'ASC';
 		$limit              = ( isset( $s['query_limit'] ) && is_numeric( $s['query_limit'] ) ) ? (int) $s['query_limit'] : 0;
 		$label_presentation = isset( $s['label_presentation'] ) ? (string) $s['label_presentation'] : 'icon_text';
 		$label_position     = isset( $s['label_position'] ) ? (string) $s['label_position'] : 'right';
 
-		// Normalize to arrays of INT term IDs (strict).
-		$menu_ids     = $this->normalize_to_ids( $menu_sel );
-		$section_ids  = $this->normalize_to_ids( $sections_sel );
+		$menu_ids    = $this->normalize_to_ids( $menu_sel );
+		$section_ids = $this->normalize_to_ids( $sections_sel );
 
-		// If nothing selected and fallback off -> empty message.
 		if ( empty( $menu_ids ) && empty( $section_ids ) && ! $show_all ) {
 			echo '<div class="jp-menu--empty">' . esc_html__( 'Select a Menu or Section to display items.', 'jellopoint-restaurant-menu' ) . '</div>';
 			return;
 		}
 
 		$items = $this->query_items( $menu_ids, $section_ids, $orderby, $order, $limit, $show_all );
-
 		if ( empty( $items ) ) {
 			echo '<div class="jp-menu--empty">' . esc_html__( 'No items found.', 'jellopoint-restaurant-menu' ) . '</div>';
 			return;
 		}
 
-		// Preload labels map once per widget render.
-		$label_map = function_exists( 'jprm_build_label_map' ) ? jprm_build_label_map() : [];
+		// Optional: preload label map once per render for perf (partial can also build it)
+		$label_map = function_exists( 'jprm_build_label_map' ) ? jprm_build_label_map() : null;
 
 		echo '<ul class="jp-menu">';
 		foreach ( $items as $post ) {
@@ -271,18 +264,23 @@ final class Restaurant_Menu extends Widget_Base {
 			$title   = get_the_title( $post_id );
 			$desc    = get_post_meta( $post_id, 'jprm_desc', true );
 
+			// Keep previous behavior: skip items without a price config entirely
+			$cfg = function_exists( 'jprm_read_price_config' ) ? jprm_read_price_config( $post_id ) : [];
+			if ( empty( $cfg ) ) { continue; }
+
 			echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
 
-			// Left: title + description.
+			// Left: title + description
 			echo '  <div class="jp-menu__content">';
 			if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
 			if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
 			echo '  </div>';
 
-			// Right: prices — rendered via reusable partial (exact same markup as before).
+			// Right: prices+labels via partial (canonical)
 			if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
 				echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			} else {
+				// Should not happen if partial is present; emit empty container to preserve layout.
 				echo '<div class="jp-menu__pricegroup"></div>';
 			}
 
@@ -294,11 +292,6 @@ final class Restaurant_Menu extends Widget_Base {
 	/* =========================
 	 * Data helpers
 	 * ========================= */
-
-	/**
-	 * Convert Elementor control value(s) into an array of INTEGER term IDs.
-	 * Accepts: '', '12', 12, ['12','34'], [12,34] → [int,int]
-	 */
 	protected function normalize_to_ids( $input ) : array {
 		if ( $input === '' || $input === null ) return [];
 		$vals = is_array( $input ) ? $input : [ $input ];
@@ -307,13 +300,9 @@ final class Restaurant_Menu extends Widget_Base {
 			if ( $v === '' || $v === null ) continue;
 			$out[] = (int) $v;
 		}
-		return array_values( array_unique( array_filter( $out, fn($n) => $n > 0 ) ) );
+		return array_values( array_unique( array_filter( $out, fn( $n ) => $n > 0 ) ) );
 	}
 
-	/**
-	 * Query items. If both $menu_ids and $section_ids are empty and $fallback_all is true,
-	 * returns all published items. Filters STRICTLY by term_id (no slug ambiguity).
-	 */
 	protected function query_items( array $menu_ids, array $section_ids, string $orderby, string $order, int $limit, bool $fallback_all ) : array {
 		$args = [
 			'post_type'        => 'jprm_menu_item',
@@ -321,23 +310,14 @@ final class Restaurant_Menu extends Widget_Base {
 			'orderby'          => in_array( $orderby, [ 'menu_order','title','date' ], true ) ? $orderby : 'menu_order',
 			'order'            => ( strtoupper( $order ) === 'DESC' ) ? 'DESC' : 'ASC',
 			'posts_per_page'   => ( $limit > 0 ) ? $limit : -1,
-			'suppress_filters' => false, // WPML/Polylang friendly
+			'suppress_filters' => false,
 		];
 
 		$tax_query = [];
-
-		if ( ! empty( $menu_ids ) ) {
-			$tax_query[] = [ 'taxonomy' => 'jprm_menu', 'field' => 'term_id', 'terms' => $menu_ids ];
-		}
-		if ( ! empty( $section_ids ) ) {
-			$tax_query[] = [ 'taxonomy' => 'jprm_section', 'field' => 'term_id', 'terms' => $section_ids ];
-		}
-
-		if ( ! empty( $tax_query ) ) {
-			$args['tax_query'] = $tax_query;
-		} elseif ( ! $fallback_all ) {
-			return [];
-		}
+		if ( ! empty( $menu_ids ) )    $tax_query[] = [ 'taxonomy' => 'jprm_menu',    'field' => 'term_id', 'terms' => $menu_ids ];
+		if ( ! empty( $section_ids ) ) $tax_query[] = [ 'taxonomy' => 'jprm_section', 'field' => 'term_id', 'terms' => $section_ids ];
+		if ( ! empty( $tax_query ) )   $args['tax_query'] = $tax_query;
+		elseif ( ! $fallback_all )     return [];
 
 		$q = new \WP_Query( $args );
 		return is_array( $q->posts ?? null ) ? $q->posts : [];
