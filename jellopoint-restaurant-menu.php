@@ -77,6 +77,11 @@ require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-sections-ux.php';
 require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-items-list-filters.php';
 \JelloPoint\RestaurantMenu\Admin\Items_List_Filters::init();
 
+// Add after other includes are loaded
+if ( file_exists( __DIR__ . '/includes/debug/inspector-badges.php' ) ) {
+	require_once __DIR__ . '/includes/debug/inspector-badges.php';
+}
+
 // Register routes for ALL contexts (front + admin).
 add_action( 'rest_api_init', function () {
     // Sanity: if class isn’t loaded, bail early (prevents fatal).
