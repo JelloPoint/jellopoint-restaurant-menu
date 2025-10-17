@@ -104,18 +104,22 @@ class Plugin {
 	 * ========================= */
 
 	public static function register_assets() : void {
+		// Register the widget stylesheet so Elementor can enqueue it via get_style_depends().
 		if ( ! wp_style_is( 'jprm-menu', 'registered' ) ) {
-			$base_url = defined( 'JPRM_PLUGIN_URL' ) ? JPRM_PLUGIN_URL : plugin_dir_url( __DIR__ ) . '../';
-			$rel_css  = 'includes/render/css/menu.css';
+			// Absolute path to includes/render/css/menu.css relative to this file.
+			$abs_css = __DIR__ . '/render/css/menu.css';
+			// URL built relative to this file (this file is in /includes/), so we pass __FILE__
+			// and a relative path from /includes/ to /includes/render/css/menu.css.
+			$url_css = plugins_url( 'render/css/menu.css', __FILE__ );
 
-			$abs_css  = trailingslashit( defined( 'JPRM_PLUGIN_DIR' ) ? JPRM_PLUGIN_DIR : plugin_dir_path( __DIR__ ) . '../' ) . $rel_css;
-			$url_css  = trailingslashit( $base_url ) . $rel_css;
-			$ver      = defined( 'JPRM_PLUGIN_VERSION' ) ? JPRM_PLUGIN_VERSION : null;
+			$ver = defined( 'JPRM_PLUGIN_VERSION' ) ? JPRM_PLUGIN_VERSION : null;
 
+			// Even if the file check fails on some environments, still register so Elementor can try to enqueue.
 			if ( file_exists( $abs_css ) ) {
 				wp_register_style( 'jprm-menu', $url_css, [], $ver );
 			} else {
-				wp_register_style( 'jprm-menu', trailingslashit( $base_url ) . 'assets/css/frontend.css', [], $ver );
+				// Fallback: still register with the computed URL (helps in symlinked or atypical installs).
+				wp_register_style( 'jprm-menu', $url_css, [], $ver );
 			}
 		}
 	}
