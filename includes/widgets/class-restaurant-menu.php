@@ -157,7 +157,7 @@ final class Restaurant_Menu extends Widget_Base {
 
 		$this->end_controls_section();
 
-		/* --- Sections and Menus (SHOW/HIDE toggles only) ------------------------ */
+		/* --- Sections and Menus (SHOW/HIDE + Menu Title/Desc) ------------------ */
 		$this->start_controls_section(
 			'jprm_section_sections_menus',
 			[ 'label' => __( 'Sections and Menus', 'jellopoint-restaurant-menu' ) ]
@@ -178,6 +178,40 @@ final class Restaurant_Menu extends Widget_Base {
 			'return_value' => 'yes',
 			'default'      => 'yes',
 		] );
+
+		// NEW: Menu Title & Description controls (dynamic mode only)
+		$this->add_control( 'show_menu_title', [
+			'label'        => __( 'Menu title', 'jellopoint-restaurant-menu' ),
+			'type'         => Controls_Manager::SWITCHER,
+			'label_on'     => __( 'Show', 'jellopoint-restaurant-menu' ),
+			'label_off'    => __( 'Hide', 'jellopoint-restaurant-menu' ),
+			'return_value' => 'yes',
+			'default'      => '',
+			'condition'    => [ 'data_mode' => 'dynamic' ],
+		] );
+		$this->add_control( 'show_menu_description', [
+			'label'        => __( 'Menu description', 'jellopoint-restaurant-menu' ),
+			'type'         => Controls_Manager::SWITCHER,
+			'label_on'     => __( 'Show', 'jellopoint-restaurant-menu' ),
+			'label_off'    => __( 'Hide', 'jellopoint-restaurant-menu' ),
+			'return_value' => 'yes',
+			'default'      => '',
+			'condition'    => [ 'data_mode' => 'dynamic' ],
+		] );
+		$this->add_control( 'menu_title_position', [
+			'label'     => __( 'Menu title position', 'jellopoint-restaurant-menu' ),
+			'type'      => Controls_Manager::SELECT,
+			'default'   => 'above_menu',
+			'options'   => [
+				'above_menu'   => __( 'Above Complete Menu', 'jellopoint-restaurant-menu' ),
+				'first_column' => __( 'Above 1st Column', 'jellopoint-restaurant-menu' ),
+			],
+			'condition' => [
+				'data_mode'         => 'dynamic',
+				'show_menu_title!'  => '',
+			],
+		] );
+
 		$this->end_controls_section();
 
 		/* --- Prices and Labels (labels kept intact) ----------------------------- */
@@ -304,11 +338,10 @@ final class Restaurant_Menu extends Widget_Base {
 			],
 			'condition' => [
 				'data_mode'      => 'dynamic',
-				'layout_columns' => [ '2', '3' ], // now applies to 2 and 3 columns
+				'layout_columns' => [ '2', '3' ],
 			],
 		] );
 
-		// Manual split: first break (used by 2 or 3 columns)
 		$this->add_control( 'layout_split_after_section', [
 			'label'     => __( 'Split after section (1)', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::SELECT,
@@ -322,7 +355,6 @@ final class Restaurant_Menu extends Widget_Base {
 			'description' => __( 'If the chosen section is not present in the result, auto-balance is used.', 'jellopoint-restaurant-menu' ),
 		] );
 
-		// Manual split: second break (only for 3 columns)
 		$this->add_control( 'layout_split_after_section2', [
 			'label'     => __( 'Split after section (2)', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::SELECT,
@@ -395,6 +427,19 @@ final class Restaurant_Menu extends Widget_Base {
 		$menu_ids    = $this->normalize_to_ids( $menu_sel );
 		$section_ids = $this->normalize_to_ids( $sections_sel );
 
+		// Get selected Menu term (single select); else null
+		$menu_term = null;
+		if ( count( $menu_ids ) === 1 ) {
+			$menu_term = get_term( (int) $menu_ids[0], 'jprm_menu' );
+			if ( ! $menu_term || is_wp_error( $menu_term ) ) {
+				$menu_term = null;
+			}
+		}
+
+		$show_menu_title = ( isset( $s['show_menu_title'] ) && $s['show_menu_title'] === 'yes' );
+		$show_menu_desc  = ( isset( $s['show_menu_description'] ) && $s['show_menu_description'] === 'yes' );
+		$menu_pos        = isset( $s['menu_title_position'] ) ? (string) $s['menu_title_position'] : 'above_menu';
+
 		if ( empty( $menu_ids ) && empty( $section_ids ) && ! $show_all ) {
 			echo '<div class="jp-menu--empty">' . esc_html__( 'Select a Menu or Section to display items.', 'jellopoint-restaurant-menu' ) . '</div>';
 			return;
@@ -434,9 +479,33 @@ final class Restaurant_Menu extends Widget_Base {
 		$show_section_name = ( isset( $s['show_section_name'] ) && $s['show_section_name'] === 'yes' );
 		$show_section_desc = ( isset( $s['show_section_description'] ) && $s['show_section_description'] === 'yes' );
 
+		// Helper: render Menu meta block (title/description)
+		$render_menu_meta = function( $term, bool $show_title, bool $show_desc, string $scope ) : string {
+			if ( ! $term || ( ! $show_title && ! $show_desc ) ) return '';
+			$title = $show_title ? trim( (string) $term->name ) : '';
+			$desc  = $show_desc  ? trim( (string) $term->description ) : '';
+			if ( $title === '' && $desc === '' ) return '';
+			$cls = 'jp-menu__meta ' . ( $scope === 'global' ? 'jp-menu__meta--global' : 'jp-menu__meta--col' );
+			$out  = '<div class="' . esc_attr( $cls ) . '">';
+			if ( $title !== '' ) $out .= '<h2 class="jp-menu__meta-title">' . esc_html( $title ) . '</h2>';
+			if ( $desc  !== '' ) $out .= '<div class="jp-menu__meta-desc">' . esc_html( $desc ) . '</div>';
+			$out .= '</div>';
+			return $out;
+		};
+
 		/* ===== 1 column: with section headers ===== */
 		if ( $columns === '1' ) {
+			// For 1 column, both positions effectively appear above the list; render once above.
+			if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
+				echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
+			}
 			echo '<ul class="jp-menu">';
+			// If position is "first_column" we still render at the start of this single column list.
+			if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'first_column' ) {
+				echo '<li class="jp-menu__meta-li">';
+				echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'col' ); // phpcs:ignore
+				echo '</li>';
+			}
 			foreach ( $sections_order as $tid ) {
 				$blk  = $sections_data[ $tid ];
 				$term = $blk['term'];
@@ -497,52 +566,22 @@ final class Restaurant_Menu extends Widget_Base {
 			$left_sections  = array_slice( $sections_order, 0, $split_index + 1 );
 			$right_sections = array_slice( $sections_order, $split_index + 1 );
 
-			// If right column empty → render single column (headers on)
-			if ( empty( $right_sections ) ) {
-				echo '<ul class="jp-menu">';
-				foreach ( $left_sections as $tid ) {
-					$blk  = $sections_data[ $tid ];
-					$term = $blk['term'];
-					if ( $term && $show_section_name ) {
-						echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
-						if ( $show_section_desc && ! empty( $term->description ) ) {
-							echo '<div class="jp-section__desc">' . esc_html( $term->description ) . '</div>';
-						}
-						echo '</li>';
-					}
-					foreach ( $blk['items'] as $post ) {
-						$post_id = (int) $post->ID;
-						$title   = get_the_title( $post_id );
-						$desc    = get_post_meta( $post_id, 'jprm_desc', true );
-						echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
-						echo '  <div class="jp-menu__content">';
-						if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
-						if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
-						echo '  </div>';
-						if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
-							echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
-						} else {
-							echo '<div class="jp-menu__pricegroup"></div>';
-						}
-						echo '</div></li>';
-					}
-				}
-				echo '</ul>';
-				return;
+			// Above Complete Menu → render before grid wrapper
+			if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
+				echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
 			}
 
-			// Force grid in Elementor editor
-			$is_editor = ( class_exists( '\Elementor\Plugin' ) && \Elementor\Plugin::$instance->editor && \Elementor\Plugin::$instance->editor->is_edit_mode() );
-			$gap_px    = 24;
-			if ( isset( $s['layout_column_gap']['size'] ) && is_numeric( $s['layout_column_gap']['size'] ) ) {
-				$gap_px = (int) $s['layout_column_gap']['size'];
-			}
-			$inline = $is_editor ? ' style="display:grid;grid-template-columns:1fr 1fr;gap:' . esc_attr( $gap_px ) . 'px;"' : '';
+			// Build grid wrapper (front-end CSS handles grid; editor preview also picks it up)
+			echo '<div class="jp-menu-grid jp-cols-2 jp-menu--cols-2 jp-two-cols">';
 
-			echo '<div class="jp-menu-grid jp-cols-2 jp-menu--cols-2 jp-two-cols"' . $inline . '>';
-
-			// LEFT
+			// LEFT column
 			echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--left">';
+			// Above 1st Column → render inside left column at top
+			if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'first_column' ) {
+				echo '<li class="jp-menu__meta-li">';
+				echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'col' ); // phpcs:ignore
+				echo '</li>';
+			}
 			foreach ( $left_sections as $tid ) {
 				$blk  = $sections_data[ $tid ];
 				$term = $blk['term'];
@@ -572,7 +611,7 @@ final class Restaurant_Menu extends Widget_Base {
 			}
 			echo '</ul></div>';
 
-			// RIGHT
+			// RIGHT column
 			echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--right">';
 			foreach ( $right_sections as $tid ) {
 				$blk  = $sections_data[ $tid ];
@@ -608,29 +647,21 @@ final class Restaurant_Menu extends Widget_Base {
 		}
 
 		/* ===== 3 columns ===== */
-		// Editor grid inline style (front-end uses CSS file grid)
-		$is_editor = ( class_exists( '\Elementor\Plugin' ) && \Elementor\Plugin::$instance->editor && \Elementor\Plugin::$instance->editor->is_edit_mode() );
-		$gap_px    = 24;
-		if ( isset( $s['layout_column_gap']['size'] ) && is_numeric( $s['layout_column_gap']['size'] ) ) {
-			$gap_px = (int) $s['layout_column_gap']['size'];
-		}
-		$inline = $is_editor ? ' style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:' . esc_attr( $gap_px ) . 'px;"' : '';
+		// Compute 3-way split (auto or manual) — existing logic preserved
+		$total = 0;
+		foreach ( $sections_order as $tid ) { $total += count( $sections_data[ $tid ]['items'] ); }
 
 		$col1 = $col2 = $col3 = [];
 
 		if ( $split_mode === 'manual' && $split_after_1 !== '' && $split_after_2 !== '' ) {
-			// Manual: find indices for both split sections
 			$idx1 = $idx2 = null;
 			$t1   = (int) $split_after_1;
 			$t2   = (int) $split_after_2;
-
 			foreach ( $sections_order as $i => $tid ) {
 				if ( $idx1 === null && $tid === $t1 ) $idx1 = $i;
 				if ( $idx2 === null && $tid === $t2 ) $idx2 = $i;
 				if ( $idx1 !== null && $idx2 !== null ) break;
 			}
-
-			// Valid only if both found and idx2 after idx1
 			if ( $idx1 !== null && $idx2 !== null && $idx2 > $idx1 ) {
 				$col1 = array_slice( $sections_order, 0, $idx1 + 1 );
 				$col2 = array_slice( $sections_order, $idx1 + 1, $idx2 - $idx1 );
@@ -638,20 +669,16 @@ final class Restaurant_Menu extends Widget_Base {
 			}
 		}
 
-		// If manual invalid or not fully provided → auto-balance by items (keep section boundaries)
 		if ( empty( $col1 ) && empty( $col2 ) && empty( $col3 ) ) {
-			$total = 0;
-			foreach ( $sections_order as $tid ) { $total += count( $sections_data[ $tid ]['items'] ); }
 			$t1 = (int) ceil( $total / 3 );
-			$t2 = (int) ceil( ( 2 * $total ) / 3 );
-
+			$t2 = (int) ceil( (2 * $total) / 3 );
 			$i1 = null; $i2 = null; $acc = 0;
 			foreach ( $sections_order as $idx => $tid ) {
 				$acc += count( $sections_data[ $tid ]['items'] );
 				if ( $i1 === null && $acc >= $t1 ) $i1 = $idx;
 				if ( $i2 === null && $acc >= $t2 ) { $i2 = $idx; break; }
 			}
-			if ( $i1 === null ) $i1 = min( 0, count( $sections_order ) - 1 );
+			if ( $i1 === null ) $i1 = 0;
 			if ( $i2 === null ) $i2 = max( $i1, count( $sections_order ) - 1 );
 
 			$col1 = array_slice( $sections_order, 0, $i1 + 1 );
@@ -659,98 +686,23 @@ final class Restaurant_Menu extends Widget_Base {
 			$col3 = array_slice( $sections_order, $i2 + 1 );
 		}
 
-		// If columns end up empty, gracefully fall back
-		if ( empty( $col2 ) && empty( $col3 ) ) {
-			// single column with headers
-			echo '<ul class="jp-menu">';
-			foreach ( $col1 as $tid ) {
-				$blk  = $sections_data[ $tid ];
-				$term = $blk['term'];
-				if ( $term && $show_section_name ) {
-					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
-					if ( $show_section_desc && ! empty( $term->description ) ) {
-						echo '<div class="jp-section__desc">' . esc_html( $term->description ) . '</div>';
-					}
-					echo '</li>';
-				}
-				foreach ( $blk['items'] as $post ) {
-					$post_id = (int) $post->ID;
-					$title   = get_the_title( $post_id );
-					$desc    = get_post_meta( $post_id, 'jprm_desc', true );
-					echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
-					echo '  <div class="jp-menu__content">';
-					if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
-					if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
-					echo '  </div>';
-					if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
-						echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
-					} else {
-						echo '<div class="jp-menu__pricegroup"></div>';
-					}
-					echo '</div></li>';
-				}
-			}
-			echo '</ul>';
-			return;
-		}
-		if ( empty( $col3 ) ) {
-			// 2-column fallback (col1 + col2)
-			$is_editor = ( class_exists( '\Elementor\Plugin' ) && \Elementor\Plugin::$instance->editor && \Elementor\Plugin::$instance->editor->is_edit_mode() );
-			$gap_px    = 24;
-			if ( isset( $s['layout_column_gap']['size'] ) && is_numeric( $s['layout_column_gap']['size'] ) ) {
-				$gap_px = (int) $s['layout_column_gap']['size'];
-			}
-			$inline2 = $is_editor ? ' style="display:grid;grid-template-columns:1fr 1fr;gap:' . esc_attr( $gap_px ) . 'px;"' : '';
-
-			echo '<div class="jp-menu-grid jp-cols-2 jp-menu--cols-2 jp-two-cols"' . $inline2 . '>';
-			echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--left">';
-			foreach ( $col1 as $tid ) {
-				$blk = $sections_data[ $tid ]; $term = $blk['term'];
-				if ( $term && $show_section_name ) {
-					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">'.esc_html($term->name).'</h3>';
-					if ( $show_section_desc && ! empty( $term->description ) ) echo '<div class="jp-section__desc">'.esc_html($term->description).'</div>';
-					echo '</li>';
-				}
-				foreach ( $blk['items'] as $post ) {
-					$post_id=(int)$post->ID; $title=get_the_title($post_id); $desc=get_post_meta($post_id,'jprm_desc',true);
-					echo '<li class="jp-menu__item"><div class="jp-menu__inner"><div class="jp-menu__content">';
-					if($title!=='') echo '<h4 class="jp-menu__title">'.esc_html($title).'</h4>';
-					if(is_string($desc)&&$desc!=='') echo '<div class="jp-menu__desc">'.esc_html($desc).'</div>';
-					echo '</div>';
-					if(function_exists('jprm_render_pricegroup_html')){ echo jprm_render_pricegroup_html($post_id,$label_presentation,$label_position,$label_map,$currency_opts);} else { echo '<div class="jp-menu__pricegroup"></div>'; }
-					echo '</div></li>';
-				}
-			}
-			echo '</ul></div>';
-			echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--right">';
-			foreach ( $col2 as $tid ) {
-				$blk = $sections_data[ $tid ]; $term = $blk['term'];
-				if ( $term && $show_section_name ) {
-					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">'.esc_html($term->name).'</h3>';
-					if ( $show_section_desc && ! empty( $term->description ) ) echo '<div class="jp-section__desc">'.esc_html($term->description).'</div>';
-					echo '</li>';
-				}
-				foreach ( $blk['items'] as $post ) {
-					$post_id=(int)$post->ID; $title=get_the_title($post_id); $desc=get_post_meta($post_id,'jprm_desc',true);
-					echo '<li class="jp-menu__item"><div class="jp-menu__inner"><div class="jp-menu__content">';
-					if($title!=='') echo '<h4 class="jp-menu__title">'.esc_html($title).'</h4>';
-					if(is_string($desc)&&$desc!=='') echo '<div class="jp-menu__desc">'.esc_html($desc).'</div>';
-					echo '</div>';
-					if(function_exists('jprm_render_pricegroup_html')){ echo jprm_render_pricegroup_html($post_id,$label_presentation,$label_position,$label_map,$currency_opts);} else { echo '<div class="jp-menu__pricegroup"></div>'; }
-					echo '</div></li>';
-				}
-			}
-			echo '</ul></div></div>';
-		 return;
+		// Above Complete Menu → render before grid wrapper
+		if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
+			echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
 		}
 
-		// Render 3 columns (editor grid inline)
-		echo '<div class="jp-menu-grid jp-cols-3 jp-menu--cols-3 jp-three-cols"' . $inline . '>';
+		echo '<div class="jp-menu-grid jp-cols-3 jp-menu--cols-3 jp-three-cols">';
 
 		$cols = [ $col1, $col2, $col3 ];
 		$pos  = [ 'left', 'middle', 'right' ];
 		foreach ( $cols as $i => $section_ids_chunk ) {
 			echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--' . esc_attr( $pos[$i] ) . '">';
+			// Above 1st Column → render inside the first column at top
+			if ( $i === 0 && $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'first_column' ) {
+				echo '<li class="jp-menu__meta-li">';
+				echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'col' ); // phpcs:ignore
+				echo '</li>';
+			}
 			foreach ( $section_ids_chunk as $tid ) {
 				$blk  = $sections_data[ $tid ];
 				$term = $blk['term'];
