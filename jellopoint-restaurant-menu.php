@@ -277,7 +277,7 @@ add_action( 'plugins_loaded', function () {
 					}
 				}
 
-				//add_submenu_page(
+				    add_submenu_page(
 					$parent_slug,
 					$page_title,
 					$menu_title,
