@@ -40,12 +40,12 @@ require_once JPRM_PLUGIN_PATH . 'includes/render/class-price-renderer.php';
 // Debug (admin-only shortcode)
 require_once JPRM_PLUGIN_PATH . 'includes/debug/class-inspector.php';
 
-// Badges: post save bridge (if you already use it)
+// (Optional) Post save bridge for badges, if present
 if ( file_exists( JPRM_PLUGIN_PATH . 'includes/admin/badges-post-bootstrap.php' ) ) {
 	require_once JPRM_PLUGIN_PATH . 'includes/admin/badges-post-bootstrap.php';
 }
 
-// Badges storage + admin screen (YOUR uploaded files; paths below must match your repo)
+// Badges storage + admin screen (YOUR files)
 if ( file_exists( JPRM_PLUGIN_PATH . 'includes/data/class-badges-store.php' ) ) {
 	require_once JPRM_PLUGIN_PATH . 'includes/data/class-badges-store.php';
 }
@@ -54,7 +54,7 @@ if ( file_exists( JPRM_PLUGIN_PATH . 'includes/admin/class-admin-dietary-badges.
 }
 
 /* -------------------------------------------------
- * Class aliases (your uploaded classes are global)
+ * Class aliases (uploaded classes are global)
  * ------------------------------------------------- */
 if ( class_exists( 'JPRM_Badges_Store' ) && ! class_exists( '\JelloPoint\RestaurantMenu\Badges\Store' ) ) {
 	class_alias( 'JPRM_Badges_Store', '\JelloPoint\RestaurantMenu\Badges\Store' );
@@ -64,9 +64,10 @@ if ( class_exists( 'JPRM_Admin_Dietary_Badges' ) && ! class_exists( '\JelloPoint
 }
 
 /* -------------------------------------------------
- * Partials: make sure these functions exist early
+ * Partials & robust badge helpers (loaded early)
  * ------------------------------------------------- */
 add_action( 'init', function () {
+	// Make sure partials are available (and known to the Inspector)
 	$partials = [
 		JPRM_PLUGIN_PATH . 'includes/render/partials/badges.php',
 		JPRM_PLUGIN_PATH . 'includes/render/partials/price-block.php',
@@ -76,15 +77,40 @@ add_action( 'init', function () {
 			require_once $file;
 		}
 	}
-	// Fallback shims if partial didn't define them (keeps Inspector and widget working).
+
+	// Build a robust badge map that can read from multiple sources
 	if ( ! function_exists( 'jprm_build_badge_map' ) ) {
 		function jprm_build_badge_map() : array {
 			$map = [ 'by_id' => [], 'by_slug' => [] ];
+
+			// 1) Preferred: your storage class
 			if ( class_exists( '\JelloPoint\RestaurantMenu\Badges\Store' ) ) {
-				$store = new \JelloPoint\RestaurantMenu\Badges\Store();
-				$rows  = method_exists( $store, 'get_rows' ) ? $store->get_rows() : [];
-				if ( is_array( $rows ) ) {
-					foreach ( $rows as $r ) {
+				try {
+					$store = new \JelloPoint\RestaurantMenu\Badges\Store();
+					$rows  = [];
+					if ( method_exists( $store, 'get_rows' ) ) {
+						$rows = $store->get_rows();
+					} elseif ( method_exists( $store, 'all' ) ) {
+						$rows = $store->all();
+					}
+					if ( is_array( $rows ) ) {
+						foreach ( $rows as $r ) {
+							$id   = isset( $r['id'] )   ? (string) $r['id']   : '';
+							$slug = isset( $r['slug'] ) ? (string) $r['slug'] : '';
+							if ( $id !== '' )   $map['by_id'][ $id ]   = $r;
+							if ( $slug !== '' ) $map['by_slug'][ $slug ] = $r;
+						}
+					}
+				} catch ( \Throwable $e ) {
+					if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) error_log( '[JPRM] badge store read failed: '.$e->getMessage() );
+				}
+			}
+
+			// 2) Fallback: option (common registry storage)
+			if ( empty( $map['by_id'] ) && empty( $map['by_slug'] ) ) {
+				$opt = get_option( 'jprm_badges_registry' ); // array of badge rows?
+				if ( is_array( $opt ) ) {
+					foreach ( $opt as $r ) {
 						$id   = isset( $r['id'] )   ? (string) $r['id']   : '';
 						$slug = isset( $r['slug'] ) ? (string) $r['slug'] : '';
 						if ( $id !== '' )   $map['by_id'][ $id ]   = $r;
@@ -92,40 +118,48 @@ add_action( 'init', function () {
 					}
 				}
 			}
+
 			return $map;
 		}
 	}
+
+	// Render badges for a post, reading meta/tax and using the map above
 	if ( ! function_exists( 'jprm_render_badges_html' ) ) {
-		/**
-		 * @param int    $post_id
-		 * @param string $presentation 'icon'|'text'|'icon_text'
-		 * @param string $position     'before'|'after' (unused here, but kept for API parity)
-		 * @param array|null $map      output of jprm_build_badge_map()
-		 */
 		function jprm_render_badges_html( int $post_id, string $presentation = 'icon_text', string $position = 'before', ?array $map = null ) : string {
 			if ( $post_id <= 0 ) return '';
 			if ( ! $map ) $map = jprm_build_badge_map();
 
-			// Try a few common meta keys
-			$keys = [ 'jprm_badges', 'jprm_dietary_badges', 'dietary_badges' ];
-			$raw  = null;
-			foreach ( $keys as $k ) {
-				$v = get_post_meta( $post_id, $k, true );
-				if ( ! empty( $v ) ) { $raw = $v; break; }
+			// Collect attached badges (meta)
+			$tokens = [];
+			foreach ( [ 'jprm_badges', 'jprm_dietary_badges', 'dietary_badges' ] as $key ) {
+				$raw = get_post_meta( $post_id, $key, true );
+				if ( empty( $raw ) ) continue;
+				if ( is_array( $raw ) ) {
+					$tokens = array_merge( $tokens, array_map( 'strval', $raw ) );
+				} elseif ( is_string( $raw ) ) {
+					$tokens = array_merge( $tokens, array_filter( array_map( 'trim', explode( ',', $raw ) ) ) );
+				}
 			}
-			if ( empty( $raw ) ) return '';
 
-			$ids_or_slugs = is_array( $raw ) ? $raw : ( is_string( $raw ) ? array_filter( array_map( 'trim', explode( ',', $raw ) ) ) : [] );
-			if ( empty( $ids_or_slugs ) ) return '';
+			// Collect attached badges (taxonomy), if exists
+			if ( taxonomy_exists( 'jprm_badge' ) ) {
+				$terms = wp_get_post_terms( $post_id, 'jprm_badge', [ 'fields' => 'all' ] );
+				if ( is_array( $terms ) && ! is_wp_error( $terms ) ) {
+					foreach ( $terms as $t ) {
+						if ( isset( $t->slug ) ) $tokens[] = (string) $t->slug;
+					}
+				}
+			}
+
+			$tokens = array_values( array_unique( array_filter( $tokens, fn( $t ) => $t !== '' ) ) );
+			if ( empty( $tokens ) ) return '';
 
 			$out = [];
-			foreach ( $ids_or_slugs as $token ) {
+			foreach ( $tokens as $token ) {
 				$row = null;
-				// ID?
 				if ( is_numeric( $token ) && isset( $map['by_id'][ (string) (int) $token ] ) ) {
 					$row = $map['by_id'][ (string) (int) $token ];
 				}
-				// Slug?
 				if ( ! $row && isset( $map['by_slug'][ (string) $token ] ) ) {
 					$row = $map['by_slug'][ (string) $token ];
 				}
@@ -266,6 +300,7 @@ require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-sections-ux.php';
 require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-items-list-filters.php';
 \JelloPoint\RestaurantMenu\Admin\Items_List_Filters::init();
 
+/* Register Menu Builder hooks on admin only */
 add_action( 'plugins_loaded', function () {
 	if ( ! is_admin() ) return;
 
@@ -291,32 +326,8 @@ if ( class_exists( '\JelloPoint\RestaurantMenu\Plugin' ) ) {
 	}
 }
 
-/* -------------------------------------------------
- * Admin: create Dietary Badges submenu (uses your uploaded class)
- * ------------------------------------------------- */
-add_action( 'admin_menu', function () {
-	if ( ! class_exists( '\JelloPoint\RestaurantMenu\Admin\Dietary_Badges' ) ) return;
-
-	$store = null;
-	if ( class_exists( '\JelloPoint\RestaurantMenu\Badges\Store' ) ) {
-		$store = new \JelloPoint\RestaurantMenu\Badges\Store();
-	}
-	$screen = new \JelloPoint\RestaurantMenu\Admin\Dietary_Badges( $store );
-
-	// Parent menu slug already provided by your Admin_Menu class.
-	$parent_slug = 'jellopoint';
-	add_submenu_page(
-		$parent_slug,
-		__( 'Dietary Badges', 'jellopoint-restaurant-menu' ),
-		__( 'Dietary Badges', 'jellopoint-restaurant-menu' ),
-		'manage_options',
-		'jprm-dietary-badges',
-		[ $screen, 'render_page' ],
-		60
-	);
-}, 60 );
-
-/** Initialize the Admin Menu (creates parent if missing, adds submenus) */
-if ( class_exists( '\JelloPoint\RestaurantMenu\Admin\Admin_Menu' ) ) {
-	\JelloPoint\RestaurantMenu\Admin\Admin_Menu::init();
-}
+/**
+ * IMPORTANT: We intentionally DO NOT add the "Dietary Badges" submenu here anymore,
+ * to avoid duplicates. Your existing Admin class should handle creating that screen.
+ * If you still don't see the menu, the Admin class can call add_submenu_page itself.
+ */
