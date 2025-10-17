@@ -9,7 +9,7 @@
  * - active (bool)
  * - order (int) — for stable sorting
  *
- * Stored as: option('jprm_dietary_badges') => array of rows in order.
+ * Stored as: option('jprm_dietary_badges_v1') => array of rows in order.
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -18,7 +18,7 @@ if ( ! class_exists( 'JPRM_Badges_Store' ) ) :
 
 class JPRM_Badges_Store {
 
-	const OPTION_KEY = 'jprm_dietary_badges';
+	const OPTION_KEY = 'jprm_dietary_badges_v1';
 
 	/**
 	 * Return rows in display order; if missing, seed defaults.
