@@ -501,11 +501,11 @@ final class Restaurant_Menu extends Widget_Base {
 			return;
 		}
 
-		// Two columns grid
-		echo '<div class="jp-menu-grid jp-cols-2">';
+		// Two columns grid — add multiple class names for CSS compatibility
+		echo '<div class="jp-menu-grid jp-cols-2 jp-menu--cols-2 jp-two-cols">';
 
 		// LEFT column
-		echo '<div class="jp-col"><ul class="jp-menu">';
+		echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--left">';
 		foreach ( $left_sections as $tid ) {
 			$blk = $sections_data[ $tid ];
 			$term = $blk['term'];
@@ -538,7 +538,7 @@ final class Restaurant_Menu extends Widget_Base {
 		echo '</ul></div>';
 
 		// RIGHT column
-		echo '<div class="jp-col"><ul class="jp-menu">';
+		echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--right">';
 		foreach ( $right_sections as $tid ) {
 			$blk = $sections_data[ $tid ];
 			$term = $blk['term'];
