@@ -180,65 +180,68 @@ final class Restaurant_Menu extends Widget_Base {
 		] );
 		$this->end_controls_section();
 
-		/* --- Prices and Labels (labels moved here) ------------------------------ */
+		/* --- Prices and Labels (labels kept intact) ----------------------------- */
 		$this->start_controls_section(
 			'jprm_section_prices_labels',
 			[ 'label' => __( 'Prices and Labels', 'jellopoint-restaurant-menu' ) ]
 		);
+
 		// --- Currency (purely presentational; no meta changes)
-$this->add_control( 'jprm_curr_heading', [
-	'label'     => __( 'Currency', 'jellopoint-restaurant-menu' ),
-	'type'      => \Elementor\Controls_Manager::HEADING,
-	'separator' => 'before',
-] );
+		$this->add_control( 'jprm_curr_heading', [
+			'label'     => __( 'Currency', 'jellopoint-restaurant-menu' ),
+			'type'      => \Elementor\Controls_Manager::HEADING,
+			'separator' => 'before',
+		] );
 
-$this->add_control( 'jprm_curr_show', [
-	'label'        => __( 'Show currency symbol', 'jellopoint-restaurant-menu' ),
-	'type'         => \Elementor\Controls_Manager::SWITCHER,
-	'label_on'     => __( 'Show', 'jellopoint-restaurant-menu' ),
-	'label_off'    => __( 'Hide', 'jellopoint-restaurant-menu' ),
-	'return_value' => 'yes',
-	'default'      => 'yes',
-] );
+		$this->add_control( 'jprm_curr_show', [
+			'label'        => __( 'Show currency symbol', 'jellopoint-restaurant-menu' ),
+			'type'         => \Elementor\Controls_Manager::SWITCHER,
+			'label_on'     => __( 'Show', 'jellopoint-restaurant-menu' ),
+			'label_off'    => __( 'Hide', 'jellopoint-restaurant-menu' ),
+			'return_value' => 'yes',
+			'default'      => 'yes',
+		] );
 
-$this->add_control( 'jprm_curr_symbol', [
-	'label'       => __( 'Currency symbol', 'jellopoint-restaurant-menu' ),
-	'type'        => \Elementor\Controls_Manager::TEXT,
-	'placeholder' => '€',
-	'default'     => '€',
-] );
+		$this->add_control( 'jprm_curr_symbol', [
+			'label'       => __( 'Currency symbol', 'jellopoint-restaurant-menu' ),
+			'type'        => \Elementor\Controls_Manager::TEXT,
+			'placeholder' => '€',
+			'default'     => '€',
+		] );
 
-$this->add_control( 'jprm_curr_position', [
-	'label'   => __( 'Position', 'jellopoint-restaurant-menu' ),
-	'type'    => \Elementor\Controls_Manager::SELECT,
-	'default' => 'before',
-	'options' => [
-		'before' => __( 'Before amount', 'jellopoint-restaurant-menu' ),
-		'after'  => __( 'After amount', 'jellopoint-restaurant-menu' ),
-	],
-] );
+		$this->add_control( 'jprm_curr_position', [
+			'label'   => __( 'Position', 'jellopoint-restaurant-menu' ),
+			'type'    => \Elementor\Controls_Manager::SELECT,
+			'default' => 'before',
+			'options' => [
+				'before' => __( 'Before amount', 'jellopoint-restaurant-menu' ),
+				'after'  => __( 'After amount', 'jellopoint-restaurant-menu' ),
+			],
+		] );
 
-$this->add_control( 'jprm_curr_spacing', [
-	'label'   => __( 'Spacing', 'jellopoint-restaurant-menu' ),
-	'type'    => \Elementor\Controls_Manager::SELECT,
-	'default' => 'thin',
-	'options' => [
-		'none'   => __( 'No space', 'jellopoint-restaurant-menu' ),
-		'thin'   => __( 'Thin space', 'jellopoint-restaurant-menu' ),
-		'normal' => __( 'Non-breaking space', 'jellopoint-restaurant-menu' ),
-	],
-] );
+		$this->add_control( 'jprm_curr_spacing', [
+			'label'   => __( 'Spacing', 'jellopoint-restaurant-menu' ),
+			'type'    => \Elementor\Controls_Manager::SELECT,
+			'default' => 'thin',
+			'options' => [
+				'none'   => __( 'No space', 'jellopoint-restaurant-menu' ),
+				'thin'   => __( 'Thin space', 'jellopoint-restaurant-menu' ),
+				'normal' => __( 'Non-breaking space', 'jellopoint-restaurant-menu' ),
+			],
+		] );
 
 		$this->add_control( 'heading_prices', [
 			'label'     => __( 'Prices', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::HEADING,
 			'separator' => 'before',
 		] );
+
 		$this->add_control( 'heading_labels', [
 			'label'     => __( 'Labels', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::HEADING,
 			'separator' => 'before',
 		] );
+
 		$this->add_control( 'label_presentation', [
 			'label'   => __( 'Label Presentation', 'jellopoint-restaurant-menu' ),
 			'type'    => Controls_Manager::SELECT,
@@ -249,6 +252,7 @@ $this->add_control( 'jprm_curr_spacing', [
 				'icon_text' => __( 'Icon + Text', 'jellopoint-restaurant-menu' ),
 			],
 		] );
+
 		$this->add_control( 'label_position', [
 			'label'   => __( 'Label Position', 'jellopoint-restaurant-menu' ),
 			'type'    => Controls_Manager::SELECT,
@@ -258,6 +262,7 @@ $this->add_control( 'jprm_curr_spacing', [
 				'right' => __( 'Right of price', 'jellopoint-restaurant-menu' ),
 			],
 		] );
+
 		$this->end_controls_section();
 
 		/* --- Badges (empty for now) -------------------------------------------- */
@@ -301,6 +306,14 @@ $this->add_control( 'jprm_curr_spacing', [
 		$label_presentation = isset( $s['label_presentation'] ) ? (string) $s['label_presentation'] : 'icon_text';
 		$label_position     = isset( $s['label_position'] ) ? (string) $s['label_position'] : 'right';
 
+		// NEW: collect currency options from controls (defaults kept)
+		$currency_opts = [
+			'show'     => ( isset( $s['jprm_curr_show'] ) && $s['jprm_curr_show'] === 'yes' ),
+			'symbol'   => (string) ( $s['jprm_curr_symbol']   ?? '€' ),
+			'position' => (string) ( $s['jprm_curr_position'] ?? 'before' ),
+			'spacing'  => (string) ( $s['jprm_curr_spacing']  ?? 'thin' ),
+		];
+
 		$menu_ids    = $this->normalize_to_ids( $menu_sel );
 		$section_ids = $this->normalize_to_ids( $sections_sel );
 
@@ -338,7 +351,13 @@ $this->add_control( 'jprm_curr_spacing', [
 
 			// Right: prices+labels via partial (canonical)
 			if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
-				echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				echo jprm_render_pricegroup_html(
+					$post_id,
+					$label_presentation,
+					$label_position,
+					$label_map,
+					$currency_opts
+				); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			} else {
 				// Should not happen if partial is present; emit empty container to preserve layout.
 				echo '<div class="jp-menu__pricegroup"></div>';
