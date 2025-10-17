@@ -268,6 +268,14 @@ final class Restaurant_Menu extends Widget_Base {
 		// (Intentionally empty – placeholder for future controls)
 		$this->end_controls_section();
 
+		/* --- Info Blocks (empty for now) -------------------------------------------- */
+		$this->start_controls_section(
+			'jprm_section_info_blocks',
+			[ 'label' => __( 'Info Blocks', 'jellopoint-restaurant-menu' ) ]
+		);
+		// (Intentionally empty – placeholder for future controls)
+		$this->end_controls_section();
+
 		/* --- Layout ------------------------------------------------------------- */
 		$this->start_controls_section(
 			'jprm_section_layout',
