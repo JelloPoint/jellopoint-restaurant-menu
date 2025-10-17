@@ -185,6 +185,50 @@ final class Restaurant_Menu extends Widget_Base {
 			'jprm_section_prices_labels',
 			[ 'label' => __( 'Prices and Labels', 'jellopoint-restaurant-menu' ) ]
 		);
+		// --- Currency (purely presentational; no meta changes)
+$this->add_control( 'jprm_curr_heading', [
+	'label'     => __( 'Currency', 'jellopoint-restaurant-menu' ),
+	'type'      => \Elementor\Controls_Manager::HEADING,
+	'separator' => 'before',
+] );
+
+$this->add_control( 'jprm_curr_show', [
+	'label'        => __( 'Show currency symbol', 'jellopoint-restaurant-menu' ),
+	'type'         => \Elementor\Controls_Manager::SWITCHER,
+	'label_on'     => __( 'Show', 'jellopoint-restaurant-menu' ),
+	'label_off'    => __( 'Hide', 'jellopoint-restaurant-menu' ),
+	'return_value' => 'yes',
+	'default'      => 'yes',
+] );
+
+$this->add_control( 'jprm_curr_symbol', [
+	'label'       => __( 'Currency symbol', 'jellopoint-restaurant-menu' ),
+	'type'        => \Elementor\Controls_Manager::TEXT,
+	'placeholder' => '€',
+	'default'     => '€',
+] );
+
+$this->add_control( 'jprm_curr_position', [
+	'label'   => __( 'Position', 'jellopoint-restaurant-menu' ),
+	'type'    => \Elementor\Controls_Manager::SELECT,
+	'default' => 'before',
+	'options' => [
+		'before' => __( 'Before amount', 'jellopoint-restaurant-menu' ),
+		'after'  => __( 'After amount', 'jellopoint-restaurant-menu' ),
+	],
+] );
+
+$this->add_control( 'jprm_curr_spacing', [
+	'label'   => __( 'Spacing', 'jellopoint-restaurant-menu' ),
+	'type'    => \Elementor\Controls_Manager::SELECT,
+	'default' => 'thin',
+	'options' => [
+		'none'   => __( 'No space', 'jellopoint-restaurant-menu' ),
+		'thin'   => __( 'Thin space', 'jellopoint-restaurant-menu' ),
+		'normal' => __( 'Non-breaking space', 'jellopoint-restaurant-menu' ),
+	],
+] );
+
 		$this->add_control( 'heading_prices', [
 			'label'     => __( 'Prices', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::HEADING,
