@@ -296,21 +296,36 @@ final class Restaurant_Menu extends Widget_Base {
 			],
 			'condition' => [
 				'data_mode'      => 'dynamic',
-				'layout_columns' => '2', // manual split only applies to 2 columns
+				'layout_columns' => [ '2', '3' ], // now applies to 2 and 3 columns
 			],
 		] );
 
+		// Manual split: first break (used by 2 or 3 columns)
 		$this->add_control( 'layout_split_after_section', [
-			'label'     => __( 'Split after section', 'jellopoint-restaurant-menu' ),
+			'label'     => __( 'Split after section (1)', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::SELECT,
 			'options'   => $section_options,
 			'default'   => '',
 			'condition' => [
 				'data_mode'        => 'dynamic',
-				'layout_columns'   => '2',
+				'layout_columns'   => [ '2', '3' ],
 				'layout_split_mode'=> 'manual',
 			],
-			'description' => __( 'If the chosen section is not present in the current result, auto-balance is used.', 'jellopoint-restaurant-menu' ),
+			'description' => __( 'If the chosen section is not present in the result, auto-balance is used.', 'jellopoint-restaurant-menu' ),
+		] );
+
+		// Manual split: second break (only for 3 columns)
+		$this->add_control( 'layout_split_after_section2', [
+			'label'     => __( 'Split after section (2)', 'jellopoint-restaurant-menu' ),
+			'type'      => Controls_Manager::SELECT,
+			'options'   => $section_options,
+			'default'   => '',
+			'condition' => [
+				'data_mode'        => 'dynamic',
+				'layout_columns'   => '3',
+				'layout_split_mode'=> 'manual',
+			],
+			'description' => __( 'Second split point. Must come after the first selected section.', 'jellopoint-restaurant-menu' ),
 		] );
 
 		$this->add_control( 'layout_column_gap', [
@@ -366,7 +381,8 @@ final class Restaurant_Menu extends Widget_Base {
 		// Layout options (dynamic only)
 		$columns       = isset( $s['layout_columns'] ) ? (string) $s['layout_columns'] : '1';
 		$split_mode    = isset( $s['layout_split_mode'] ) ? (string) $s['layout_split_mode'] : 'auto';
-		$split_after   = isset( $s['layout_split_after_section'] ) ? (string) $s['layout_split_after_section'] : '';
+		$split_after_1 = isset( $s['layout_split_after_section'] ) ? (string) $s['layout_split_after_section'] : '';
+		$split_after_2 = isset( $s['layout_split_after_section2'] ) ? (string) $s['layout_split_after_section2'] : '';
 
 		$menu_ids    = $this->normalize_to_ids( $menu_sel );
 		$section_ids = $this->normalize_to_ids( $sections_sel );
@@ -452,8 +468,8 @@ final class Restaurant_Menu extends Widget_Base {
 		if ( $columns === '2' ) {
 			// Determine split index
 			$split_index = null;
-			if ( $split_mode === 'manual' && $split_after !== '' ) {
-				$target = (int) $split_after;
+			if ( $split_mode === 'manual' && $split_after_1 !== '' ) {
+				$target = (int) $split_after_1;
 				foreach ( $sections_order as $idx => $tid ) {
 					if ( $tid === $target ) { $split_index = $idx; break; }
 				}
@@ -583,29 +599,61 @@ final class Restaurant_Menu extends Widget_Base {
 			return;
 		}
 
-		/* ===== 3 columns: auto-balance by items, keep section boundaries ===== */
-		// Compute targets at ~1/3 and ~2/3 of items
-		$total = 0;
-		foreach ( $sections_order as $tid ) { $total += count( $sections_data[ $tid ]['items'] ); }
-		$t1 = (int) ceil( $total / 3 );         // first break
-		$t2 = (int) ceil( (2 * $total) / 3 );   // second break
-
-		$i1 = null; $i2 = null; $acc = 0;
-		foreach ( $sections_order as $idx => $tid ) {
-			$acc += count( $sections_data[ $tid ]['items'] );
-			if ( $i1 === null && $acc >= $t1 ) { $i1 = $idx; }
-			if ( $i2 === null && $acc >= $t2 ) { $i2 = $idx; break; }
+		/* ===== 3 columns ===== */
+		// Editor grid inline style (front-end uses CSS file grid)
+		$is_editor = ( class_exists( '\Elementor\Plugin' ) && \Elementor\Plugin::$instance->editor && \Elementor\Plugin::$instance->editor->is_edit_mode() );
+		$gap_px    = 24;
+		if ( isset( $s['layout_column_gap']['size'] ) && is_numeric( $s['layout_column_gap']['size'] ) ) {
+			$gap_px = (int) $s['layout_column_gap']['size'];
 		}
-		if ( $i1 === null ) $i1 = min( 0, count( $sections_order ) - 1 );
-		if ( $i2 === null ) $i2 = max( $i1, count( $sections_order ) - 1 );
+		$inline = $is_editor ? ' style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:' . esc_attr( $gap_px ) . 'px;"' : '';
 
-		$col1 = array_slice( $sections_order, 0, $i1 + 1 );
-		$col2 = array_slice( $sections_order, $i1 + 1, $i2 - $i1 );
-		$col3 = array_slice( $sections_order, $i2 + 1 );
+		$col1 = $col2 = $col3 = [];
 
-		// If columns end up empty, gracefully fall back to 2 columns or 1
+		if ( $split_mode === 'manual' && $split_after_1 !== '' && $split_after_2 !== '' ) {
+			// Manual: find indices for both split sections
+			$idx1 = $idx2 = null;
+			$t1   = (int) $split_after_1;
+			$t2   = (int) $split_after_2;
+
+			foreach ( $sections_order as $i => $tid ) {
+				if ( $idx1 === null && $tid === $t1 ) $idx1 = $i;
+				if ( $idx2 === null && $tid === $t2 ) $idx2 = $i;
+				if ( $idx1 !== null && $idx2 !== null ) break;
+			}
+
+			// Valid only if both found and idx2 after idx1
+			if ( $idx1 !== null && $idx2 !== null && $idx2 > $idx1 ) {
+				$col1 = array_slice( $sections_order, 0, $idx1 + 1 );
+				$col2 = array_slice( $sections_order, $idx1 + 1, $idx2 - $idx1 );
+				$col3 = array_slice( $sections_order, $idx2 + 1 );
+			}
+		}
+
+		// If manual invalid or not fully provided → auto-balance by items (keep section boundaries)
+		if ( empty( $col1 ) && empty( $col2 ) && empty( $col3 ) ) {
+			$total = 0;
+			foreach ( $sections_order as $tid ) { $total += count( $sections_data[ $tid ]['items'] ); }
+			$t1 = (int) ceil( $total / 3 );
+			$t2 = (int) ceil( ( 2 * $total ) / 3 );
+
+			$i1 = null; $i2 = null; $acc = 0;
+			foreach ( $sections_order as $idx => $tid ) {
+				$acc += count( $sections_data[ $tid ]['items'] );
+				if ( $i1 === null && $acc >= $t1 ) $i1 = $idx;
+				if ( $i2 === null && $acc >= $t2 ) { $i2 = $idx; break; }
+			}
+			if ( $i1 === null ) $i1 = min( 0, count( $sections_order ) - 1 );
+			if ( $i2 === null ) $i2 = max( $i1, count( $sections_order ) - 1 );
+
+			$col1 = array_slice( $sections_order, 0, $i1 + 1 );
+			$col2 = array_slice( $sections_order, $i1 + 1, $i2 - $i1 );
+			$col3 = array_slice( $sections_order, $i2 + 1 );
+		}
+
+		// If columns end up empty, gracefully fall back
 		if ( empty( $col2 ) && empty( $col3 ) ) {
-			// Only one set of sections → render single column (with headers)
+			// single column with headers
 			echo '<ul class="jp-menu">';
 			foreach ( $col1 as $tid ) {
 				$blk  = $sections_data[ $tid ];
@@ -638,14 +686,15 @@ final class Restaurant_Menu extends Widget_Base {
 			return;
 		}
 		if ( empty( $col3 ) ) {
-			// Fall back to 2 columns using col1 + col2
+			// 2-column fallback (col1 + col2)
 			$is_editor = ( class_exists( '\Elementor\Plugin' ) && \Elementor\Plugin::$instance->editor && \Elementor\Plugin::$instance->editor->is_edit_mode() );
 			$gap_px    = 24;
 			if ( isset( $s['layout_column_gap']['size'] ) && is_numeric( $s['layout_column_gap']['size'] ) ) {
 				$gap_px = (int) $s['layout_column_gap']['size'];
 			}
-			$inline = $is_editor ? ' style="display:grid;grid-template-columns:1fr 1fr;gap:' . esc_attr( $gap_px ) . 'px;"' : '';
-			echo '<div class="jp-menu-grid jp-cols-2 jp-menu--cols-2 jp-two-cols"' . $inline . '>';
+			$inline2 = $is_editor ? ' style="display:grid;grid-template-columns:1fr 1fr;gap:' . esc_attr( $gap_px ) . 'px;"' : '';
+
+			echo '<div class="jp-menu-grid jp-cols-2 jp-menu--cols-2 jp-two-cols"' . $inline2 . '>';
 			echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--left">';
 			foreach ( $col1 as $tid ) {
 				$blk = $sections_data[ $tid ]; $term = $blk['term'];
@@ -684,18 +733,10 @@ final class Restaurant_Menu extends Widget_Base {
 				}
 			}
 			echo '</ul></div></div>';
-			return;
+		 return;
 		}
 
-		// Force 3-col grid in Elementor editor
-		$is_editor = ( class_exists( '\Elementor\Plugin' ) && \Elementor\Plugin::$instance->editor && \Elementor\Plugin::$instance->editor->is_edit_mode() );
-		$gap_px    = 24;
-		if ( isset( $s['layout_column_gap']['size'] ) && is_numeric( $s['layout_column_gap']['size'] ) ) {
-			$gap_px = (int) $s['layout_column_gap']['size'];
-		}
-		$inline = $is_editor ? ' style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:' . esc_attr( $gap_px ) . 'px;"' : '';
-
-		// Render 3 columns
+		// Render 3 columns (editor grid inline)
 		echo '<div class="jp-menu-grid jp-cols-3 jp-menu--cols-3 jp-three-cols"' . $inline . '>';
 
 		$cols = [ $col1, $col2, $col3 ];
