@@ -1,18 +1,23 @@
 <?php
 namespace JelloPoint\RestaurantMenu;
 
-if ( ! defined( 'ABSPATH' ) ) { exit; }
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
 /**
- * Core plugin bootstrap: CPT/Tax, Elementor, assets, editor AJAX for Sections,
- * and robust loading for Dietary Badges classes (store + admin screen).
+ * Core plugin bootstrap: CPT/Tax, Elementor, assets, and the editor AJAX endpoint
+ * that filters Sections by the selected Menu using the exact term-meta key:
  *
- * Term meta key used to link Section -> Menu:
  *   _jprm_menu_term_id  (integer, jprm_menu term_id)
+ *
+ * No guessing, no extras.
  */
 class Plugin {
 
 	private static $bootstrapped = false;
+
+	/** Canonical meta key on jprm_section that links a Section to its owning Menu term_id. */
 	private const SECTION_MENU_META_KEY = '_jprm_menu_term_id';
 
 	public static function init() : void {
@@ -34,58 +39,6 @@ class Plugin {
 
 		// Editor AJAX for Sections -> Menu filtering.
 		add_action( 'wp_ajax_jprm_sections_by_menu', [ __CLASS__, 'ajax_sections_by_menu' ] );
-
-		// Load optional modules (Badges store + admin) as early as possible.
-		add_action( 'plugins_loaded', [ __CLASS__, 'maybe_load_badges_modules' ], 5 );
-	}
-
-	/* ===== Optional modules loader ========================================== */
-
-	/**
-	 * Try to load the badges store and admin screen classes if they exist.
-	 * Does not error if files are missing; the admin screen will show “missing”
-	 * only if the class truly isn't available after we tried to load it.
-	 */
-	public static function maybe_load_badges_modules() : void {
-		$base_dir = defined( 'JPRM_PLUGIN_DIR' )
-			? trailingslashit( JPRM_PLUGIN_DIR )
-			: plugin_dir_path( __DIR__ ) . '../';
-
-		$try_files = function( array $relative_paths ) use ( $base_dir ) : void {
-			foreach ( $relative_paths as $rel ) {
-				$file = $base_dir . ltrim( $rel, '/' );
-				if ( is_readable( $file ) ) {
-					require_once $file;
-				}
-			}
-		};
-
-		// Badges Store (data/service layer).
-		if ( ! class_exists( '\JelloPoint\RestaurantMenu\Badges_Store' ) ) {
-			$try_files([
-				'includes/data/class-badges-store.php',
-				'includes/class-badges-store.php',
-				'class-badges-store.php',
-			]);
-		}
-
-		// Admin UI for Dietary Badges (usually registers its own menu/page).
-		if ( ! class_exists( '\JelloPoint\RestaurantMenu\Admin\Dietary_Badges' ) ) {
-			$try_files([
-				'includes/admin/class-admin-dietary-badges.php',
-				'includes/class-admin-dietary-badges.php',
-				'class-admin-dietary-badges.php',
-			]);
-		}
-
-		// If the admin class exposes an init/bootstrap, call it.
-		if ( class_exists( '\JelloPoint\RestaurantMenu\Admin\Dietary_Badges' ) ) {
-			if ( method_exists( '\JelloPoint\RestaurantMenu\Admin\Dietary_Badges', 'init' ) ) {
-				\JelloPoint\RestaurantMenu\Admin\Dietary_Badges::init();
-			} elseif ( function_exists( '\JelloPoint\RestaurantMenu\Admin\jprm_dietary_badges_boot' ) ) {
-				\JelloPoint\RestaurantMenu\Admin\jprm_dietary_badges_boot();
-			}
-		}
 	}
 
 	/* =========================
@@ -151,18 +104,22 @@ class Plugin {
 	 * ========================= */
 
 	public static function register_assets() : void {
+		// Register the widget stylesheet so Elementor can enqueue it via get_style_depends().
 		if ( ! wp_style_is( 'jprm-menu', 'registered' ) ) {
-			$base_url = defined( 'JPRM_PLUGIN_URL' ) ? JPRM_PLUGIN_URL : plugin_dir_url( __DIR__ ) . '../';
-			$rel_css  = 'includes/render/css/menu.css';
+			// Absolute path to includes/render/css/menu.css relative to this file.
+			$abs_css = __DIR__ . '/render/css/menu.css';
+			// URL built relative to this file (this file is in /includes/), so we pass __FILE__
+			// and a relative path from /includes/ to /includes/render/css/menu.css.
+			$url_css = plugins_url( 'render/css/menu.css', __FILE__ );
 
-			$abs_css  = trailingslashit( defined( 'JPRM_PLUGIN_DIR' ) ? JPRM_PLUGIN_DIR : plugin_dir_path( __DIR__ ) . '../' ) . $rel_css;
-			$url_css  = trailingslashit( $base_url ) . $rel_css;
-			$ver      = defined( 'JPRM_PLUGIN_VERSION' ) ? JPRM_PLUGIN_VERSION : null;
+			$ver = defined( 'JPRM_PLUGIN_VERSION' ) ? JPRM_PLUGIN_VERSION : null;
 
+			// Even if the file check fails on some environments, still register so Elementor can try to enqueue.
 			if ( file_exists( $abs_css ) ) {
 				wp_register_style( 'jprm-menu', $url_css, [], $ver );
 			} else {
-				wp_register_style( 'jprm-menu', trailingslashit( $base_url ) . 'assets/css/frontend.css', [], $ver );
+				// Fallback: still register with the computed URL (helps in symlinked or atypical installs).
+				wp_register_style( 'jprm-menu', $url_css, [], $ver );
 			}
 		}
 	}
@@ -231,7 +188,13 @@ class Plugin {
 	 * Editor AJAX
 	 * ========================= */
 
+	/**
+	 * Returns Sections for the selected Menu (Elementor editor).
+	 * Uses ONLY the term-meta key: _jprm_menu_term_id (int menu term_id).
+	 * If no sections are mapped yet, falls back to ALL sections (hierarchical).
+	 */
 	public static function ajax_sections_by_menu() : void {
+		// Keep the editor usable even on nonce/capability issues.
 		if ( ! current_user_can( 'edit_posts' ) ) {
 			wp_send_json_success( self::all_sections_map(), 200 );
 		}
@@ -259,6 +222,7 @@ class Plugin {
 			}
 		}
 
+		// Fallback: all sections, hierarchical.
 		wp_send_json_success( self::all_sections_map(), 200 );
 	}
 
@@ -266,6 +230,7 @@ class Plugin {
 	 * Helpers
 	 * ========================= */
 
+	/** Normalize menu input (id/slug/name) to term_id in jprm_menu. */
 	private static function normalize_menu_to_id( $menu ) : int {
 		if ( is_numeric( $menu ) ) {
 			$tid  = (int) $menu;
@@ -284,6 +249,7 @@ class Plugin {
 		return 0;
 	}
 
+	/** Get section IDs where _jprm_menu_term_id equals the given $menu_id. */
 	private static function get_section_ids_from_meta( int $menu_id ) : array {
 		$terms = get_terms( [
 			'taxonomy'   => 'jprm_section',
@@ -295,11 +261,14 @@ class Plugin {
 		foreach ( $terms as $t ) {
 			$val = get_term_meta( (int) $t->term_id, self::SECTION_MENU_META_KEY, true );
 			if ( $val === '' || $val === null ) continue;
-			if ( (int) $val === $menu_id ) $out[] = (int) $t->term_id;
+			if ( (int) $val === $menu_id ) {
+				$out[] = (int) $t->term_id;
+			}
 		}
 		return $out;
 	}
 
+	/** Return ALL Sections as id => label (hierarchical). */
 	private static function all_sections_map() : array {
 		$terms = get_terms( [
 			'taxonomy'   => 'jprm_section',
@@ -308,8 +277,10 @@ class Plugin {
 		return self::terms_to_hierarchical_options( is_array( $terms ) ? $terms : [] );
 	}
 
+	/** Build id => label map with hierarchy indentation ("— " per depth). */
 	private static function terms_to_hierarchical_options( array $terms ) : array {
 		if ( empty( $terms ) ) return [];
+
 		$by_parent = [];
 		foreach ( $terms as $t ) {
 			$by_parent[ (int) $t->parent ][] = $t;
@@ -325,6 +296,7 @@ class Plugin {
 		usort( $roots, static fn( $a, $b ) => strcasecmp( $a->name, $b->name ) );
 
 		$out = [];
+
 		$walk = static function ( $parent_id ) use ( &$walk, &$out, $by_parent, $make_label ) : void {
 			if ( empty( $by_parent[ $parent_id ] ) ) return;
 			$children = $by_parent[ $parent_id ];
