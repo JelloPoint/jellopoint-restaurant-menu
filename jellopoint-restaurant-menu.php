@@ -31,7 +31,7 @@ require_once JPRM_PLUGIN_PATH . 'includes/class-plugin.php';
 require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-menuitem-meta.php';
 require_once JPRM_PLUGIN_PATH . 'includes/admin/save/class-menuitem-v3-writer.php';
 
-/** Admin menu bootstrap */
+// Admin menu (parent + common)
 require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-menu.php';
 
 // Renderer
@@ -40,7 +40,7 @@ require_once JPRM_PLUGIN_PATH . 'includes/render/class-price-renderer.php';
 // Debug (admin-only shortcode)
 require_once JPRM_PLUGIN_PATH . 'includes/debug/class-inspector.php';
 
-// (Optional) Post save bridge for badges, if present
+// (Optional) post save bridge for badges, if present
 if ( file_exists( JPRM_PLUGIN_PATH . 'includes/admin/badges-post-bootstrap.php' ) ) {
 	require_once JPRM_PLUGIN_PATH . 'includes/admin/badges-post-bootstrap.php';
 }
@@ -54,7 +54,7 @@ if ( file_exists( JPRM_PLUGIN_PATH . 'includes/admin/class-admin-dietary-badges.
 }
 
 /* -------------------------------------------------
- * Class aliases (uploaded classes are global)
+ * Class aliases (in case your classes use non-namespaced names)
  * ------------------------------------------------- */
 if ( class_exists( 'JPRM_Badges_Store' ) && ! class_exists( '\JelloPoint\RestaurantMenu\Badges\Store' ) ) {
 	class_alias( 'JPRM_Badges_Store', '\JelloPoint\RestaurantMenu\Badges\Store' );
@@ -67,18 +67,17 @@ if ( class_exists( 'JPRM_Admin_Dietary_Badges' ) && ! class_exists( '\JelloPoint
  * Partials & robust badge helpers (loaded early)
  * ------------------------------------------------- */
 add_action( 'init', function () {
-	// Make sure partials are available (and known to the Inspector)
-	$partials = [
+	// Ensure partials are available (and visible to the Inspector)
+	foreach ( [
 		JPRM_PLUGIN_PATH . 'includes/render/partials/badges.php',
 		JPRM_PLUGIN_PATH . 'includes/render/partials/price-block.php',
-	];
-	foreach ( $partials as $file ) {
+	] as $file ) {
 		if ( file_exists( $file ) ) {
 			require_once $file;
 		}
 	}
 
-	// Build a robust badge map that can read from multiple sources
+	// Build a robust badge map from your store or a fallback option
 	if ( ! function_exists( 'jprm_build_badge_map' ) ) {
 		function jprm_build_badge_map() : array {
 			$map = [ 'by_id' => [], 'by_slug' => [] ];
@@ -106,9 +105,9 @@ add_action( 'init', function () {
 				}
 			}
 
-			// 2) Fallback: option (common registry storage)
+			// 2) Fallback: option
 			if ( empty( $map['by_id'] ) && empty( $map['by_slug'] ) ) {
-				$opt = get_option( 'jprm_badges_registry' ); // array of badge rows?
+				$opt = get_option( 'jprm_badges_registry' );
 				if ( is_array( $opt ) ) {
 					foreach ( $opt as $r ) {
 						$id   = isset( $r['id'] )   ? (string) $r['id']   : '';
@@ -123,13 +122,12 @@ add_action( 'init', function () {
 		}
 	}
 
-	// Render badges for a post, reading meta/tax and using the map above
+	// Render badges for a post (reads meta and optional taxonomy)
 	if ( ! function_exists( 'jprm_render_badges_html' ) ) {
 		function jprm_render_badges_html( int $post_id, string $presentation = 'icon_text', string $position = 'before', ?array $map = null ) : string {
 			if ( $post_id <= 0 ) return '';
 			if ( ! $map ) $map = jprm_build_badge_map();
 
-			// Collect attached badges (meta)
 			$tokens = [];
 			foreach ( [ 'jprm_badges', 'jprm_dietary_badges', 'dietary_badges' ] as $key ) {
 				$raw = get_post_meta( $post_id, $key, true );
@@ -140,8 +138,6 @@ add_action( 'init', function () {
 					$tokens = array_merge( $tokens, array_filter( array_map( 'trim', explode( ',', $raw ) ) ) );
 				}
 			}
-
-			// Collect attached badges (taxonomy), if exists
 			if ( taxonomy_exists( 'jprm_badge' ) ) {
 				$terms = wp_get_post_terms( $post_id, 'jprm_badge', [ 'fields' => 'all' ] );
 				if ( is_array( $terms ) && ! is_wp_error( $terms ) ) {
@@ -150,8 +146,7 @@ add_action( 'init', function () {
 					}
 				}
 			}
-
-			$tokens = array_values( array_unique( array_filter( $tokens, fn( $t ) => $t !== '' ) ) );
+			$tokens = array_values( array_unique( array_filter( $tokens ) ) );
 			if ( empty( $tokens ) ) return '';
 
 			$out = [];
@@ -183,12 +178,27 @@ add_action( 'init', function () {
 					if ( $inner !== '' ) $out[] = '<span class="jp-badge">'.$inner.'</span>';
 				}
 			}
-
 			if ( empty( $out ) ) return '';
 			return '<span class="jp-badges jp-badges--' . esc_attr( $presentation ) . '">'. implode( '', $out ) .'</span>';
 		}
 	}
 }, 1 );
+
+/* -------------------------------------------------
+ * Initialize your Admin screen & Store explicitly
+ * ------------------------------------------------- */
+add_action( 'plugins_loaded', function () {
+	// Initialize the store if it provides an init() (keeps behavior consistent)
+	if ( class_exists( '\JelloPoint\RestaurantMenu\Badges\Store' ) && method_exists( '\JelloPoint\RestaurantMenu\Badges\Store', 'init' ) ) {
+		\JelloPoint\RestaurantMenu\Badges\Store::init();
+	}
+	// Initialize the Dietary Badges admin screen (this registers the submenu/page)
+	if ( is_admin() && class_exists( '\JelloPoint\RestaurantMenu\Admin\Dietary_Badges' ) ) {
+		if ( method_exists( '\JelloPoint\RestaurantMenu\Admin\Dietary_Badges', 'init' ) ) {
+			\JelloPoint\RestaurantMenu\Admin\Dietary_Badges::init();
+		}
+	}
+}, 20);
 
 /* -------------------------------------------------
  * JPRM Inspector – badges panel (if present)
@@ -214,7 +224,6 @@ function jprm_register_assets() {
 }
 add_action( 'init', 'jprm_register_assets', 5 );
 
-// Elementor editor preview styles
 add_action( 'elementor/editor/after_enqueue_styles', function () {
 	if ( ! wp_style_is( 'jprm-menu', 'registered' ) ) {
 		wp_register_style( 'jprm-menu', JPRM_PLUGIN_URL . 'includes/render/css/menu.css', [], JPRM_VERSION );
@@ -229,7 +238,6 @@ function jprm_register_cpt_fallback() {
 	if ( post_type_exists( 'jprm_item' ) ) return;
 
 	$parent_menu_slug = 'jellopoint';
-
 	register_post_type( 'jprm_item', [
 		'label'        => __( 'Menu Items', 'jellopoint-restaurant-menu' ),
 		'labels'       => [
@@ -327,7 +335,6 @@ if ( class_exists( '\JelloPoint\RestaurantMenu\Plugin' ) ) {
 }
 
 /**
- * IMPORTANT: We intentionally DO NOT add the "Dietary Badges" submenu here anymore,
- * to avoid duplicates. Your existing Admin class should handle creating that screen.
- * If you still don't see the menu, the Admin class can call add_submenu_page itself.
+ * NOTE: We intentionally do not add the "Dietary Badges" submenu here;
+ * the dedicated Admin\Dietary_Badges class now initializes itself (see plugins_loaded:20).
  */
