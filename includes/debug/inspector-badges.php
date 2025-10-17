@@ -1,9 +1,7 @@
 <?php
 /**
- * JPRM Diagnostics (Badges/Labels/Partials)
- *
- * Drop-in debug screen under Tools → JPRM Inspector.
- * Safe to ship in production; outputs only to wp-admin.
+ * JPRM Diagnostics (Badges/Labels/Partials) — FIXED PATHS
+ * Tools → JPRM Inspector
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -18,23 +16,46 @@ add_action( 'admin_menu', function () {
 } );
 
 function jprm_render_inspector_screen() {
-	$plugin_dir  = dirname( dirname( __DIR__ ) );     // points to /includes
-	$root_dir    = dirname( $plugin_dir );           // plugin root directory
-	$partials    = $plugin_dir . '/render/partials';
-	$badges_php  = $partials . '/badges.php';
-	$prices_php  = $partials . '/price-block.php';
+	// Where this file lives: .../includes/debug/inspector-badges.php
+	$debug_dir     = dirname( __FILE__ );            // .../includes/debug
+	$includes_dir  = dirname( $debug_dir );          // .../includes
+	$plugin_root   = dirname( $includes_dir );       // .../jellopoint-restaurant-menu
+	$plugins_dir   = dirname( $plugin_root );        // .../plugins
+
+	$partials_dir  = $includes_dir . '/render/partials';
+	$badges_php    = $partials_dir . '/badges.php';
+	$prices_php    = $partials_dir . '/price-block.php';
+
+	// Try including the partials so functions can be detected here.
+	$badges_included = false;
+	$prices_included = false;
+	if ( is_readable( $badges_php ) ) {
+		@include_once $badges_php;
+		$badges_included = true;
+	}
+	if ( is_readable( $prices_php ) ) {
+		@include_once $prices_php;
+		$prices_included = true;
+	}
 
 	$res = [
+		'paths' => [
+			['label' => 'Plugin Root',   'path' => $plugin_root],
+			['label' => 'Includes Dir',  'path' => $includes_dir],
+			['label' => 'Partials Dir',  'path' => $partials_dir],
+		],
 		'files' => [
 			[
 				'label' => 'Badges partial (includes/render/partials/badges.php)',
 				'path'  => $badges_php,
 				'ok'    => is_readable( $badges_php ),
+				'incl'  => $badges_included,
 			],
 			[
 				'label' => 'Price partial (includes/render/partials/price-block.php)',
 				'path'  => $prices_php,
 				'ok'    => is_readable( $prices_php ),
+				'incl'  => $prices_included,
 			],
 		],
 		'functions' => [
@@ -62,6 +83,18 @@ function jprm_render_inspector_screen() {
 			],
 		],
 	];
+
+	// Dir listing for sanity
+	$partials_listing = [];
+	if ( is_dir( $partials_dir ) ) {
+		$scan = @scandir( $partials_dir );
+		if ( is_array( $scan ) ) {
+			foreach ( $scan as $f ) {
+				if ( $f === '.' || $f === '..' ) continue;
+				$partials_listing[] = $f . ( is_readable( $partials_dir . '/' . $f ) ? '' : ' (not readable)' );
+			}
+		}
+	}
 
 	// Try building the badge map (if available)
 	$badge_map = null;
@@ -103,18 +136,14 @@ function jprm_render_inspector_screen() {
 				$row['render'] = is_string( $html ) ? $html : '';
 				$row['status'] = ( $row['render'] !== '' ) ? 'ok' : 'empty';
 				if ( $row['status'] === 'empty' ) {
-					// Try “after” as well, just in case
 					$alt = jprm_render_badges_html( $p->ID, 'icon_text', 'after', $badge_map );
 					if ( is_string( $alt ) && $alt !== '' ) {
 						$row['render'] = $alt;
 						$row['status'] = 'ok (after)';
 					} else {
-						// Give a hint why it may be empty
-						if ( empty( $badge_map ) ) {
-							$row['error'] = 'No badge map entries / item has no attached badges.';
-						} else {
-							$row['error'] = 'Render function returned empty string.';
-						}
+						$row['error'] = empty( $badge_map )
+							? 'No badge map entries / item has no attached badges.'
+							: 'Render function returned empty string.';
 					}
 				}
 			} catch ( \Throwable $e ) {
@@ -132,8 +161,10 @@ function jprm_render_inspector_screen() {
 		<h2>Environment</h2>
 		<table class="widefat striped" style="max-width:980px;">
 			<tbody>
-				<tr><th>Plugin Root</th><td><?php echo esc_html( $root_dir ); ?></td></tr>
-				<tr><th>Includes Dir</th><td><?php echo esc_html( $plugin_dir ); ?></td></tr>
+				<tr><th>Plugins Dir</th><td><?php echo esc_html( $plugins_dir ); ?></td></tr>
+				<?php foreach ( $res['paths'] as $p ): ?>
+					<tr><th><?php echo esc_html( $p['label'] ); ?></th><td><?php echo esc_html( $p['path'] ); ?></td></tr>
+				<?php endforeach; ?>
 				<tr><th>PHP</th><td><?php echo esc_html( PHP_VERSION ); ?></td></tr>
 				<tr><th>WP_DEBUG</th><td><?php echo defined('WP_DEBUG') && WP_DEBUG ? 'true' : 'false'; ?></td></tr>
 			</tbody>
@@ -141,17 +172,29 @@ function jprm_render_inspector_screen() {
 
 		<h2 style="margin-top:20px;">Files</h2>
 		<table class="widefat striped" style="max-width:980px;">
-			<thead><tr><th>Check</th><th>Path</th><th>Status</th></tr></thead>
+			<thead><tr><th>Check</th><th>Path</th><th>Status</th><th>Included here?</th></tr></thead>
 			<tbody>
 			<?php foreach ( $res['files'] as $f ): ?>
 				<tr>
 					<td><?php echo esc_html( $f['label'] ); ?></td>
 					<td><code><?php echo esc_html( $f['path'] ); ?></code></td>
 					<td><?php echo $f['ok'] ? '<span style="color:#177245;font-weight:600;">OK</span>' : '<span style="color:#B00020;font-weight:600;">MISSING</span>'; ?></td>
+					<td><?php echo ! empty( $f['incl'] ) ? 'yes' : 'no'; ?></td>
 				</tr>
 			<?php endforeach; ?>
 			</tbody>
 		</table>
+
+		<h3 style="margin-top:10px;">Directory listing: <code><?php echo esc_html( $partials_dir ); ?></code></h3>
+		<div style="background:#fff;border:1px solid #ccd0d4;padding:8px;max-width:980px;">
+			<?php
+			if ( empty( $partials_listing ) ) {
+				echo '<em>(empty or not readable)</em>';
+			} else {
+				echo '<code>' . esc_html( implode(', ', $partials_listing) ) . '</code>';
+			}
+			?>
+		</div>
 
 		<h2 style="margin-top:20px;">Functions</h2>
 		<table class="widefat striped" style="max-width:980px;">
@@ -248,7 +291,7 @@ function jprm_render_inspector_screen() {
 		</table>
 
 		<p style="margin-top:24px;">
-			<strong>What to share with me:</strong> copy the whole page or take screenshots of the Files/Functions/Classes/Badge Map/Probe Items sections.
+			<strong>Share back:</strong> this page output, especially “Directory listing”, “Files”, and “Functions”.
 		</p>
 	</div>
 	<?php
