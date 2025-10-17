@@ -18,7 +18,7 @@ if ( ! defined( 'JPRM_PLUGIN_PATH' ) )   define( 'JPRM_PLUGIN_PATH', plugin_dir_
 if ( ! defined( 'JPRM_PLUGIN_URL' ) )    define( 'JPRM_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
 /* -------------------------------------------------
- * Includes (explicit, fixed paths)
+ * Includes (explicit paths)
  * ------------------------------------------------- */
 
 // Storage layer
@@ -40,12 +40,12 @@ require_once JPRM_PLUGIN_PATH . 'includes/render/class-price-renderer.php';
 // Debug (admin-only shortcode)
 require_once JPRM_PLUGIN_PATH . 'includes/debug/class-inspector.php';
 
-// (Optional) post save bridge for badges, if present
+// Badges bridge (if present)
 if ( file_exists( JPRM_PLUGIN_PATH . 'includes/admin/badges-post-bootstrap.php' ) ) {
 	require_once JPRM_PLUGIN_PATH . 'includes/admin/badges-post-bootstrap.php';
 }
 
-// Badges storage + admin screen (YOUR files)
+// Badges storage + admin screen (your files)
 if ( file_exists( JPRM_PLUGIN_PATH . 'includes/data/class-badges-store.php' ) ) {
 	require_once JPRM_PLUGIN_PATH . 'includes/data/class-badges-store.php';
 }
@@ -54,148 +54,180 @@ if ( file_exists( JPRM_PLUGIN_PATH . 'includes/admin/class-admin-dietary-badges.
 }
 
 /* -------------------------------------------------
- * Class aliases (in case your classes use non-namespaced names)
+ * Partials (make them available immediately)
  * ------------------------------------------------- */
-if ( class_exists( 'JPRM_Badges_Store' ) && ! class_exists( '\JelloPoint\RestaurantMenu\Badges\Store' ) ) {
-	class_alias( 'JPRM_Badges_Store', '\JelloPoint\RestaurantMenu\Badges\Store' );
-}
-if ( class_exists( 'JPRM_Admin_Dietary_Badges' ) && ! class_exists( '\JelloPoint\RestaurantMenu\Admin\Dietary_Badges' ) ) {
-	class_alias( 'JPRM_Admin_Dietary_Badges', '\JelloPoint\RestaurantMenu\Admin\Dietary_Badges' );
+foreach ( [
+	JPRM_PLUGIN_PATH . 'includes/render/partials/badges.php',
+	JPRM_PLUGIN_PATH . 'includes/render/partials/price-block.php',
+] as $file ) {
+	if ( file_exists( $file ) ) {
+		require_once $file;
+	}
 }
 
 /* -------------------------------------------------
- * Partials & robust badge helpers (loaded early)
+ * Helpers: resolve classes and init
  * ------------------------------------------------- */
-add_action( 'init', function () {
-	// Ensure partials are available (and visible to the Inspector)
-	foreach ( [
-		JPRM_PLUGIN_PATH . 'includes/render/partials/badges.php',
-		JPRM_PLUGIN_PATH . 'includes/render/partials/price-block.php',
-	] as $file ) {
-		if ( file_exists( $file ) ) {
-			require_once $file;
+if ( ! function_exists( 'jprm_resolve_class' ) ) {
+	function jprm_resolve_class( array $candidates ) : ?string {
+		foreach ( $candidates as $fqcn ) {
+			if ( class_exists( $fqcn ) ) return $fqcn;
 		}
+		return null;
 	}
+}
 
-	// Build a robust badge map from your store or a fallback option
-	if ( ! function_exists( 'jprm_build_badge_map' ) ) {
-		function jprm_build_badge_map() : array {
-			$map = [ 'by_id' => [], 'by_slug' => [] ];
+/* -------------------------------------------------
+ * BADGE MAP + RENDER: define at load time (not on init)
+ * ------------------------------------------------- */
+if ( ! function_exists( 'jprm_build_badge_map' ) ) {
+	function jprm_build_badge_map() : array {
+		$map = [ 'by_id' => [], 'by_slug' => [] ];
 
-			// 1) Preferred: your storage class
-			if ( class_exists( '\JelloPoint\RestaurantMenu\Badges\Store' ) ) {
-				try {
-					$store = new \JelloPoint\RestaurantMenu\Badges\Store();
-					$rows  = [];
-					if ( method_exists( $store, 'get_rows' ) ) {
-						$rows = $store->get_rows();
-					} elseif ( method_exists( $store, 'all' ) ) {
-						$rows = $store->all();
+		// Try namespaced store
+		$store_fqcn = jprm_resolve_class( [
+			'\JelloPoint\RestaurantMenu\Badges\Store',
+			'JPRM_Badges_Store',                 // legacy/alt
+			'\JelloPoint\RestaurantMenu\Badges', // in case file defines class with this name
+		] );
+		if ( $store_fqcn ) {
+			try {
+				$store = new $store_fqcn();
+				$rows  = [];
+
+				foreach ( [ 'get_rows', 'all', 'get_all', 'list' ] as $m ) {
+					if ( method_exists( $store, $m ) ) {
+						$rows = $store->{$m}();
+						break;
 					}
-					if ( is_array( $rows ) ) {
-						foreach ( $rows as $r ) {
-							$id   = isset( $r['id'] )   ? (string) $r['id']   : '';
-							$slug = isset( $r['slug'] ) ? (string) $r['slug'] : '';
-							if ( $id !== '' )   $map['by_id'][ $id ]   = $r;
-							if ( $slug !== '' ) $map['by_slug'][ $slug ] = $r;
-						}
-					}
-				} catch ( \Throwable $e ) {
-					if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) error_log( '[JPRM] badge store read failed: '.$e->getMessage() );
 				}
-			}
-
-			// 2) Fallback: option
-			if ( empty( $map['by_id'] ) && empty( $map['by_slug'] ) ) {
-				$opt = get_option( 'jprm_badges_registry' );
-				if ( is_array( $opt ) ) {
-					foreach ( $opt as $r ) {
+				if ( is_array( $rows ) ) {
+					foreach ( $rows as $r ) {
 						$id   = isset( $r['id'] )   ? (string) $r['id']   : '';
 						$slug = isset( $r['slug'] ) ? (string) $r['slug'] : '';
 						if ( $id !== '' )   $map['by_id'][ $id ]   = $r;
 						if ( $slug !== '' ) $map['by_slug'][ $slug ] = $r;
 					}
 				}
+			} catch ( \Throwable $e ) {
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) error_log( '[JPRM] badge store read failed: '.$e->getMessage() );
 			}
-
-			return $map;
 		}
-	}
 
-	// Render badges for a post (reads meta and optional taxonomy)
-	if ( ! function_exists( 'jprm_render_badges_html' ) ) {
-		function jprm_render_badges_html( int $post_id, string $presentation = 'icon_text', string $position = 'before', ?array $map = null ) : string {
-			if ( $post_id <= 0 ) return '';
-			if ( ! $map ) $map = jprm_build_badge_map();
-
-			$tokens = [];
-			foreach ( [ 'jprm_badges', 'jprm_dietary_badges', 'dietary_badges' ] as $key ) {
-				$raw = get_post_meta( $post_id, $key, true );
-				if ( empty( $raw ) ) continue;
-				if ( is_array( $raw ) ) {
-					$tokens = array_merge( $tokens, array_map( 'strval', $raw ) );
-				} elseif ( is_string( $raw ) ) {
-					$tokens = array_merge( $tokens, array_filter( array_map( 'trim', explode( ',', $raw ) ) ) );
+		// Fallback: option registry
+		if ( empty( $map['by_id'] ) && empty( $map['by_slug'] ) ) {
+			$opt = get_option( 'jprm_badges_registry' );
+			if ( is_array( $opt ) ) {
+				foreach ( $opt as $r ) {
+					$id   = isset( $r['id'] )   ? (string) $r['id']   : '';
+					$slug = isset( $r['slug'] ) ? (string) $r['slug'] : '';
+					if ( $id !== '' )   $map['by_id'][ $id ]   = $r;
+					if ( $slug !== '' ) $map['by_slug'][ $slug ] = $r;
 				}
 			}
-			if ( taxonomy_exists( 'jprm_badge' ) ) {
-				$terms = wp_get_post_terms( $post_id, 'jprm_badge', [ 'fields' => 'all' ] );
-				if ( is_array( $terms ) && ! is_wp_error( $terms ) ) {
-					foreach ( $terms as $t ) {
-						if ( isset( $t->slug ) ) $tokens[] = (string) $t->slug;
-					}
-				}
-			}
-			$tokens = array_values( array_unique( array_filter( $tokens ) ) );
-			if ( empty( $tokens ) ) return '';
-
-			$out = [];
-			foreach ( $tokens as $token ) {
-				$row = null;
-				if ( is_numeric( $token ) && isset( $map['by_id'][ (string) (int) $token ] ) ) {
-					$row = $map['by_id'][ (string) (int) $token ];
-				}
-				if ( ! $row && isset( $map['by_slug'][ (string) $token ] ) ) {
-					$row = $map['by_slug'][ (string) $token ];
-				}
-				if ( ! $row ) continue;
-
-				$label   = isset( $row['label'] ) ? (string) $row['label'] : '';
-				$icon_id = isset( $row['icon'] )  ? (int) $row['icon']  : 0;
-
-				$icon_html = '';
-				if ( $icon_id > 0 ) {
-					$img = wp_get_attachment_image( $icon_id, 'thumbnail', false, [ 'class' => 'jp-badge__icon', 'loading' => 'lazy' ] );
-					if ( is_string( $img ) ) $icon_html = $img;
-				}
-
-				if ( $presentation === 'icon' ) {
-					if ( $icon_html !== '' ) $out[] = '<span class="jp-badge">'.$icon_html.'</span>';
-				} elseif ( $presentation === 'text' ) {
-					if ( $label !== '' ) $out[] = '<span class="jp-badge"><span class="jp-badge__text">'.esc_html( $label ).'</span></span>';
-				} else {
-					$inner = $icon_html . ( $label !== '' ? '<span class="jp-badge__text">'.esc_html( $label ).'</span>' : '' );
-					if ( $inner !== '' ) $out[] = '<span class="jp-badge">'.$inner.'</span>';
-				}
-			}
-			if ( empty( $out ) ) return '';
-			return '<span class="jp-badges jp-badges--' . esc_attr( $presentation ) . '">'. implode( '', $out ) .'</span>';
 		}
+
+		return $map;
 	}
-}, 1 );
+}
+
+if ( ! function_exists( 'jprm_render_badges_html' ) ) {
+	function jprm_render_badges_html( int $post_id, string $presentation = 'icon_text', string $position = 'before', ?array $map = null ) : string {
+		if ( $post_id <= 0 ) return '';
+		if ( ! $map ) $map = jprm_build_badge_map();
+
+		// 1) read post meta in common keys
+		$tokens = [];
+		foreach ( [ 'jprm_badges', 'jprm_dietary_badges', 'dietary_badges' ] as $key ) {
+			$raw = get_post_meta( $post_id, $key, true );
+			if ( empty( $raw ) ) continue;
+			if ( is_array( $raw ) ) {
+				$tokens = array_merge( $tokens, array_map( 'strval', $raw ) );
+			} elseif ( is_string( $raw ) ) {
+				$tokens = array_merge( $tokens, array_filter( array_map( 'trim', explode( ',', $raw ) ) ) );
+			}
+		}
+
+		// 2) optional taxonomy
+		if ( taxonomy_exists( 'jprm_badge' ) ) {
+			$terms = wp_get_post_terms( $post_id, 'jprm_badge', [ 'fields' => 'all' ] );
+			if ( is_array( $terms ) && ! is_wp_error( $terms ) ) {
+				foreach ( $terms as $t ) {
+					if ( isset( $t->slug ) ) $tokens[] = (string) $t->slug;
+				}
+			}
+		}
+
+		$tokens = array_values( array_unique( array_filter( $tokens ) ) );
+		if ( empty( $tokens ) ) return '';
+
+		$out = [];
+		foreach ( $tokens as $token ) {
+			$row = null;
+			if ( is_numeric( $token ) && isset( $map['by_id'][ (string) (int) $token ] ) ) {
+				$row = $map['by_id'][ (string) (int) $token ];
+			}
+			if ( ! $row && isset( $map['by_slug'][ (string) $token ] ) ) {
+				$row = $map['by_slug'][ (string) $token ];
+			}
+
+			// If not in map, render token as text (so you see *something* during troubleshooting)
+			if ( ! $row ) {
+				$out[] = '<span class="jp-badge"><span class="jp-badge__text">'. esc_html( (string) $token ) .'</span></span>';
+				continue;
+			}
+
+			$label   = isset( $row['label'] ) ? (string) $row['label'] : '';
+			$icon_id = isset( $row['icon'] )  ? (int) $row['icon']  : 0;
+
+			$icon_html = '';
+			if ( $icon_id > 0 ) {
+				$img = wp_get_attachment_image( $icon_id, 'thumbnail', false, [ 'class' => 'jp-badge__icon', 'loading' => 'lazy' ] );
+				if ( is_string( $img ) ) $icon_html = $img;
+			}
+
+			if ( $presentation === 'icon' ) {
+				if ( $icon_html !== '' ) $out[] = '<span class="jp-badge">'.$icon_html.'</span>';
+			} elseif ( $presentation === 'text' ) {
+				if ( $label !== '' ) $out[] = '<span class="jp-badge"><span class="jp-badge__text">'.esc_html( $label ).'</span></span>';
+			} else {
+				$inner = $icon_html . ( $label !== '' ? '<span class="jp-badge__text">'.esc_html( $label ).'</span>' : '' );
+				if ( $inner !== '' ) $out[] = '<span class="jp-badge">'.$inner.'</span>';
+			}
+		}
+
+		if ( empty( $out ) ) return '';
+		return '<span class="jp-badges jp-badges--' . esc_attr( $presentation ) . '">'. implode( '', $out ) .'</span>';
+	}
+}
 
 /* -------------------------------------------------
- * Initialize your Admin screen & Store explicitly
+ * Initialize Admin Menu + Dietary Badges screen + Store
  * ------------------------------------------------- */
 add_action( 'plugins_loaded', function () {
-	// Initialize the store if it provides an init() (keeps behavior consistent)
-	if ( class_exists( '\JelloPoint\RestaurantMenu\Badges\Store' ) && method_exists( '\JelloPoint\RestaurantMenu\Badges\Store', 'init' ) ) {
-		\JelloPoint\RestaurantMenu\Badges\Store::init();
+
+	// Initialize store if it provides a static init()
+	$store_fqcn = jprm_resolve_class( [
+		'\JelloPoint\RestaurantMenu\Badges\Store',
+		'JPRM_Badges_Store',
+	] );
+	if ( $store_fqcn && method_exists( $store_fqcn, 'init' ) ) {
+		call_user_func( [ $store_fqcn, 'init' ] );
 	}
-	// Initialize the Dietary Badges admin screen (this registers the submenu/page)
-	if ( is_admin() && class_exists( '\JelloPoint\RestaurantMenu\Admin\Dietary_Badges' ) ) {
-		if ( method_exists( '\JelloPoint\RestaurantMenu\Admin\Dietary_Badges', 'init' ) ) {
-			\JelloPoint\RestaurantMenu\Admin\Dietary_Badges::init();
+
+	if ( is_admin() ) {
+		// Initialize the admin menu container if present
+		if ( class_exists( '\JelloPoint\RestaurantMenu\Admin\Admin_Menu' ) && method_exists( '\JelloPoint\RestaurantMenu\Admin\Admin_Menu', 'init' ) ) {
+			\JelloPoint\RestaurantMenu\Admin\Admin_Menu::init();
+		}
+
+		// Initialize Dietary Badges admin screen – try multiple class names
+		$admin_badges_fqcn = jprm_resolve_class( [
+			'\JelloPoint\RestaurantMenu\Admin\Dietary_Badges',
+			'JPRM_Admin_Dietary_Badges',
+		] );
+		if ( $admin_badges_fqcn && method_exists( $admin_badges_fqcn, 'init' ) ) {
+			call_user_func( [ $admin_badges_fqcn, 'init' ] );
 		}
 	}
 }, 20);
@@ -333,8 +365,3 @@ if ( class_exists( '\JelloPoint\RestaurantMenu\Plugin' ) ) {
 		\JelloPoint\RestaurantMenu\Plugin::init();
 	}
 }
-
-/**
- * NOTE: We intentionally do not add the "Dietary Badges" submenu here;
- * the dedicated Admin\Dietary_Badges class now initializes itself (see plugins_loaded:20).
- */
