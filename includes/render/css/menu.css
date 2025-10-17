@@ -37,3 +37,41 @@
 .jp-price-row.jp-order--label-right .jp-col-price{order:1;}
 .jp-price-row.jp-order--label-left .jp-col-label{order:1;}
 .jp-price-row.jp-order--label-left .jp-col-price{order:2;}
+
+/* Two-column grid for menu (dynamic mode only) */
+.jp-menu-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px; /* Elementor control can override via inline style */
+}
+
+.jp-menu-grid .jp-col {
+  min-width: 0; /* avoid overflow in narrow containers */
+}
+
+/* Optional section headers inside columns */
+.jp-menu__section-header {
+  list-style: none;
+  margin: 0 0 6px 0;
+  padding: 0;
+}
+
+.jp-section__title {
+  margin: 0 0 2px 0;
+  font-size: 1.05em;
+  line-height: 1.2;
+}
+
+.jp-section__desc {
+  margin: 0 0 8px 0;
+  font-size: 0.95em;
+  opacity: 0.8;
+}
+
+/* Responsive: collapse to one column on narrow screens */
+@media (max-width: 768px) {
+  .jp-menu-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
