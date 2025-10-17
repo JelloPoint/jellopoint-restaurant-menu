@@ -281,6 +281,7 @@ final class Restaurant_Menu extends Widget_Base {
 			'options' => [
 				'1' => __( '1 column', 'jellopoint-restaurant-menu' ),
 				'2' => __( '2 columns', 'jellopoint-restaurant-menu' ),
+				'3' => __( '3 columns', 'jellopoint-restaurant-menu' ),
 			],
 			'condition' => [ 'data_mode' => 'dynamic' ],
 		] );
@@ -295,7 +296,7 @@ final class Restaurant_Menu extends Widget_Base {
 			],
 			'condition' => [
 				'data_mode'      => 'dynamic',
-				'layout_columns' => '2',
+				'layout_columns' => '2', // manual split only applies to 2 columns
 			],
 		] );
 
@@ -323,7 +324,7 @@ final class Restaurant_Menu extends Widget_Base {
 			],
 			'condition' => [
 				'data_mode'      => 'dynamic',
-				'layout_columns' => '2',
+				'layout_columns' => [ '2', '3' ],
 			],
 		] );
 
@@ -339,7 +340,7 @@ final class Restaurant_Menu extends Widget_Base {
 		$s = $this->get_settings_for_display();
 		$mode = isset( $s['data_mode'] ) ? (string) $s['data_mode'] : null;
 
-		// Static mode – leave as-is for now (columns ignored by request)
+		// Static mode – leave as-is for now (columns ignored)
 		if ( 'static' === $mode || ( null === $mode && ! empty( $s['items'] ) ) ) {
 			$this->render_static_list( is_array( $s['items'] ) ? $s['items'] : [] );
 			return;
@@ -384,7 +385,7 @@ final class Restaurant_Menu extends Widget_Base {
 		// Preload label map for perf (partial can also build it if unavailable)
 		$label_map = function_exists( 'jprm_build_label_map' ) ? jprm_build_label_map() : null;
 
-		// Group items by first jprm_section term (in list order)
+		// Group by primary section (first jprm_section term)
 		$sections_order = [];
 		$sections_data  = []; // term_id => ['term'=>WP_Term|null, 'items'=>[]]
 		foreach ( $items as $post ) {
@@ -393,7 +394,7 @@ final class Restaurant_Menu extends Widget_Base {
 			if ( empty( $cfg ) ) { continue; }
 
 			$terms = wp_get_post_terms( $post_id, 'jprm_section', [ 'orderby' => 'name', 'order' => 'ASC' ] );
-			$primary_tid = 0;
+			$primary_tid  = 0;
 			$primary_term = null;
 			if ( is_array( $terms ) && ! empty( $terms ) && ! is_wp_error( $terms ) ) {
 				$primary_term = $terms[0];
@@ -409,8 +410,8 @@ final class Restaurant_Menu extends Widget_Base {
 		$show_section_name = ( isset( $s['show_section_name'] ) && $s['show_section_name'] === 'yes' );
 		$show_section_desc = ( isset( $s['show_section_description'] ) && $s['show_section_description'] === 'yes' );
 
-		// ===== 1 column: show section headers too (fix) =====
-		if ( $columns !== '2' ) {
+		/* ===== 1 column: with section headers ===== */
+		if ( $columns === '1' ) {
 			echo '<ul class="jp-menu">';
 			foreach ( $sections_order as $tid ) {
 				$blk  = $sections_data[ $tid ];
@@ -447,34 +448,166 @@ final class Restaurant_Menu extends Widget_Base {
 			return;
 		}
 
-		// ===== 2 columns: split on section boundaries =====
-		// Determine split index (auto/manual)
-		$split_index = null;
-		if ( $split_mode === 'manual' && $split_after !== '' ) {
-			$target = (int) $split_after;
-			foreach ( $sections_order as $idx => $tid ) {
-				if ( $tid === $target ) { $split_index = $idx; break; }
+		/* ===== 2 columns: split on section boundaries (auto/manual) ===== */
+		if ( $columns === '2' ) {
+			// Determine split index
+			$split_index = null;
+			if ( $split_mode === 'manual' && $split_after !== '' ) {
+				$target = (int) $split_after;
+				foreach ( $sections_order as $idx => $tid ) {
+					if ( $tid === $target ) { $split_index = $idx; break; }
+				}
 			}
-		}
-		if ( $split_index === null ) {
-			$total = 0;
-			foreach ( $sections_order as $tid ) { $total += count( $sections_data[ $tid ]['items'] ); }
-			$half = (int) ceil( $total / 2 );
-			$acc  = 0;
-			foreach ( $sections_order as $idx => $tid ) {
-				$acc += count( $sections_data[ $tid ]['items'] );
-				if ( $acc >= $half ) { $split_index = $idx; break; }
+			if ( $split_index === null ) {
+				$total = 0;
+				foreach ( $sections_order as $tid ) { $total += count( $sections_data[ $tid ]['items'] ); }
+				$half = (int) ceil( $total / 2 );
+				$acc  = 0;
+				foreach ( $sections_order as $idx => $tid ) {
+					$acc += count( $sections_data[ $tid ]['items'] );
+					if ( $acc >= $half ) { $split_index = $idx; break; }
+				}
+				if ( $split_index === null ) $split_index = count( $sections_order ) - 1;
 			}
-			if ( $split_index === null ) $split_index = count( $sections_order ) - 1;
-		}
 
-		$left_sections  = array_slice( $sections_order, 0, $split_index + 1 );
-		$right_sections = array_slice( $sections_order, $split_index + 1 );
+			$left_sections  = array_slice( $sections_order, 0, $split_index + 1 );
+			$right_sections = array_slice( $sections_order, $split_index + 1 );
 
-		// If right column would be empty, render as single column (with headers)
-		if ( empty( $right_sections ) ) {
-			echo '<ul class="jp-menu">';
+			// If right column empty → render single column (headers on)
+			if ( empty( $right_sections ) ) {
+				echo '<ul class="jp-menu">';
+				foreach ( $left_sections as $tid ) {
+					$blk  = $sections_data[ $tid ];
+					$term = $blk['term'];
+					if ( $term && $show_section_name ) {
+						echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
+						if ( $show_section_desc && ! empty( $term->description ) ) {
+							echo '<div class="jp-section__desc">' . esc_html( $term->description ) . '</div>';
+						}
+						echo '</li>';
+					}
+					foreach ( $blk['items'] as $post ) {
+						$post_id = (int) $post->ID;
+						$title   = get_the_title( $post_id );
+						$desc    = get_post_meta( $post_id, 'jprm_desc', true );
+						echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
+						echo '  <div class="jp-menu__content">';
+						if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
+						if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
+						echo '  </div>';
+						if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
+							echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
+						} else {
+							echo '<div class="jp-menu__pricegroup"></div>';
+						}
+						echo '</div></li>';
+					}
+				}
+				echo '</ul>';
+				return;
+			}
+
+			// Force grid in Elementor editor
+			$is_editor = ( class_exists( '\Elementor\Plugin' ) && \Elementor\Plugin::$instance->editor && \Elementor\Plugin::$instance->editor->is_edit_mode() );
+			$gap_px    = 24;
+			if ( isset( $s['layout_column_gap']['size'] ) && is_numeric( $s['layout_column_gap']['size'] ) ) {
+				$gap_px = (int) $s['layout_column_gap']['size'];
+			}
+			$inline = $is_editor ? ' style="display:grid;grid-template-columns:1fr 1fr;gap:' . esc_attr( $gap_px ) . 'px;"' : '';
+
+			echo '<div class="jp-menu-grid jp-cols-2 jp-menu--cols-2 jp-two-cols"' . $inline . '>';
+
+			// LEFT
+			echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--left">';
 			foreach ( $left_sections as $tid ) {
+				$blk  = $sections_data[ $tid ];
+				$term = $blk['term'];
+				if ( $term && $show_section_name ) {
+					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
+					if ( $show_section_desc && ! empty( $term->description ) ) {
+						echo '<div class="jp-section__desc">' . esc_html( $term->description ) . '</div>';
+					}
+					echo '</li>';
+				}
+				foreach ( $blk['items'] as $post ) {
+					$post_id = (int) $post->ID;
+					$title   = get_the_title( $post_id );
+					$desc    = get_post_meta( $post_id, 'jprm_desc', true );
+					echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
+					echo '  <div class="jp-menu__content">';
+					if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
+					if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
+					echo '  </div>';
+					if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
+						echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
+					} else {
+						echo '<div class="jp-menu__pricegroup"></div>';
+					}
+					echo '</div></li>';
+				}
+			}
+			echo '</ul></div>';
+
+			// RIGHT
+			echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--right">';
+			foreach ( $right_sections as $tid ) {
+				$blk  = $sections_data[ $tid ];
+				$term = $blk['term'];
+				if ( $term && $show_section_name ) {
+					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
+					if ( $show_section_desc && ! empty( $term->description ) ) {
+						echo '<div class="jp-section__desc">' . esc_html( $term->description ) . '</div>';
+					}
+					echo '</li>';
+				}
+				foreach ( $blk['items'] as $post ) {
+					$post_id = (int) $post->ID;
+					$title   = get_the_title( $post_id );
+					$desc    = get_post_meta( $post_id, 'jprm_desc', true );
+					echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
+					echo '  <div class="jp-menu__content">';
+					if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
+					if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
+					echo '  </div>';
+					if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
+						echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
+					} else {
+						echo '<div class="jp-menu__pricegroup"></div>';
+					}
+					echo '</div></li>';
+				}
+			}
+			echo '</ul></div>';
+
+			echo '</div>'; // .jp-menu-grid
+			return;
+		}
+
+		/* ===== 3 columns: auto-balance by items, keep section boundaries ===== */
+		// Compute targets at ~1/3 and ~2/3 of items
+		$total = 0;
+		foreach ( $sections_order as $tid ) { $total += count( $sections_data[ $tid ]['items'] ); }
+		$t1 = (int) ceil( $total / 3 );         // first break
+		$t2 = (int) ceil( (2 * $total) / 3 );   // second break
+
+		$i1 = null; $i2 = null; $acc = 0;
+		foreach ( $sections_order as $idx => $tid ) {
+			$acc += count( $sections_data[ $tid ]['items'] );
+			if ( $i1 === null && $acc >= $t1 ) { $i1 = $idx; }
+			if ( $i2 === null && $acc >= $t2 ) { $i2 = $idx; break; }
+		}
+		if ( $i1 === null ) $i1 = min( 0, count( $sections_order ) - 1 );
+		if ( $i2 === null ) $i2 = max( $i1, count( $sections_order ) - 1 );
+
+		$col1 = array_slice( $sections_order, 0, $i1 + 1 );
+		$col2 = array_slice( $sections_order, $i1 + 1, $i2 - $i1 );
+		$col3 = array_slice( $sections_order, $i2 + 1 );
+
+		// If columns end up empty, gracefully fall back to 2 columns or 1
+		if ( empty( $col2 ) && empty( $col3 ) ) {
+			// Only one set of sections → render single column (with headers)
+			echo '<ul class="jp-menu">';
+			foreach ( $col1 as $tid ) {
 				$blk  = $sections_data[ $tid ];
 				$term = $blk['term'];
 				if ( $term && $show_section_name ) {
@@ -504,79 +637,100 @@ final class Restaurant_Menu extends Widget_Base {
 			echo '</ul>';
 			return;
 		}
+		if ( empty( $col3 ) ) {
+			// Fall back to 2 columns using col1 + col2
+			$is_editor = ( class_exists( '\Elementor\Plugin' ) && \Elementor\Plugin::$instance->editor && \Elementor\Plugin::$instance->editor->is_edit_mode() );
+			$gap_px    = 24;
+			if ( isset( $s['layout_column_gap']['size'] ) && is_numeric( $s['layout_column_gap']['size'] ) ) {
+				$gap_px = (int) $s['layout_column_gap']['size'];
+			}
+			$inline = $is_editor ? ' style="display:grid;grid-template-columns:1fr 1fr;gap:' . esc_attr( $gap_px ) . 'px;"' : '';
+			echo '<div class="jp-menu-grid jp-cols-2 jp-menu--cols-2 jp-two-cols"' . $inline . '>';
+			echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--left">';
+			foreach ( $col1 as $tid ) {
+				$blk = $sections_data[ $tid ]; $term = $blk['term'];
+				if ( $term && $show_section_name ) {
+					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">'.esc_html($term->name).'</h3>';
+					if ( $show_section_desc && ! empty( $term->description ) ) echo '<div class="jp-section__desc">'.esc_html($term->description).'</div>';
+					echo '</li>';
+				}
+				foreach ( $blk['items'] as $post ) {
+					$post_id=(int)$post->ID; $title=get_the_title($post_id); $desc=get_post_meta($post_id,'jprm_desc',true);
+					echo '<li class="jp-menu__item"><div class="jp-menu__inner"><div class="jp-menu__content">';
+					if($title!=='') echo '<h4 class="jp-menu__title">'.esc_html($title).'</h4>';
+					if(is_string($desc)&&$desc!=='') echo '<div class="jp-menu__desc">'.esc_html($desc).'</div>';
+					echo '</div>';
+					if(function_exists('jprm_render_pricegroup_html')){ echo jprm_render_pricegroup_html($post_id,$label_presentation,$label_position,$label_map,$currency_opts);} else { echo '<div class="jp-menu__pricegroup"></div>'; }
+					echo '</div></li>';
+				}
+			}
+			echo '</ul></div>';
+			echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--right">';
+			foreach ( $col2 as $tid ) {
+				$blk = $sections_data[ $tid ]; $term = $blk['term'];
+				if ( $term && $show_section_name ) {
+					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">'.esc_html($term->name).'</h3>';
+					if ( $show_section_desc && ! empty( $term->description ) ) echo '<div class="jp-section__desc">'.esc_html($term->description).'</div>';
+					echo '</li>';
+				}
+				foreach ( $blk['items'] as $post ) {
+					$post_id=(int)$post->ID; $title=get_the_title($post_id); $desc=get_post_meta($post_id,'jprm_desc',true);
+					echo '<li class="jp-menu__item"><div class="jp-menu__inner"><div class="jp-menu__content">';
+					if($title!=='') echo '<h4 class="jp-menu__title">'.esc_html($title).'</h4>';
+					if(is_string($desc)&&$desc!=='') echo '<div class="jp-menu__desc">'.esc_html($desc).'</div>';
+					echo '</div>';
+					if(function_exists('jprm_render_pricegroup_html')){ echo jprm_render_pricegroup_html($post_id,$label_presentation,$label_position,$label_map,$currency_opts);} else { echo '<div class="jp-menu__pricegroup"></div>'; }
+					echo '</div></li>';
+				}
+			}
+			echo '</ul></div></div>';
+			return;
+		}
 
-		// Force grid in Elementor editor (preview pane) — live site uses CSS file.
+		// Force 3-col grid in Elementor editor
 		$is_editor = ( class_exists( '\Elementor\Plugin' ) && \Elementor\Plugin::$instance->editor && \Elementor\Plugin::$instance->editor->is_edit_mode() );
 		$gap_px    = 24;
 		if ( isset( $s['layout_column_gap']['size'] ) && is_numeric( $s['layout_column_gap']['size'] ) ) {
 			$gap_px = (int) $s['layout_column_gap']['size'];
 		}
-		$inline = $is_editor ? ' style="display:grid;grid-template-columns:1fr 1fr;gap:' . esc_attr( $gap_px ) . 'px;"' : '';
+		$inline = $is_editor ? ' style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:' . esc_attr( $gap_px ) . 'px;"' : '';
 
-		// Two columns grid (with extra classes for maximum CSS compatibility)
-		echo '<div class="jp-menu-grid jp-cols-2 jp-menu--cols-2 jp-two-cols"' . $inline . '>';
+		// Render 3 columns
+		echo '<div class="jp-menu-grid jp-cols-3 jp-menu--cols-3 jp-three-cols"' . $inline . '>';
 
-		// LEFT column
-		echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--left">';
-		foreach ( $left_sections as $tid ) {
-			$blk  = $sections_data[ $tid ];
-			$term = $blk['term'];
-			if ( $term && $show_section_name ) {
-				echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
-				if ( $show_section_desc && ! empty( $term->description ) ) {
-					echo '<div class="jp-section__desc">' . esc_html( $term->description ) . '</div>';
+		$cols = [ $col1, $col2, $col3 ];
+		$pos  = [ 'left', 'middle', 'right' ];
+		foreach ( $cols as $i => $section_ids_chunk ) {
+			echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--' . esc_attr( $pos[$i] ) . '">';
+			foreach ( $section_ids_chunk as $tid ) {
+				$blk  = $sections_data[ $tid ];
+				$term = $blk['term'];
+				if ( $term && $show_section_name ) {
+					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
+					if ( $show_section_desc && ! empty( $term->description ) ) {
+						echo '<div class="jp-section__desc">' . esc_html( $term->description ) . '</div>';
+					}
+					echo '</li>';
 				}
-				echo '</li>';
-			}
-			foreach ( $blk['items'] as $post ) {
-				$post_id = (int) $post->ID;
-				$title   = get_the_title( $post_id );
-				$desc    = get_post_meta( $post_id, 'jprm_desc', true );
-				echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
-				echo '  <div class="jp-menu__content">';
-				if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
-				if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
-				echo '  </div>';
-				if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
-					echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
-				} else {
-					echo '<div class="jp-menu__pricegroup"></div>';
+				foreach ( $blk['items'] as $post ) {
+					$post_id = (int) $post->ID;
+					$title   = get_the_title( $post_id );
+					$desc    = get_post_meta( $post_id, 'jprm_desc', true );
+					echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
+					echo '  <div class="jp-menu__content">';
+					if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
+					if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
+					echo '  </div>';
+					if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
+						echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
+					} else {
+						echo '<div class="jp-menu__pricegroup"></div>';
+					}
+					echo '</div></li>';
 				}
-				echo '</div></li>';
 			}
+			echo '</ul></div>';
 		}
-		echo '</ul></div>';
-
-		// RIGHT column
-		echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--right">';
-		foreach ( $right_sections as $tid ) {
-			$blk  = $sections_data[ $tid ];
-			$term = $blk['term'];
-			if ( $term && $show_section_name ) {
-				echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
-				if ( $show_section_desc && ! empty( $term->description ) ) {
-					echo '<div class="jp-section__desc">' . esc_html( $term->description ) . '</div>';
-				}
-				echo '</li>';
-			}
-			foreach ( $blk['items'] as $post ) {
-				$post_id = (int) $post->ID;
-				$title   = get_the_title( $post_id );
-				$desc    = get_post_meta( $post_id, 'jprm_desc', true );
-				echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
-				echo '  <div class="jp-menu__content">';
-				if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
-				if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
-				echo '  </div>';
-				if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
-					echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
-				} else {
-					echo '<div class="jp-menu__pricegroup"></div>';
-				}
-				echo '</div></li>';
-			}
-		}
-		echo '</ul></div>';
 
 		echo '</div>'; // .jp-menu-grid
 	}

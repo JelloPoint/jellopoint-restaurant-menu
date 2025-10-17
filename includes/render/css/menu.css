@@ -44,6 +44,10 @@
   grid-template-columns: 1fr 1fr;
   gap: 24px; /* Elementor control can override via inline style */
 }
+/* Optional helpers if you need them */
+.jp-menu-grid.jp-cols-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
+@media (max-width: 992px) { .jp-menu-grid.jp-cols-3 { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 768px) { .jp-menu-grid { grid-template-columns: 1fr; } }
 
 .jp-menu-grid .jp-col {
   min-width: 0; /* avoid overflow in narrow containers */
