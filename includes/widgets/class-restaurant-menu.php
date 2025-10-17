@@ -275,7 +275,7 @@ final class Restaurant_Menu extends Widget_Base {
 		);
 
 		$this->add_control( 'layout_columns', [
-			'label'   => __( 'Columns', 'jellopoint-restaurant-menu' ),
+			'label'   => __( 'Columns (Desktop)', 'jellopoint-restaurant-menu' ),
 			'type'    => Controls_Manager::SELECT,
 			'default' => '1',
 			'options' => [
@@ -287,7 +287,7 @@ final class Restaurant_Menu extends Widget_Base {
 		] );
 
 		$this->add_control( 'layout_split_mode', [
-			'label'   => __( 'Split mode', 'jellopoint-restaurant-menu' ),
+			'label'   => __( 'Split mode (Desktop 2 cols)', 'jellopoint-restaurant-menu' ),
 			'type'    => Controls_Manager::SELECT,
 			'default' => 'auto',
 			'options' => [
@@ -296,7 +296,7 @@ final class Restaurant_Menu extends Widget_Base {
 			],
 			'condition' => [
 				'data_mode'      => 'dynamic',
-				'layout_columns' => '2', // manual split only applies to 2 columns
+				'layout_columns' => '2',
 			],
 		] );
 
@@ -326,6 +326,54 @@ final class Restaurant_Menu extends Widget_Base {
 				'data_mode'      => 'dynamic',
 				'layout_columns' => [ '2', '3' ],
 			],
+		] );
+
+		// ----- Responsive controls -----
+		$this->add_control( 'layout_resp_heading', [
+			'label'     => __( 'Responsive', 'jellopoint-restaurant-menu' ),
+			'type'      => Controls_Manager::HEADING,
+			'separator' => 'before',
+		] );
+
+		$this->add_control( 'layout_cols_tablet', [
+			'label'   => __( 'Columns (Tablet)', 'jellopoint-restaurant-menu' ),
+			'type'    => Controls_Manager::SELECT,
+			'default' => '2',
+			'options' => [
+				'1' => '1',
+				'2' => '2',
+				'3' => '3',
+			],
+			'condition' => [ 'data_mode' => 'dynamic' ],
+		] );
+
+		$this->add_control( 'layout_cols_mobile', [
+			'label'   => __( 'Columns (Mobile)', 'jellopoint-restaurant-menu' ),
+			'type'    => Controls_Manager::SELECT,
+			'default' => '1',
+			'options' => [
+				'1' => '1',
+				'2' => '2',
+			],
+			'condition' => [ 'data_mode' => 'dynamic' ],
+		] );
+
+		$this->add_control( 'layout_bp_tablet', [
+			'label'       => __( 'Tablet breakpoint (max-width, px)', 'jellopoint-restaurant-menu' ),
+			'type'        => Controls_Manager::NUMBER,
+			'default'     => 992,
+			'min'         => 480,
+			'step'        => 1,
+			'condition'   => [ 'data_mode' => 'dynamic' ],
+		] );
+
+		$this->add_control( 'layout_bp_mobile', [
+			'label'       => __( 'Mobile breakpoint (max-width, px)', 'jellopoint-restaurant-menu' ),
+			'type'        => Controls_Manager::NUMBER,
+			'default'     => 768,
+			'min'         => 320,
+			'step'        => 1,
+			'condition'   => [ 'data_mode' => 'dynamic' ],
 		] );
 
 		$this->end_controls_section();
@@ -368,7 +416,13 @@ final class Restaurant_Menu extends Widget_Base {
 		$split_mode    = isset( $s['layout_split_mode'] ) ? (string) $s['layout_split_mode'] : 'auto';
 		$split_after   = isset( $s['layout_split_after_section'] ) ? (string) $s['layout_split_after_section'] : '';
 
-		$menu_ids    = $this->normalize_to_ids( $menu_sel );
+		// Responsive options
+		$cols_tablet = isset( $s['layout_cols_tablet'] ) ? (string) $s['layout_cols_tablet'] : '2';
+		$cols_mobile = isset( $s['layout_cols_mobile'] ) ? (string) $s['layout_cols_mobile'] : '1';
+		$bp_tablet   = isset( $s['layout_bp_tablet'] ) && is_numeric( $s['layout_bp_tablet'] ) ? (int) $s['layout_bp_tablet'] : 992;
+		$bp_mobile   = isset( $s['layout_bp_mobile'] ) && is_numeric( $s['layout_bp_mobile'] ) ? (int) $s['layout_bp_mobile'] : 768;
+
+		$menu_ids    = $this->.normalize_to_ids( $menu_sel );
 		$section_ids = $this->normalize_to_ids( $sections_sel );
 
 		if ( empty( $menu_ids ) && empty( $section_ids ) && ! $show_all ) {
@@ -448,6 +502,21 @@ final class Restaurant_Menu extends Widget_Base {
 			return;
 		}
 
+		/* ===== Helper to print responsive inline CSS for this instance ===== */
+		$widget_id = 'jprm-' . esc_attr( $this->get_id() );
+		$gap_px    = 24;
+		if ( isset( $s['layout_column_gap']['size'] ) && is_numeric( $s['layout_column_gap']['size'] ) ) {
+			$gap_px = (int) $s['layout_column_gap']['size'];
+		}
+		$cols_desktop = (int) $columns;
+		$cols_tab     = max( 1, min( 3, (int) $cols_tablet ) );
+		$cols_mob     = max( 1, min( 2, (int) $cols_mobile ) );
+
+		$inline_css = '<style id="'. $widget_id .'-grid-css">#'. $widget_id .' .jp-menu-grid{display:grid;grid-template-columns:repeat('. $cols_desktop .',1fr);gap:'. $gap_px .'px;}';
+		$inline_css .= '@media(max-width:'. $bp_tablet .'px){#'. $widget_id .' .jp-menu-grid{grid-template-columns:repeat('. $cols_tab .',1fr);}}';
+		$inline_css .= '@media(max-width:'. $bp_mobile .'px){#'. $widget_id .' .jp-menu-grid{grid-template-columns:repeat('. $cols_mob .',1fr);}}';
+		$inline_css .= '</style>';
+
 		/* ===== 2 columns: split on section boundaries (auto/manual) ===== */
 		if ( $columns === '2' ) {
 			// Determine split index
@@ -507,15 +576,9 @@ final class Restaurant_Menu extends Widget_Base {
 				return;
 			}
 
-			// Force grid in Elementor editor
-			$is_editor = ( class_exists( '\Elementor\Plugin' ) && \Elementor\Plugin::$instance->editor && \Elementor\Plugin::$instance->editor->is_edit_mode() );
-			$gap_px    = 24;
-			if ( isset( $s['layout_column_gap']['size'] ) && is_numeric( $s['layout_column_gap']['size'] ) ) {
-				$gap_px = (int) $s['layout_column_gap']['size'];
-			}
-			$inline = $is_editor ? ' style="display:grid;grid-template-columns:1fr 1fr;gap:' . esc_attr( $gap_px ) . 'px;"' : '';
-
-			echo '<div class="jp-menu-grid jp-cols-2 jp-menu--cols-2 jp-two-cols"' . $inline . '>';
+			// Render grid
+			echo $inline_css; // responsive columns CSS (scoped)
+			echo '<div id="'. $widget_id .'" class="jp-menu-grid jp-cols-2 jp-menu--cols-2 jp-two-cols">';
 
 			// LEFT
 			echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--left">';
@@ -587,8 +650,8 @@ final class Restaurant_Menu extends Widget_Base {
 		// Compute targets at ~1/3 and ~2/3 of items
 		$total = 0;
 		foreach ( $sections_order as $tid ) { $total += count( $sections_data[ $tid ]['items'] ); }
-		$t1 = (int) ceil( $total / 3 );         // first break
-		$t2 = (int) ceil( (2 * $total) / 3 );   // second break
+		$t1 = (int) ceil( $total / 3 );        // first break
+		$t2 = (int) ceil( (2 * $total) / 3 );  // second break
 
 		$i1 = null; $i2 = null; $acc = 0;
 		foreach ( $sections_order as $idx => $tid ) {
@@ -603,100 +666,9 @@ final class Restaurant_Menu extends Widget_Base {
 		$col2 = array_slice( $sections_order, $i1 + 1, $i2 - $i1 );
 		$col3 = array_slice( $sections_order, $i2 + 1 );
 
-		// If columns end up empty, gracefully fall back to 2 columns or 1
-		if ( empty( $col2 ) && empty( $col3 ) ) {
-			// Only one set of sections → render single column (with headers)
-			echo '<ul class="jp-menu">';
-			foreach ( $col1 as $tid ) {
-				$blk  = $sections_data[ $tid ];
-				$term = $blk['term'];
-				if ( $term && $show_section_name ) {
-					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
-					if ( $show_section_desc && ! empty( $term->description ) ) {
-						echo '<div class="jp-section__desc">' . esc_html( $term->description ) . '</div>';
-					}
-					echo '</li>';
-				}
-				foreach ( $blk['items'] as $post ) {
-					$post_id = (int) $post->ID;
-					$title   = get_the_title( $post_id );
-					$desc    = get_post_meta( $post_id, 'jprm_desc', true );
-					echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
-					echo '  <div class="jp-menu__content">';
-					if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
-					if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
-					echo '  </div>';
-					if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
-						echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
-					} else {
-						echo '<div class="jp-menu__pricegroup"></div>';
-					}
-					echo '</div></li>';
-				}
-			}
-			echo '</ul>';
-			return;
-		}
-		if ( empty( $col3 ) ) {
-			// Fall back to 2 columns using col1 + col2
-			$is_editor = ( class_exists( '\Elementor\Plugin' ) && \Elementor\Plugin::$instance->editor && \Elementor\Plugin::$instance->editor->is_edit_mode() );
-			$gap_px    = 24;
-			if ( isset( $s['layout_column_gap']['size'] ) && is_numeric( $s['layout_column_gap']['size'] ) ) {
-				$gap_px = (int) $s['layout_column_gap']['size'];
-			}
-			$inline = $is_editor ? ' style="display:grid;grid-template-columns:1fr 1fr;gap:' . esc_attr( $gap_px ) . 'px;"' : '';
-			echo '<div class="jp-menu-grid jp-cols-2 jp-menu--cols-2 jp-two-cols"' . $inline . '>';
-			echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--left">';
-			foreach ( $col1 as $tid ) {
-				$blk = $sections_data[ $tid ]; $term = $blk['term'];
-				if ( $term && $show_section_name ) {
-					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">'.esc_html($term->name).'</h3>';
-					if ( $show_section_desc && ! empty( $term->description ) ) echo '<div class="jp-section__desc">'.esc_html($term->description).'</div>';
-					echo '</li>';
-				}
-				foreach ( $blk['items'] as $post ) {
-					$post_id=(int)$post->ID; $title=get_the_title($post_id); $desc=get_post_meta($post_id,'jprm_desc',true);
-					echo '<li class="jp-menu__item"><div class="jp-menu__inner"><div class="jp-menu__content">';
-					if($title!=='') echo '<h4 class="jp-menu__title">'.esc_html($title).'</h4>';
-					if(is_string($desc)&&$desc!=='') echo '<div class="jp-menu__desc">'.esc_html($desc).'</div>';
-					echo '</div>';
-					if(function_exists('jprm_render_pricegroup_html')){ echo jprm_render_pricegroup_html($post_id,$label_presentation,$label_position,$label_map,$currency_opts);} else { echo '<div class="jp-menu__pricegroup"></div>'; }
-					echo '</div></li>';
-				}
-			}
-			echo '</ul></div>';
-			echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--right">';
-			foreach ( $col2 as $tid ) {
-				$blk = $sections_data[ $tid ]; $term = $blk['term'];
-				if ( $term && $show_section_name ) {
-					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">'.esc_html($term->name).'</h3>';
-					if ( $show_section_desc && ! empty( $term->description ) ) echo '<div class="jp-section__desc">'.esc_html($term->description).'</div>';
-					echo '</li>';
-				}
-				foreach ( $blk['items'] as $post ) {
-					$post_id=(int)$post->ID; $title=get_the_title($post_id); $desc=get_post_meta($post_id,'jprm_desc',true);
-					echo '<li class="jp-menu__item"><div class="jp-menu__inner"><div class="jp-menu__content">';
-					if($title!=='') echo '<h4 class="jp-menu__title">'.esc_html($title).'</h4>';
-					if(is_string($desc)&&$desc!=='') echo '<div class="jp-menu__desc">'.esc_html($desc).'</div>';
-					echo '</div>';
-					if(function_exists('jprm_render_pricegroup_html')){ echo jprm_render_pricegroup_html($post_id,$label_presentation,$label_position,$label_map,$currency_opts);} else { echo '<div class="jp-menu__pricegroup"></div>'; }
-					echo '</div></li>';
-				}
-			}
-			echo '</ul></div></div>';
-			return;
-		}
-
-		// Force 3-col grid in Elementor editor
-		$is_editor = ( class_exists( '\Elementor\Plugin' ) && \Elementor\Plugin::$instance->editor && \Elementor\Plugin::$instance->editor->is_edit_mode() );
-		$gap_px    = 24;
-		if ( isset( $s['layout_column_gap']['size'] ) && is_numeric( $s['layout_column_gap']['size'] ) ) {
-			$gap_px = (int) $s['layout_column_gap']['size'];
-		}
-		$inline = $is_editor ? ' style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:' . esc_attr( $gap_px ) . 'px;"' : '';
-
-		// Render 3 columns
-		echo '<div class="jp-menu-grid jp-cols-3 jp-menu--cols-3 jp-three-cols"' . $inline . '>';
+		// Render grid (fallbacks handled naturally by CSS if columns are empty)
+		echo $inline_css; // responsive columns CSS (scoped)
+		echo '<div id="'. $widget_id .'" class="jp-menu-grid jp-cols-3 jp-menu--cols-3 jp-three-cols">';
 
 		$cols = [ $col1, $col2, $col3 ];
 		$pos  = [ 'left', 'middle', 'right' ];
