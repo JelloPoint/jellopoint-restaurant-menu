@@ -348,7 +348,7 @@ final class Restaurant_Menu extends Widget_Base {
 			$title = $it['item_title'] ?? '';
 			$desc  = $it['item_description'] ?? '';
 			$price = $it['item_price'] ?? '';
-			echo '<li class="jp-menu__item'><div class="jp-menu__inner'>";
+			echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
 			echo '  <div class="jp-menu__content">';
 			if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
 			if ( $desc  !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
