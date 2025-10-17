@@ -277,7 +277,21 @@ add_action( 'plugins_loaded', function () {
 					}
 				}
 
-				
+				//add_submenu_page(
+					$parent_slug,
+					$page_title,
+					$menu_title,
+					$capability,
+					$slug,
+					function() {
+						if ( isset( $GLOBALS['jprm_dietary_badges_admin'] ) && method_exists( $GLOBALS['jprm_dietary_badges_admin'], 'render_page' ) ) {
+							$GLOBALS['jprm_dietary_badges_admin']->render_page();
+						} else {
+							echo '<div class="wrap"><h1>'.esc_html__( 'Dietary Badges', 'jprm' ).'</h1><p>'.esc_html__( 'Screen could not be loaded. Missing classes.', 'jprm' ).'</p></div>';
+						}
+					},
+					22
+				);
 			}, 60 );
 		}
 	}
