@@ -1,88 +1,66 @@
 <?php
-/**
- * Always-available admin bootstrap for Dietary Badges.
- * - Ensures the admin-post handler for the Badges list page
- * - Ensures the Menu Item meta box is registered AND its save_post handler is active during save
- */
-
-if ( ! defined( 'ABSPATH' ) ) exit;
+if ( ! defined('ABSPATH') ) exit;
 
 /**
- * 1) Ensure the admin-post handler is registered exactly when saving badges
- *    (admin-post.php calls admin_init before doing the action).
+ * Attach Dietary Badges to menu items.
+ * Saves to post meta key: jprm_dietary_badges (array of slugs).
  */
-add_action('admin_init', function () {
-	if ( isset($_POST['action']) && $_POST['action'] === 'jprm_save_dietary_badges' ) {
-		$base = dirname(__DIR__, 1); // /includes
-		require_once $base . '/data/class-badges-store.php';
-		require_once __DIR__ . '/class-admin-dietary-badges.php';
+add_action( 'add_meta_boxes', function() {
+	add_meta_box(
+		'jprm_dietary_badges_box',
+		__('Dietary Badges', 'jprm'),
+		'jprm_render_badges_box',
+		'jprm_menu_item',   // <-- adjust if your CPT differs; earlier you had jprm_menu_item
+		'side',
+		'default'
+	);
+}, 20 );
 
-		$store = new \JPRM_Badges_Store();
-		new \JPRM_Admin_Dietary_Badges( $store ); // registers admin_post_jprm_save_dietary_badges
-	}
-}, 1);
+function jprm_render_badges_box( $post ) {
+	wp_nonce_field( 'jprm_badges_save', 'jprm_badges_nonce' );
 
+	$selected = get_post_meta( $post->ID, 'jprm_dietary_badges', true );
+	if ( ! is_array( $selected ) ) $selected = [];
 
-/**
- * 2) Instantiate the Menu Item meta box class early on ANY admin request that
- *    is saving/editing a jprm_menu_item, so its save_post handler is registered.
- */
-add_action('admin_init', function () {
-	// Detect the post type on save requests and normal loads.
-	$post_type = null;
-
-	// a) Direct hint from POST when saving
-	if ( isset($_POST['post_type']) && is_string($_POST['post_type']) ) {
-		$post_type = $_POST['post_type'];
+	$rows = [];
+	if ( class_exists('\JelloPoint\RestaurantMenu\Badges\Store') ) {
+		$rows = \JelloPoint\RestaurantMenu\Badges\Store::instance()->get_rows();
+	} else {
+		$rows = get_option('jprm_dietary_badges_v1', []);
+		if ( ! is_array($rows) ) $rows = [];
 	}
 
-	// b) From ?post=ID when loading/editing
-	if ( ! $post_type && isset($_GET['post']) ) {
-		$maybe = get_post( (int) $_GET['post'] );
-		if ( $maybe instanceof WP_Post ) {
-			$post_type = $maybe->post_type;
+	echo '<div class="jprm-badges-checklist">';
+	if ( empty($rows) ) {
+		echo '<p>'.esc_html__('No badges defined yet.', 'jprm').'</p>';
+	} else {
+		foreach ( $rows as $r ) {
+			if ( empty($r['active']) || empty($r['name']) ) continue;
+			$slug = sanitize_title( $r['name'] );
+			$chk  = in_array( $slug, $selected, true ) ? 'checked' : '';
+			echo '<label style="display:block;margin-bottom:6px;">';
+			echo '<input type="checkbox" name="jprm_dietary_badges[]" value="'.esc_attr($slug).'" '.$chk.' /> ';
+			echo esc_html( $r['name'] );
+			echo '</label>';
 		}
 	}
-
-	// c) From ?post_type=... when creating new
-	if ( ! $post_type && isset($_GET['post_type']) && is_string($_GET['post_type']) ) {
-		$post_type = $_GET['post_type'];
-	}
-
-	if ( $post_type !== 'jprm_menu_item' ) {
-		return;
-	}
-
-	$base = dirname(__DIR__, 1); // /includes
-	require_once $base . '/data/class-badges-store.php';
-	require_once __DIR__ . '/class-admin-menuitem-badges-meta.php';
-
-	$store = new \JPRM_Badges_Store();
-	new \JPRM_MenuItem_Badges_Meta( $store ); // registers add_meta_boxes AND save_post_jprm_menu_item
-}, 1);
-
-
-/**
- * 3) (Nice-to-have) still load the meta box on edit screens via load-* hooks
- *    so CSS/markup are available when viewing the editor.
- */
-function jprm_bootstrap_menuitem_badges_metabox_loader() {
-	$screen = get_current_screen();
-	if ( ! $screen || $screen->base !== 'post' ) {
-		return;
-	}
-
-	$post_type = $screen->post_type;
-	if ( $post_type !== 'jprm_menu_item' ) {
-		return;
-	}
-
-	$base = dirname(__DIR__, 1); // /includes
-	require_once $base . '/data/class-badges-store.php';
-	require_once __DIR__ . '/class-admin-menuitem-badges-meta.php';
-
-	$store = new \JPRM_Badges_Store();
-	new \JPRM_MenuItem_Badges_Meta( $store );
+	echo '</div>';
 }
-add_action( 'load-post.php',     'jprm_bootstrap_menuitem_badges_metabox_loader' );
-add_action( 'load-post-new.php', 'jprm_bootstrap_menuitem_badges_metabox_loader' );
+
+add_action( 'save_post', function( $post_id ) {
+	if ( defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) return;
+	if ( ! isset($_POST['jprm_badges_nonce']) || ! wp_verify_nonce( $_POST['jprm_badges_nonce'], 'jprm_badges_save' ) ) return;
+
+	// Capability check
+	if ( ! current_user_can( 'edit_post', $post_id ) ) return;
+
+	$vals = isset($_POST['jprm_dietary_badges']) ? (array) $_POST['jprm_dietary_badges'] : [];
+	$vals = array_map( 'sanitize_title', $vals );
+	$vals = array_values( array_unique( array_filter( $vals ) ) );
+
+	if ( empty( $vals ) ) {
+		delete_post_meta( $post_id, 'jprm_dietary_badges' );
+	} else {
+		update_post_meta( $post_id, 'jprm_dietary_badges', $vals );
+	}
+}, 20 );
