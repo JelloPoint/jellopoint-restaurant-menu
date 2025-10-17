@@ -9,8 +9,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
  * JelloPoint – Restaurant Menu (Elementor Widget)
- * - Left pane structure as agreed:
- *   Data Source → Sections and Menus → Prices and Labels
+ * - Left pane structure:
+ *   Data Source → Sections and Menus → Prices and Labels → Badges → Layout
  * - Rendering of price+labels is delegated to includes/render/partials/price-block.php
  * - Items WITHOUT price config are skipped (same behavior as before)
  */
@@ -215,6 +215,22 @@ final class Restaurant_Menu extends Widget_Base {
 			],
 		] );
 		$this->end_controls_section();
+
+		/* --- Badges (empty for now) -------------------------------------------- */
+		$this->start_controls_section(
+			'jprm_section_badges',
+			[ 'label' => __( 'Badges', 'jellopoint-restaurant-menu' ) ]
+		);
+		// (Intentionally empty – placeholder for future controls)
+		$this->end_controls_section();
+
+		/* --- Layout (empty for now) -------------------------------------------- */
+		$this->start_controls_section(
+			'jprm_section_layout',
+			[ 'label' => __( 'Layout', 'jellopoint-restaurant-menu' ) ]
+		);
+		// (Intentionally empty – placeholder for future controls)
+		$this->end_controls_section();
 	}
 
 	/* =========================
@@ -264,7 +280,7 @@ final class Restaurant_Menu extends Widget_Base {
 			$title   = get_the_title( $post_id );
 			$desc    = get_post_meta( $post_id, 'jprm_desc', true );
 
-			// Keep previous behavior: skip items without a price config entirely
+			// Keep behavior: skip items without price config entirely
 			$cfg = function_exists( 'jprm_read_price_config' ) ? jprm_read_price_config( $post_id ) : [];
 			if ( empty( $cfg ) ) { continue; }
 
@@ -332,7 +348,7 @@ final class Restaurant_Menu extends Widget_Base {
 			$title = $it['item_title'] ?? '';
 			$desc  = $it['item_description'] ?? '';
 			$price = $it['item_price'] ?? '';
-			echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
+			echo '<li class="jp-menu__item'><div class="jp-menu__inner'>";
 			echo '  <div class="jp-menu__content">';
 			if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
 			if ( $desc  !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
