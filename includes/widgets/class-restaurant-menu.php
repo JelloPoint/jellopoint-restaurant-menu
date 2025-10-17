@@ -423,6 +423,7 @@ final class Restaurant_Menu extends Widget_Base {
 		$bp_mobile   = isset( $s['layout_bp_mobile'] ) && is_numeric( $s['layout_bp_mobile'] ) ? (int) $s['layout_bp_mobile'] : 768;
 
 		$menu_ids    = $this->normalize_to_ids( $menu_sel );
+
 		$section_ids = $this->normalize_to_ids( $sections_sel );
 
 		if ( empty( $menu_ids ) && empty( $section_ids ) && ! $show_all ) {
