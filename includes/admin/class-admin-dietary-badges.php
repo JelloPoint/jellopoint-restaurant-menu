@@ -24,8 +24,8 @@ class JPRM_Admin_Dietary_Badges {
 	const ICON_TRASH  = '<span class="dashicons dashicons-trash" aria-hidden="true"></span>';
 
 	protected $capability   = 'manage_options';
-	protected $nonce_name   = 'jprm_dietary_badges_v1_nonce';
-	protected $nonce_action = 'jprm_dietary_badges_v1_save';
+	protected $nonce_name   = 'jprm_dietary_badges_nonce';
+	protected $nonce_action = 'jprm_dietary_badges_save';
 
 	/** @var JPRM_Badges_Store */
 	protected $store;
