@@ -1,104 +1,106 @@
 <?php
+// includes/render/partials/badges.php
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
- * Badges partial for JPRM
- *
- * Registry (global): option "jprm_dietary_badges_v1"
- *   Each row: [
- *     'name'     => string,
- *     'icon_id'  => mixed,
- *     'icon_url' => string,
- *     'active'   => bool-ish,
- *     'order'    => int
- *   ]
- *
- * Per item: post meta "jprm_badges" = JSON array of badge names
- *   Example: ["Vegan","Spicy","Gluten-free"]
+ * Frontend badges renderer for menu items.
+ * - Looks for \JelloPoint\RestaurantMenu\Badges_Store and tries common getters.
+ * - Emits compact markup ready to be styled in includes/render/css/menu.css
  */
 
-/** Build an ordered map of active badges keyed by name. */
-function jprm_build_badge_map() : array {
-	$opt = get_option( 'jprm_dietary_badges_v1', [] );
-	if ( ! is_array( $opt ) ) return [];
-
-	$rows = [];
-	foreach ( $opt as $row ) {
-		if ( ! is_array( $row ) ) continue;
-		$name     = isset( $row['name'] ) ? (string) $row['name'] : '';
-		$active   = ! empty( $row['active'] );
-		$icon_id  = $row['icon_id'] ?? '';
-		$icon_url = isset( $row['icon_url'] ) ? (string) $row['icon_url'] : '';
-		$order    = isset( $row['order'] ) ? (int) $row['order'] : 0;
-
-		if ( $name === '' || ! $active ) continue;
-		$rows[ $name ] = [
-			'name'     => $name,
-			'icon_id'  => $icon_id,
-			'icon_url' => $icon_url,
-			'active'   => (bool) $active,
-			'order'    => $order,
-		];
+if ( ! function_exists( 'jprm_get_badges_store' ) ) {
+	function jprm_get_badges_store() {
+		if ( class_exists( '\JelloPoint\RestaurantMenu\Badges_Store' ) ) {
+			// Singleton or plain constructor – be defensive:
+			if ( method_exists( '\JelloPoint\RestaurantMenu\Badges_Store', 'instance' ) ) {
+				return \JelloPoint\RestaurantMenu\Badges_Store::instance();
+			}
+			if ( method_exists( '\JelloPoint\RestaurantMenu\Badges_Store', 'get_instance' ) ) {
+				return \JelloPoint\RestaurantMenu\Badges_Store::get_instance();
+			}
+			try { return new \JelloPoint\RestaurantMenu\Badges_Store(); } catch ( \Throwable $e ) {}
+		}
+		return null;
 	}
-
-	uasort( $rows, static function( $a, $b ) {
-		return ( $a['order'] <=> $b['order'] ) ?: strcasecmp( $a['name'], $b['name'] );
-	});
-
-	return $rows;
 }
 
-/** Read per-item selected badges, intersect with active registry, keep registry order. */
-function jprm_get_item_badges( int $post_id, ?array $badge_map = null ) : array {
-	if ( $badge_map === null ) $badge_map = jprm_build_badge_map();
-	if ( empty( $badge_map ) ) return [];
+if ( ! function_exists( 'jprm_fetch_item_badges' ) ) {
+	/**
+	 * Return a normalized list of badges for a menu item.
+	 * Each badge: [ 'text' => string, 'icon_id' => int|null ] – icon_id optional.
+	 */
+	function jprm_fetch_item_badges( int $post_id ) : array {
+		$store = jprm_get_badges_store();
+		if ( ! $store ) return [];
 
-	$raw = get_post_meta( $post_id, 'jprm_badges', true );
-	if ( empty( $raw ) ) return [];
+		$raw = [];
+		// Try a few likely method names without guessing meta keys:
+		foreach ( [ 'get_item_badges', 'get_assigned_for_item', 'assigned_for_post', 'get_assigned' ] as $m ) {
+			if ( method_exists( $store, $m ) ) {
+				try {
+					$raw = $store->{$m}( $post_id );
+					break;
+				} catch ( \Throwable $e ) {}
+			}
+		}
+		if ( empty( $raw ) ) return [];
 
-	$list = is_array( $raw ) ? $raw : json_decode( (string) $raw, true );
-	if ( ! is_array( $list ) ) return [];
+		$out = [];
+		foreach ( (array) $raw as $b ) {
+			$text = '';
+			$icon = null;
 
-	$want = [];
-	foreach ( $list as $n ) {
-		$n = (string) $n;
-		if ( $n !== '' ) $want[ $n ] = true;
+			// Normalize a few common shapes
+			if ( is_array( $b ) ) {
+				$text = (string) ( $b['text'] ?? $b['label'] ?? $b['name'] ?? '' );
+				$icon = isset( $b['icon'] ) ? $b['icon'] : ( $b['icon_id'] ?? null );
+			} elseif ( is_object( $b ) ) {
+				$text = (string) ( $b->text ?? $b->label ?? $b->name ?? '' );
+				$icon = $b->icon_id ?? ( $b->icon ?? null );
+			} elseif ( is_string( $b ) ) {
+				$text = $b;
+			}
+
+			$text = trim( $text );
+			if ( $text === '' ) continue;
+
+			$icon_id = is_numeric( $icon ) ? (int) $icon : null;
+			$out[] = [ 'text' => $text, 'icon_id' => $icon_id ];
+		}
+		return $out;
 	}
-	if ( empty( $want ) ) return [];
-
-	$out = [];
-	foreach ( $badge_map as $name => $row ) {
-		if ( isset( $want[ $name ] ) ) $out[] = $row;
-	}
-	return $out;
 }
 
-/**
- * Render badges HTML.
- * $presentation: 'text' | 'icon' | 'icon_text'
- * $position:     'before' | 'after'
- */
-function jprm_render_badges_html( int $post_id, string $presentation = 'icon_text', string $position = 'before', ?array $badge_map = null ) : string {
-	$rows = jprm_get_item_badges( $post_id, $badge_map );
-	if ( empty( $rows ) ) return '';
+if ( ! function_exists( 'jprm_render_item_badges_html' ) ) {
+	/**
+	 * Render badges list.
+	 * $position: 'before'|'after' – relative to the item title.
+	 * $presentation: 'text'|'icon'|'icon_text' (reuse same control values as Labels).
+	 */
+	function jprm_render_item_badges_html( int $post_id, string $position, string $presentation ) : string {
+		$badges = jprm_fetch_item_badges( $post_id );
+		if ( empty( $badges ) ) return '';
 
-	$presentation = in_array( $presentation, [ 'text','icon','icon_text' ], true ) ? $presentation : 'icon_text';
-	$position     = ( $position === 'after' ) ? 'after' : 'before';
+		$pos_cls = ( $position === 'before' ) ? 'before-title' : 'after-title';
+		$mode    = in_array( $presentation, [ 'text', 'icon', 'icon_text' ], true ) ? $presentation : 'icon_text';
 
-	$out = '<span class="jp-badges jp-badges--' . esc_attr( $position ) . ' jp-badges--' . esc_attr( $presentation ) . '">';
-	foreach ( $rows as $r ) {
-		$name     = (string) ( $r['name'] ?? '' );
-		$icon_url = (string) ( $r['icon_url'] ?? '' );
+		$html = '<span class="jp-badges jp-badges--' . esc_attr( $pos_cls ) . ' jp-badges--mode-' . esc_attr( $mode ) . '">';
 
-		$out .= '<span class="jp-badge">';
-		if ( $icon_url !== '' && ( $presentation === 'icon' || $presentation === 'icon_text' ) ) {
-			$out .= '<img class="jp-badge__icon" src="' . esc_url( $icon_url ) . '" alt="' . esc_attr( $name ) . '" loading="lazy" decoding="async" />';
+		foreach ( $badges as $b ) {
+			$parts = [];
+			if ( $mode !== 'text' && ! empty( $b['icon_id'] ) ) {
+				$img = wp_get_attachment_image( (int) $b['icon_id'], 'thumbnail', false, [ 'class' => 'jp-badge__icon' ] );
+				if ( $img ) $parts[] = '<span class="jp-badge__iconwrap">'.$img.'</span>';
+			}
+			if ( $mode !== 'icon' ) {
+				$parts[] = '<span class="jp-badge__text">' . esc_html( $b['text'] ) . '</span>';
+			}
+			if ( ! empty( $parts ) ) {
+				$html .= '<span class="jp-badge">' . implode( '', $parts ) . '</span>';
+			}
 		}
-		if ( $name !== '' && ( $presentation === 'text' || $presentation === 'icon_text' ) ) {
-			$out .= '<span class="jp-badge__text">' . esc_html( $name ) . '</span>';
-		}
-		$out .= '</span>';
+
+		$html .= '</span>';
+		return $html;
 	}
-	$out .= '</span>';
-	return $out;
 }

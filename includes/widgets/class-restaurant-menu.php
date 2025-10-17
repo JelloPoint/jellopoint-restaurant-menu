@@ -12,6 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * - Left pane structure:
  *   Data Source → Sections and Menus → Prices and Labels → Badges → Layout
  * - Rendering of price+labels is delegated to includes/render/partials/price-block.php
+ * - Badges rendering delegated to includes/render/partials/badges.php
  * - Items WITHOUT price config are skipped (same behavior as before)
  */
 final class Restaurant_Menu extends Widget_Base {
@@ -195,7 +196,7 @@ final class Restaurant_Menu extends Widget_Base {
 			'default'      => 'yes',
 		] );
 
-		// NEW: Menu Title & Description controls (dynamic mode only)
+		// Menu Title & Description controls (dynamic mode only)
 		$this->add_control( 'show_menu_title', [
 			'label'        => __( 'Menu title', 'jellopoint-restaurant-menu' ),
 			'type'         => Controls_Manager::SWITCHER,
@@ -230,7 +231,7 @@ final class Restaurant_Menu extends Widget_Base {
 
 		$this->end_controls_section();
 
-		/* --- Prices and Labels (labels kept intact) ----------------------------- */
+		/* --- Prices and Labels -------------------------------------------------- */
 		$this->start_controls_section(
 			'jprm_section_prices_labels',
 			[ 'label' => __( 'Prices and Labels', 'jellopoint-restaurant-menu' ) ]
