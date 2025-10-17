@@ -160,13 +160,5 @@ add_action( 'admin_menu', function () {
 		}
 	};
 
-	\add_submenu_page(
-		$parent_slug,
-		\__( 'Dietary Badges', 'jprm' ),
-		\__( 'Dietary Badges', 'jprm' ),
-		'manage_options',
-		'jprm-dietary-badges',
-		$render,
-		999 // bottom of the group
-	);
+
 }, 999);
