@@ -5,6 +5,11 @@ use Elementor\Widget_Base;
 use Elementor\Controls_Manager;
 use Elementor\Repeater;
 
+use function jprm_build_label_map;
+use function jprm_read_price_config;
+use function jprm_render_pricegroup_html;
+
+
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Restaurant_Menu extends Widget_Base {

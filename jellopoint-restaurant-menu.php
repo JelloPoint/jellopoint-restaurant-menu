@@ -31,55 +31,63 @@ if ( ! defined( 'JPRM_PLUGIN_URL' ) ) {
  * Includes (explicit, fixed paths)
  * ------------------------------------------------- */
 
-// Storage layer
-require_once JPRM_PLUGIN_PATH . 'includes/storage/class-price-schema.php';
-require_once JPRM_PLUGIN_PATH . 'includes/storage/class-price-repository.php';
+/** Core data / storage / render (front + admin) */
 
-// Data / Admin
+// Data layer (fix: correct path was includes/data/, not storage/)
+require_once JPRM_PLUGIN_PATH . 'includes/data/class-price-schema.php';
 require_once JPRM_PLUGIN_PATH . 'includes/data/class-labels-store.php';
-require_once JPRM_PLUGIN_PATH . 'includes/class-plugin.php';
-require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-menuitem-meta.php';
-require_once JPRM_PLUGIN_PATH . 'includes/admin/save/class-menuitem-v3-writer.php';
 
-/** 🔹 NEW: Admin menu bootstrap */
-require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-menu.php';
+// Storage
+require_once JPRM_PLUGIN_PATH . 'includes/storage/class-price-repository.php';
 
 // Renderer
 require_once JPRM_PLUGIN_PATH . 'includes/render/class-price-renderer.php';
 
-// Debug (admin-only shortcode)
-require_once JPRM_PLUGIN_PATH . 'includes/debug/class-inspector.php';
+/** Thin helper wrappers (provide stable global functions for the widget) */
+require_once JPRM_PLUGIN_PATH . 'includes/helpers/prices.php';
 
-// Badges Save
-require_once JPRM_PLUGIN_PATH . 'includes/admin/badges-post-bootstrap.php';
+/** Plugin core */
+require_once JPRM_PLUGIN_PATH . 'includes/class-plugin.php';
 
-// Menu Builder
-require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-menu-builder.php';
+/** REST endpoints (load regardless of admin to keep endpoints available) */
 require_once JPRM_PLUGIN_PATH . 'includes/rest/class-jprm-menu-builder-controller.php';
 
-// Admin: Items list table enhancements
-require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-menu-item-list.php';
-\JelloPoint\RestaurantMenu\Admin\Menu_Item_List::init();
+/* -------------------------------------------------
+ * Admin-only includes
+ * ------------------------------------------------- */
+if ( is_admin() ) {
+	// Meta boxes, admin UI
+	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-menuitem-meta.php';
+	require_once JPRM_PLUGIN_PATH . 'includes/admin/save/class-menuitem-v3-writer.php';
+	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-menu.php';               // admin menu bootstrap
+	require_once JPRM_PLUGIN_PATH . 'includes/admin/badges-post-bootstrap.php';
 
-// Sections admin polish (Menu column, filter, owner select + cascade)
-require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-sections-admin.php';
-\JelloPoint\RestaurantMenu\Admin\Sections_Admin::init();
+	// Menu Builder (admin UI shell)
+	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-menu-builder.php';
 
-// File load:
-require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-menus-admin.php';
+	// Admin: Items list table enhancements
+	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-menu-item-list.php';
+	\JelloPoint\RestaurantMenu\Admin\Menu_Item_List::init();
 
-// Init:
-\JelloPoint\RestaurantMenu\Admin\Menus_Admin::init();
+	// Sections admin polish (Menu column, filter, owner select + cascade)
+	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-sections-admin.php';
+	\JelloPoint\RestaurantMenu\Admin\Sections_Admin::init();
 
-require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-sections-ux.php';
-\JelloPoint\RestaurantMenu\Admin\Sections_UX::init();
+	// Menus admin
+	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-menus-admin.php';
+	\JelloPoint\RestaurantMenu\Admin\Menus_Admin::init();
 
-require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-items-list-filters.php';
-\JelloPoint\RestaurantMenu\Admin\Items_List_Filters::init();
+	// Sections UX helpers
+	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-sections-ux.php';
+	\JelloPoint\RestaurantMenu\Admin\Sections_UX::init();
 
-// Add after other includes are loaded
-if ( file_exists( __DIR__ . '/includes/debug/inspector-badges.php' ) ) {
-	require_once __DIR__ . '/includes/debug/inspector-badges.php';
+	// Debug (admin-only tools)
+	require_once JPRM_PLUGIN_PATH . 'includes/debug/class-inspector.php';
+
+	// Optional debug addon if present
+	if ( file_exists( JPRM_PLUGIN_PATH . 'includes/debug/inspector-badges.php' ) ) {
+		require_once JPRM_PLUGIN_PATH . 'includes/debug/inspector-badges.php';
+	}
 }
 
 // Register routes for ALL contexts (front + admin).
