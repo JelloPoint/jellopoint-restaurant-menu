@@ -150,34 +150,31 @@ class JPRM_Admin_Dietary_Badges {
 				renumberOrders();
 			});
 
-			// --- MEDIA PICKER: single reusable frame; close after select ---
-			var jprmFrame = null;
-			function openMedia(cb){
-				if (!jprmFrame) {
-					jprmFrame = wp.media({
-						title: <?php echo wp_json_encode( __( 'Select Badge Icon', 'jprm' ) ); ?>,
-						button: { text: <?php echo wp_json_encode( __( 'Use this icon', 'jprm' ) ); ?> },
-						multiple: false
-					});
-					jprmFrame.on('select', function(){
-						var att = jprmFrame.state().get('selection').first().toJSON();
-						cb && cb(att);
-						// Close frame so the button doesn't stay disabled/greyed
-						jprmFrame.close();
-					});
-				}
-				jprmFrame.open();
-			}
-
-			// Choose icon by clicking preview or the link
+			/* ===============================
+			 * MEDIA PICKER (fixed behavior)
+			 * ===============================
+			 * Create a NEW frame per click so the
+			 * select handler always targets the row
+			 * that opened it.
+			 */
 			$tbody.on('click', '.jprm-choose-icon, .jprm-icon-preview', function(e){
 				e.preventDefault();
 				var $row = $(this).closest('tr.jprm-row');
-				openMedia(function(att){
+
+				var frame = wp.media({
+					title: <?php echo wp_json_encode( __( 'Select Badge Icon', 'jprm' ) ); ?>,
+					button: { text: <?php echo wp_json_encode( __( 'Use this icon', 'jprm' ) ); ?> },
+					multiple: false
+				});
+
+				frame.on('select', function(){
+					var att = frame.state().get('selection').first().toJSON();
 					$row.find('.jprm-icon-id').val(att.id);
 					$row.find('.jprm-icon-url').val(att.url || '');
 					$row.find('.jprm-icon-preview').html('<img src="'+(att.url||'')+'" alt="" class="jprm-icon-img">');
 				});
+
+				frame.open();
 				return false;
 			});
 
