@@ -4,6 +4,8 @@
  */
 namespace JelloPoint\RestaurantMenu\Storage;
 
+use JelloPoint\RestaurantMenu\Data\Price_Schema;
+
 if ( ! defined('ABSPATH') ) exit;
 
 class Price_Repository {
