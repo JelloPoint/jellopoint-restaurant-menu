@@ -688,7 +688,8 @@ final class Restaurant_Menu extends Widget_Base {
 				$blk  = $sections_data[ $tid ];
 				$term = $blk['term'];
 				if ( $term && $show_section_name ) {
-					echo '<li class="jp-menu__section-header'><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
+					// FIXED QUOTE HERE ↓↓↓
+					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
 					if ( $show_section_desc && ! empty( $term->description ) ) {
 						echo '<div class="jp-section__desc">' . esc_html( $term->description ) . '</div>';
 					}
