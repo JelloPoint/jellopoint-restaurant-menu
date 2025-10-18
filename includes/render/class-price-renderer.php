@@ -156,30 +156,41 @@ class Price_Renderer {
         return trim( $v ); // allow "0"
     }
 
-    /**
+        /**
      * Apply currency formatting to a plain price string.
-     * Respects: show, symbol, position (before/after), spacing (none/thin/normal).
+     * Uses classes (not entities) so spacing is exact and theme-proof.
      */
     protected static function format_price_display( string $price, array $currency ) : string {
-        $price = esc_html( $price );
+        $amount   = esc_html( $price );
 
-        if ( empty( $currency['show'] ) ) {
-            return '<span class="jp-menu__price">' . $price . '</span>';
+        $show     = ! empty( $currency['show'] );
+        $symbol   = isset( $currency['symbol'] )   ? (string) $currency['symbol']   : '€';
+        $position = in_array( $currency['position'] ?? 'before', [ 'before', 'after' ], true )
+            ? $currency['position'] : 'before';
+        $spacing  = in_array( $currency['spacing'] ?? 'thin', [ 'none','thin','normal' ], true )
+            ? $currency['spacing']  : 'thin';
+
+        // Container classes control spacing purely via CSS
+        $posClass = ( $position === 'before' ) ? 'jp-currency-pos-before' : 'jp-currency-pos-after';
+        $spClass  = 'jp-currency-sp-' . $spacing;
+
+        if ( ! $show ) {
+            return '<span class="jp-menu__price"><span class="jp-menu__amount">' . $amount . '</span></span>';
         }
 
-        $symbol   = isset( $currency['symbol'] )   ? (string) $currency['symbol']   : '€';
-        $position = isset( $currency['position'] ) ? (string) $currency['position'] : 'before';
-        $spacing  = isset( $currency['spacing'] )  ? (string) $currency['spacing']  : 'thin';
-
-        $sp = '';
-        if ( $spacing === 'normal' )      { $sp = '&nbsp;'; }   // non-breaking
-        elseif ( $spacing === 'thin' )    { $sp = '&#8201;'; }  // thin space
-        else /* none */                   { $sp = ''; }
+        $symHtml = '<span class="jp-menu__currency">' . esc_html( $symbol ) . '</span>';
 
         if ( $position === 'before' ) {
-            return '<span class="jp-menu__price"><span class="jp-menu__currency">' . esc_html( $symbol ) . '</span>' . $sp . $price . '</span>';
+            return '<span class="jp-menu__price ' . esc_attr( $posClass . ' ' . $spClass ) . '">'
+                 . $symHtml
+                 . '<span class="jp-menu__amount">' . $amount . '</span>'
+                 . '</span>';
         }
+
         // after
-        return '<span class="jp-menu__price">' . $price . $sp . '<span class="jp-menu__currency">' . esc_html( $symbol ) . '</span></span>';
+        return '<span class="jp-menu__price ' . esc_attr( $posClass . ' ' . $spClass ) . '">'
+             . '<span class="jp-menu__amount">' . $amount . '</span>'
+             . $symHtml
+             . '</span>';
     }
 }

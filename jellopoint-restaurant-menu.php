@@ -112,6 +112,16 @@ function jprm_register_assets() {
 		JPRM_VERSION
 	);
 }
+// Frontend styles for the menu widget
+add_action( 'wp_enqueue_scripts', function () {
+	// Register the handle the widget declares in get_style_depends()
+	wp_register_style(
+		'jprm-menu',
+		plugins_url( 'includes/render/css/menu.css', __FILE__ ),
+		[],
+		'1.0'
+	);
+}, 5);
 add_action( 'init', 'jprm_register_assets', 5 );
 
 // Ensure CSS is visible in Elementor editor preview as well.
