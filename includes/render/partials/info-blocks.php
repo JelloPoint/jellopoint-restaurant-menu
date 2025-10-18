@@ -109,7 +109,7 @@ function jprm_infoblocks_matches_section( array $row, $section_id_or_slug ) : bo
 endif;
 
 /**
- * NEW: render a list of rows into a single container (prevents double wrapping)
+ * NEW: render  a list of rows into a single container (prevents double wrapping)
  */
 if ( ! function_exists( 'jprm_infoblocks_render_rows' ) ) :
 function jprm_infoblocks_render_rows( array $rows, string $position ) : string {
