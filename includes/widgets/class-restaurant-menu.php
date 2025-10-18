@@ -5,6 +5,15 @@ use Elementor\Widget_Base;
 use Elementor\Controls_Manager;
 use Elementor\Repeater;
 
+// Import global helper functions so unqualified calls resolve correctly
+use function jprm_build_label_map;
+use function jprm_read_price_config;
+use function jprm_infoblocks_partition_by_position;
+use function jprm_infoblocks_matches_section;
+use function jprm_infoblocks_render_rows;
+use function jprm_render_badges_inline_html;
+use function jprm_render_pricegroup_html;
+
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Restaurant_Menu extends Widget_Base {
@@ -599,13 +608,13 @@ final class Restaurant_Menu extends Widget_Base {
 			return;
 		}
 
-		$label_map = \jprm_build_label_map();
+		$label_map = jprm_build_label_map();
 
 		$sections_order = [];
 		$sections_data  = [];
 		foreach ( $items as $post ) {
 			$post_id = (int) $post->ID;
-			$cfg     = \jprm_read_price_config( $post_id );
+			$cfg     = jprm_read_price_config( $post_id );
 			if ( empty( $cfg ) ) { continue; }
 
 			$terms = wp_get_post_terms( $post_id, 'jprm_section', [ 'orderby' => 'name', 'order' => 'ASC' ] );
@@ -627,7 +636,7 @@ final class Restaurant_Menu extends Widget_Base {
 
 		/* Info Blocks (collect & bucket) */
 		$info_rows = is_array( $s['info_blocks'] ?? null ) ? $s['info_blocks'] : [];
-		$ibuckets  = \jprm_infoblocks_partition_by_position( $info_rows );
+		$ibuckets  = jprm_infoblocks_partition_by_position( $info_rows );
 
 		$render_menu_meta = function( $term, bool $show_title, bool $show_desc, string $scope ) : string {
 			if ( ! $term || ( ! $show_title && ! $show_desc ) ) return '';
@@ -646,7 +655,7 @@ final class Restaurant_Menu extends Widget_Base {
 		if ( $columns === '1' ) {
 			// BEFORE MENU blocks
 			if ( ! empty( $ibuckets['before_menu'] ) ) {
-				echo \jprm_infoblocks_render_rows( $ibuckets['before_menu'], 'before_menu' );
+				echo jprm_infoblocks_render_rows( $ibuckets['before_menu'], 'before_menu' );
 			}
 
 			if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
@@ -666,10 +675,10 @@ final class Restaurant_Menu extends Widget_Base {
 				if ( ! $first_section && ! empty( $ibuckets['between_sections'] ) ) {
 					$__rows = [];
 					foreach ( $ibuckets['between_sections'] as $__row ) {
-						if ( \jprm_infoblocks_matches_section( $__row, $tid ) ) { $__rows[] = $__row; }
+						if ( jprm_infoblocks_matches_section( $__row, $tid ) ) { $__rows[] = $__row; }
 					}
 					if ( ! empty( $__rows ) ) {
-						echo '<li class="jp-menu__infoblocks-li">' . \jprm_infoblocks_render_rows( $__rows, 'between_sections' ) . '</li>';
+						echo '<li class="jp-menu__infoblocks-li">' . jprm_infoblocks_render_rows( $__rows, 'between_sections' ) . '</li>';
 					}
 				}
 				$first_section = false;
@@ -694,17 +703,17 @@ final class Restaurant_Menu extends Widget_Base {
 					// Title line with badges inline
 					echo '    <div class="jp-menu__titleline">';
 					if ( $show_badges && $badges_position === 'before_title' ) {
-						echo \jprm_render_badges_inline_html( $post_id, $badges_presentation );
+						echo jprm_render_badges_inline_html( $post_id, $badges_presentation );
 					}
 					if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
 					if ( $show_badges && $badges_position === 'after_title' ) {
-						echo \jprm_render_badges_inline_html( $post_id, $badges_presentation );
+						echo jprm_render_badges_inline_html( $post_id, $badges_presentation );
 					}
 					echo '    </div>';
 					if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
 					echo '  </div>';
 
-					echo \jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts );
+					echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts );
 
 					echo '</div></li>';
 				}
@@ -713,7 +722,7 @@ final class Restaurant_Menu extends Widget_Base {
 
 			// AFTER MENU blocks
 			if ( ! empty( $ibuckets['after_menu'] ) ) {
-				echo \jprm_infoblocks_render_rows( $ibuckets['after_menu'], 'after_menu' );
+				echo jprm_infoblocks_render_rows( $ibuckets['after_menu'], 'after_menu' );
 			}
 			return;
 		}
@@ -744,7 +753,7 @@ final class Restaurant_Menu extends Widget_Base {
 
 			// BEFORE MENU blocks
 			if ( ! empty( $ibuckets['before_menu'] ) ) {
-				echo \jprm_infoblocks_render_rows( $ibuckets['before_menu'], 'before_menu' );
+				echo jprm_infoblocks_render_rows( $ibuckets['before_menu'], 'before_menu' );
 			}
 
 			if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
@@ -765,10 +774,10 @@ final class Restaurant_Menu extends Widget_Base {
 				if ( ! $first_left && ! empty( $ibuckets['between_sections'] ) ) {
 					$__rows = [];
 					foreach ( $ibuckets['between_sections'] as $__row ) {
-						if ( \jprm_infoblocks_matches_section( $__row, $tid ) ) { $__rows[] = $__row; }
+						if ( jprm_infoblocks_matches_section( $__row, $tid ) ) { $__rows[] = $__row; }
 					}
 					if ( ! empty( $__rows ) ) {
-						echo '<li class="jp-menu__infoblocks-li">' . \jprm_infoblocks_render_rows( $__rows, 'between_sections' ) . '</li>';
+						echo '<li class="jp-menu__infoblocks-li">' . jprm_infoblocks_render_rows( $__rows, 'between_sections' ) . '</li>';
 					}
 				}
 				$first_left = false;
@@ -790,16 +799,16 @@ final class Restaurant_Menu extends Widget_Base {
 					echo '  <div class="jp-menu__content">';
 					echo '    <div class="jp-menu__titleline">';
 					if ( $show_badges && $badges_position === 'before_title' ) {
-						echo \jprm_render_badges_inline_html( $post_id, $badges_presentation );
+						echo jprm_render_badges_inline_html( $post_id, $badges_presentation );
 					}
 					if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
 					if ( $show_badges && $badges_position === 'after_title' ) {
-						echo \jprm_render_badges_inline_html( $post_id, $badges_presentation );
+						echo jprm_render_badges_inline_html( $post_id, $badges_presentation );
 					}
 					echo '    </div>';
 					if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
 					echo '  </div>';
-					echo \jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts );
+					echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts );
 					echo '</div></li>';
 				}
 			}
@@ -812,10 +821,10 @@ final class Restaurant_Menu extends Widget_Base {
 				if ( ! $first_right && ! empty( $ibuckets['between_sections'] ) ) {
 					$__rows = [];
 					foreach ( $ibuckets['between_sections'] as $__row ) {
-						if ( \jprm_infoblocks_matches_section( $__row, $tid ) ) { $__rows[] = $__row; }
+						if ( jprm_infoblocks_matches_section( $__row, $tid ) ) { $__rows[] = $__row; }
 					}
 					if ( ! empty( $__rows ) ) {
-						echo '<li class="jp-menu__infoblocks-li">' . \jprm_infoblocks_render_rows( $__rows, 'between_sections' ) . '</li>';
+						echo '<li class="jp-menu__infoblocks-li">' . jprm_infoblocks_render_rows( $__rows, 'between_sections' ) . '</li>';
 					}
 				}
 				$first_right = false;
@@ -837,16 +846,16 @@ final class Restaurant_Menu extends Widget_Base {
 					echo '  <div class="jp-menu__content">';
 					echo '    <div class="jp-menu__titleline">';
 					if ( $show_badges && $badges_position === 'before_title' ) {
-						echo \jprm_render_badges_inline_html( $post_id, $badges_presentation );
+						echo jprm_render_badges_inline_html( $post_id, $badges_presentation );
 					}
 					if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
 					if ( $show_badges && $badges_position === 'after_title' ) {
-						echo \jprm_render_badges_inline_html( $post_id, $badges_presentation );
+						echo jprm_render_badges_inline_html( $post_id, $badges_presentation );
 					}
 					echo '    </div>';
 					if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
 					echo '  </div>';
-					echo \jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts );
+					echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts );
 					echo '</div></li>';
 				}
 			}
@@ -856,7 +865,7 @@ final class Restaurant_Menu extends Widget_Base {
 
 			// AFTER MENU blocks
 			if ( ! empty( $ibuckets['after_menu'] ) ) {
-				echo \jprm_infoblocks_render_rows( $ibuckets['after_menu'], 'after_menu' );
+				echo jprm_infoblocks_render_rows( $ibuckets['after_menu'], 'after_menu' );
 			}
 			return;
 		}
@@ -902,7 +911,7 @@ final class Restaurant_Menu extends Widget_Base {
 
 		// BEFORE MENU blocks
 		if ( ! empty( $ibuckets['before_menu'] ) ) {
-			echo \jprm_infoblocks_render_rows( $ibuckets['before_menu'], 'before_menu' );
+			echo jprm_infoblocks_render_rows( $ibuckets['before_menu'], 'before_menu' );
 		}
 
 		if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
@@ -925,10 +934,10 @@ final class Restaurant_Menu extends Widget_Base {
 				if ( ! $first_in_col && ! empty( $ibuckets['between_sections'] ) ) {
 					$__rows = [];
 					foreach ( $ibuckets['between_sections'] as $__row ) {
-						if ( \jprm_infoblocks_matches_section( $__row, $tid ) ) { $__rows[] = $__row; }
+						if ( jprm_infoblocks_matches_section( $__row, $tid ) ) { $__rows[] = $__row; }
 					}
 					if ( ! empty( $__rows ) ) {
-						echo '<li class="jp-menu__infoblocks-li">' . \jprm_infoblocks_render_rows( $__rows, 'between_sections' ) . '</li>';
+						echo '<li class="jp-menu__infoblocks-li">' . jprm_infoblocks_render_rows( $__rows, 'between_sections' ) . '</li>';
 					}
 				}
 				$first_in_col = false;
@@ -950,16 +959,16 @@ final class Restaurant_Menu extends Widget_Base {
 					echo '  <div class="jp-menu__content">';
 					echo '    <div class="jp-menu__titleline">';
 					if ( $show_badges && $badges_position === 'before_title' ) {
-						echo \jprm_render_badges_inline_html( $post_id, $badges_presentation );
+						echo jprm_render_badges_inline_html( $post_id, $badges_presentation );
 					}
 					if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
 					if ( $show_badges && $badges_position === 'after_title' ) {
-						echo \jprm_render_badges_inline_html( $post_id, $badges_presentation );
+						echo jprm_render_badges_inline_html( $post_id, $badges_presentation );
 					}
 					echo '    </div>';
 					if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
 					echo '  </div>';
-					echo \jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts );
+					echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts );
 					echo '</div></li>';
 				}
 			}
@@ -970,7 +979,7 @@ final class Restaurant_Menu extends Widget_Base {
 
 		// AFTER MENU blocks
 		if ( ! empty( $ibuckets['after_menu'] ) ) {
-			echo \jprm_infoblocks_render_rows( $ibuckets['after_menu'], 'after_menu' );
+			echo jprm_infoblocks_render_rows( $ibuckets['after_menu'], 'after_menu' );
 		}
 	}
 
