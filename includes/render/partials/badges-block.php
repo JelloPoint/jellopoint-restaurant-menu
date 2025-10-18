@@ -35,7 +35,7 @@ function jprm_render_badges_inline_html( int $post_id, string $presentation = 'i
 	foreach ( $slugs as $slug ) {
 		$slug = sanitize_title( $slug );
 		if ( ! isset( $map[ $slug ] ) ) { continue; }
-		$row = $map[ $slug ];
+		$row  = $map[ $slug ];
 		$name = esc_html( $row['name'] );
 		$icon = $row['icon_url'] ? '<img class="jp-badge__icon" src="' . esc_url( $row['icon_url'] ) . '" alt="" />' : '';
 		$cls  = 'jp-badge';
