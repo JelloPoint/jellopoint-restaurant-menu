@@ -71,6 +71,27 @@
   font-size: 0.95em;
   opacity: 0.8;
 }
+/* Ensure price rows are horizontal, not stacked */
+.jp-menu__pricegroup .jp-menu__row {
+  display: inline-flex;
+  align-items: center;
+  gap: .35em;
+  flex-wrap: nowrap;
+}
+
+/* Keep price and label inline */
+.jp-menu__pricegroup .jp-menu__price,
+.jp-menu__pricegroup .jp-menu__label {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Icon sizing (already similar in your code; keep consistent) */
+.jp-menu__pricegroup .jp-menu__icon {
+  width: 16px;
+  height: 16px;
+  display: inline-block;
+}
 
 /* Responsive: collapse to one column on narrow screens */
 @media (max-width: 768px) {

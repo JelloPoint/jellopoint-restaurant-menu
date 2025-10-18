@@ -37,7 +37,8 @@ class Price_Renderer {
      *  - multi : ['mode'=>'multi','rows'=>[ ['value'=>string,'label_ref'=>string,'hide_icon'=>bool], ... ]]
      * @param array $opts [
      *   'presentation'   => 'text' | 'icon' | 'icon_text',
-     *   'order_class'    => 'jp-order--label-left' | 'jp-order--label-right'
+     *   'order_class'    => 'jp-order--label-left' | 'jp-order--label-right',
+     *   'currency'       => ['show'=>bool,'symbol'=>string,'position'=>'before|after','spacing'=>'none|thin|normal']
      * ]
      */
     public static function render_pricegroup( array $cfg, array $opts = [] ) : string {
@@ -50,6 +51,10 @@ class Price_Renderer {
             ? $opts['order_class']
             : 'jp-order--label-right';
 
+        $currency = is_array($opts['currency'] ?? null) ? $opts['currency'] : [
+            'show' => false, 'symbol' => '€', 'position' => 'before', 'spacing' => 'thin',
+        ];
+
         ob_start();
         echo '<div class="jp-menu__pricegroup">';
 
@@ -60,12 +65,13 @@ class Price_Renderer {
                 $ref      = (string) ( $cfg['label_ref'] ?? '' );
                 $hide     = ! empty( $cfg['hide_icon'] );
 
-                // Resolve label text + default icon from labels store
                 $res        = \JPRM_Labels_Store::resolve( $ref );
                 $label_text = (string) ( $res['label_text'] ?? '' );
                 $icon_id    = (int) ( $res['icon_id'] ?? 0 );
 
-                echo self::row_html( $price, $label_text, $icon_id, $presentation, $order_class, $hide );
+                $price_html = self::format_price_display( $price, $currency );
+
+                echo self::row_html( $price_html, $label_text, $icon_id, $presentation, $order_class, $hide );
             }
         }
         // MULTI
@@ -83,7 +89,9 @@ class Price_Renderer {
                 $label_text = (string) ( $res['label_text'] ?? '' );
                 $icon_id    = (int) ( $res['icon_id'] ?? 0 );
 
-                echo self::row_html( $price, $label_text, $icon_id, $presentation, $order_class, $hide );
+                $price_html = self::format_price_display( $price, $currency );
+
+                echo self::row_html( $price_html, $label_text, $icon_id, $presentation, $order_class, $hide );
             }
         }
 
@@ -92,13 +100,13 @@ class Price_Renderer {
     }
 
     /**
-     * Render one row: label (text/icon/both) + price span.
+     * Render one row: label (text/icon/both) + price markup.
      * Keeps exact classes/structure.
      */
-    protected static function row_html( string $price, string $label_text, int $icon_id, string $presentation, string $order_class, bool $hide_icon ) : string {
+    protected static function row_html( string $price_html, string $label_text, int $icon_id, string $presentation, string $order_class, bool $hide_icon ) : string {
         $label_markup = self::get_label_markup( $label_text, $icon_id, $presentation, $hide_icon );
-        $price_html   = '<span class="jp-menu__price">' . esc_html( $price ) . '</span>';
 
+        // Order: left label then price, or reversed (DOM order controls layout)
         if ( $order_class === 'jp-order--label-left' ) {
             return '<div class="jp-menu__row ' . esc_attr( $order_class ) . '">'
                 . '<span class="jp-menu__label">' . $label_markup . '</span>'
@@ -146,5 +154,32 @@ class Price_Renderer {
     protected static function sanitize_price_string( $v ) : string {
         $v = is_scalar( $v ) ? (string) $v : '';
         return trim( $v ); // allow "0"
+    }
+
+    /**
+     * Apply currency formatting to a plain price string.
+     * Respects: show, symbol, position (before/after), spacing (none/thin/normal).
+     */
+    protected static function format_price_display( string $price, array $currency ) : string {
+        $price = esc_html( $price );
+
+        if ( empty( $currency['show'] ) ) {
+            return '<span class="jp-menu__price">' . $price . '</span>';
+        }
+
+        $symbol   = isset( $currency['symbol'] )   ? (string) $currency['symbol']   : '€';
+        $position = isset( $currency['position'] ) ? (string) $currency['position'] : 'before';
+        $spacing  = isset( $currency['spacing'] )  ? (string) $currency['spacing']  : 'thin';
+
+        $sp = '';
+        if ( $spacing === 'normal' )      { $sp = '&nbsp;'; }   // non-breaking
+        elseif ( $spacing === 'thin' )    { $sp = '&#8201;'; }  // thin space
+        else /* none */                   { $sp = ''; }
+
+        if ( $position === 'before' ) {
+            return '<span class="jp-menu__price"><span class="jp-menu__currency">' . esc_html( $symbol ) . '</span>' . $sp . $price . '</span>';
+        }
+        // after
+        return '<span class="jp-menu__price">' . $price . $sp . '<span class="jp-menu__currency">' . esc_html( $symbol ) . '</span></span>';
     }
 }

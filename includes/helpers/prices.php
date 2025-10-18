@@ -45,7 +45,7 @@ if ( ! function_exists( 'jprm_read_price_config' ) ) {
  * @param string $label_presentation 'text' | 'icon' | 'icon_text'
  * @param string $label_position     'left' | 'right'
  * @param array  $label_map          (unused here; kept for signature stability)
- * @param array  $currency_opts      (unused here; renderer outputs stored string)
+ * @param array  $currency_opts      ['show'=>bool,'symbol'=>string,'position'=>'before|after','spacing'=>'none|thin|normal']
  */
 if ( ! function_exists( 'jprm_render_pricegroup_html' ) ) {
 	function jprm_render_pricegroup_html(
@@ -62,9 +62,18 @@ if ( ! function_exists( 'jprm_render_pricegroup_html' ) ) {
 			'order_class'  => ( $label_position === 'left' )
 				? 'jp-order--label-left'
 				: 'jp-order--label-right',
+			'currency'     => [
+				'show'     => ! empty( $currency_opts['show'] ),
+				'symbol'   => isset( $currency_opts['symbol'] )   ? (string) $currency_opts['symbol']   : '€',
+				'position' => in_array( $currency_opts['position'] ?? 'before', [ 'before', 'after' ], true )
+					? $currency_opts['position']
+					: 'before',
+				'spacing'  => in_array( $currency_opts['spacing'] ?? 'thin', [ 'none','thin','normal' ], true )
+					? $currency_opts['spacing']
+					: 'thin',
+			],
 		];
 
-		// Renderer reads & normalizes via Price_Schema internally.
 		$html = Price_Renderer::render_from_meta( $post_id, $opts );
 		return is_string( $html ) ? $html : '';
 	}
