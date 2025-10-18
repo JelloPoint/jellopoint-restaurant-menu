@@ -4,7 +4,7 @@
  */
 namespace JelloPoint\RestaurantMenu\Render;
 
-use JelloPoint\RestaurantMenu\Storage\Price_Schema;
+use JelloPoint\RestaurantMenu\Data\Price_Schema;
 
 if ( ! defined('ABSPATH') ) exit;
 
