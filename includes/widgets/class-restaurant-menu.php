@@ -7,13 +7,6 @@ use Elementor\Repeater;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-/**
- * JelloPoint – Restaurant Menu (Elementor Widget)
- * - Left pane structure:
- *   Data Source → Sections and Menus → Prices and Labels → Badges → Layout
- * - Rendering of price+labels is delegated to includes/render/partials/price-block.php
- * - Items WITHOUT price config are skipped (same behavior as before)
- */
 final class Restaurant_Menu extends Widget_Base {
 
 	public function get_name() { return 'jprm_restaurant_menu'; }
@@ -24,12 +17,11 @@ final class Restaurant_Menu extends Widget_Base {
 	public function get_style_depends() { return [ 'jprm-menu' ]; }
 	public function get_script_depends() { return []; }
 
-	/** Load the canonical price-block partial once. */
 	private static function require_price_partial_once() : void {
 		static $loaded = false;
 		if ( $loaded ) return;
 
-		$path = dirname( __DIR__ ) . '/render/partials/price-block.php'; // includes/render/partials/price-block.php
+		$path = dirname( __DIR__ ) . '/render/partials/price-block.php';
 		if ( is_readable( $path ) ) {
 			require_once $path;
 		} else {
@@ -40,11 +32,11 @@ final class Restaurant_Menu extends Widget_Base {
 		$loaded = true;
 	}
 
-	/** Load the badges-block partial once. */
+	/** NEW: load badges partial */
 	private static function require_badges_partial_once() : void {
 		static $loaded = false;
 		if ( $loaded ) return;
-		$path = dirname( __DIR__ ) . '/render/partials/badges-block.php'; // includes/render/partials/badges-block.php
+		$path = dirname( __DIR__ ) . '/render/partials/badges-block.php';
 		if ( is_readable( $path ) ) {
 			require_once $path;
 			$loaded = true;
@@ -64,7 +56,7 @@ final class Restaurant_Menu extends Widget_Base {
 		if ( is_array( $terms ) ) {
 			foreach ( $terms as $t ) {
 				if ( is_object( $t ) && isset( $t->term_id, $t->name ) ) {
-					$out[ (string) $t->term_id ] = $t->name; // keys are IDs (strings)
+					$out[ (string) $t->term_id ] = $t->name;
 				}
 			}
 		}
@@ -172,7 +164,7 @@ final class Restaurant_Menu extends Widget_Base {
 
 		$this->end_controls_section();
 
-		/* --- Sections and Menus (SHOW/HIDE + Menu Title/Desc) ------------------ */
+		/* --- Sections and Menus ------------------------------------------------- */
 		$this->start_controls_section(
 			'jprm_section_sections_menus',
 			[ 'label' => __( 'Sections and Menus', 'jellopoint-restaurant-menu' ) ]
@@ -193,8 +185,6 @@ final class Restaurant_Menu extends Widget_Base {
 			'return_value' => 'yes',
 			'default'      => 'yes',
 		] );
-
-		// Menu Title & Description (dynamic only)
 		$this->add_control( 'show_menu_title', [
 			'label'        => __( 'Menu title', 'jellopoint-restaurant-menu' ),
 			'type'         => Controls_Manager::SWITCHER,
@@ -226,10 +216,9 @@ final class Restaurant_Menu extends Widget_Base {
 				'show_menu_title!'  => '',
 			],
 		] );
-
 		$this->end_controls_section();
 
-		/* --- Prices and Labels (labels kept intact) ----------------------------- */
+		/* --- Prices and Labels -------------------------------------------------- */
 		$this->start_controls_section(
 			'jprm_section_prices_labels',
 			[ 'label' => __( 'Prices and Labels', 'jellopoint-restaurant-menu' ) ]
@@ -308,7 +297,7 @@ final class Restaurant_Menu extends Widget_Base {
 
 		$this->end_controls_section();
 
-		/* --- Badges (NEW) ------------------------------------------------------- */
+		/* --- Badges ------------------------------------------------------------- */
 		$this->start_controls_section(
 			'jprm_section_badges',
 			[ 'label' => __( 'Badges', 'jellopoint-restaurant-menu' ) ]
@@ -345,12 +334,11 @@ final class Restaurant_Menu extends Widget_Base {
 		] );
 		$this->end_controls_section();
 
-		/* --- Info Blocks (empty for now) --------------------------------------- */
+		/* --- Info Blocks -------------------------------------------------------- */
 		$this->start_controls_section(
 			'jprm_section_info_blocks',
 			[ 'label' => __( 'Info Blocks', 'jellopoint-restaurant-menu' ) ]
 		);
-		// (Intentionally empty – placeholder for future controls)
 		$this->end_controls_section();
 
 		/* --- Layout ------------------------------------------------------------- */
@@ -436,10 +424,23 @@ final class Restaurant_Menu extends Widget_Base {
 		self::require_price_partial_once();
 		self::require_badges_partial_once();
 
+		// One-time tiny inline CSS (temporary, per request)
+		static $css_done = false;
+		if ( ! $css_done ) {
+			$css_done = true;
+			echo '<style>
+				.jp-menu__titleline{display:flex;align-items:center;gap:.5em;flex-wrap:wrap}
+				.jp-menu__titleline .jp-menu__title{margin:0}
+				.jp-menu__badges{display:inline-flex;gap:.35em}
+				.jp-badge__icon{width:16px;height:16px;display:inline-block;vertical-align:middle}
+				.jp-badge--icontext .jp-badge__label{margin-left:.35em}
+			</style>';
+		}
+
 		$s = $this->get_settings_for_display();
 		$mode = isset( $s['data_mode'] ) ? (string) $s['data_mode'] : null;
 
-		// Static mode – leave as-is for now (columns ignored)
+		// Static mode
 		if ( 'static' === $mode || ( null === $mode && ! empty( $s['items'] ) ) ) {
 			$this->render_static_list( is_array( $s['items'] ) ? $s['items'] : [] );
 			return;
@@ -454,12 +455,10 @@ final class Restaurant_Menu extends Widget_Base {
 		$label_presentation = isset( $s['label_presentation'] ) ? (string) $s['label_presentation'] : 'icon_text';
 		$label_position     = isset( $s['label_position'] ) ? (string) $s['label_position'] : 'right';
 
-		// NEW: badges controls (dynamic only)
 		$show_badges         = ( isset( $s['show_badges'] ) && $s['show_badges'] === 'yes' );
 		$badges_presentation = isset( $s['badges_presentation'] ) ? (string) $s['badges_presentation'] : 'icon_text';
 		$badges_position     = isset( $s['badges_position'] ) ? (string) $s['badges_position'] : 'after_title';
 
-		// Currency options
 		$currency_opts = [
 			'show'     => ( isset( $s['jprm_curr_show'] ) && $s['jprm_curr_show'] === 'yes' ),
 			'symbol'   => (string) ( $s['jprm_curr_symbol']   ?? '€' ),
@@ -467,7 +466,6 @@ final class Restaurant_Menu extends Widget_Base {
 			'spacing'  => (string) ( $s['jprm_curr_spacing']  ?? 'thin' ),
 		];
 
-		// Layout options (dynamic only)
 		$columns       = isset( $s['layout_columns'] ) ? (string) $s['layout_columns'] : '1';
 		$split_mode    = isset( $s['layout_split_mode'] ) ? (string) $s['layout_split_mode'] : 'auto';
 		$split_after_1 = isset( $s['layout_split_after_section'] ) ? (string) $s['layout_split_after_section'] : '';
@@ -476,13 +474,10 @@ final class Restaurant_Menu extends Widget_Base {
 		$menu_ids    = $this->normalize_to_ids( $menu_sel );
 		$section_ids = $this->normalize_to_ids( $sections_sel );
 
-		// Get selected Menu term (single select); else null
 		$menu_term = null;
 		if ( count( $menu_ids ) === 1 ) {
 			$menu_term = get_term( (int) $menu_ids[0], 'jprm_menu' );
-			if ( ! $menu_term || is_wp_error( $menu_term ) ) {
-				$menu_term = null;
-			}
+			if ( ! $menu_term || is_wp_error( $menu_term ) ) $menu_term = null;
 		}
 
 		$show_menu_title = ( isset( $s['show_menu_title'] ) && $s['show_menu_title'] === 'yes' );
@@ -500,12 +495,10 @@ final class Restaurant_Menu extends Widget_Base {
 			return;
 		}
 
-		// Preload label map for perf (partial can also build it if unavailable)
 		$label_map = function_exists( 'jprm_build_label_map' ) ? jprm_build_label_map() : null;
 
-		// Group by primary section (first jprm_section term)
 		$sections_order = [];
-		$sections_data  = []; // term_id => ['term'=>WP_Term|null, 'items'=>[]]
+		$sections_data  = [];
 		foreach ( $items as $post ) {
 			$post_id = (int) $post->ID;
 			$cfg     = function_exists( 'jprm_read_price_config' ) ? jprm_read_price_config( $post_id ) : [];
@@ -528,7 +521,6 @@ final class Restaurant_Menu extends Widget_Base {
 		$show_section_name = ( isset( $s['show_section_name'] ) && $s['show_section_name'] === 'yes' );
 		$show_section_desc = ( isset( $s['show_section_description'] ) && $s['show_section_description'] === 'yes' );
 
-		// Helper: render Menu meta block (title/description)
 		$render_menu_meta = function( $term, bool $show_title, bool $show_desc, string $scope ) : string {
 			if ( ! $term || ( ! $show_title && ! $show_desc ) ) return '';
 			$title = $show_title ? trim( (string) $term->name ) : '';
@@ -542,7 +534,7 @@ final class Restaurant_Menu extends Widget_Base {
 			return $out;
 		};
 
-		/* ===== 1 column: with section headers ===== */
+		/* ===== 1 column ===== */
 		if ( $columns === '1' ) {
 			if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
 				echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
@@ -573,17 +565,16 @@ final class Restaurant_Menu extends Widget_Base {
 					echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
 					echo '  <div class="jp-menu__content">';
 
-					// BADGES: before title
+					// Build title line: badges + title inline
+					echo '    <div class="jp-menu__titleline">';
 					if ( $show_badges && $badges_position === 'before_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
 						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
 					}
-
-					if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
-
-					// BADGES: after title
+					if ( $title !== '' ) echo '      <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
 					if ( $show_badges && $badges_position === 'after_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
 						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
 					}
+					echo '    </div>';
 
 					if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
 					echo '  </div>';
@@ -600,9 +591,8 @@ final class Restaurant_Menu extends Widget_Base {
 			return;
 		}
 
-		/* ===== 2 columns: split on section boundaries (auto/manual) ===== */
+		/* ===== 2 columns ===== */
 		if ( $columns === '2' ) {
-			// Determine split index
 			$split_index = null;
 			if ( $split_mode === 'manual' && $split_after_1 !== '' ) {
 				$target = (int) $split_after_1;
@@ -625,17 +615,14 @@ final class Restaurant_Menu extends Widget_Base {
 			$left_sections  = array_slice( $sections_order, 0, $split_index + 1 );
 			$right_sections = array_slice( $sections_order, $split_index + 1 );
 
-			// Above Complete Menu → render before grid wrapper
 			if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
 				echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
 			}
 
-			// Build grid wrapper
 			echo '<div class="jp-menu-grid jp-cols-2 jp-menu--cols-2 jp-two-cols">';
 
 			// LEFT column
 			echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--left">';
-			// Above 1st Column → render inside left column at top
 			if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'first_column' ) {
 				echo '<li class="jp-menu__meta-li">';
 				echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'col' ); // phpcs:ignore
@@ -658,17 +645,15 @@ final class Restaurant_Menu extends Widget_Base {
 					echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
 					echo '  <div class="jp-menu__content">';
 
-					// BADGES: before title
+					echo '    <div class="jp-menu__titleline">';
 					if ( $show_badges && $badges_position === 'before_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
 						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
 					}
-
-					if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
-
-					// BADGES: after title
+					if ( $title !== '' ) echo '      <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
 					if ( $show_badges && $badges_position === 'after_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
 						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
 					}
+					echo '    </div>';
 
 					if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
 					echo '  </div>';
@@ -688,7 +673,6 @@ final class Restaurant_Menu extends Widget_Base {
 				$blk  = $sections_data[ $tid ];
 				$term = $blk['term'];
 				if ( $term && $show_section_name ) {
-					// FIXED QUOTE HERE ↓↓↓
 					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
 					if ( $show_section_desc && ! empty( $term->description ) ) {
 						echo '<div class="jp-section__desc">' . esc_html( $term->description ) . '</div>';
@@ -702,17 +686,15 @@ final class Restaurant_Menu extends Widget_Base {
 					echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
 					echo '  <div class="jp-menu__content">';
 
-					// BADGES: before title
+					echo '    <div class="jp-menu__titleline">';
 					if ( $show_badges && $badges_position === 'before_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
 						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
 					}
-
-					if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
-
-					// BADGES: after title
+					if ( $title !== '' ) echo '      <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
 					if ( $show_badges && $badges_position === 'after_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
 						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
 					}
+					echo '    </div>';
 
 					if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
 					echo '  </div>';
@@ -726,7 +708,7 @@ final class Restaurant_Menu extends Widget_Base {
 			}
 			echo '</ul></div>';
 
-			echo '</div>'; // .jp-menu-grid
+			echo '</div>';
 			return;
 		}
 
@@ -769,7 +751,6 @@ final class Restaurant_Menu extends Widget_Base {
 			$col3 = array_slice( $sections_order, $i2 + 1 );
 		}
 
-		// Above Complete Menu → render before grid wrapper
 		if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
 			echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
 		}
@@ -780,7 +761,6 @@ final class Restaurant_Menu extends Widget_Base {
 		$pos  = [ 'left', 'middle', 'right' ];
 		foreach ( $cols as $i => $section_ids_chunk ) {
 			echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--' . esc_attr( $pos[$i] ) . '">';
-			// Above 1st Column → render inside the first column at top
 			if ( $i === 0 && $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'first_column' ) {
 				echo '<li class="jp-menu__meta-li">';
 				echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'col' ); // phpcs:ignore
@@ -803,17 +783,15 @@ final class Restaurant_Menu extends Widget_Base {
 					echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
 					echo '  <div class="jp-menu__content">';
 
-					// BADGES: before title
+					echo '    <div class="jp-menu__titleline">';
 					if ( $show_badges && $badges_position === 'before_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
 						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
 					}
-
-					if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
-
-					// BADGES: after title
+					if ( $title !== '' ) echo '      <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
 					if ( $show_badges && $badges_position === 'after_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
 						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
 					}
+					echo '    </div>';
 
 					if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
 					echo '  </div>';
@@ -828,7 +806,7 @@ final class Restaurant_Menu extends Widget_Base {
 			echo '</ul></div>';
 		}
 
-		echo '</div>'; // .jp-menu-grid
+		echo '</div>';
 	}
 
 	/* =========================
@@ -866,7 +844,7 @@ final class Restaurant_Menu extends Widget_Base {
 	}
 
 	/* =========================
-	 * Static renderer (unchanged) 
+	 * Static renderer 
 	 * ========================= */
 	protected function render_static_list( array $items ) : void {
 		echo '<ul class="jp-menu">';
@@ -876,7 +854,9 @@ final class Restaurant_Menu extends Widget_Base {
 			$price = $it['item_price'] ?? '';
 			echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
 			echo '  <div class="jp-menu__content">';
-			if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
+			echo '    <div class="jp-menu__titleline">';
+			if ( $title !== '' ) echo '      <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
+			echo '    </div>';
 			if ( $desc  !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
 			echo '  </div>';
 			echo '  <div class="jp-menu__pricegroup">';

@@ -16,7 +16,6 @@ function jprm_render_badges_inline_html( int $post_id, string $presentation = 'i
 	$catalog = get_option( 'jprm_dietary_badges', [] );
 	if ( ! is_array( $catalog ) || empty( $catalog ) ) { return ''; }
 
-	// Map catalog by slug
 	$map = [];
 	foreach ( $catalog as $row ) {
 		$name = isset( $row['name'] ) ? (string) $row['name'] : '';
@@ -29,7 +28,7 @@ function jprm_render_badges_inline_html( int $post_id, string $presentation = 'i
 		];
 	}
 
-	$out = '<div class="jp-menu__badges" aria-label="Dietary badges">';
+	$out = '<span class="jp-menu__badges" aria-label="Dietary badges">';
 
 	foreach ( $slugs as $slug ) {
 		$slug = sanitize_title( $slug );
@@ -54,7 +53,7 @@ function jprm_render_badges_inline_html( int $post_id, string $presentation = 'i
 		}
 	}
 
-	$out .= '</div>';
+	$out .= '</span>';
 
 	return $out;
 }
