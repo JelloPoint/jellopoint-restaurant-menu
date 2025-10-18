@@ -433,13 +433,47 @@ final class Restaurant_Menu extends Widget_Base {
 		static $css_done = false;
 		if ( ! $css_done ) {
 			$css_done = true;
-			echo '<style>
-				.jp-menu__titleline{display:flex;align-items:center;gap:.5em;flex-wrap:wrap}
-				.jp-menu__titleline .jp-menu__title{margin:0}
-				.jp-menu__badges{display:inline-flex;gap:.35em}
-				.jp-badge__icon{width:16px;height:16px;display:inline-block;vertical-align:middle}
-				.jp-badge--icontext .jp-badge__label{margin-left:.35em}
-			</style>';
+echo '<style>
+	/* existing bits */
+	.jp-menu__titleline{display:flex;align-items:center;gap:.5em;flex-wrap:wrap}
+	.jp-menu__titleline .jp-menu__title{margin:0}
+	.jp-menu__badges{display:inline-flex;gap:.35em}
+	.jp-badge__icon{width:16px;height:16px;display:inline-block;vertical-align:middle}
+	.jp-badge--icontext .jp-badge__label{margin-left:.35em}
+
+	/* info blocks */
+	.jp-infoblocks{display:flex;gap:.5rem;flex-wrap:wrap;margin:.75rem 0}
+	.jp-infoblock{padding:.4em .7em;border-radius:.35em;font-size:.95em;line-height:1.2}
+	.jp-infoblock--subtle{background:#f6f7f7;border:1px solid #dcdcde}
+	.jp-infoblock--accent{background:#eef6ff;border:1px solid #b9d7ff}
+	.jp-infoblock--note{background:#fff7e6;border:1px solid #f1cf8a}
+	.jp-infoblock__img{max-width:100%;height:auto;display:block}
+	.jp-infoblock .jp-button{display:inline-block;text-decoration:none;padding:.45em .8em;border-radius:.35em;border:1px solid #2271b1}
+
+	/* --- FORCE horizontal row layout for label + price --- */
+	/* Inline styles take precedence if theme/Elementor overrides exist */
+	.jp-menu__pricegroup .jp-menu__row{display:inline-flex!important;align-items:center!important;gap:.35em!important;flex-wrap:nowrap!important}
+	.jp-menu__pricegroup .jp-menu__price,.jp-menu__pricegroup .jp-menu__label{display:inline-flex!important;align-items:center!important}
+	.jp-menu__pricegroup .jp-menu__icon{width:16px;height:16px;display:inline-block}
+
+	/* --- Currency order and spacing via classes (no HTML entities) --- */
+	/* BEFORE symbol */
+	.jp-menu__price.jp-currency-pos-before .jp-menu__currency{order:0}
+	.jp-menu__price.jp-currency-pos-before .jp-menu__amount{order:1}
+	/* AFTER symbol */
+	.jp-menu__price.jp-currency-pos-after .jp-menu__amount{order:0}
+	.jp-menu__price.jp-currency-pos-after .jp-menu__currency{order:1}
+
+	/* Spacing amounts (pixel-perfect) */
+	.jp-menu__price.jp-currency-pos-before.jp-currency-sp-none .jp-menu__currency{margin-right:0!important}
+	.jp-menu__price.jp-currency-pos-before.jp-currency-sp-thin .jp-menu__currency{margin-right:.15em!important}
+	.jp-menu__price.jp-currency-pos-before.jp-currency-sp-normal .jp-menu__currency{margin-right:.3em!important}
+
+	.jp-menu__price.jp-currency-pos-after.jp-currency-sp-none .jp-menu__currency{margin-left:0!important}
+	.jp-menu__price.jp-currency-pos-after.jp-currency-sp-thin .jp-menu__currency{margin-left:.15em!important}
+	.jp-menu__price.jp-currency-pos-after.jp-currency-sp-normal .jp-menu__currency{margin-left:.3em!important}
+</style>';
+
 		}
 
 		$s = $this->get_settings_for_display();
