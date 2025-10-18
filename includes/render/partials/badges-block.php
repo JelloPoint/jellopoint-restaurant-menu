@@ -29,8 +29,7 @@ function jprm_render_badges_inline_html( int $post_id, string $presentation = 'i
 		];
 	}
 
-	$out = '';
-	$out .= '<div class="jp-menu__badges" aria-label="Dietary badges">';
+	$out = '<div class="jp-menu__badges" aria-label="Dietary badges">';
 
 	foreach ( $slugs as $slug ) {
 		$slug = sanitize_title( $slug );
