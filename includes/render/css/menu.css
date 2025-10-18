@@ -10,7 +10,14 @@
 .jp-menu__title{margin:0;}
 .jp-menu__desc{opacity:.85;}
 .jp-menu__pricegroup{display:flex;flex-direction:column;gap:.25rem;text-align:right;}
-.jp-menu__price{display:flex;gap:.5rem;justify-content:flex-end;line-height:1.2;}
+.jp-menu__price{
+  display:inline-flex;
+  align-items:center;
+  gap:0 !important;   
+  justify-content:flex-end;
+  line-height:1.2;
+}
+
 .jp-menu__value{font-weight:600;white-space:nowrap;}
 
 /* label + icon */
