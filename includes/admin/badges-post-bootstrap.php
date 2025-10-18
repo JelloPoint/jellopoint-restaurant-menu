@@ -26,6 +26,8 @@ class Badges_Post_Bootstrap {
 
 		$store = new \JPRM_Badges_Store();
 		$ui    = new \JPRM_Admin_Dietary_Badges( $store );
-		$ui->render();
+
+		// IMPORTANT: your UI class exposes render_page(), not render().
+		$ui->render_page();
 	}
 }
