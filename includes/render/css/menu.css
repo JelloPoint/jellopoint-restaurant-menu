@@ -92,6 +92,45 @@
   height: 16px;
   display: inline-block;
 }
+/* --- Horizontal layout for label + price --- */
+.jp-menu__pricegroup .jp-menu__row {
+  display: inline-flex;
+  align-items: center;
+  gap: .35em;              /* spacing between label block and price block */
+  flex-wrap: nowrap;
+}
+
+.jp-menu__pricegroup .jp-menu__price,
+.jp-menu__pricegroup .jp-menu__label {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Icons sizing */
+.jp-menu__pricegroup .jp-menu__icon {
+  width: 16px;
+  height: 16px;
+  display: inline-block;
+}
+
+/* --- Currency spacing, controlled by classes on .jp-menu__price --- */
+/* BEFORE symbol */
+.jp-menu__price.jp-currency-pos-before .jp-menu__currency { order: 0; }
+.jp-menu__price.jp-currency-pos-before .jp-menu__amount   { order: 1; }
+
+/* AFTER symbol */
+.jp-menu__price.jp-currency-pos-after .jp-menu__amount    { order: 0; }
+.jp-menu__price.jp-currency-pos-after .jp-menu__currency  { order: 1; }
+
+/* Spacing amounts (no entities; exact margins) */
+.jp-menu__price.jp-currency-pos-before.jp-currency-sp-none  .jp-menu__currency { margin-right: 0; }
+.jp-menu__price.jp-currency-pos-before.jp-currency-sp-thin  .jp-menu__currency { margin-right: .15em; }
+.jp-menu__price.jp-currency-pos-before.jp-currency-sp-normal.jp-menu__currency,
+.jp-menu__price.jp-currency-pos-before.jp-currency-sp-normal  .jp-menu__currency { margin-right: .3em; }
+
+.jp-menu__price.jp-currency-pos-after.jp-currency-sp-none   .jp-menu__currency { margin-left: 0; }
+.jp-menu__price.jp-currency-pos-after.jp-currency-sp-thin   .jp-menu__currency { margin-left: .15em; }
+.jp-menu__price.jp-currency-pos-after.jp-currency-sp-normal .jp-menu__currency { margin-left: .3em; }
 
 /* Responsive: collapse to one column on narrow screens */
 @media (max-width: 768px) {
