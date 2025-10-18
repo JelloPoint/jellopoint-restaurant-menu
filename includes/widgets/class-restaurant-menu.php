@@ -414,7 +414,6 @@ final class Restaurant_Menu extends Widget_Base {
 			],
 		] );
 
-		
 		/* Show only when Position = Between Sections */
 		$ib->add_control( 'after_section', [
 			'label'       => __( 'After Section', 'jellopoint-restaurant-menu' ),
@@ -425,7 +424,8 @@ final class Restaurant_Menu extends Widget_Base {
 			'description' => __( 'Choose the section after which this Info Block should appear. Leave empty to show after every section.', 'jellopoint-restaurant-menu' ),
 			'condition'   => [ 'position' => 'between_sections' ],
 		] );
-$this->add_control( 'info_blocks', [
+
+		$this->add_control( 'info_blocks', [
 			'label'       => __( 'Blocks', 'jellopoint-restaurant-menu' ),
 			'type'        => Controls_Manager::REPEATER,
 			'fields'      => $ib->get_controls(),
@@ -599,13 +599,13 @@ $this->add_control( 'info_blocks', [
 			return;
 		}
 
-		$label_map = function_exists( 'jprm_build_label_map' ) ? jprm_build_label_map() : null;
+		$label_map = jprm_build_label_map();
 
 		$sections_order = [];
 		$sections_data  = [];
 		foreach ( $items as $post ) {
 			$post_id = (int) $post->ID;
-			$cfg     = function_exists( 'jprm_read_price_config' ) ? jprm_read_price_config( $post_id ) : [];
+			$cfg     = jprm_read_price_config( $post_id );
 			if ( empty( $cfg ) ) { continue; }
 
 			$terms = wp_get_post_terms( $post_id, 'jprm_section', [ 'orderby' => 'name', 'order' => 'ASC' ] );
@@ -627,9 +627,7 @@ $this->add_control( 'info_blocks', [
 
 		/* Info Blocks (collect & bucket) */
 		$info_rows = is_array( $s['info_blocks'] ?? null ) ? $s['info_blocks'] : [];
-		$ibuckets  = function_exists( 'jprm_infoblocks_partition_by_position' )
-			? jprm_infoblocks_partition_by_position( $info_rows )
-			: [ 'before_menu'=>[], 'between_sections'=>[], 'after_menu'=>[] ];
+		$ibuckets  = jprm_infoblocks_partition_by_position( $info_rows );
 
 		$render_menu_meta = function( $term, bool $show_title, bool $show_desc, string $scope ) : string {
 			if ( ! $term || ( ! $show_title && ! $show_desc ) ) return '';
@@ -647,32 +645,42 @@ $this->add_control( 'info_blocks', [
 		/* ===== 1 column ===== */
 		if ( $columns === '1' ) {
 			// BEFORE MENU blocks
-			if ( ! empty( $ibuckets['before_menu'] ) && function_exists( 'jprm_infoblocks_render_group' ) ) {
-				echo jprm_infoblocks_render_group( $ibuckets['before_menu'], 'before_menu' ); // phpcs:ignore
+			if ( ! empty( $ibuckets['before_menu'] ) ) {
+				echo jprm_infoblocks_render_rows( $ibuckets['before_menu'], 'before_menu' );
 			}
 
 			if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
-				echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
+				echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' );
 			}
+
 			echo '<ul class="jp-menu">';
 			if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'first_column' ) {
 				echo '<li class="jp-menu__meta-li">';
-				echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'col' ); // phpcs:ignore
+				echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'col' );
 				echo '</li>';
 			}
 
 			$first_section = true;
 			foreach ( $sections_order as $tid ) {
-				
+				// BETWEEN SECTIONS — appear before the NEXT section (i.e., here) except before the very first
 				if ( ! $first_section && ! empty( $ibuckets['between_sections'] ) ) {
 					$__rows = [];
 					foreach ( $ibuckets['between_sections'] as $__row ) {
-						if ( function_exists( 'jprm_infoblocks_matches_section' ) ? jprm_infoblocks_matches_section( $__row, $tid ) : true ) { $__rows[] = $__row; }
+						if ( jprm_infoblocks_matches_section( $__row, $tid ) ) { $__rows[] = $__row; }
 					}
-					if ( ! empty( $__rows ) && function_exists( 'jprm_infoblocks_render_rows' ) ) {
+					if ( ! empty( $__rows ) ) {
 						echo '<li class="jp-menu__infoblocks-li">' . jprm_infoblocks_render_rows( $__rows, 'between_sections' ) . '</li>';
 					}
 				}
+				$first_section = false;
+
+				$blk  = $sections_data[ $tid ];
+				$term = $blk['term'];
+				if ( $term && $show_section_name ) {
+					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
+					if ( $show_section_desc && ! empty( $term->description ) ) {
+						echo '<div class="jp-section__desc">' . esc_html( $term->description ) . '</div>';
+					}
 					echo '</li>';
 				}
 
@@ -685,30 +693,27 @@ $this->add_control( 'info_blocks', [
 					echo '  <div class="jp-menu__content">';
 					// Title line with badges inline
 					echo '    <div class="jp-menu__titleline">';
-					if ( $show_badges && $badges_position === 'before_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
-						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
+					if ( $show_badges && $badges_position === 'before_title' ) {
+						echo jprm_render_badges_inline_html( $post_id, $badges_presentation );
 					}
 					if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
-					if ( $show_badges && $badges_position === 'after_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
-						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
+					if ( $show_badges && $badges_position === 'after_title' ) {
+						echo jprm_render_badges_inline_html( $post_id, $badges_presentation );
 					}
 					echo '    </div>';
 					if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
 					echo '  </div>';
 
-					if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
-						echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
-					} else {
-						echo '<div class="jp-menu__pricegroup"></div>';
-					}
+					echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts );
+
 					echo '</div></li>';
 				}
 			}
 			echo '</ul>';
 
 			// AFTER MENU blocks
-			if ( ! empty( $ibuckets['after_menu'] ) && function_exists( 'jprm_infoblocks_render_group' ) ) {
-				echo jprm_infoblocks_render_group( $ibuckets['after_menu'], 'after_menu' ); // phpcs:ignore
+			if ( ! empty( $ibuckets['after_menu'] ) ) {
+				echo jprm_infoblocks_render_rows( $ibuckets['after_menu'], 'after_menu' );
 			}
 			return;
 		}
@@ -738,12 +743,12 @@ $this->add_control( 'info_blocks', [
 			$right_sections = array_slice( $sections_order, $split_index + 1 );
 
 			// BEFORE MENU blocks
-			if ( ! empty( $ibuckets['before_menu'] ) && function_exists( 'jprm_infoblocks_render_group' ) ) {
-				echo jprm_infoblocks_render_group( $ibuckets['before_menu'], 'before_menu' ); // phpcs:ignore
+			if ( ! empty( $ibuckets['before_menu'] ) ) {
+				echo jprm_infoblocks_render_rows( $ibuckets['before_menu'], 'before_menu' );
 			}
 
 			if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
-				echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
+				echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' );
 			}
 
 			echo '<div class="jp-menu-grid jp-cols-2 jp-menu--cols-2 jp-two-cols">';
@@ -752,15 +757,19 @@ $this->add_control( 'info_blocks', [
 			echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--left">';
 			if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'first_column' ) {
 				echo '<li class="jp-menu__meta-li">';
-				echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'col' ); // phpcs:ignore
+				echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'col' );
 				echo '</li>';
 			}
 			$first_left = true;
 			foreach ( $left_sections as $tid ) {
-				if ( ! $first_left && ! empty( $ibuckets['between_sections'] ) && function_exists( 'jprm_infoblocks_render_group' ) ) {
-					echo '<li class="jp-menu__infoblocks-li">' .
-						jprm_infoblocks_render_group( $ibuckets['between_sections'], 'between_sections' ) .
-						'</li>'; // phpcs:ignore
+				if ( ! $first_left && ! empty( $ibuckets['between_sections'] ) ) {
+					$__rows = [];
+					foreach ( $ibuckets['between_sections'] as $__row ) {
+						if ( jprm_infoblocks_matches_section( $__row, $tid ) ) { $__rows[] = $__row; }
+					}
+					if ( ! empty( $__rows ) ) {
+						echo '<li class="jp-menu__infoblocks-li">' . jprm_infoblocks_render_rows( $__rows, 'between_sections' ) . '</li>';
+					}
 				}
 				$first_left = false;
 
@@ -780,21 +789,17 @@ $this->add_control( 'info_blocks', [
 					echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
 					echo '  <div class="jp-menu__content">';
 					echo '    <div class="jp-menu__titleline">';
-					if ( $show_badges && $badges_position === 'before_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
-						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
+					if ( $show_badges && $badges_position === 'before_title' ) {
+						echo jprm_render_badges_inline_html( $post_id, $badges_presentation );
 					}
 					if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
-					if ( $show_badges && $badges_position === 'after_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
-						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
+					if ( $show_badges && $badges_position === 'after_title' ) {
+						echo jprm_render_badges_inline_html( $post_id, $badges_presentation );
 					}
 					echo '    </div>';
 					if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
 					echo '  </div>';
-					if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
-						echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
-					} else {
-						echo '<div class="jp-menu__pricegroup"></div>';
-					}
+					echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts );
 					echo '</div></li>';
 				}
 			}
@@ -804,10 +809,14 @@ $this->add_control( 'info_blocks', [
 			echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--right">';
 			$first_right = true;
 			foreach ( $right_sections as $tid ) {
-				if ( ! $first_right && ! empty( $ibuckets['between_sections'] ) && function_exists( 'jprm_infoblocks_render_group' ) ) {
-					echo '<li class="jp-menu__infoblocks-li">' .
-						jprm_infoblocks_render_group( $ibuckets['between_sections'], 'between_sections' ) .
-						'</li>'; // phpcs:ignore
+				if ( ! $first_right && ! empty( $ibuckets['between_sections'] ) ) {
+					$__rows = [];
+					foreach ( $ibuckets['between_sections'] as $__row ) {
+						if ( jprm_infoblocks_matches_section( $__row, $tid ) ) { $__rows[] = $__row; }
+					}
+					if ( ! empty( $__rows ) ) {
+						echo '<li class="jp-menu__infoblocks-li">' . jprm_infoblocks_render_rows( $__rows, 'between_sections' ) . '</li>';
+					}
 				}
 				$first_right = false;
 
@@ -827,21 +836,17 @@ $this->add_control( 'info_blocks', [
 					echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
 					echo '  <div class="jp-menu__content">';
 					echo '    <div class="jp-menu__titleline">';
-					if ( $show_badges && $badges_position === 'before_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
-						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
+					if ( $show_badges && $badges_position === 'before_title' ) {
+						echo jprm_render_badges_inline_html( $post_id, $badges_presentation );
 					}
 					if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
-					if ( $show_badges && $badges_position === 'after_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
-						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
+					if ( $show_badges && $badges_position === 'after_title' ) {
+						echo jprm_render_badges_inline_html( $post_id, $badges_presentation );
 					}
 					echo '    </div>';
 					if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
 					echo '  </div>';
-					if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
-						echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
-					} else {
-						echo '<div class="jp-menu__pricegroup"></div>';
-					}
+					echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts );
 					echo '</div></li>';
 				}
 			}
@@ -850,8 +855,8 @@ $this->add_control( 'info_blocks', [
 			echo '</div>'; // grid
 
 			// AFTER MENU blocks
-			if ( ! empty( $ibuckets['after_menu'] ) && function_exists( 'jprm_infoblocks_render_group' ) ) {
-				echo jprm_infoblocks_render_group( $ibuckets['after_menu'], 'after_menu' ); // phpcs:ignore
+			if ( ! empty( $ibuckets['after_menu'] ) ) {
+				echo jprm_infoblocks_render_rows( $ibuckets['after_menu'], 'after_menu' );
 			}
 			return;
 		}
@@ -896,12 +901,12 @@ $this->add_control( 'info_blocks', [
 		}
 
 		// BEFORE MENU blocks
-		if ( ! empty( $ibuckets['before_menu'] ) && function_exists( 'jprm_infoblocks_render_group' ) ) {
-			echo jprm_infoblocks_render_group( $ibuckets['before_menu'], 'before_menu' ); // phpcs:ignore
+		if ( ! empty( $ibuckets['before_menu'] ) ) {
+			echo jprm_infoblocks_render_rows( $ibuckets['before_menu'], 'before_menu' );
 		}
 
 		if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
-			echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
+			echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' );
 		}
 
 		echo '<div class="jp-menu-grid jp-cols-3 jp-menu--cols-3 jp-three-cols">';
@@ -912,15 +917,19 @@ $this->add_control( 'info_blocks', [
 			echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--' . esc_attr( $pos[$i] ) . '">';
 			if ( $i === 0 && $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'first_column' ) {
 				echo '<li class="jp-menu__meta-li">';
-				echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'col' ); // phpcs:ignore
+				echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'col' );
 				echo '</li>';
 			}
 			$first_in_col = true;
 			foreach ( $section_ids_chunk as $tid ) {
-				if ( ! $first_in_col && ! empty( $ibuckets['between_sections'] ) && function_exists( 'jprm_infoblocks_render_group' ) ) {
-					echo '<li class="jp-menu__infoblocks-li">' .
-						jprm_infoblocks_render_group( $ibuckets['between_sections'], 'between_sections' ) .
-						'</li>'; // phpcs:ignore
+				if ( ! $first_in_col && ! empty( $ibuckets['between_sections'] ) ) {
+					$__rows = [];
+					foreach ( $ibuckets['between_sections'] as $__row ) {
+						if ( jprm_infoblocks_matches_section( $__row, $tid ) ) { $__rows[] = $__row; }
+					}
+					if ( ! empty( $__rows ) ) {
+						echo '<li class="jp-menu__infoblocks-li">' . jprm_infoblocks_render_rows( $__rows, 'between_sections' ) . '</li>';
+					}
 				}
 				$first_in_col = false;
 
@@ -940,21 +949,17 @@ $this->add_control( 'info_blocks', [
 					echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
 					echo '  <div class="jp-menu__content">';
 					echo '    <div class="jp-menu__titleline">';
-					if ( $show_badges && $badges_position === 'before_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
-						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
+					if ( $show_badges && $badges_position === 'before_title' ) {
+						echo jprm_render_badges_inline_html( $post_id, $badges_presentation );
 					}
 					if ( $title !== '' ) echo '    <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
-					if ( $show_badges && $badges_position === 'after_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
-						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
+					if ( $show_badges && $badges_position === 'after_title' ) {
+						echo jprm_render_badges_inline_html( $post_id, $badges_presentation );
 					}
 					echo '    </div>';
 					if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
 					echo '  </div>';
-					if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
-						echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
-					} else {
-						echo '<div class="jp-menu__pricegroup"></div>';
-					}
+					echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts );
 					echo '</div></li>';
 				}
 			}
@@ -964,8 +969,8 @@ $this->add_control( 'info_blocks', [
 		echo '</div>'; // grid
 
 		// AFTER MENU blocks
-		if ( ! empty( $ibuckets['after_menu'] ) && function_exists( 'jprm_infoblocks_render_group' ) ) {
-			echo jprm_infoblocks_render_group( $ibuckets['after_menu'], 'after_menu' ); // phpcs:ignore
+		if ( ! empty( $ibuckets['after_menu'] ) ) {
+			echo jprm_infoblocks_render_rows( $ibuckets['after_menu'], 'after_menu' );
 		}
 	}
 
