@@ -43,27 +43,15 @@ class Badges_Post_Bootstrap {
 
 	/**
 	 * Enqueue media + scoped admin JS on the Dietary Badges screen only.
-	 * Fixes the icon picker affecting the wrong row.
+	 * (Optional helper; safe to keep even if not strictly needed now.)
 	 */
 	public static function enqueue_admin_assets( $hook ) : void {
-		// Only our badges page
 		$page = isset( $_GET['page'] ) ? sanitize_key( (string) $_GET['page'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( $page !== 'jprm_dietary_badges' ) {
 			return;
 		}
-
-		// Media library
 		\wp_enqueue_media();
-
-		// Compute plugin base URL then append our JS
-		$plugin_base_url = \plugin_dir_url( dirname( __DIR__, 2 ) ); // points to plugin root URL
-		\wp_enqueue_script(
-			'jprm-badges-admin',
-			$plugin_base_url . 'includes/admin/assets/badges-admin.js',
-			[ 'jquery' ],
-			'1.0.0',
-			true
-		);
+		// If you keep an external JS file, enqueue it here. Left out on purpose since page JS is inline in the class.
 	}
 }
 
@@ -91,15 +79,17 @@ function jprm_bootstrap_menuitem_badges_metabox_loader() {
 	 * Default the metabox order so our box sits between Pricing and Visibility.
 	 * NOTE: A user's personal drag-n-drop order will override this after first save.
 	 *
-	 * Change these IDs if your plugin uses different metabox IDs:
-	 *  - $pricing_id     : the Pricing metabox id
-	 *  - $visibility_id  : the Visibility metabox id (if you have one in the left column)
+	 * IDs in your plugin:
+	 *  - Pricing    : jprm_price_meta
+	 *  - Badges     : jprm_item_badges
+	 *  - Visibility : jprm_item_vis
 	 */
 	add_filter( 'get_user_option_meta-box-order_' . $screen->id, function( $order ) {
-		$pricing_id    = 'jprm_item_prices';
+		$pricing_id    = 'jprm_price_meta';
 		$badges_id     = 'jprm_item_badges';
-		$visibility_id = 'jprm_item_visibility'; // adjust if your visibility metabox uses another ID
+		$visibility_id = 'jprm_item_vis';
 
+		// Normalize structure
 		if ( ! is_array( $order ) ) {
 			$order = [ 'normal' => '', 'advanced' => '', 'side' => '' ];
 		}
@@ -111,21 +101,21 @@ function jprm_bootstrap_menuitem_badges_metabox_loader() {
 		$advanced = array_values( array_filter( array_map( 'trim', explode( ',', (string) $order['advanced'] ) ) ) );
 		$side     = array_values( array_filter( array_map( 'trim', explode( ',', (string) $order['side'] ) ) ) );
 
-		// Remove badges from any zone first.
+		// Remove badges from any zone first (we will place it in 'normal').
 		$normal   = array_values( array_diff( $normal,   [ $badges_id ] ) );
 		$advanced = array_values( array_diff( $advanced, [ $badges_id ] ) );
 		$side     = array_values( array_diff( $side,     [ $badges_id ] ) );
 
+		// Compute insertion index in 'normal'
 		$pi = array_search( $pricing_id,    $normal, true );
 		$vi = array_search( $visibility_id, $normal, true );
 
-		// Compute insertion index
 		if ( $pi !== false && $vi !== false && $pi < $vi ) {
-			$insert_at = $pi + 1;
+			$insert_at = $pi + 1; // directly after pricing, before visibility
 		} elseif ( $pi !== false ) {
 			$insert_at = $pi + 1; // after pricing
 		} elseif ( $vi !== false ) {
-			$insert_at = max( 0, (int) $vi ); // before visibility if pricing not known
+			$insert_at = max( 0, (int) $vi ); // just before visibility
 		} else {
 			$insert_at = 0; // best effort near top
 		}
@@ -142,6 +132,5 @@ function jprm_bootstrap_menuitem_badges_metabox_loader() {
 add_action( 'load-post.php',     __NAMESPACE__ . '\\jprm_bootstrap_menuitem_badges_metabox_loader' );
 add_action( 'load-post-new.php', __NAMESPACE__ . '\\jprm_bootstrap_menuitem_badges_metabox_loader' );
 
-/* Hook our admin assets + (optionally) save handler here */
 add_action( 'admin_enqueue_scripts', __NAMESPACE__ . '\\Badges_Post_Bootstrap::enqueue_admin_assets' );
 add_action( 'admin_post_jprm_badges_save', __NAMESPACE__ . '\\Badges_Post_Bootstrap::handle_post' );
