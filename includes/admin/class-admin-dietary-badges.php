@@ -4,7 +4,7 @@
  * UI layout mirrors Price Labels:
  * 1) Drag (three stripes)
  * 2) Name
- * 3) Icon (choose/clear via media frame)
+ * 3) Icon  (choose/clear via media frame)
  * 4) Active
  * 5) Delete (blue trash)
  */
