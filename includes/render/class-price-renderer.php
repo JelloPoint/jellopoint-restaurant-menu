@@ -5,6 +5,7 @@
 namespace JelloPoint\RestaurantMenu\Render;
 
 use JelloPoint\RestaurantMenu\Data\Price_Schema;
+use JelloPoint\RestaurantMenu\Storage\Price_Repository;
 
 if ( ! defined('ABSPATH') ) exit;
 
@@ -42,7 +43,7 @@ class Price_Renderer {
      * ]
      */
     public static function render_pricegroup( array $cfg, array $opts = [] ) : string {
-        $cfg = Price_Schema::sanitize_cfg( $cfg ); // defensive
+        $cfg = Price_Schema::from_post( $post_id );
 
         $presentation = isset($opts['presentation']) && in_array($opts['presentation'], ['text','icon','icon_text'], true)
             ? $opts['presentation']
