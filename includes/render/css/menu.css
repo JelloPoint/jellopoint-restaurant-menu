@@ -98,3 +98,34 @@
   vertical-align: -0.2em;
   border-radius: 2px;
 }
+/* Title line: title + badges stay on one line */
+.jp-menu__titleline{
+  display:flex;
+  align-items:center;
+  gap:.35em;
+  flex-wrap:wrap; /* allows wrap only if very narrow */
+}
+.jp-menu__titleline .jp-menu__title{
+  margin:0;            /* kill block margins */
+  line-height:1.2;
+}
+
+/* Badges inline next to the title */
+.jp-menu__badges{
+  display:inline-flex;
+  align-items:center;
+  gap:.35em;
+}
+
+/* Badge icon sizing (matches our earlier patch) */
+.jp-badge{ display:inline-flex; align-items:center; gap:.35em; }
+.jp-badge__icon, .jp-badge__icon img{
+  width:16px !important;
+  height:16px !important;
+  max-width:16px !important;
+  max-height:16px !important;
+  display:inline-block;
+  object-fit:contain;
+  vertical-align:-0.2em;
+  border-radius:2px;
+}
