@@ -13,7 +13,8 @@ class Badges_Post_Bootstrap {
 	 * Loads only the two required classes and hands off to the UI.
 	 */
 	public static function render_screen() : void {
-		$includes_dir = dirname( __DIR__, 1 ); // points to /includes
+		// /includes
+		$includes_dir = dirname( __DIR__, 1 );
 
 		// Load dependencies for this screen.
 		require_once $includes_dir . '/data/class-badges-store.php';
@@ -27,7 +28,7 @@ class Badges_Post_Bootstrap {
 		$store = new \JPRM_Badges_Store();
 		$ui    = new \JPRM_Admin_Dietary_Badges( $store );
 
-		// IMPORTANT: your UI class exposes render_page(), not render().
+		// IMPORTANT: UI exposes render_page(), not render().
 		$ui->render_page();
 	}
 }

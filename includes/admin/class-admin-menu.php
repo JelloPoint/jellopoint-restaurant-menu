@@ -7,16 +7,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Admin menu manager for JelloPoint Restaurant Menu.
- * Keeps parent menu stable, registers submenus, and cleans duplicates.
  */
 class Admin_Menu {
 
 	const PARENT_SLUG = 'jellopoint';
 
-	// Direct links WordPress expects for CPT & tax submenus.
+	// Canonical slugs for our lists.
 	const SLUG_MENUS  = 'edit-tags.php?taxonomy=jprm_menu&post_type=jprm_menu_item';
 	const SLUG_SECTS  = 'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item';
-	const SLUG_ITEMS  = 'edit.php?post_type=jprm_menu_item';
+	const SLUG_ITEMS  = 'edit.php?post_type=jprm_menu_item'; // canonical CPT list
 
 	/** @var bool */
 	private static $bootstrapped = false;
@@ -27,10 +26,13 @@ class Admin_Menu {
 		}
 		self::$bootstrapped = true;
 
+		// Build the parent and our submenus.
 		add_action( 'admin_menu', [ __CLASS__, 'ensure_parent' ], 5 );
 		add_action( 'admin_menu', [ __CLASS__, 'register_submenus' ], 20 );
+
+		// Cleanup & order after everything has had a chance to add entries.
 		add_action( 'admin_menu', [ __CLASS__, 'remove_parent_self_link' ], 90 );
-		add_action( 'admin_menu', [ __CLASS__, 'sanitize_and_order' ], 100 );
+		add_action( 'admin_menu', [ __CLASS__, 'dedupe_and_order' ], 200 );
 
 		// Expose the parent slug to other components if needed.
 		add_filter( 'jprm/admin/menu_builder_parent', [ __CLASS__, 'menu_builder_parent' ] );
@@ -65,7 +67,7 @@ class Admin_Menu {
 	}
 
 	/**
-	 * Register all submenus we own (and only add them once).
+	 * Register the submenus we own.
 	 */
 	public static function register_submenus(): void {
 		$parent      = self::PARENT_SLUG;
@@ -73,15 +75,18 @@ class Admin_Menu {
 
 		self::maybe_add_submenu( $parent, __( 'Menus',       'jellopoint-restaurant-menu' ), self::SLUG_MENUS,  'edit_posts' );
 		self::maybe_add_submenu( $parent, __( 'Sections',    'jellopoint-restaurant-menu' ), self::SLUG_SECTS,  'edit_posts' );
-		self::maybe_add_submenu( $parent, __( 'Menu Items',  'jellopoint-restaurant-menu' ), self::SLUG_ITEMS,  'edit_posts' );
+
+		// "Menu Items": only add if there isn't already a submenu that matches our canonical CPT list.
+		if ( ! self::has_submenu_slug( $parent, self::SLUG_ITEMS ) ) {
+			self::maybe_add_submenu( $parent, __( 'Menu Items', 'jellopoint-restaurant-menu' ), self::SLUG_ITEMS, 'edit_posts' );
+		}
+
 		self::maybe_add_submenu( $parent, __( 'Price Labels','jellopoint-restaurant-menu' ), $labels_slug,      'manage_options', '__return_null' );
 
-		// Dietary Badges submenu (this is the one with your error).
-		// IMPORTANT: we require the bootstrap file BEFORE checking class_exists.
+		// Dietary Badges submenu (requires our bootstrap file before class_exists).
 		if ( ! self::submenu_exists( $parent, 'jprm-dietary-badges' ) ) {
 			$render = function () {
 				require_once __DIR__ . '/badges-post-bootstrap.php';
-
 				if ( class_exists( '\JelloPoint\RestaurantMenu\Admin\Badges_Post_Bootstrap' ) ) {
 					\JelloPoint\RestaurantMenu\Admin\Badges_Post_Bootstrap::render_screen();
 				} else {
@@ -96,7 +101,8 @@ class Admin_Menu {
 				'manage_options',
 				'jprm-dietary-badges',
 				$render,
-			999 );
+				999
+			);
 		}
 	}
 
@@ -108,10 +114,14 @@ class Admin_Menu {
 	}
 
 	/**
-	 * De-duplicate submenu entries and ensure a sane order.
-	 * Also removes mislinked "Menu Items" entries that don't point to our CPT list.
+	 * De-duplicate submenu entries and ensure a predictable order.
+	 * Rules:
+	 *  - Drop any entry whose slug is 'edit.php' (default Posts list).
+	 *  - Drop any entry whose slug starts with 'edit.php?post_type=' but is NOT exactly our CPT list slug.
+	 *  - Keep only one entry per slug.
+	 *  - Order: Menus, Sections, Menu Items, Price Labels, Dietary Badges, then others.
 	 */
-	public static function sanitize_and_order(): void {
+	public static function dedupe_and_order(): void {
 		global $submenu;
 
 		if ( empty( $submenu[ self::PARENT_SLUG ] ) || ! is_array( $submenu[ self::PARENT_SLUG ] ) ) {
@@ -119,27 +129,42 @@ class Admin_Menu {
 		}
 
 		$items   = $submenu[ self::PARENT_SLUG ];
-		$unique  = [];
-		$ordered = [];
+		$clean   = [];
 
 		foreach ( $items as $item ) {
-			// $item: [ page_title, menu_title, slug, capability, ... ]
-			if ( ! isset( $item[2] ) ) {
-				continue;
-			}
-			$slug = (string) $item[2];
+			// $item structure: [0]=page_title, [1]=menu_title, [2]=slug, [3]=capability, [4]=hookname
+			$slug = isset( $item[2] ) ? (string) $item[2] : '';
 
-			// Remove mislinked entries.
-			if ( false !== stripos( $item[1] ?? '', 'Menu Items' ) && $slug !== self::SLUG_ITEMS ) {
+			if ( $slug === '' ) {
 				continue;
 			}
 
-			if ( ! isset( $unique[ $slug ] ) ) {
-				$unique[ $slug ] = $item;
+			// Remove default Posts list if it somehow got attached.
+			if ( $slug === 'edit.php' ) {
+				continue;
+			}
+
+			// Remove any other CPT list pages that are not our canonical CPT slug.
+			if ( strpos( $slug, 'edit.php?post_type=' ) === 0 && $slug !== self::SLUG_ITEMS ) {
+				continue;
+			}
+
+			$clean[] = $item;
+		}
+
+		// De-duplicate by slug (keep the first occurrence).
+		$unique_by_slug = [];
+		foreach ( $clean as $item ) {
+			$slug = isset( $item[2] ) ? (string) $item[2] : '';
+			if ( $slug === '' ) {
+				continue;
+			}
+			if ( ! isset( $unique_by_slug[ $slug ] ) ) {
+				$unique_by_slug[ $slug ] = $item;
 			}
 		}
 
-		// Desired fixed order for our core entries if present.
+		// Preferred order for our known slugs.
 		$preferred = [
 			self::SLUG_MENUS,
 			self::SLUG_SECTS,
@@ -148,15 +173,16 @@ class Admin_Menu {
 			'jprm-dietary-badges',
 		];
 
+		$ordered = [];
 		foreach ( $preferred as $slug ) {
-			if ( isset( $unique[ $slug ] ) ) {
-				$ordered[] = $unique[ $slug ];
-				unset( $unique[ $slug ] );
+			if ( isset( $unique_by_slug[ $slug ] ) ) {
+				$ordered[] = $unique_by_slug[ $slug ];
+				unset( $unique_by_slug[ $slug ] );
 			}
 		}
 
-		// Append any other entries (stable order).
-		foreach ( $unique as $item ) {
+		// Append the rest in stable order.
+		foreach ( $unique_by_slug as $item ) {
 			$ordered[] = $item;
 		}
 
@@ -174,21 +200,26 @@ class Admin_Menu {
 	}
 
 	/**
-	 * Utility: check if a submenu exists.
+	 * Utility: check if a submenu exists with exact slug.
 	 */
-	private static function submenu_exists( string $parent, string $slug ): bool {
+	private static function has_submenu_slug( string $parent, string $slug ): bool {
 		global $submenu;
-
 		if ( empty( $submenu[ $parent ] ) ) {
 			return false;
 		}
-
 		foreach ( $submenu[ $parent ] as $item ) {
 			if ( isset( $item[2] ) && (string) $item[2] === $slug ) {
 				return true;
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Utility: check if a submenu exists (exact slug).
+	 */
+	private static function submenu_exists( string $parent, string $slug ): bool {
+		return self::has_submenu_slug( $parent, $slug );
 	}
 
 	/**
