@@ -26,6 +26,13 @@ class Admin_Menu {
 		}
 		self::$bootstrapped = true;
 
+		/**
+		 * IMPORTANT: Make the Dietary Badges admin-post handler available on every admin load,
+		 * so admin-post.php?action=jprm_save_dietary_badges works even when the screen isn’t rendered.
+		 */
+		require_once __DIR__ . '/badges-post-bootstrap.php';
+		add_action( 'admin_post_jprm_save_dietary_badges', [ '\JelloPoint\RestaurantMenu\Admin\Badges_Post_Bootstrap', 'handle_post' ] );
+
 		// Build the parent and our submenus.
 		add_action( 'admin_menu', [ __CLASS__, 'ensure_parent' ], 5 );
 		add_action( 'admin_menu', [ __CLASS__, 'register_submenus' ], 20 );
@@ -132,22 +139,14 @@ class Admin_Menu {
 		$clean   = [];
 
 		foreach ( $items as $item ) {
-			// $item structure: [0]=page_title, [1]=menu_title, [2]=slug, [3]=capability, [4]=hookname
 			$slug = isset( $item[2] ) ? (string) $item[2] : '';
-
-			if ( $slug === '' ) {
-				continue;
-			}
+			if ( $slug === '' ) continue;
 
 			// Remove default Posts list if it somehow got attached.
-			if ( $slug === 'edit.php' ) {
-				continue;
-			}
+			if ( $slug === 'edit.php' ) continue;
 
 			// Remove any other CPT list pages that are not our canonical CPT slug.
-			if ( strpos( $slug, 'edit.php?post_type=' ) === 0 && $slug !== self::SLUG_ITEMS ) {
-				continue;
-			}
+			if ( strpos( $slug, 'edit.php?post_type=' ) === 0 && $slug !== self::SLUG_ITEMS ) continue;
 
 			$clean[] = $item;
 		}
@@ -156,9 +155,7 @@ class Admin_Menu {
 		$unique_by_slug = [];
 		foreach ( $clean as $item ) {
 			$slug = isset( $item[2] ) ? (string) $item[2] : '';
-			if ( $slug === '' ) {
-				continue;
-			}
+			if ( $slug === '' ) continue;
 			if ( ! isset( $unique_by_slug[ $slug ] ) ) {
 				$unique_by_slug[ $slug ] = $item;
 			}
@@ -204,9 +201,7 @@ class Admin_Menu {
 	 */
 	private static function has_submenu_slug( string $parent, string $slug ): bool {
 		global $submenu;
-		if ( empty( $submenu[ $parent ] ) ) {
-			return false;
-		}
+		if ( empty( $submenu[ $parent ] ) ) return false;
 		foreach ( $submenu[ $parent ] as $item ) {
 			if ( isset( $item[2] ) && (string) $item[2] === $slug ) {
 				return true;
