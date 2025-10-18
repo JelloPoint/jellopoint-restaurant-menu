@@ -8,9 +8,6 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 class Badges_Post_Bootstrap {
 
-	/**
-	 * Render the Dietary Badges admin screen.
-	 */
 	public static function render_screen() : void {
 		$includes_dir = dirname( __DIR__, 1 ); // /includes
 		require_once $includes_dir . '/data/class-badges-store.php';
@@ -25,9 +22,6 @@ class Badges_Post_Bootstrap {
 		$ui->render_page();
 	}
 
-	/**
-	 * Handle POST from admin-post.php?action=jprm_save_dietary_badges
-	 */
 	public static function handle_post() : void {
 		$includes_dir = dirname( __DIR__, 1 ); // /includes
 		require_once $includes_dir . '/data/class-badges-store.php';
@@ -49,8 +43,8 @@ class Badges_Post_Bootstrap {
 }
 
 /**
- * Ensure the "Dietary Badges" metabox is available on the Menu Item editor,
- * and default it into the LEFT column (normal) just after the Pricing box if possible.
+ * Load the metabox class on jprm_menu_item screens
+ * and nudge its position to be between Pricing and Visibility in the left column.
  */
 function jprm_bootstrap_menuitem_badges_metabox_loader() {
 	$screen = function_exists('get_current_screen') ? get_current_screen() : null;
@@ -62,22 +56,25 @@ function jprm_bootstrap_menuitem_badges_metabox_loader() {
 	require_once $includes_dir . '/data/class-badges-store.php';
 	require_once __DIR__ . '/class-admin-menuitem-badges-meta.php';
 
+	// Instantiate metabox (store is optional in the class, we pass one if available).
 	if ( class_exists( '\JPRM_Badges_Store' ) && class_exists( '\JPRM_MenuItem_Badges_Meta' ) ) {
 		$store = new \JPRM_Badges_Store();
 		new \JPRM_MenuItem_Badges_Meta( $store );
 	}
 
 	/**
-	 * Try to influence the default order so our box sits after Pricing.
-	 * This only affects users who don't have a saved personal order yet.
-	 * We assume the Pricing metabox id is 'jprm_item_prices' (common in your plugin).
-	 * If your pricing box has another id, change $pricing_id below.
+	 * Default the metabox order so our box sits between Pricing and Visibility.
+	 * NOTE: A user's personal drag-n-drop order will override this after first save.
+	 *
+	 * Change these IDs if your plugin uses different metabox IDs:
+	 *  - $pricing_id     : the Pricing metabox id
+	 *  - $visibility_id  : the Visibility metabox id (if you have one in the left column)
 	 */
 	add_filter( 'get_user_option_meta-box-order_' . $screen->id, function( $order ) {
-		$pricing_id = 'jprm_item_prices';
-		$badges_id  = 'jprm_item_badges';
+		$pricing_id    = 'jprm_item_prices';
+		$badges_id     = 'jprm_item_badges';
+		$visibility_id = 'jprm_item_visibility'; // adjust if your visibility metabox uses another ID
 
-		// Build a sane default if none.
 		if ( ! is_array( $order ) ) {
 			$order = [ 'normal' => '', 'advanced' => '', 'side' => '' ];
 		}
@@ -85,23 +82,32 @@ function jprm_bootstrap_menuitem_badges_metabox_loader() {
 			if ( ! isset( $order[ $zone ] ) ) $order[ $zone ] = '';
 		}
 
-		// Ensure our badges box is in the 'normal' column list.
-		$normal = array_filter( array_map( 'trim', explode( ',', (string) $order['normal'] ) ) );
-		// Remove from anywhere else
-		$advanced = array_filter( array_map( 'trim', explode( ',', (string) $order['advanced'] ) ) );
-		$side     = array_filter( array_map( 'trim', explode( ',', (string) $order['side'] ) ) );
+		$normal   = array_values( array_filter( array_map( 'trim', explode( ',', (string) $order['normal'] ) ) ) );
+		$advanced = array_values( array_filter( array_map( 'trim', explode( ',', (string) $order['advanced'] ) ) ) );
+		$side     = array_values( array_filter( array_map( 'trim', explode( ',', (string) $order['side'] ) ) ) );
 
+		// Remove badges from any zone first.
+		$normal   = array_values( array_diff( $normal,   [ $badges_id ] ) );
 		$advanced = array_values( array_diff( $advanced, [ $badges_id ] ) );
 		$side     = array_values( array_diff( $side,     [ $badges_id ] ) );
-		$normal   = array_values( array_diff( $normal,   [ $badges_id ] ) );
 
-		// Insert after pricing if pricing is known; otherwise append near the top.
-		$insert_at = array_search( $pricing_id, $normal, true );
-		if ( $insert_at !== false ) {
-			array_splice( $normal, $insert_at + 1, 0, [ $badges_id ] );
+		$pi = array_search( $pricing_id,    $normal, true );
+		$vi = array_search( $visibility_id, $normal, true );
+
+		// Compute insertion index:
+		// - If both present and pricing appears before visibility,
+		//   insert right after pricing but not beyond visibility.
+		if ( $pi !== false && $vi !== false && $pi < $vi ) {
+			$insert_at = $pi + 1;
+		} elseif ( $pi !== false ) {
+			$insert_at = $pi + 1; // after pricing
+		} elseif ( $vi !== false ) {
+			$insert_at = max( 0, (int) $vi ); // just before visibility if pricing not known
 		} else {
-			array_unshift( $normal, $badges_id );
+			$insert_at = 0; // best effort near top
 		}
+
+		array_splice( $normal, min( $insert_at, count( $normal ) ), 0, [ $badges_id ] );
 
 		$order['normal']   = implode( ',', array_unique( $normal ) );
 		$order['advanced'] = implode( ',', array_unique( $advanced ) );
