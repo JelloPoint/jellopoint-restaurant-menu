@@ -20,16 +20,13 @@ class Price_Renderer {
      * @return string HTML (identical structure to render_pricegroup output)
      */
     public static function render_from_meta( int $post_id, array $opts = [] ) : string {
-        $post_id = (int)$post_id;
+        $post_id = (int) $post_id;
         if ( $post_id <= 0 ) return '';
 
-        $raw = get_post_meta( $post_id, 'jprm_price', true );
-        if ( ! is_string( $raw ) || $raw === '' ) return '';
+        // Use schema as the single source of truth (reads + normalizes)
+        $cfg = Price_Schema::from_post( $post_id );
+        if ( ! is_array( $cfg ) || empty( $cfg ) ) return '';
 
-        $cfg = json_decode( $raw, true );
-        if ( ! is_array( $cfg ) ) return '';
-
-        // sanitize in render_pricegroup via Price_Schema::sanitize_cfg
         return self::render_pricegroup( $cfg, $opts );
     }
 
@@ -43,34 +40,36 @@ class Price_Renderer {
      * ]
      */
     public static function render_pricegroup( array $cfg, array $opts = [] ) : string {
-        $cfg = Price_Schema::from_post( $post_id );
-
-        $presentation = isset($opts['presentation']) && in_array($opts['presentation'], ['text','icon','icon_text'], true)
+        // Defaults that match the widget's typical expectations
+        $presentation = (isset($opts['presentation']) && in_array($opts['presentation'], ['text','icon','icon_text'], true))
             ? $opts['presentation']
-            : 'text';
+            : 'icon_text';
 
-        $order_class = isset($opts['order_class']) && is_string($opts['order_class'])
+        $order_class = (isset($opts['order_class']) && is_string($opts['order_class']))
             ? $opts['order_class']
             : 'jp-order--label-right';
 
         ob_start();
         echo '<div class="jp-menu__pricegroup">';
 
-        if ( ($cfg['mode'] ?? '') === 'single' && ! empty($cfg['price']) ) {
-            $price   = self::sanitize_price_string( $cfg['price'] );
-            $ref     = (string)($cfg['label_ref'] ?? '');
-            $icon_id = isset($cfg['icon_id']) ? (int)$cfg['icon_id'] : 0;
-            $hide    = ! empty( $cfg['hide_icon'] );
+        // SINGLE price
+        if ( Price_Schema::is_single( $cfg ) ) {
+            $price   = self::sanitize_price_string( $cfg['price'] ?? '' );
+            if ( $price !== '' ) {
+                $ref     = (string)($cfg['label_ref'] ?? '');
+                $icon_id = isset($cfg['icon_id']) ? (int)$cfg['icon_id'] : 0;
+                $hide    = ! empty( $cfg['hide_icon'] );
 
-            $res        = \JPRM_Labels_Store::resolve( $ref );
-            $label_text = (string)($res['label_text'] ?? '');
-            $icon_id    = $icon_id ?: (int)($res['icon_id'] ?? 0);
+                $res        = \JPRM_Labels_Store::resolve( $ref );
+                $label_text = (string)($res['label_text'] ?? '');
+                $icon_id    = $icon_id ?: (int)($res['icon_id'] ?? 0);
 
-            echo self::row_html( $price, $label_text, $icon_id, $presentation, $order_class, $hide );
+                echo self::row_html( $price, $label_text, $icon_id, $presentation, $order_class, $hide );
+            }
         }
-
-        if ( ($cfg['mode'] ?? '') === 'multiple' && ! empty($cfg['rows']) && is_array($cfg['rows']) ) {
-            foreach ( $cfg['rows'] as $row ) {
+        // MULTI price
+        else {
+            foreach ( Price_Schema::iter_rows( $cfg ) as $row ) {
                 $price = self::sanitize_price_string( $row['price'] ?? '' );
                 if ( $price === '' ) continue;
 
@@ -153,4 +152,3 @@ class Price_Renderer {
         return trim($v);
     }
 }
-?>
