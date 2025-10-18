@@ -10,6 +10,8 @@
 use JelloPoint\RestaurantMenu\Render\Price_Renderer;
 use JelloPoint\RestaurantMenu\Storage\Price_Repository;
 
+if ( ! defined( 'ABSPATH' ) ) { exit; }
+
 /**
  * Return the complete label map used for price badges/labels.
  * Source: option 'jprm_price_labels_v2' via JPRM_Labels_Store::all()
@@ -17,7 +19,7 @@ use JelloPoint\RestaurantMenu\Storage\Price_Repository;
 if ( ! function_exists( 'jprm_build_label_map' ) ) {
 	function jprm_build_label_map() : array {
 		if ( class_exists( '\JPRM_Labels_Store' ) ) {
-			$all = \JPRM_Labels_Store::all(); // returns array as defined by your store
+			$all = \JPRM_Labels_Store::all();
 			return is_array( $all ) ? $all : [];
 		}
 		return [];
@@ -37,7 +39,13 @@ if ( ! function_exists( 'jprm_read_price_config' ) ) {
 
 /**
  * Render the price group HTML for a given post using your renderer.
- * We pass through the widget’s options verbatim so the renderer can use them.
+ * Map ONLY the widget controls we actually support in the renderer.
+ *
+ * @param int    $post_id
+ * @param string $label_presentation 'text' | 'icon' | 'icon_text'
+ * @param string $label_position     'left' | 'right'
+ * @param array  $label_map          (unused here; kept for signature stability)
+ * @param array  $currency_opts      (unused here; renderer outputs stored string)
  */
 if ( ! function_exists( 'jprm_render_pricegroup_html' ) ) {
 	function jprm_render_pricegroup_html(
@@ -48,13 +56,15 @@ if ( ! function_exists( 'jprm_render_pricegroup_html' ) ) {
 		array $currency_opts
 	) : string {
 		$opts = [
-			'label_presentation' => $label_presentation, // 'text' | 'icon' | 'icon_text'
-			'label_position'     => $label_position,     // 'left' | 'right'
-			'label_map'          => $label_map,          // output of jprm_build_label_map()
-			'currency'           => $currency_opts,      // ['show'=>bool,'symbol'=>string,'position'=>'before|after','spacing'=>'none|thin|normal']
+			'presentation' => in_array( $label_presentation, [ 'text', 'icon', 'icon_text' ], true )
+				? $label_presentation
+				: 'icon_text',
+			'order_class'  => ( $label_position === 'left' )
+				? 'jp-order--label-left'
+				: 'jp-order--label-right',
 		];
 
-		// Your renderer supports rendering directly from post meta (jprm_price).
+		// Renderer reads & normalizes via Price_Schema internally.
 		$html = Price_Renderer::render_from_meta( $post_id, $opts );
 		return is_string( $html ) ? $html : '';
 	}
