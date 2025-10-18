@@ -56,7 +56,7 @@ function jprm_bootstrap_menuitem_badges_metabox_loader() {
 	require_once $includes_dir . '/data/class-badges-store.php';
 	require_once __DIR__ . '/class-admin-menuitem-badges-meta.php';
 
-	// Instantiate metabox (store is optional in the class, we pass one if available).
+	// Instantiate metabox.
 	if ( class_exists( '\JPRM_Badges_Store' ) && class_exists( '\JPRM_MenuItem_Badges_Meta' ) ) {
 		$store = new \JPRM_Badges_Store();
 		new \JPRM_MenuItem_Badges_Meta( $store );
@@ -64,16 +64,17 @@ function jprm_bootstrap_menuitem_badges_metabox_loader() {
 
 	/**
 	 * Default the metabox order so our box sits between Pricing and Visibility.
-	 * NOTE: A user's personal drag-n-drop order will override this after first save.
+	 * Your IDs:
+	 *  - Pricing:    jprm_price_meta
+	 *  - Visibility: jprm_item_vis
+	 *  - Badges:     jprm_item_badges
 	 *
-	 * Change these IDs if your plugin uses different metabox IDs:
-	 *  - $pricing_id     : the Pricing metabox id
-	 *  - $visibility_id  : the Visibility metabox id (if you have one in the left column)
+	 * This only affects users without a saved personal metabox order.
 	 */
 	add_filter( 'get_user_option_meta-box-order_' . $screen->id, function( $order ) {
-		$pricing_id    = 'jprm_item_prices';
+		$pricing_id    = 'jprm_price_meta';
 		$badges_id     = 'jprm_item_badges';
-		$visibility_id = 'jprm_item_visibility'; // adjust if your visibility metabox uses another ID
+		$visibility_id = 'jprm_item_vis';
 
 		if ( ! is_array( $order ) ) {
 			$order = [ 'normal' => '', 'advanced' => '', 'side' => '' ];
@@ -94,17 +95,18 @@ function jprm_bootstrap_menuitem_badges_metabox_loader() {
 		$pi = array_search( $pricing_id,    $normal, true );
 		$vi = array_search( $visibility_id, $normal, true );
 
-		// Compute insertion index:
-		// - If both present and pricing appears before visibility,
-		//   insert right after pricing but not beyond visibility.
-		if ( $pi !== false && $vi !== false && $pi < $vi ) {
+		// Insert right after Pricing, but before Visibility if present.
+		if ( $pi !== false ) {
 			$insert_at = $pi + 1;
-		} elseif ( $pi !== false ) {
-			$insert_at = $pi + 1; // after pricing
 		} elseif ( $vi !== false ) {
-			$insert_at = max( 0, (int) $vi ); // just before visibility if pricing not known
+			$insert_at = max( 0, (int) $vi ); // before visibility
 		} else {
 			$insert_at = 0; // best effort near top
+		}
+
+		// If Visibility exists and our insert position would land after it, move before it.
+		if ( $vi !== false && $insert_at > $vi ) {
+			$insert_at = $vi;
 		}
 
 		array_splice( $normal, min( $insert_at, count( $normal ) ), 0, [ $badges_id ] );

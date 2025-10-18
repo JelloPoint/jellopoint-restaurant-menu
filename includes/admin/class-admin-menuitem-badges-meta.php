@@ -17,28 +17,25 @@ class JPRM_MenuItem_Badges_Meta {
 	private $store;
 
 	public function __construct( $store = null ) {
-		// Store is optional now; we read the option directly for robustness.
 		$this->store = $store;
 		add_action( 'add_meta_boxes', [ $this, 'add_metabox' ] );
 		add_action( 'save_post_' . self::POST_TYPE, [ $this, 'save_post' ], 10, 2 );
 	}
 
 	public function add_metabox() : void {
-		// Put it in the LEFT column.
 		add_meta_box(
 			'jprm_item_badges',
 			__( 'Dietary Badges', 'jprm' ),
 			[ $this, 'render_metabox' ],
 			self::POST_TYPE,
-			'normal', // left/main column
-			'high'
+			'normal',   // left/main column
+			'default'   // default priority so it can sit between Pricing and Visibility
 		);
 	}
 
 	public function render_metabox( $post ) : void {
 		wp_nonce_field( self::NONCE_ACTION, self::NONCE_NAME );
 
-		// Read badges directly from the option to ensure we see what you saved.
 		$rows = get_option( 'jprm_dietary_badges', [] );
 		if ( ! is_array( $rows ) ) $rows = [];
 
@@ -63,7 +60,6 @@ class JPRM_MenuItem_Badges_Meta {
 			];
 		}
 
-		// Sort by 'order'.
 		uasort( $map_all, function( $a, $b ) {
 			return ($a['order'] ?? 0) <=> ($b['order'] ?? 0);
 		});
