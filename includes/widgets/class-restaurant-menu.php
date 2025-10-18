@@ -415,13 +415,14 @@ final class Restaurant_Menu extends Widget_Base {
 		] );
 
 		
+		/* Show only when Position = Between Sections */
 		$ib->add_control( 'after_section', [
 			'label'       => __( 'After Section', 'jellopoint-restaurant-menu' ),
 			'type'        => Controls_Manager::SELECT2,
 			'label_block' => true,
-			'options'     => $section_options,
+			'options'     => $this->get_terms_options( 'jprm_section' ),
 			'default'     => '',
-			'description' => __( 'Choose the section after which this Info Block should appear. Leave empty to insert after every section.', 'jellopoint-restaurant-menu' ),
+			'description' => __( 'Choose the section after which this Info Block should appear. Leave empty to show after every section.', 'jellopoint-restaurant-menu' ),
 			'condition'   => [ 'position' => 'between_sections' ],
 		] );
 $this->add_control( 'info_blocks', [
@@ -662,27 +663,16 @@ $this->add_control( 'info_blocks', [
 
 			$first_section = true;
 			foreach ( $sections_order as $tid ) {
-				// BETWEEN SECTIONS blocks (before each section except the first)
-				if ( ! $first_section && ! empty( $ibuckets['between_sections'] ) && function_exists( 'jprm_infoblocks_render_group' ) ) {
-					/* Info Blocks: targeted between-sections */
-$__rows = [];
-foreach ( $ibuckets['between_sections'] as $__row ) {
-	if ( function_exists('jprm_infoblocks_matches_section') ? jprm_infoblocks_matches_section( $__row, $tid ) : true ) { $__rows[] = $__row; }
-}
-if ( ! empty($__rows) && function_exists('jprm_infoblocks_render_rows') ) {
-	echo '<li class="jp-menu__infoblocks-li">' . jprm_infoblocks_render_rows( $__rows, 'between_sections' ) . '</li>';
-}
-				}
-				$first_section = false;
-
-				$blk  = $sections_data[ $tid ];
-				$term = $blk['term'];
-
-				if ( $term && $show_section_name ) {
-					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
-					if ( $show_section_desc && ! empty( $term->description ) ) {
-						echo '<div class="jp-section__desc">' . esc_html( $term->description ) . '</div>';
+				
+				if ( ! $first_section && ! empty( $ibuckets['between_sections'] ) ) {
+					$__rows = [];
+					foreach ( $ibuckets['between_sections'] as $__row ) {
+						if ( function_exists( 'jprm_infoblocks_matches_section' ) ? jprm_infoblocks_matches_section( $__row, $tid ) : true ) { $__rows[] = $__row; }
 					}
+					if ( ! empty( $__rows ) && function_exists( 'jprm_infoblocks_render_rows' ) ) {
+						echo '<li class="jp-menu__infoblocks-li">' . jprm_infoblocks_render_rows( $__rows, 'between_sections' ) . '</li>';
+					}
+				}
 					echo '</li>';
 				}
 
@@ -768,14 +758,9 @@ if ( ! empty($__rows) && function_exists('jprm_infoblocks_render_rows') ) {
 			$first_left = true;
 			foreach ( $left_sections as $tid ) {
 				if ( ! $first_left && ! empty( $ibuckets['between_sections'] ) && function_exists( 'jprm_infoblocks_render_group' ) ) {
-					/* Info Blocks: targeted between-sections */
-$__rows = [];
-foreach ( $ibuckets['between_sections'] as $__row ) {
-	if ( function_exists('jprm_infoblocks_matches_section') ? jprm_infoblocks_matches_section( $__row, $tid ) : true ) { $__rows[] = $__row; }
-}
-if ( ! empty($__rows) && function_exists('jprm_infoblocks_render_rows') ) {
-	echo '<li class="jp-menu__infoblocks-li">' . jprm_infoblocks_render_rows( $__rows, 'between_sections' ) . '</li>';
-}
+					echo '<li class="jp-menu__infoblocks-li">' .
+						jprm_infoblocks_render_group( $ibuckets['between_sections'], 'between_sections' ) .
+						'</li>'; // phpcs:ignore
 				}
 				$first_left = false;
 
@@ -820,14 +805,9 @@ if ( ! empty($__rows) && function_exists('jprm_infoblocks_render_rows') ) {
 			$first_right = true;
 			foreach ( $right_sections as $tid ) {
 				if ( ! $first_right && ! empty( $ibuckets['between_sections'] ) && function_exists( 'jprm_infoblocks_render_group' ) ) {
-					/* Info Blocks: targeted between-sections */
-$__rows = [];
-foreach ( $ibuckets['between_sections'] as $__row ) {
-	if ( function_exists('jprm_infoblocks_matches_section') ? jprm_infoblocks_matches_section( $__row, $tid ) : true ) { $__rows[] = $__row; }
-}
-if ( ! empty($__rows) && function_exists('jprm_infoblocks_render_rows') ) {
-	echo '<li class="jp-menu__infoblocks-li">' . jprm_infoblocks_render_rows( $__rows, 'between_sections' ) . '</li>';
-}
+					echo '<li class="jp-menu__infoblocks-li">' .
+						jprm_infoblocks_render_group( $ibuckets['between_sections'], 'between_sections' ) .
+						'</li>'; // phpcs:ignore
 				}
 				$first_right = false;
 
@@ -938,14 +918,9 @@ if ( ! empty($__rows) && function_exists('jprm_infoblocks_render_rows') ) {
 			$first_in_col = true;
 			foreach ( $section_ids_chunk as $tid ) {
 				if ( ! $first_in_col && ! empty( $ibuckets['between_sections'] ) && function_exists( 'jprm_infoblocks_render_group' ) ) {
-					/* Info Blocks: targeted between-sections */
-$__rows = [];
-foreach ( $ibuckets['between_sections'] as $__row ) {
-	if ( function_exists('jprm_infoblocks_matches_section') ? jprm_infoblocks_matches_section( $__row, $tid ) : true ) { $__rows[] = $__row; }
-}
-if ( ! empty($__rows) && function_exists('jprm_infoblocks_render_rows') ) {
-	echo '<li class="jp-menu__infoblocks-li">' . jprm_infoblocks_render_rows( $__rows, 'between_sections' ) . '</li>';
-}
+					echo '<li class="jp-menu__infoblocks-li">' .
+						jprm_infoblocks_render_group( $ibuckets['between_sections'], 'between_sections' ) .
+						'</li>'; // phpcs:ignore
 				}
 				$first_in_col = false;
 

@@ -19,7 +19,6 @@ function jprm_infoblocks_partition_by_position( array $rows ) : array {
 		'between_sections' => [],
 		'after_menu'       => [],
 	];
-
 	foreach ( $rows as $r ) {
 		if ( ! is_array( $r ) ) { continue; }
 		$pos = isset( $r['position'] ) ? (string) $r['position'] : 'between_sections';
@@ -32,10 +31,14 @@ endif;
 
 if ( ! function_exists( 'jprm_infoblocks_render_group' ) ) :
 /**
- * Legacy group renderer (kept for BC).
+ * Render a group of info blocks at a given position.
+ *
+ * @param array  $rows Blocks
+ * @param string $position before_menu|between_sections|after_menu
+ * @return string HTML
  */
 function jprm_infoblocks_render_group( array $rows, string $position ) : string {
-	if ( empty( $rows ) ) return '';
+	if ( empty( $rows ) ) { return ''; }
 
 	$allow = [
 		'a'      => [ 'href'=>[], 'title'=>[], 'target'=>[], 'rel'=>[], 'class'=>[] ],
@@ -70,11 +73,9 @@ function jprm_infoblocks_render_group( array $rows, string $position ) : string 
 			} elseif ( isset( $r['button_url'] ) && is_string( $r['button_url'] ) ) {
 				$url = (string) $r['button_url'];
 			}
-			$ext = ! empty( $r['button_url']['is_external'] );
-			$rel = $ext ? ' rel="noopener"' : '';
-			$tgt = $ext ? ' target="_blank"' : '';
 			if ( $txt !== '' && $url !== '' ) {
-				$out .= '<p class="' . esc_attr( $cls ) . '"><a class="jp-infoblock__btn" href="' . esc_url( $url ) . '"' . $tgt . $rel . '>' . wp_kses_post( $txt ) . '</a></p>';
+				$target = ( ! empty( $r['button_url']['is_external'] ) ) ? ' target="_blank" rel="noopener"' : '';
+				$out   .= '<div class="' . esc_attr( $cls ) . '"><a class="jp-button" href="' . esc_url( $url ) . '"' . $target . '>' . esc_html( $txt ) . '</a></div>';
 			}
 			continue;
 		}
@@ -91,13 +92,16 @@ function jprm_infoblocks_render_group( array $rows, string $position ) : string 
 }
 endif;
 
+
 /**
- * NEW: does a between-sections row belong after a given section?
+ * Match a 'between_sections' row against a given section identifier (term ID or slug).
  */
 if ( ! function_exists( 'jprm_infoblocks_matches_section' ) ) :
 function jprm_infoblocks_matches_section( array $row, $section_id_or_slug ) : bool {
 	$target = isset( $row['after_section'] ) ? trim( (string) $row['after_section'] ) : '';
-	if ( $target === '' ) { return true; } // no target => after every section
+	if ( $target === '' ) {
+		return true;
+	}
 	if ( is_numeric( $target ) && (string) (int) $section_id_or_slug === (string) (int) $target ) {
 		return true;
 	}
@@ -109,7 +113,7 @@ function jprm_infoblocks_matches_section( array $row, $section_id_or_slug ) : bo
 endif;
 
 /**
- * NEW: render  a list of rows into a single container (prevents double wrapping)
+ * Render a list of rows into one container.
  */
 if ( ! function_exists( 'jprm_infoblocks_render_rows' ) ) :
 function jprm_infoblocks_render_rows( array $rows, string $position ) : string {
@@ -126,7 +130,6 @@ function jprm_infoblocks_render_rows( array $rows, string $position ) : string {
 		$type    = isset( $r['type'] ) ? (string) $r['type'] : 'html';
 		$variant = isset( $r['style_variant'] ) ? (string) $r['style_variant'] : 'subtle';
 		$cls     = 'jp-infoblock jp-infoblock--' . sanitize_html_class( $type ) . ' jp-infoblock--' . sanitize_html_class( $variant );
-
 		if ( $type === 'image' ) {
 			$img_id  = isset( $r['image_id']['id'] ) ? (int) $r['image_id']['id'] : (int) ( $r['image_id'] ?? 0 );
 			$img_alt = isset( $r['image_alt'] ) ? (string) $r['image_alt'] : '';
@@ -136,7 +139,6 @@ function jprm_infoblocks_render_rows( array $rows, string $position ) : string {
 			}
 			continue;
 		}
-
 		if ( $type === 'button' ) {
 			$txt = isset( $r['button_text'] ) ? (string) $r['button_text'] : '';
 			$url = '';
@@ -150,7 +152,6 @@ function jprm_infoblocks_render_rows( array $rows, string $position ) : string {
 			}
 			continue;
 		}
-
 		$html = isset( $r['content_html'] ) ? (string) $r['content_html'] : '';
 		if ( $html !== '' ) {
 			$out .= '<div class="' . esc_attr( $cls ) . '">' . wp_kses( $html, $allow ) . '</div>';
