@@ -83,11 +83,11 @@ final class Restaurant_Menu extends Widget_Base {
 	}
 
 	/**
-	 * NEW: Build section options limited to the sections that actually occur
+	 * Build section options limited to the sections that actually occur
 	 * in items for the selected Menu. Falls back to all sections.
 	 *
 	 * @param int $menu_term_id
-	 * @param array $fallback_all key=>label full list (from get_terms_options('jprm_section'))
+	 * @param array $fallback_all key=>label
 	 * @return array
 	 */
 	protected function section_options_for_menu( int $menu_term_id, array $fallback_all ) : array {
@@ -406,7 +406,7 @@ final class Restaurant_Menu extends Widget_Base {
 		] );
 		$this->end_controls_section();
 
-		/* --- Info Blocks (Step 1) ---------------------------------------------- */
+		/* --- Info Blocks (Step 1 + Title) -------------------------------------- */
 		$this->start_controls_section(
 			'jprm_section_info_blocks',
 			[ 'label' => __( 'Info Blocks', 'jellopoint-restaurant-menu' ) ]
@@ -419,6 +419,15 @@ final class Restaurant_Menu extends Widget_Base {
 		$ib_section_opts  = $this->section_options_for_menu( $menu_id_for_ib, $all_section_opts );
 
 		$ib = new Repeater();
+
+		// NEW: Editor-only Title for easier identification
+		$ib->add_control( 'ib_title', [
+			'label'       => __( 'Title (editor only)', 'jellopoint-restaurant-menu' ),
+			'type'        => Controls_Manager::TEXT,
+			'placeholder' => __( 'e.g., Chef’s Note, Allergen Info', 'jellopoint-restaurant-menu' ),
+			'label_block' => true,
+			'default'     => '',
+		] );
 
 		$ib->add_control( 'content_html', [
 			'label'       => __( 'HTML', 'jellopoint-restaurant-menu' ),
@@ -461,7 +470,8 @@ final class Restaurant_Menu extends Widget_Base {
 			'type'        => Controls_Manager::REPEATER,
 			'fields'      => $ib->get_controls(),
 			'default'     => [],
-			'title_field' => '{{{ position }}} #{{{ section_id }}}',
+			// Show the editor title prominently; keep position/section for quick context.
+			'title_field' => '{{{ ib_title }}} ({{{ position }}} #{{{ section_id }}})',
 		] );
 
 		$this->end_controls_section();
@@ -550,7 +560,6 @@ final class Restaurant_Menu extends Widget_Base {
 		self::require_badges_partial_once();
 		self::require_infoblocks_partial_once(); // NEW
 
-		// One-time tiny inline CSS (intentionally empty placeholder)
 		static $css_done = false;
 		if ( ! $css_done ) {
 			$css_done = true;
@@ -640,7 +649,7 @@ final class Restaurant_Menu extends Widget_Base {
 		$show_section_name = ( isset( $s['show_section_name'] ) && $s['show_section_name'] === 'yes' );
 		$show_section_desc = ( isset( $s['show_section_description'] ) && $s['show_section_description'] === 'yes' );
 
-		// NEW: Prepare Info Blocks map once
+		// Prepare Info Blocks map once
 		$ib_rows = ( isset( $s['info_blocks'] ) && is_array( $s['info_blocks'] ) ) ? $s['info_blocks'] : [];
 		$ib_map  = function_exists('jprm_infoblocks_partition_by_position') ? jprm_infoblocks_partition_by_position( $ib_rows ) : [];
 
@@ -672,7 +681,7 @@ final class Restaurant_Menu extends Widget_Base {
 				$blk  = $sections_data[ $tid ];
 				$term = $blk['term'];
 
-				// NEW: Info Blocks ABOVE the section
+				// Info Blocks ABOVE the section
 				if ( isset( $ib_map[$tid]['above'] ) && ! empty( $ib_map[$tid]['above'] ) ) {
 					echo '<li class="jp-menu__infoblock-li">';
 					echo jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ); // phpcs:ignore
@@ -695,7 +704,6 @@ final class Restaurant_Menu extends Widget_Base {
 					echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
 					echo '  <div class="jp-menu__content">';
 
-					// Build title line: badges + title inline
 					echo '    <div class="jp-menu__titleline">';
 					if ( $show_badges && $badges_position === 'before_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
 						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
@@ -717,7 +725,7 @@ final class Restaurant_Menu extends Widget_Base {
 					echo '</div></li>';
 				}
 
-				// NEW: Info Blocks BELOW the section
+				// Info Blocks BELOW the section
 				if ( isset( $ib_map[$tid]['below'] ) && ! empty( $ib_map[$tid]['below'] ) ) {
 					echo '<li class="jp-menu__infoblock-li">';
 					echo jprm_infoblocks_render_group( $ib_map[$tid]['below'], 'below' ); // phpcs:ignore
@@ -760,16 +768,18 @@ final class Restaurant_Menu extends Widget_Base {
 
 			// LEFT column
 			echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--left">';
-			if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'first_column' ) {
-				echo '<li class="jp-menu__meta-li">';
-				echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'col' ); // phpcs:ignore
-				echo '</li>';
+			if ( $menu_term && ( $show_menu_title || $show_menu_desc ) ) {
+				if ( $menu_pos === 'first_column' ) {
+					echo '<li class="jp-menu__meta-li">';
+					echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'col' ); // phpcs:ignore
+					echo '</li>';
+				}
 			}
 			foreach ( $left_sections as $tid ) {
 				$blk  = $sections_data[ $tid ];
 				$term = $blk['term'];
 
-				// NEW: Above
+				// Above
 				if ( isset( $ib_map[$tid]['above'] ) && ! empty( $ib_map[$tid]['above'] ) ) {
 					echo '<li class="jp-menu__infoblock-li">';
 					echo jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ); // phpcs:ignore
@@ -810,7 +820,7 @@ final class Restaurant_Menu extends Widget_Base {
 					echo '</div></li>';
 				}
 
-				// NEW: Below
+				// Below
 				if ( isset( $ib_map[$tid]['below'] ) && ! empty( $ib_map[$tid]['below'] ) ) {
 					echo '<li class="jp-menu__infoblock-li">';
 					echo jprm_infoblocks_render_group( $ib_map[$tid]['below'], 'below' ); // phpcs:ignore
@@ -825,7 +835,7 @@ final class Restaurant_Menu extends Widget_Base {
 				$blk  = $sections_data[ $tid ];
 				$term = $blk['term'];
 
-				// NEW: Above
+				// Above
 				if ( isset( $ib_map[$tid]['above'] ) && ! empty( $ib_map[$tid]['above'] ) ) {
 					echo '<li class="jp-menu__infoblock-li">';
 					echo jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ); // phpcs:ignore
@@ -833,7 +843,7 @@ final class Restaurant_Menu extends Widget_Base {
 				}
 
 				if ( $term && $show_section_name ) {
-					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
+					echo '<li class="jp-menu__section-header'><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
 					if ( $show_section_desc && ! empty( $term->description ) ) {
 						echo '<div class="jp-section__desc">' . esc_html( $term->description ) . '</div>';
 					}
@@ -866,7 +876,7 @@ final class Restaurant_Menu extends Widget_Base {
 					echo '</div></li>';
 				}
 
-				// NEW: Below
+				// Below
 				if ( isset( $ib_map[$tid]['below'] ) && ! empty( $ib_map[$tid]['below'] ) ) {
 					echo '<li class="jp-menu__infoblock-li">';
 					echo jprm_infoblocks_render_group( $ib_map[$tid]['below'], 'below' ); // phpcs:ignore
@@ -937,7 +947,7 @@ final class Restaurant_Menu extends Widget_Base {
 				$blk  = $sections_data[ $tid ];
 				$term = $blk['term'];
 
-				// NEW: Above
+				// Above
 				if ( isset( $ib_map[$tid]['above'] ) && ! empty( $ib_map[$tid]['above'] ) ) {
 					echo '<li class="jp-menu__infoblock-li">';
 					echo jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ); // phpcs:ignore
@@ -955,7 +965,7 @@ final class Restaurant_Menu extends Widget_Base {
 					$post_id = (int) $post->ID;
 					$title   = get_the_title( $post_id );
 					$desc    = get_post_meta( $post_id, 'jprm_desc', true );
-					echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
+					echo '<li class="jp-menu__item'><div class="jp-menu__inner">';
 					echo '  <div class="jp-menu__content">';
 
 					echo '    <div class="jp-menu__titleline">';
@@ -978,7 +988,7 @@ final class Restaurant_Menu extends Widget_Base {
 					echo '</div></li>';
 				}
 
-				// NEW: Below
+				// Below
 				if ( isset( $ib_map[$tid]['below'] ) && ! empty( $ib_map[$tid]['below'] ) ) {
 					echo '<li class="jp-menu__infoblock-li">';
 					echo jprm_infoblocks_render_group( $ib_map[$tid]['below'], 'below' ); // phpcs:ignore
