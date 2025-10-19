@@ -129,3 +129,43 @@
   vertical-align:-0.2em;
   border-radius:2px;
 }
+/* === Minimal layout for Matrix mode (no visual styling) === */
+/* We use table layout so we don't need to know column counts in advance. */
+
+.jp-matrix {
+  display: table;
+  width: 100%;
+  border-collapse: collapse; /* keeps columns aligned */
+}
+
+.jp-matrix__row {
+  display: table-row;
+}
+
+.jp-matrix__cell {
+  display: table-cell;
+  vertical-align: top;
+  /* no padding/margins here to honor the "no styling" request */
+}
+
+/* Left-most column: item title/desc */
+.jp-matrix__cell--title {
+  /* optional: reserve some width for titles; adjust or remove if not desired */
+  width: 40%;
+}
+
+/* Header row: make it distinct semantically (no visual style) */
+.jp-matrix__row--header .jp-matrix__cell {
+  font-weight: inherit; /* don't force bold; styling comes later */
+}
+
+/* Value cells (right-side columns) */
+.jp-matrix__cell--value {
+  text-align: left; /* keep neutral; visual style later */
+}
+
+/* If a theme adds list styles to <li>, ensure matrix block fills the row */
+.jp-menu__matrix {
+  list-style: none;
+}
+
