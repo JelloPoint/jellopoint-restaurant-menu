@@ -200,7 +200,7 @@ function jprm_render_section_block( $tid, array $blk, array $opts ) : void {
 	}
 
 	if ( ! $use_matrix ) {
-		// Inline: render each item as before
+		// Inline:  render each item as before
 		foreach ( $items as $post ) {
 			jprm_render_item_inline( (int) $post->ID, $show_badges, $badges_position, $badges_presentation, $label_presentation, $label_position, $label_map, $currency_opts );
 		}
