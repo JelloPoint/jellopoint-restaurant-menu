@@ -290,7 +290,67 @@ trait Restaurant_Menu_Controls {
 		] );
 
 		$this->end_controls_section();
+/* --- Labels Layout (Inline / Matrix, with per-section override) -------- */
+		$this->start_controls_section(
+			'jprm_section_labels_layout',
+			[ 'label' => __( 'Labels Layout', 'jellopoint-restaurant-menu' ) ]
+		);
 
+		$this->add_control( 'labels_layout', [
+			'label'   => __( 'Layout type', 'jellopoint-restaurant-menu' ),
+			'type'    => Controls_Manager::SELECT,
+			'default' => 'inline',
+			'options' => [
+				'inline' => __( 'Inline (current behavior)', 'jellopoint-restaurant-menu' ),
+				'matrix' => __( 'Matrix (labels as columns per section)', 'jellopoint-restaurant-menu' ),
+			],
+			'description' => __( 'Choose how to display labels/prices.', 'jellopoint-restaurant-menu' ),
+		] );
+
+		$this->add_control( 'labels_matrix_placeholder', [
+			'label'       => __( 'Matrix: empty value placeholder', 'jellopoint-restaurant-menu' ),
+			'type'        => Controls_Manager::TEXT,
+			'default'     => '—',
+			'placeholder' => '—',
+			'condition'   => [ 'labels_layout' => 'matrix' ],
+		] );
+
+		$sec_opts = $this->get_terms_options( 'jprm_section' );
+		$ov = new Repeater();
+		$ov->add_control( 'section_id', [
+			'label'       => __( 'Section', 'jellopoint-restaurant-menu' ),
+			'type'        => Controls_Manager::SELECT2,
+			'options'     => $sec_opts,
+			'multiple'    => false,
+			'label_block' => true,
+		] );
+		$ov->add_control( 'layout', [
+			'label'   => __( 'Layout for this section', 'jellopoint-restaurant-menu' ),
+			'type'    => Controls_Manager::SELECT,
+			'default' => 'matrix',
+			'options' => [
+				'inline' => __( 'Inline', 'jellopoint-restaurant-menu' ),
+				'matrix' => __( 'Matrix', 'jellopoint-restaurant-menu' ),
+			],
+		] );
+		$ov->add_control( 'placeholder', [
+			'label'       => __( 'Placeholder for this section', 'jellopoint-restaurant-menu' ),
+			'type'        => Controls_Manager::TEXT,
+			'default'     => '',
+			'placeholder' => '',
+			'description' => __( 'Leave empty to use global placeholder.', 'jellopoint-restaurant-menu' ),
+		] );
+
+		$this->add_control( 'labels_layout_overrides', [
+			'label'       => __( 'Per-section layout overrides', 'jellopoint-restaurant-menu' ),
+			'type'        => Controls_Manager::REPEATER,
+			'fields'      => $ov->get_controls(),
+			'default'     => [],
+			'title_field' => '{{{ section_id }}} → {{{ layout }}}',
+		] );
+
+		$this->end_controls_section();
+        
 		/* --- Badges ------------------------------------------------------------- */
 		$this->start_controls_section(
 			'jprm_section_badges',
@@ -388,66 +448,7 @@ trait Restaurant_Menu_Controls {
 
 		$this->end_controls_section();
 
-		/* --- Labels Layout (Inline / Matrix, with per-section override) -------- */
-		$this->start_controls_section(
-			'jprm_section_labels_layout',
-			[ 'label' => __( 'Labels Layout', 'jellopoint-restaurant-menu' ) ]
-		);
-
-		$this->add_control( 'labels_layout', [
-			'label'   => __( 'Layout type', 'jellopoint-restaurant-menu' ),
-			'type'    => Controls_Manager::SELECT,
-			'default' => 'inline',
-			'options' => [
-				'inline' => __( 'Inline (current behavior)', 'jellopoint-restaurant-menu' ),
-				'matrix' => __( 'Matrix (labels as columns per section)', 'jellopoint-restaurant-menu' ),
-			],
-			'description' => __( 'Choose how to display labels/prices.', 'jellopoint-restaurant-menu' ),
-		] );
-
-		$this->add_control( 'labels_matrix_placeholder', [
-			'label'       => __( 'Matrix: empty value placeholder', 'jellopoint-restaurant-menu' ),
-			'type'        => Controls_Manager::TEXT,
-			'default'     => '—',
-			'placeholder' => '—',
-			'condition'   => [ 'labels_layout' => 'matrix' ],
-		] );
-
-		$sec_opts = $this->get_terms_options( 'jprm_section' );
-		$ov = new Repeater();
-		$ov->add_control( 'section_id', [
-			'label'       => __( 'Section', 'jellopoint-restaurant-menu' ),
-			'type'        => Controls_Manager::SELECT2,
-			'options'     => $sec_opts,
-			'multiple'    => false,
-			'label_block' => true,
-		] );
-		$ov->add_control( 'layout', [
-			'label'   => __( 'Layout for this section', 'jellopoint-restaurant-menu' ),
-			'type'    => Controls_Manager::SELECT,
-			'default' => 'matrix',
-			'options' => [
-				'inline' => __( 'Inline', 'jellopoint-restaurant-menu' ),
-				'matrix' => __( 'Matrix', 'jellopoint-restaurant-menu' ),
-			],
-		] );
-		$ov->add_control( 'placeholder', [
-			'label'       => __( 'Placeholder for this section', 'jellopoint-restaurant-menu' ),
-			'type'        => Controls_Manager::TEXT,
-			'default'     => '',
-			'placeholder' => '',
-			'description' => __( 'Leave empty to use global placeholder.', 'jellopoint-restaurant-menu' ),
-		] );
-
-		$this->add_control( 'labels_layout_overrides', [
-			'label'       => __( 'Per-section layout overrides', 'jellopoint-restaurant-menu' ),
-			'type'        => Controls_Manager::REPEATER,
-			'fields'      => $ov->get_controls(),
-			'default'     => [],
-			'title_field' => '{{{ section_id }}} → {{{ layout }}}',
-		] );
-
-		$this->end_controls_section();
+		
 
 		/* --- Layout (columns, split) ------------------------------------------- */
 		$this->start_controls_section(
