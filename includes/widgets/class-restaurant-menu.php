@@ -36,7 +36,6 @@ final class Restaurant_Menu extends Widget_Base {
 		$loaded = true;
 	}
 
-	/** NEW: load badges partial */
 	private static function require_badges_partial_once() : void {
 		static $loaded = false;
 		if ( $loaded ) return;
@@ -51,7 +50,7 @@ final class Restaurant_Menu extends Widget_Base {
 		}
 	}
 
-	/** NEW: load info-blocks partial */
+	/** NEW (Step 1): info blocks partial */
 	private static function require_infoblocks_partial_once() : void {
 		static $loaded = false;
 		if ( $loaded ) return;
@@ -62,6 +61,21 @@ final class Restaurant_Menu extends Widget_Base {
 		} else {
 			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 				error_log( '[JPRM] info-blocks.php not found/readable at: ' . $path );
+			}
+		}
+	}
+
+	/** NEW (Step 3): menu render partial */
+	private static function require_menu_render_partial_once() : void {
+		static $loaded = false;
+		if ( $loaded ) return;
+		$path = dirname( __DIR__ ) . '/render/partials/menu-render.php';
+		if ( is_readable( $path ) ) {
+			require_once $path;
+			$loaded = true;
+		} else {
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( '[JPRM] menu-render.php not found/readable at: ' . $path );
 			}
 		}
 	}
@@ -83,12 +97,7 @@ final class Restaurant_Menu extends Widget_Base {
 	}
 
 	/**
-	 * Build section options limited to the sections that actually occur
-	 * in items for the selected Menu. Falls back to all sections.
-	 *
-	 * @param int $menu_term_id
-	 * @param array $fallback_all key=>label
-	 * @return array
+	 * Limit section dropdown to sections actually used by items in a menu.
 	 */
 	protected function section_options_for_menu( int $menu_term_id, array $fallback_all ) : array {
 		if ( $menu_term_id <= 0 ) return $fallback_all;
@@ -406,21 +415,18 @@ final class Restaurant_Menu extends Widget_Base {
 		] );
 		$this->end_controls_section();
 
-		/* --- Info Blocks (Step 1 + Title) -------------------------------------- */
+		/* --- Info Blocks (Step 1 + editor-only title already added) ------------- */
 		$this->start_controls_section(
 			'jprm_section_info_blocks',
 			[ 'label' => __( 'Info Blocks', 'jellopoint-restaurant-menu' ) ]
 		);
 
-		// Build Section options filtered by the chosen single Menu (if any)
 		$all_section_opts = $section_options;
 		$menu_selected    = $this->get_settings_for_display( 'menus' );
 		$menu_id_for_ib   = ( is_numeric( $menu_selected ) ? (int) $menu_selected : 0 );
 		$ib_section_opts  = $this->section_options_for_menu( $menu_id_for_ib, $all_section_opts );
 
 		$ib = new Repeater();
-
-		// NEW: Editor-only Title for easier identification
 		$ib->add_control( 'ib_title', [
 			'label'       => __( 'Title (editor only)', 'jellopoint-restaurant-menu' ),
 			'type'        => Controls_Manager::TEXT,
@@ -428,7 +434,6 @@ final class Restaurant_Menu extends Widget_Base {
 			'label_block' => true,
 			'default'     => '',
 		] );
-
 		$ib->add_control( 'content_html', [
 			'label'       => __( 'HTML', 'jellopoint-restaurant-menu' ),
 			'type'        => Controls_Manager::CODE,
@@ -437,13 +442,11 @@ final class Restaurant_Menu extends Widget_Base {
 			'label_block' => true,
 			'default'     => '',
 		] );
-
 		$ib->add_control( 'image', [
 			'label'   => __( 'Image', 'jellopoint-restaurant-menu' ),
 			'type'    => Controls_Manager::MEDIA,
 			'default' => [],
 		] );
-
 		$ib->add_control( 'position', [
 			'label'   => __( 'Position vs Section', 'jellopoint-restaurant-menu' ),
 			'type'    => Controls_Manager::SELECT,
@@ -453,7 +456,6 @@ final class Restaurant_Menu extends Widget_Base {
 			],
 			'default' => 'above',
 		] );
-
 		$ib->add_control( 'section_id', [
 			'label'       => __( 'Target Section', 'jellopoint-restaurant-menu' ),
 			'type'        => Controls_Manager::SELECT2,
@@ -470,7 +472,6 @@ final class Restaurant_Menu extends Widget_Base {
 			'type'        => Controls_Manager::REPEATER,
 			'fields'      => $ib->get_controls(),
 			'default'     => [],
-			// Show the editor title prominently; keep position/section for quick context.
 			'title_field' => '{{{ ib_title }}} ({{{ position }}} #{{{ section_id }}})',
 		] );
 
@@ -558,17 +559,16 @@ final class Restaurant_Menu extends Widget_Base {
 	public function render() {
 		self::require_price_partial_once();
 		self::require_badges_partial_once();
-		self::require_infoblocks_partial_once(); // NEW
+		self::require_infoblocks_partial_once();
+		self::require_menu_render_partial_once(); // NEW
 
 		static $css_done = false;
-		if ( ! $css_done ) {
-			$css_done = true;
-		}
+		if ( ! $css_done ) { $css_done = true; }
 
 		$s = $this->get_settings_for_display();
 		$mode = isset( $s['data_mode'] ) ? (string) $s['data_mode'] : null;
 
-		// Static mode
+		// Static mode unchanged
 		if ( 'static' === $mode || ( null === $mode && ! empty( $s['items'] ) ) ) {
 			$this->render_static_list( is_array( $s['items'] ) ? $s['items'] : [] );
 			return;
@@ -649,356 +649,36 @@ final class Restaurant_Menu extends Widget_Base {
 		$show_section_name = ( isset( $s['show_section_name'] ) && $s['show_section_name'] === 'yes' );
 		$show_section_desc = ( isset( $s['show_section_description'] ) && $s['show_section_description'] === 'yes' );
 
-		// Prepare Info Blocks map once
+		// Info Blocks map
 		$ib_rows = ( isset( $s['info_blocks'] ) && is_array( $s['info_blocks'] ) ) ? $s['info_blocks'] : [];
 		$ib_map  = function_exists('jprm_infoblocks_partition_by_position') ? jprm_infoblocks_partition_by_position( $ib_rows ) : [];
 
-		$render_menu_meta = function( $term, bool $show_title, bool $show_desc, string $scope ) : string {
-			if ( ! $term || ( ! $show_title && ! $show_desc ) ) return '';
-			$title = $show_title ? trim( (string) $term->name ) : '';
-			$desc  = $show_desc  ? trim( (string) $term->description ) : '';
-			if ( $title === '' && $desc === '' ) return '';
-			$cls = 'jp-menu__meta ' . ( $scope === 'global' ? 'jp-menu__meta--global' : 'jp-menu__meta--col' );
-			$out  = '<div class="' . esc_attr( $cls ) . '">';
-			if ( $title !== '' ) $out .= '<h2 class="jp-menu__meta-title">' . esc_html( $title ) . '</h2>';
-			if ( $desc  !== '' ) $out .= '<div class="jp-menu__meta-desc">' . esc_html( $desc ) . '</div>';
-			$out .= '</div>';
-			return $out;
-		};
+		// Build context and delegate rendering to partial
+		$ctx = [
+			'menu_term'           => $menu_term,
+			'show_menu_title'     => $show_menu_title,
+			'show_menu_desc'      => $show_menu_desc,
+			'menu_pos'            => $menu_pos,
+			'sections_order'      => $sections_order,
+			'sections_data'       => $sections_data,
+			'show_section_name'   => $show_section_name,
+			'show_section_desc'   => $show_section_desc,
+			'show_badges'         => $show_badges,
+			'badges_presentation' => $badges_presentation,
+			'badges_position'     => $badges_position,
+			'label_presentation'  => $label_presentation,
+			'label_position'      => $label_position,
+			'label_map'           => $label_map,
+			'currency_opts'       => $currency_opts,
+			'split_mode'          => $split_mode,
+			'split_after_1'       => $split_after_1,
+			'split_after_2'       => $split_after_2,
+			'ib_map'              => $ib_map,
+		];
 
-		/* ===== 1 column ===== */
-		if ( $columns === '1' ) {
-			if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
-				echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
-			}
-			echo '<ul class="jp-menu">';
-			if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'first_column' ) {
-				echo '<li class="jp-menu__meta-li">';
-				echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'col' ); // phpcs:ignore
-				echo '</li>';
-			}
-			foreach ( $sections_order as $tid ) {
-				$blk  = $sections_data[ $tid ];
-				$term = $blk['term'];
-
-				// Info Blocks ABOVE the section
-				if ( isset( $ib_map[$tid]['above'] ) && ! empty( $ib_map[$tid]['above'] ) ) {
-					echo '<li class="jp-menu__infoblock-li">';
-					echo jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ); // phpcs:ignore
-					echo '</li>';
-				}
-
-				if ( $term && $show_section_name ) {
-					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
-					if ( $show_section_desc && ! empty( $term->description ) ) {
-						echo '<div class="jp-section__desc">' . esc_html( $term->description ) . '</div>';
-					}
-					echo '</li>';
-				}
-
-				foreach ( $blk['items'] as $post ) {
-					$post_id = (int) $post->ID;
-					$title   = get_the_title( $post_id );
-					$desc    = get_post_meta( $post_id, 'jprm_desc', true );
-
-					echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
-					echo '  <div class="jp-menu__content">';
-
-					echo '    <div class="jp-menu__titleline">';
-					if ( $show_badges && $badges_position === 'before_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
-						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
-					}
-					if ( $title !== '' ) echo '      <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
-					if ( $show_badges && $badges_position === 'after_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
-						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
-					}
-					echo '    </div>';
-
-					if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
-					echo '  </div>';
-
-					if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
-						echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
-					} else {
-						echo '<div class="jp-menu__pricegroup"></div>';
-					}
-					echo '</div></li>';
-				}
-
-				// Info Blocks BELOW the section
-				if ( isset( $ib_map[$tid]['below'] ) && ! empty( $ib_map[$tid]['below'] ) ) {
-					echo '<li class="jp-menu__infoblock-li">';
-					echo jprm_infoblocks_render_group( $ib_map[$tid]['below'], 'below' ); // phpcs:ignore
-					echo '</li>';
-				}
-			}
-			echo '</ul>';
-			return;
-		}
-
-		/* ===== 2 columns ===== */
-		if ( $columns === '2' ) {
-			$split_index = null;
-			if ( $split_mode === 'manual' && $split_after_1 !== '' ) {
-				$target = (int) $split_after_1;
-				foreach ( $sections_order as $idx => $tid ) {
-					if ( $tid === $target ) { $split_index = $idx; break; }
-				}
-			}
-			if ( $split_index === null ) {
-				$total = 0;
-				foreach ( $sections_order as $tid ) { $total += count( $sections_data[ $tid ]['items'] ); }
-				$half = (int) ceil( $total / 2 );
-				$acc  = 0;
-				foreach ( $sections_order as $idx => $tid ) {
-					$acc += count( $sections_data[ $tid ]['items'] );
-					if ( $acc >= $half ) { $split_index = $idx; break; }
-				}
-				if ( $split_index === null ) $split_index = count( $sections_order ) - 1;
-			}
-
-			$left_sections  = array_slice( $sections_order, 0, $split_index + 1 );
-			$right_sections = array_slice( $sections_order, $split_index + 1 );
-
-			if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
-				echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
-			}
-
-			echo '<div class="jp-menu-grid jp-cols-2 jp-menu--cols-2 jp-two-cols">';
-
-			// LEFT column
-			echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--left">';
-			if ( $menu_term && ( $show_menu_title || $show_menu_desc ) ) {
-				if ( $menu_pos === 'first_column' ) {
-					echo '<li class="jp-menu__meta-li">';
-					echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'col' ); // phpcs:ignore
-					echo '</li>';
-				}
-			}
-			foreach ( $left_sections as $tid ) {
-				$blk  = $sections_data[ $tid ];
-				$term = $blk['term'];
-
-				// Above
-				if ( isset( $ib_map[$tid]['above'] ) && ! empty( $ib_map[$tid]['above'] ) ) {
-					echo '<li class="jp-menu__infoblock-li">';
-					echo jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ); // phpcs:ignore
-					echo '</li>';
-				}
-
-				if ( $term && $show_section_name ) {
-					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
-					if ( $show_section_desc && ! empty( $term->description ) ) {
-						echo '<div class="jp-section__desc">' . esc_html( $term->description ) . '</div>';
-					}
-					echo '</li>';
-				}
-				foreach ( $blk['items'] as $post ) {
-					$post_id = (int) $post->ID;
-					$title   = get_the_title( $post_id );
-					$desc    = get_post_meta( $post_id, 'jprm_desc', true );
-					echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
-					echo '  <div class="jp-menu__content">';
-
-					echo '    <div class="jp-menu__titleline">';
-					if ( $show_badges && $badges_position === 'before_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
-						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
-					}
-					if ( $title !== '' ) echo '      <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
-					if ( $show_badges && $badges_position === 'after_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
-						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
-					}
-					echo '    </div>';
-
-					if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
-					echo '  </div>';
-					if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
-						echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
-					} else {
-						echo '<div class="jp-menu__pricegroup"></div>';
-					}
-					echo '</div></li>';
-				}
-
-				// Below
-				if ( isset( $ib_map[$tid]['below'] ) && ! empty( $ib_map[$tid]['below'] ) ) {
-					echo '<li class="jp-menu__infoblock-li">';
-					echo jprm_infoblocks_render_group( $ib_map[$tid]['below'], 'below' ); // phpcs:ignore
-					echo '</li>';
-				}
-			}
-			echo '</ul></div>';
-
-			// RIGHT column
-			echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--right">';
-			foreach ( $right_sections as $tid ) {
-				$blk  = $sections_data[ $tid ];
-				$term = $blk['term'];
-
-				// Above
-				if ( isset( $ib_map[$tid]['above'] ) && ! empty( $ib_map[$tid]['above'] ) ) {
-					echo '<li class="jp-menu__infoblock-li">';
-					echo jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ); // phpcs:ignore
-					echo '</li>';
-				}
-
-				if ( $term && $show_section_name ) {
-					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
-					if ( $show_section_desc && ! empty( $term->description ) ) {
-						echo '<div class="jp-section__desc">' . esc_html( $term->description ) . '</div>';
-					}
-					echo '</li>';
-				}
-				foreach ( $blk['items'] as $post ) {
-					$post_id = (int) $post->ID;
-					$title   = get_the_title( $post_id );
-					$desc    = get_post_meta( $post_id, 'jprm_desc', true );
-					echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
-					echo '  <div class="jp-menu__content">';
-
-					echo '    <div class="jp-menu__titleline">';
-					if ( $show_badges && $badges_position === 'before_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
-						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
-					}
-					if ( $title !== '' ) echo '      <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
-					if ( $show_badges && $badges_position === 'after_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
-						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
-					}
-					echo '    </div>';
-
-					if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
-					echo '  </div>';
-					if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
-						echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
-					} else {
-						echo '<div class="jp-menu__pricegroup"></div>';
-					}
-					echo '</div></li>';
-				}
-
-				// Below
-				if ( isset( $ib_map[$tid]['below'] ) && ! empty( $ib_map[$tid]['below'] ) ) {
-					echo '<li class="jp-menu__infoblock-li">';
-					echo jprm_infoblocks_render_group( $ib_map[$tid]['below'], 'below' ); // phpcs:ignore
-					echo '</li>';
-				}
-			}
-			echo '</ul></div>';
-
-			echo '</div>';
-			return;
-		}
-
-		/* ===== 3 columns ===== */
-		$total = 0;
-		foreach ( $sections_order as $tid ) { $total += count( $sections_data[ $tid ]['items'] ); }
-
-		$col1 = $col2 = $col3 = [];
-
-		if ( $split_mode === 'manual' && $split_after_1 !== '' && $split_after_2 !== '' ) {
-			$idx1 = $idx2 = null;
-			$t1   = (int) $split_after_1;
-			$t2   = (int) $split_after_2;
-			foreach ( $sections_order as $i => $tid ) {
-				if ( $idx1 === null && $tid === $t1 ) $idx1 = $i;
-				if ( $idx2 === null && $tid === $t2 ) $idx2 = $i;
-				if ( $idx1 !== null && $idx2 !== null ) break;
-			}
-			if ( $idx1 !== null && $idx2 !== null && $idx2 > $idx1 ) {
-				$col1 = array_slice( $sections_order, 0, $idx1 + 1 );
-				$col2 = array_slice( $sections_order, $idx1 + 1, $idx2 - $idx1 );
-				$col3 = array_slice( $sections_order, $idx2 + 1 );
-			}
-		}
-
-		if ( empty( $col1 ) && empty( $col2 ) && empty( $col3 ) ) {
-			$t1 = (int) ceil( $total / 3 );
-			$t2 = (int) ceil( (2 * $total) / 3 );
-			$i1 = null; $i2 = null; $acc = 0;
-			foreach ( $sections_order as $idx => $tid ) {
-				$acc += count( $sections_data[ $tid ]['items'] );
-				if ( $i1 === null && $acc >= $t1 ) $i1 = $idx;
-				if ( $i2 === null && $acc >= $t2 ) { $i2 = $idx; break; }
-			}
-			if ( $i1 === null ) $i1 = 0;
-			if ( $i2 === null ) $i2 = max( $i1, count( $sections_order ) - 1 );
-
-			$col1 = array_slice( $sections_order, 0, $i1 + 1 );
-			$col2 = array_slice( $sections_order, $i1 + 1, $i2 - $i1 );
-			$col3 = array_slice( $sections_order, $i2 + 1 );
-		}
-
-		if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
-			echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
-		}
-
-		echo '<div class="jp-menu-grid jp-cols-3 jp-menu--cols-3 jp-three-cols">';
-
-		$cols = [ $col1, $col2, $col3 ];
-		$pos  = [ 'left', 'middle', 'right' ];
-		foreach ( $cols as $i => $section_ids_chunk ) {
-			echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--' . esc_attr( $pos[$i] ) . '">';
-			if ( $i === 0 && $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'first_column' ) {
-				echo '<li class="jp-menu__meta-li">';
-				echo $render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'col' ); // phpcs:ignore
-				echo '</li>';
-			}
-			foreach ( $section_ids_chunk as $tid ) {
-				$blk  = $sections_data[ $tid ];
-				$term = $blk['term'];
-
-				// Above
-				if ( isset( $ib_map[$tid]['above'] ) && ! empty( $ib_map[$tid]['above'] ) ) {
-					echo '<li class="jp-menu__infoblock-li">';
-					echo jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ); // phpcs:ignore
-					echo '</li>';
-				}
-
-				if ( $term && $show_section_name ) {
-					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
-					if ( $show_section_desc && ! empty( $term->description ) ) {
-						echo '<div class="jp-section__desc">' . esc_html( $term->description ) . '</div>';
-					}
-					echo '</li>';
-				}
-				foreach ( $blk['items'] as $post ) {
-					$post_id = (int) $post->ID;
-					$title   = get_the_title( $post_id );
-					$desc    = get_post_meta( $post_id, 'jprm_desc', true );
-					echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
-					echo '  <div class="jp-menu__content">';
-
-					echo '    <div class="jp-menu__titleline">';
-					if ( $show_badges && $badges_position === 'before_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
-						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
-					}
-					if ( $title !== '' ) echo '      <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
-					if ( $show_badges && $badges_position === 'after_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
-						echo jprm_render_badges_inline_html( $post_id, $badges_presentation ); // phpcs:ignore
-					}
-					echo '    </div>';
-
-					if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
-					echo '  </div>';
-					if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
-						echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
-					} else {
-						echo '<div class="jp-menu__pricegroup"></div>';
-					}
-					echo '</div></li>';
-				}
-
-				// Below
-				if ( isset( $ib_map[$tid]['below'] ) && ! empty( $ib_map[$tid]['below'] ) ) {
-					echo '<li class="jp-menu__infoblock-li">';
-					echo jprm_infoblocks_render_group( $ib_map[$tid]['below'], 'below' ); // phpcs:ignore
-					echo '</li>';
-				}
-			}
-			echo '</ul></div>';
-		}
-
-		echo '</div>';
+		if ( $columns === '1' ) { jprm_render_menu_one_column( $ctx ); return; }
+		if ( $columns === '2' ) { jprm_render_menu_two_columns( $ctx ); return; }
+		jprm_render_menu_three_columns( $ctx );
 	}
 
 	/* =========================
