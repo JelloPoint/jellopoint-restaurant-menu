@@ -8,6 +8,52 @@ namespace JelloPoint\RestaurantMenu\Admin\Save;
 use JelloPoint\RestaurantMenu\Storage\Price_Schema;
 use JelloPoint\RestaurantMenu\Storage\Price_Repository;
 
+// --- Ensure storage classes are loaded (Price_Schema + Price_Repository) ---
+if ( ! class_exists( 'JelloPoint\\RestaurantMenu\\Storage\\Price_Schema' ) ) {
+    // Adjust the path if your file lives elsewhere:
+    $p = dirname( __DIR__, 2 ) . '/storage/class-price-schema.php';
+    if ( is_readable( $p ) ) {
+        require_once $p;
+    }
+}
+
+if ( ! class_exists( 'JelloPoint\\RestaurantMenu\\Storage\\Price_Repository' ) ) {
+    // Adjust the path if your file lives elsewhere:
+    $p = dirname( __DIR__, 2 ) . '/storage/class-price-repository.php';
+    if ( is_readable( $p ) ) {
+        require_once $p;
+    }
+}
+
+/*
+ * If your existing classes use different names, uncomment ONE of the aliases below
+ * and set the right-hand side to your actual class FQCN.
+ */
+// Example: class is JelloPoint\RestaurantMenu\Storage\Class_Price_Schema
+// if ( ! class_exists( 'JelloPoint\\RestaurantMenu\\Storage\\Price_Schema' )
+//      && class_exists( 'JelloPoint\\RestaurantMenu\\Storage\\Class_Price_Schema' ) ) {
+//     class_alias(
+//         'JelloPoint\\RestaurantMenu\\Storage\\Class_Price_Schema',
+//         'JelloPoint\\RestaurantMenu\\Storage\\Price_Schema'
+//     );
+// }
+
+// Example: repository class differs
+// if ( ! class_exists( 'JelloPoint\\RestaurantMenu\\Storage\\Price_Repository' )
+//      && class_exists( 'JelloPoint\\RestaurantMenu\\Storage\\Class_Price_Repository' ) ) {
+//     class_alias(
+//         'JelloPoint\\RestaurantMenu\\Storage\\Class_Price_Repository',
+//         'JelloPoint\\RestaurantMenu\\Storage\\Price_Repository'
+//     );
+// }
+
+// Optional one-line debug (remove after testing):
+// if ( function_exists('error_log') ) {
+//     error_log('[JPRM] Price_Schema loaded? ' . (class_exists('JelloPoint\\RestaurantMenu\\Storage\\Price_Schema') ? 'yes' : 'no') .
+//               ' | Price_Repository loaded? ' . (class_exists('JelloPoint\\RestaurantMenu\\Storage\\Price_Repository') ? 'yes' : 'no'));
+// }
+
+
 if ( ! defined('ABSPATH') ) exit;
 
 class MenuItem_V3_Writer {
