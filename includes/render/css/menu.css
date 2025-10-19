@@ -155,7 +155,7 @@
 }
 
 /* Header row: make it distinct semantically (no visual style) */
-.jp-matrix__row--header .jp-matrix__cell {
+.jp-matrix__row--head .jp-matrix__cell {
   font-weight: inherit; /* don't force bold; styling comes later */
 }
 
