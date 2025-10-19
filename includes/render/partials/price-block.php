@@ -3,7 +3,7 @@
  * Price + Labels rendering partial for JelloPoint Restaurant Menu.
  *
  * Pure presentational: reads 'jprm_price' JSON and renders rows.
- * Now uses JPRM_Labels_Store::resolve() so labels/icons match your store.
+ * Uses JPRM_Labels_Store::resolve() so labels/icons match your store.
  *
  * Defaults for currency (overridable via 'jprm_currency_opts' filter):
  *   show=true, symbol=€, position=before, spacing=thin
@@ -218,13 +218,11 @@ if ( ! function_exists( 'jprm_render_pricegroup_html' ) ) {
 	}
 }
 
-/* =================  Structured data for Matrix layout ================= */
+/* ================= Structured data for Matrix layout ================= */
 
 /**
  * Provide structured label/price rows so templates can render a matrix per section.
- * This is additive and does not change the HTML renderer above.
- *
- * Each row has keys:
+ * Each row has:
  * - label_id   : int|null   (0/null when unknown; templates can synthesize a key from label_text)
  * - label_text : string
  * - icon_html  : string     (24x24 img if available)
@@ -257,10 +255,8 @@ if ( ! function_exists( 'jprm_get_pricegroup_data' ) ) {
 		$to_amount = function( string $raw ) : ?float {
 			$raw = trim( $raw );
 			if ( $raw === '' ) return null;
-			// replace thousands separators and normalize decimal comma
 			$norm = str_replace([ "\u{00A0}", ' ' ], '', $raw); // remove nbsp/spaces
 			$norm = str_replace( ',', '.', $norm );
-			// strip non-numeric except dot and minus
 			$norm = preg_replace( '/[^0-9\.\-]/', '', $norm );
 			if ( $norm === '' || $norm === '.' || $norm === '-' ) return null;
 			return is_numeric( $norm ) ? (float) $norm : null;
@@ -281,7 +277,7 @@ if ( ! function_exists( 'jprm_get_pricegroup_data' ) ) {
 			$formatted = jprm_format_amount( $raw, $currency_opts );
 
 			$rows[] = [
-				'label_id'   => 0,       // unknown id for ref/text labels
+				'label_id'   => 0,
 				'label_text' => $text,
 				'icon_html'  => $icon_out,
 				'amount'     => $amount,
@@ -307,7 +303,7 @@ if ( ! function_exists( 'jprm_get_pricegroup_data' ) ) {
 				$formatted = jprm_format_amount( $raw, $currency_opts );
 
 				$rows[] = [
-					'label_id'   => 0, // unknown; matrix will synthesize key from label_text if needed
+					'label_id'   => 0,
 					'label_text' => $text,
 					'icon_html'  => $icon_out,
 					'amount'     => $amount,
@@ -315,14 +311,26 @@ if ( ! function_exists( 'jprm_get_pricegroup_data' ) ) {
 				];
 			}
 		}
+// Normalize label_id for text-only labels so Matrix can align columns.
+// We mirror the header's behavior in menu.php, which uses:
+// $lid = crc32('t:' . (string) $r['label_text'])
+if ( ! empty( $rows ) ) {
+	foreach ( $rows as &$r ) {
+		$lid = isset( $r['label_id'] ) ? (int) $r['label_id'] : 0;
+		if ( $lid <= 0 ) {
+			$txt = (string) ( $r['label_text'] ?? '' );
+			if ( $txt !== '' ) {
+				// Use unsigned CRC32, same as header synthesis
+				$r['label_id'] = (int) sprintf( '%u', crc32( 't:' . $txt ) );
+			}
+		}
+	}
+	unset( $r );
+}
 
-		/**
-		 * Allow external providers to supply/adjust the structured rows.
-		 * If your canonical data lives elsewhere, return your exact rows here.
-		 */
 		$rows = apply_filters( 'jprm_get_pricegroup_data', $rows, $post_id, $label_map, $currency_opts );
 
-		// Deduplicate (label_text + formatted) to avoid doubles
+		// Deduplicate (label_text + formatted)
 		if ( ! empty( $rows ) ) {
 			$seen = [];
 			$out  = [];
@@ -345,5 +353,38 @@ if ( ! function_exists( 'jprm_get_pricegroup_data' ) ) {
 		}
 
 		return [];
+	}
+}
+
+/* ================= Matrix helper: stable keys ================= */
+
+if ( ! function_exists( 'jprm_price_rows_with_keys' ) ) {
+	/**
+	 * Get structured rows and add a stable 'key' used by the Matrix template.
+	 * - If label_id > 0, key is "id:{id}"
+	 * - Else key is "txt:{normalized label_text}"
+	 */
+	function jprm_price_rows_with_keys( int $post_id, ?array $label_map = null, array $currency_opts = [] ) : array {
+		$rows = function_exists( 'jprm_get_pricegroup_data' ) ? jprm_get_pricegroup_data( $post_id, $label_map, $currency_opts ) : [];
+		if ( empty( $rows ) ) return [];
+
+		$norm = static function( string $s ) : string {
+			$s = wp_strip_all_tags( $s );
+			$s = strtolower( $s );
+			$s = preg_replace( '/[^a-z0-9]+/u', '-', $s );
+			$s = trim( $s, '-' );
+			return $s !== '' ? $s : 'label';
+		};
+
+		$out = [];
+		foreach ( $rows as $r ) {
+			$label_id   = isset( $r['label_id'] ) ? (int) $r['label_id'] : 0;
+			$label_text = isset( $r['label_text'] ) ? (string) $r['label_text'] : '';
+			$key = $label_id > 0 ? ( 'id:' . $label_id ) : ( 'txt:' . $norm( $label_text ) );
+
+			$r['key'] = $key;
+			$out[] = $r;
+		}
+		return $out;
 	}
 }
