@@ -217,135 +217,129 @@ if ( ! function_exists( 'jprm_render_pricegroup_html' ) ) {
 		return (string) ob_get_clean();
 	}
 }
-<?php
-// === Structured price data helper for Matrix layout (safe, additive) ===
-// Place this at the END of includes/render/partials/price-block.php
-// It does NOT replace any existing functions.
 
+/* ================= Structured data for Matrix layout ================= */
+
+/**
+ * Provide structured label/price rows so templates can render a matrix per section.
+ * This is additive and does not change the HTML renderer above.
+ *
+ * Each row has keys:
+ * - label_id   : int|null   (0/null when unknown; templates can synthesize a key from label_text)
+ * - label_text : string
+ * - icon_html  : string     (24x24 img if available)
+ * - amount     : float|null (best-effort numeric extraction)
+ * - formatted  : string     (currency-formatted output, same rules as jprm_format_amount)
+ */
 if ( ! function_exists( 'jprm_get_pricegroup_data' ) ) {
-	/**
-	 * Return structured price data for a menu item.
-	 * Attempts to read your internal config via jprm_read_price_config().
-	 * Falls back to a filter so you can supply exact rows if needed.
-	 *
-	 * @param int        $post_id
-	 * @param array|null $label_map     from jprm_build_label_map() (optional)
-	 * @param array      $currency_opts same shape you pass to renderer (optional):
-	 *                                  ['show'=>bool,'symbol'=>string,'position'=>'before|after','spacing'=>'none|thin|normal']
-	 * @return array[] Each row: [
-	 *   'label_id'   => int|null,
-	 *   'label_text' => string,
-	 *   'icon_html'  => string,
-	 *   'amount'     => float|null,
-	 *   'formatted'  => string, // ready to print with currency rules
-	 * ]
-	 */
 	function jprm_get_pricegroup_data( int $post_id, ?array $label_map = null, array $currency_opts = [] ) : array {
+		$cfg = jprm_read_price_config( $post_id );
+		if ( empty( $cfg ) ) return [];
+
+		// Defaults aligned with renderer
+		$defaults = [
+			'show'     => true,
+			'symbol'   => '€',
+			'position' => 'before',
+			'spacing'  => 'thin',
+		];
+		$currency_opts = array_merge( $defaults, $currency_opts );
+		$currency_opts = apply_filters( 'jprm_currency_opts', $currency_opts, $post_id );
+
 		$rows = [];
 
-		// Try to read the same config used by your HTML renderer.
-		$cfg = function_exists( 'jprm_read_price_config' ) ? jprm_read_price_config( $post_id ) : [];
+		$make_icon_html = function( int $icon_id ) : string {
+			if ( $icon_id <= 0 ) return '';
+			$img = wp_get_attachment_image( $icon_id, [24,24], false, [ 'class' => 'jp-menu__icon' ] );
+			return is_string( $img ) ? $img : '';
+		};
 
-		// Heuristic extraction to support common shapes:
-		// - $cfg['prices'] = [ {label_id|label|label_text, amount|price|value}, ... ]
-		// - $cfg['groups'] = [ {prices:[...]}, ... ]
-		$maybe_prices = [];
+		$to_amount = function( string $raw ) : ?float {
+			$raw = trim( $raw );
+			if ( $raw === '' ) return null;
+			// replace thousands separators and normalize decimal comma
+			$norm = str_replace([ "\u{00A0}", ' ' ], '', $raw); // remove nbsp/spaces
+			$norm = str_replace( ',', '.', $norm );
+			// strip non-numeric except dot and minus
+			$norm = preg_replace( '/[^0-9\.\-]/', '', $norm );
+			if ( $norm === '' || $norm === '.' || $norm === '-' ) return null;
+			return is_numeric( $norm ) ? (float) $norm : null;
+		};
 
-		if ( is_array( $cfg ) ) {
-			if ( isset( $cfg['prices'] ) && is_array( $cfg['prices'] ) ) {
-				$maybe_prices = $cfg['prices'];
-			} elseif ( isset( $cfg['groups'] ) && is_array( $cfg['groups'] ) ) {
-				foreach ( $cfg['groups'] as $g ) {
-					if ( isset( $g['prices'] ) && is_array( $g['prices'] ) ) {
-						$maybe_prices = array_merge( $maybe_prices, $g['prices'] );
-					}
-				}
-			}
-		}
+		// SINGLE
+		if ( $cfg['mode'] === 'single' && (string) $cfg['price'] !== '' ) {
+			$ref     = (string) ( $cfg['label_ref'] ?? '' );
+			$hide    = (bool)   ( $cfg['hide_icon'] ?? false );
+			$icon_id = (int)    ( $cfg['icon_id']   ?? 0 );
 
-		foreach ( $maybe_prices as $p ) {
-			$label_id = null;
-			if ( isset( $p['label_id'] ) ) {
-				$label_id = (int) $p['label_id'];
-			} elseif ( isset( $p['label'] ) && is_numeric( $p['label'] ) ) {
-				$label_id = (int) $p['label'];
-			}
+			$res      = jprm_resolve_label( $ref, $icon_id );
+			$text     = (string) ( $res['label_text'] ?? '' );
+			$icon_out = $hide ? '' : $make_icon_html( (int) ( $res['icon_id'] ?? 0 ) );
 
-			$amount = null;
-			if ( isset( $p['amount'] ) && $p['amount'] !== '' ) {
-				$amount = (float) $p['amount'];
-			} elseif ( isset( $p['price'] ) && $p['price'] !== '' ) {
-				$amount = (float) $p['price'];
-			} elseif ( isset( $p['value'] ) && $p['value'] !== '' ) {
-				$amount = (float) $p['value'];
-			}
-
-			$label_text = '';
-			$icon_html  = '';
-
-			// Prefer label_map when we have an id
-			if ( $label_id && is_array( $label_map ) && isset( $label_map[ $label_id ] ) ) {
-				$lm = $label_map[ $label_id ];
-				$label_text = is_array( $lm ) && isset( $lm['text'] ) ? (string) $lm['text'] : (string) $lm;
-				if ( is_array( $lm ) && ! empty( $lm['icon_html'] ) ) {
-					$icon_html = (string) $lm['icon_html'];
-				}
-			} else {
-				// Fallbacks for when config carries the display text directly
-				if ( isset( $p['label_text'] ) ) {
-					$label_text = (string) $p['label_text'];
-				} elseif ( isset( $p['label_name'] ) ) {
-					$label_text = (string) $p['label_name'];
-				} elseif ( isset( $p['label'] ) && ! is_numeric( $p['label'] ) ) {
-					$label_text = (string) $p['label'];
-				}
-			}
-
-			// Format number with currency rules used elsewhere
-			$formatted = '';
-			if ( $amount !== null ) {
-				$symbol   = isset( $currency_opts['symbol'] ) ? (string) $currency_opts['symbol'] : '€';
-				$position = isset( $currency_opts['position'] ) ? (string) $currency_opts['position'] : 'before';
-				$spacing  = isset( $currency_opts['spacing'] ) ? (string) $currency_opts['spacing'] : 'thin';
-				$space    = ( $spacing === 'none' ) ? '' : ( $spacing === 'normal' ? '&nbsp;' : '&#8201;' ); // thin space default
-
-				if ( ! empty( $currency_opts['show'] ) ) {
-					$formatted = ( $position === 'after' )
-						? number_format_i18n( $amount, 0 ) . $space . $symbol
-						: $symbol . $space . number_format_i18n( $amount, 0 );
-				} else {
-					$formatted = number_format_i18n( $amount, 0 );
-				}
-			}
+			$raw       = (string) $cfg['price'];
+			$amount    = $to_amount( $raw );
+			$formatted = jprm_format_amount( $raw, $currency_opts );
 
 			$rows[] = [
-				'label_id'   => $label_id,
-				'label_text' => $label_text,
-				'icon_html'  => $icon_html,
+				'label_id'   => 0,       // unknown id for ref/text labels
+				'label_text' => $text,
+				'icon_html'  => $icon_out,
 				'amount'     => $amount,
 				'formatted'  => $formatted,
 			];
 		}
 
+		// MULTI
+		if ( $cfg['mode'] === 'multi' && ! empty( $cfg['rows'] ) ) {
+			foreach ( $cfg['rows'] as $row ) {
+				$raw = (string) ( $row['value'] ?? '' );
+				if ( $raw === '' ) continue;
+
+				$ref     = (string) ( $row['label_ref'] ?? '' );
+				$hide    = (bool)   ( $row['hide_icon'] ?? false );
+				$icon_id = (int)    ( $row['icon_id']   ?? 0 );
+
+				$res      = jprm_resolve_label( $ref, $icon_id );
+				$text     = (string) ( $res['label_text'] ?? '' );
+				$icon_out = $hide ? '' : $make_icon_html( (int) ( $res['icon_id'] ?? 0 ) );
+
+				$amount    = $to_amount( $raw );
+				$formatted = jprm_format_amount( $raw, $currency_opts );
+
+				$rows[] = [
+					'label_id'   => 0, // unknown; matrix will synthesize key from label_text if needed
+					'label_text' => $text,
+					'icon_html'  => $icon_out,
+					'amount'     => $amount,
+					'formatted'  => $formatted,
+				];
+			}
+		}
+
 		/**
-		 * Allow exact/alternate sources to provide data or post-process it.
-		 * Return the final array of rows with keys described above.
+		 * Allow external providers to supply/adjust the structured rows.
+		 * If your canonical data lives elsewhere, return your exact rows here.
 		 */
 		$rows = apply_filters( 'jprm_get_pricegroup_data', $rows, $post_id, $label_map, $currency_opts );
 
-		// Deduplicate by (label_id, label_text, formatted)
+		// Deduplicate (label_text + formatted) to avoid doubles
 		if ( ! empty( $rows ) ) {
-			$uniq = [];
+			$seen = [];
 			$out  = [];
 			foreach ( $rows as $r ) {
 				$key = md5( json_encode( [
-					(int) ( $r['label_id'] ?? 0 ),
 					(string) ( $r['label_text'] ?? '' ),
-					(string) ( $r['formatted'] ?? '' ),
+					(string) ( $r['formatted']  ?? '' ),
 				] ) );
-				if ( isset( $uniq[ $key ] ) ) continue;
-				$uniq[ $key ] = true;
-				$out[] = $r;
+				if ( isset( $seen[ $key ] ) ) continue;
+				$seen[ $key ] = true;
+				$out[] = [
+					'label_id'   => (int) ( $r['label_id']   ?? 0 ),
+					'label_text' => (string) ( $r['label_text'] ?? '' ),
+					'icon_html'  => (string) ( $r['icon_html']  ?? '' ),
+					'amount'     => isset( $r['amount'] ) ? ( ( $r['amount'] === null ) ? null : (float) $r['amount'] ) : null,
+					'formatted'  => (string) ( $r['formatted'] ?? '' ),
+				];
 			}
 			return $out;
 		}
