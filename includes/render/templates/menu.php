@@ -208,8 +208,10 @@ function jprm_render_section_block( $tid, array $blk, array $opts ) : void {
 		// Matrix table
 		$col_ids = array_keys( $cols );
 
-		echo '<li class="jp-menu__matrix">';
-		echo '<div class="jp-matrix">';
+	echo '<li class="jp-menu__matrix">';
+    $__jp_cols = (int) count( $col_ids ); // 1 (title col) + $__jp_cols (label cols)
+    echo '<div class="jp-matrix" style="--jp-matrix-cols:' . $__jp_cols . ';">';
+
 
 		// Header row
 		echo '<div class="jp-matrix__row jp-matrix__row--header">';

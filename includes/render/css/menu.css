@@ -129,43 +129,42 @@
   vertical-align:-0.2em;
   border-radius:2px;
 }
-/* === Minimal layout for Matrix mode (no visual styling) === */
-/* We use table layout so we don't need to know column counts in advance. */
+/* === Matrix layout (structural only; no visual styling) === */
+/* Grid: first column is the item title/desc, then one column per label. */
+
+.jp-menu__matrix { list-style: none; } /* neutralize UL/LI effects */
 
 .jp-matrix {
-  display: table;
-  width: 100%;
-  border-collapse: collapse; /* keeps columns aligned */
+  display: grid;
+  /* 1st column flexible for titles; then N auto-sized value columns */
+  grid-template-columns: minmax(12rem, 1fr) repeat(var(--jp-matrix-cols, 1), auto);
+  column-gap: 0; /* styling later */
+  row-gap: 0;    /* styling later */
 }
 
+/* Each "row" becomes just a logical wrapper; cells place into the grid */
 .jp-matrix__row {
-  display: table-row;
+  display: contents;
 }
 
+/* Every cell occupies one grid cell in row order */
 .jp-matrix__cell {
-  display: table-cell;
-  vertical-align: top;
-  /* no padding/margins here to honor the "no styling" request */
+  /* no padding/margins here; styling comes later */
+  /* Prevent external styles forcing block layout */
+  display: block;
 }
 
-/* Left-most column: item title/desc */
-.jp-matrix__cell--title {
-  /* optional: reserve some width for titles; adjust or remove if not desired */
-  width: 40%;
+/* Title (leftmost) sits in the first grid column automatically */
+.jp-matrix__cell--title {}
+
+/* Header cells occupy the label columns in the first row */
+.jp-matrix__row--header .jp-matrix__cell--title {
+  /* keep empty; just the top-left empty corner */
 }
 
-/* Header row: make it distinct semantically (no visual style) */
-.jp-matrix__row--head .jp-matrix__cell {
-  font-weight: inherit; /* don't force bold; styling comes later */
-}
-
-/* Value cells (right-side columns) */
+/* Value cells stay neutral; we’ll style later in Style tab */
 .jp-matrix__cell--value {
-  text-align: left; /* keep neutral; visual style later */
+  text-align: left;
 }
 
-/* If a theme adds list styles to <li>, ensure matrix block fills the row */
-.jp-menu__matrix {
-  list-style: none;
-}
 
