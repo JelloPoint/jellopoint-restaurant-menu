@@ -350,7 +350,7 @@ trait Restaurant_Menu_Controls {
 		] );
 
 		$this->end_controls_section();
-        
+
 		/* --- Badges ------------------------------------------------------------- */
 		$this->start_controls_section(
 			'jprm_section_badges',
@@ -524,5 +524,6 @@ trait Restaurant_Menu_Controls {
 		] );
 
 		$this->end_controls_section();
+        $this->register_style_controls();
 	}
 }

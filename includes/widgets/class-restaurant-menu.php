@@ -10,10 +10,13 @@ use function jprm_render_pricegroup_html;
 require_once __DIR__ . '/traits/restaurant-menu-controls.php';
 use JelloPoint\RestaurantMenu\Widgets\Traits\Restaurant_Menu_Controls;
 
+require_once __DIR__ . '/traits/restaurant-menu-style.php';
+use JelloPoint\RestaurantMenu\Widgets\Traits\Restaurant_Menu_Style;
+
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Restaurant_Menu extends Widget_Base {
-	use Restaurant_Menu_Controls;
+    use Restaurant_Menu_Controls, Restaurant_Menu_Style;
 
 	public function get_name() { return 'jprm_restaurant_menu'; }
 	public function get_title() { return __( 'Restaurant Menu (JelloPoint)', 'jellopoint-restaurant-menu' ); }
