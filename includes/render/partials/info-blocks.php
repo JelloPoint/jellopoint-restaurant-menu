@@ -1,163 +1,126 @@
 <?php
+/**
+ * JelloPoint Restaurant Menu — Info Blocks partial (Step 1)
+ *
+ * Provides helper functions for rendering simple Info Blocks
+ * (HTML + Image only), positioned ABOVE/BELOW a target Section.
+ *
+ * Styling is intentionally omitted per Step 1.
+ */
+
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
- * Info Blocks renderer (between sections / before/after full menu)
- * Supported fields per block:
- * - type: html | image | button
- * - content_html (when type=html)
- * - image_id, image_alt (when type=image)
- * - button_text, button_url (Elementor URL control) (when type=button)
- * - style_variant: subtle | accent | note
- * - position: before_menu | between_sections | after_menu
- */
-
-if ( ! function_exists( 'jprm_infoblocks_partition_by_position' ) ) :
-function jprm_infoblocks_partition_by_position( array $rows ) : array {
-	$out = [
-		'before_menu'      => [],
-		'between_sections' => [],
-		'after_menu'       => [],
-	];
-	foreach ( $rows as $r ) {
-		if ( ! is_array( $r ) ) { continue; }
-		$pos = isset( $r['position'] ) ? (string) $r['position'] : 'between_sections';
-		if ( ! isset( $out[ $pos ] ) ) { $pos = 'between_sections'; }
-		$out[ $pos ][] = $r;
-	}
-	return $out;
-}
-endif;
-
-if ( ! function_exists( 'jprm_infoblocks_render_group' ) ) :
-/**
- * Render a group of info blocks at a given position.
+ * Partition rows by ['section_id']['above'|'below'].
  *
- * @param array  $rows Blocks
- * @param string $position before_menu|between_sections|after_menu
- * @return string HTML
+ * @param array $rows
+ * @return array
+ */
+function jprm_infoblocks_partition_by_position( array $rows ) : array {
+	$map = [];
+	foreach ( $rows as $row ) {
+		$section_id = isset( $row['section_id'] ) ? (int) $row['section_id'] : 0;
+		$pos = isset( $row['position'] ) && in_array( $row['position'], [ 'above', 'below' ], true )
+			? $row['position']
+			: 'above';
+
+		if ( $section_id <= 0 ) {
+			continue;
+		}
+		if ( ! isset( $map[ $section_id ] ) ) {
+			$map[ $section_id ] = [ 'above' => [], 'below' => [] ];
+		}
+		$map[ $section_id ][ $pos ][] = $row;
+	}
+	return $map;
+}
+
+/**
+ * Render a list of rows (for a given position) as raw HTML (no styling).
+ *
+ * @param array  $rows
+ * @param string $position  'above'|'below' (informational only)
+ * @return string
+ */
+function jprm_infoblocks_render_rows( array $rows, string $position ) : string {
+	ob_start();
+
+	foreach ( $rows as $row ) {
+		$html  = isset( $row['content_html'] ) ? (string) $row['content_html'] : '';
+		$image = ( isset( $row['image'] ) && is_array( $row['image'] ) ) ? $row['image'] : [];
+		$img_id  = isset( $image['id'] ) ? (int) $image['id'] : 0;
+		$img_url = ! empty( $image['url'] )
+			? $image['url']
+			: ( $img_id ? wp_get_attachment_image_url( $img_id, 'full' ) : '' );
+
+		echo '<div class="jprm-infoblock" data-position="' . esc_attr( $position ) . '">';
+
+		if ( $img_url ) {
+			$alt = $img_id ? get_post_meta( $img_id, '_wp_attachment_image_alt', true ) : '';
+			echo '<div class="jprm-infoblock__image"><img src="' . esc_url( $img_url ) . '" alt="' . esc_attr( $alt ) . '"></div>';
+		}
+
+		if ( $html !== '' ) {
+			// Intentionally raw: this field is a deliberate HTML field in the widget.
+			echo '<div class="jprm-infoblock__content">' . $html . '</div>';
+		}
+
+		echo '</div>';
+	}
+
+	return ob_get_clean();
+}
+
+/**
+ * Convenience wrapper to render a group for a given position.
+ *
+ * @param array  $rows
+ * @param string $position
+ * @return string
  */
 function jprm_infoblocks_render_group( array $rows, string $position ) : string {
-	if ( empty( $rows ) ) { return ''; }
-
-	$allow = [
-		'a'      => [ 'href'=>[], 'title'=>[], 'target'=>[], 'rel'=>[], 'class'=>[] ],
-		'strong' => [], 'em'=>[], 'br'=>[], 'span'=>['class'=>[]],
-		'p'      => [ 'class'=>[] ],
-		'ul'     => [ 'class'=>[] ], 'ol'=>[ 'class'=>[] ], 'li'=>[ 'class'=>[] ],
-		'img'    => [ 'src'=>[], 'alt'=>[], 'class'=>[] ],
-	];
-
-	$out = '<div class="jp-infoblocks jp-infoblocks--' . esc_attr( $position ) . '">';
-
-	foreach ( $rows as $r ) {
-		$type    = isset( $r['type'] ) ? (string) $r['type'] : 'html';
-		$variant = isset( $r['style_variant'] ) ? (string) $r['style_variant'] : 'subtle';
-		$cls     = 'jp-infoblock jp-infoblock--' . sanitize_html_class( $type ) . ' jp-infoblock--' . sanitize_html_class( $variant );
-
-		if ( $type === 'image' ) {
-			$img_id  = isset( $r['image_id']['id'] ) ? (int) $r['image_id']['id'] : (int) ( $r['image_id'] ?? 0 );
-			$img_alt = isset( $r['image_alt'] ) ? (string) $r['image_alt'] : '';
-			$src     = $img_id ? wp_get_attachment_image_url( $img_id, 'full' ) : '';
-			if ( $src ) {
-				$out .= '<div class="' . esc_attr( $cls ) . '"><img src="' . esc_url( $src ) . '" alt="' . esc_attr( $img_alt ) . '" class="jp-infoblock__img"></div>';
-			}
-			continue;
-		}
-
-		if ( $type === 'button' ) {
-			$txt = isset( $r['button_text'] ) ? (string) $r['button_text'] : '';
-			$url = '';
-			if ( isset( $r['button_url']['url'] ) ) {
-				$url = (string) $r['button_url']['url'];
-			} elseif ( isset( $r['button_url'] ) && is_string( $r['button_url'] ) ) {
-				$url = (string) $r['button_url'];
-			}
-			if ( $txt !== '' && $url !== '' ) {
-				$target = ( ! empty( $r['button_url']['is_external'] ) ) ? ' target="_blank" rel="noopener"' : '';
-				$out   .= '<div class="' . esc_attr( $cls ) . '"><a class="jp-button" href="' . esc_url( $url ) . '"' . $target . '>' . esc_html( $txt ) . '</a></div>';
-			}
-			continue;
-		}
-
-		// default: html
-		$html = isset( $r['content_html'] ) ? (string) $r['content_html'] : '';
-		if ( $html !== '' ) {
-			$out .= '<div class="' . esc_attr( $cls ) . '">' . wp_kses( $html, $allow ) . '</div>';
-		}
-	}
-
-	$out .= '</div>';
-	return $out;
+	return jprm_infoblocks_render_rows( $rows, $position );
 }
-endif;
-
 
 /**
- * Match a 'between_sections' row against a given section identifier (term ID or slug).
+ * Return Sections belonging to a specific Menu (for control options, etc.).
+ * Adjust this to your actual data model if different.
+ *
+ * @param int $menu_id
+ * @return array [ term_id => "Section Name" ]
  */
-if ( ! function_exists( 'jprm_infoblocks_matches_section' ) ) :
-function jprm_infoblocks_matches_section( array $row, $section_id_or_slug ) : bool {
-	$target = isset( $row['after_section'] ) ? trim( (string) $row['after_section'] ) : '';
-	if ( $target === '' ) {
-		return true;
+function jprm_infoblocks_sections_for_menu( int $menu_id ) : array {
+	if ( $menu_id <= 0 ) {
+		return [];
 	}
-	if ( is_numeric( $target ) && (string) (int) $section_id_or_slug === (string) (int) $target ) {
-		return true;
-	}
-	if ( ! is_numeric( $target ) && is_string( $section_id_or_slug ) ) {
-		return strtolower( (string) $section_id_or_slug ) === strtolower( $target );
-	}
-	return false;
-}
-endif;
 
-/**
- * Render a list of rows into one container.
- */
-if ( ! function_exists( 'jprm_infoblocks_render_rows' ) ) :
-function jprm_infoblocks_render_rows( array $rows, string $position ) : string {
-	if ( empty( $rows ) ) return '';
-	$allow = [
-		'a'      => [ 'href'=>[], 'title'=>[], 'target'=>[], 'rel'=>[], 'class'=>[] ],
-		'strong' => [], 'em'=>[], 'br'=>[], 'span'=>['class'=>[]],
-		'p'      => [ 'class'=>[] ],
-		'ul'     => [ 'class'=>[] ], 'ol'=>[ 'class'=>[] ], 'li'=>[ 'class'=>[] ],
-		'img'    => [ 'src'=>[], 'alt'=>[], 'class'=>[] ],
+	// Option A: Sections carry a term meta 'jprm_menu_id' linking them to the Menu.
+	$args = [
+		'taxonomy'   => 'jprm_menu_section',
+		'hide_empty' => false,
+		'meta_query' => [
+			[
+				'key'   => 'jprm_menu_id',
+				'value' => $menu_id,
+			],
+		],
 	];
-	$out = '<div class="jp-infoblocks jp-infoblocks--' . esc_attr( $position ) . '">';
-	foreach ( $rows as $r ) {
-		$type    = isset( $r['type'] ) ? (string) $r['type'] : 'html';
-		$variant = isset( $r['style_variant'] ) ? (string) $r['style_variant'] : 'subtle';
-		$cls     = 'jp-infoblock jp-infoblock--' . sanitize_html_class( $type ) . ' jp-infoblock--' . sanitize_html_class( $variant );
-		if ( $type === 'image' ) {
-			$img_id  = isset( $r['image_id']['id'] ) ? (int) $r['image_id']['id'] : (int) ( $r['image_id'] ?? 0 );
-			$img_alt = isset( $r['image_alt'] ) ? (string) $r['image_alt'] : '';
-			$src     = $img_id ? wp_get_attachment_image_url( $img_id, 'full' ) : '';
-			if ( $src ) {
-				$out .= '<div class="' . esc_attr( $cls ) . '"><img src="' . esc_url( $src ) . '" alt="' . esc_attr( $img_alt ) . '" class="jp-infoblock__img" loading="lazy" decoding="async"></div>';
-			}
-			continue;
-		}
-		if ( $type === 'button' ) {
-			$txt = isset( $r['button_text'] ) ? (string) $r['button_text'] : '';
-			$url = '';
-			if ( isset( $r['button_url']['url'] ) ) { $url = (string) $r['button_url']['url']; }
-			elseif ( isset( $r['button_url'] ) && is_string( $r['button_url'] ) ) { $url = (string) $r['button_url']; }
-			$ext = ! empty( $r['button_url']['is_external'] );
-			$rel = $ext ? ' rel="noopener"' : '';
-			$tgt = $ext ? ' target="_blank"' : '';
-			if ( $txt !== '' && $url !== '' ) {
-				$out .= '<p class="' . esc_attr( $cls ) . '"><a class="jp-infoblock__btn" href="' . esc_url( $url ) . '"' . $tgt . $rel . '>' . wp_kses_post( $txt ) . '</a></p>';
-			}
-			continue;
-		}
-		$html = isset( $r['content_html'] ) ? (string) $r['content_html'] : '';
-		if ( $html !== '' ) {
-			$out .= '<div class="' . esc_attr( $cls ) . '">' . wp_kses( $html, $allow ) . '</div>';
-		}
+
+	// Option B (uncomment if your model uses parent terms to represent the menu):
+	// $args = [
+	// 	'taxonomy'   => 'jprm_menu_section',
+	// 	'hide_empty' => false,
+	// 	'parent'     => $menu_id,
+	// ];
+
+	$terms = get_terms( $args );
+	if ( is_wp_error( $terms ) || empty( $terms ) ) {
+		return [];
 	}
-	$out .= '</div>';
+
+	$out = [];
+	foreach ( $terms as $t ) {
+		$out[ (int) $t->term_id ] = $t->name;
+	}
 	return $out;
 }
-endif;

@@ -9,7 +9,6 @@ use function jprm_build_label_map;
 use function jprm_read_price_config;
 use function jprm_render_pricegroup_html;
 
-
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Restaurant_Menu extends Widget_Base {
@@ -52,6 +51,21 @@ final class Restaurant_Menu extends Widget_Base {
 		}
 	}
 
+	/** NEW: load info-blocks partial */
+	private static function require_infoblocks_partial_once() : void {
+		static $loaded = false;
+		if ( $loaded ) return;
+		$path = dirname( __DIR__ ) . '/render/partials/info-blocks.php';
+		if ( is_readable( $path ) ) {
+			require_once $path;
+			$loaded = true;
+		} else {
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( '[JPRM] info-blocks.php not found/readable at: ' . $path );
+			}
+		}
+	}
+
 	/* =========================
 	 * Controls
 	 * ========================= */
@@ -64,6 +78,59 @@ final class Restaurant_Menu extends Widget_Base {
 					$out[ (string) $t->term_id ] = $t->name;
 				}
 			}
+		}
+		return $out;
+	}
+
+	/**
+	 * NEW: Build section options limited to the sections that actually occur
+	 * in items for the selected Menu. Falls back to all sections.
+	 *
+	 * @param int $menu_term_id
+	 * @param array $fallback_all key=>label full list (from get_terms_options('jprm_section'))
+	 * @return array
+	 */
+	protected function section_options_for_menu( int $menu_term_id, array $fallback_all ) : array {
+		if ( $menu_term_id <= 0 ) return $fallback_all;
+
+		$q = new \WP_Query( [
+			'post_type'      => 'jprm_menu_item',
+			'post_status'    => 'publish',
+			'fields'         => 'ids',
+			'posts_per_page' => -1,
+			'tax_query'      => [
+				[
+					'taxonomy' => 'jprm_menu',
+					'field'    => 'term_id',
+					'terms'    => [ $menu_term_id ],
+				],
+			],
+		] );
+
+		if ( empty( $q->posts ) ) return $fallback_all;
+
+		$section_ids = [];
+		foreach ( $q->posts as $pid ) {
+			$terms = wp_get_post_terms( $pid, 'jprm_section', [ 'fields' => 'ids' ] );
+			if ( is_array( $terms ) ) {
+				foreach ( $terms as $sid ) {
+					$section_ids[] = (int) $sid;
+				}
+			}
+		}
+		$section_ids = array_values( array_unique( array_filter( $section_ids, fn($n)=>$n>0 ) ) );
+		if ( empty( $section_ids ) ) return $fallback_all;
+
+		$terms = get_terms( [
+			'taxonomy'   => 'jprm_section',
+			'hide_empty' => false,
+			'include'    => $section_ids,
+		] );
+		if ( is_wp_error( $terms ) || empty( $terms ) ) return $fallback_all;
+
+		$out = [];
+		foreach ( $terms as $t ) {
+			$out[ (string) $t->term_id ] = $t->name;
 		}
 		return $out;
 	}
@@ -339,11 +406,64 @@ final class Restaurant_Menu extends Widget_Base {
 		] );
 		$this->end_controls_section();
 
-		/* --- Info Blocks -------------------------------------------------------- */
+		/* --- Info Blocks (Step 1) ---------------------------------------------- */
 		$this->start_controls_section(
 			'jprm_section_info_blocks',
 			[ 'label' => __( 'Info Blocks', 'jellopoint-restaurant-menu' ) ]
 		);
+
+		// Build Section options filtered by the chosen single Menu (if any)
+		$all_section_opts = $section_options;
+		$menu_selected    = $this->get_settings_for_display( 'menus' );
+		$menu_id_for_ib   = ( is_numeric( $menu_selected ) ? (int) $menu_selected : 0 );
+		$ib_section_opts  = $this->section_options_for_menu( $menu_id_for_ib, $all_section_opts );
+
+		$ib = new Repeater();
+
+		$ib->add_control( 'content_html', [
+			'label'       => __( 'HTML', 'jellopoint-restaurant-menu' ),
+			'type'        => Controls_Manager::CODE,
+			'language'    => 'html',
+			'rows'        => 8,
+			'label_block' => true,
+			'default'     => '',
+		] );
+
+		$ib->add_control( 'image', [
+			'label'   => __( 'Image', 'jellopoint-restaurant-menu' ),
+			'type'    => Controls_Manager::MEDIA,
+			'default' => [],
+		] );
+
+		$ib->add_control( 'position', [
+			'label'   => __( 'Position vs Section', 'jellopoint-restaurant-menu' ),
+			'type'    => Controls_Manager::SELECT,
+			'options' => [
+				'above' => __( 'Above section', 'jellopoint-restaurant-menu' ),
+				'below' => __( 'Below section', 'jellopoint-restaurant-menu' ),
+			],
+			'default' => 'above',
+		] );
+
+		$ib->add_control( 'section_id', [
+			'label'       => __( 'Target Section', 'jellopoint-restaurant-menu' ),
+			'type'        => Controls_Manager::SELECT2,
+			'options'     => $ib_section_opts,
+			'multiple'    => false,
+			'label_block' => true,
+			'description' => ( $menu_id_for_ib > 0 )
+				? __( 'Sections filtered to the chosen Menu (based on items). If you change Menu, re-open the widget to refresh.', 'jellopoint-restaurant-menu' )
+				: __( 'Pick a Menu to filter section choices.', 'jellopoint-restaurant-menu' ),
+		] );
+
+		$this->add_control( 'info_blocks', [
+			'label'       => __( 'Info Blocks', 'jellopoint-restaurant-menu' ),
+			'type'        => Controls_Manager::REPEATER,
+			'fields'      => $ib->get_controls(),
+			'default'     => [],
+			'title_field' => '{{{ position }}} #{{{ section_id }}}',
+		] );
+
 		$this->end_controls_section();
 
 		/* --- Layout ------------------------------------------------------------- */
@@ -428,8 +548,9 @@ final class Restaurant_Menu extends Widget_Base {
 	public function render() {
 		self::require_price_partial_once();
 		self::require_badges_partial_once();
+		self::require_infoblocks_partial_once(); // NEW
 
-		// One-time tiny inline CSS (temporary, per request)
+		// One-time tiny inline CSS (intentionally empty placeholder)
 		static $css_done = false;
 		if ( ! $css_done ) {
 			$css_done = true;
@@ -519,6 +640,10 @@ final class Restaurant_Menu extends Widget_Base {
 		$show_section_name = ( isset( $s['show_section_name'] ) && $s['show_section_name'] === 'yes' );
 		$show_section_desc = ( isset( $s['show_section_description'] ) && $s['show_section_description'] === 'yes' );
 
+		// NEW: Prepare Info Blocks map once
+		$ib_rows = ( isset( $s['info_blocks'] ) && is_array( $s['info_blocks'] ) ) ? $s['info_blocks'] : [];
+		$ib_map  = function_exists('jprm_infoblocks_partition_by_position') ? jprm_infoblocks_partition_by_position( $ib_rows ) : [];
+
 		$render_menu_meta = function( $term, bool $show_title, bool $show_desc, string $scope ) : string {
 			if ( ! $term || ( ! $show_title && ! $show_desc ) ) return '';
 			$title = $show_title ? trim( (string) $term->name ) : '';
@@ -546,6 +671,13 @@ final class Restaurant_Menu extends Widget_Base {
 			foreach ( $sections_order as $tid ) {
 				$blk  = $sections_data[ $tid ];
 				$term = $blk['term'];
+
+				// NEW: Info Blocks ABOVE the section
+				if ( isset( $ib_map[$tid]['above'] ) && ! empty( $ib_map[$tid]['above'] ) ) {
+					echo '<li class="jp-menu__infoblock-li">';
+					echo jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ); // phpcs:ignore
+					echo '</li>';
+				}
 
 				if ( $term && $show_section_name ) {
 					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
@@ -583,6 +715,13 @@ final class Restaurant_Menu extends Widget_Base {
 						echo '<div class="jp-menu__pricegroup"></div>';
 					}
 					echo '</div></li>';
+				}
+
+				// NEW: Info Blocks BELOW the section
+				if ( isset( $ib_map[$tid]['below'] ) && ! empty( $ib_map[$tid]['below'] ) ) {
+					echo '<li class="jp-menu__infoblock-li">';
+					echo jprm_infoblocks_render_group( $ib_map[$tid]['below'], 'below' ); // phpcs:ignore
+					echo '</li>';
 				}
 			}
 			echo '</ul>';
@@ -629,6 +768,14 @@ final class Restaurant_Menu extends Widget_Base {
 			foreach ( $left_sections as $tid ) {
 				$blk  = $sections_data[ $tid ];
 				$term = $blk['term'];
+
+				// NEW: Above
+				if ( isset( $ib_map[$tid]['above'] ) && ! empty( $ib_map[$tid]['above'] ) ) {
+					echo '<li class="jp-menu__infoblock-li">';
+					echo jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ); // phpcs:ignore
+					echo '</li>';
+				}
+
 				if ( $term && $show_section_name ) {
 					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
 					if ( $show_section_desc && ! empty( $term->description ) ) {
@@ -661,6 +808,13 @@ final class Restaurant_Menu extends Widget_Base {
 						echo '<div class="jp-menu__pricegroup"></div>';
 					}
 					echo '</div></li>';
+				}
+
+				// NEW: Below
+				if ( isset( $ib_map[$tid]['below'] ) && ! empty( $ib_map[$tid]['below'] ) ) {
+					echo '<li class="jp-menu__infoblock-li">';
+					echo jprm_infoblocks_render_group( $ib_map[$tid]['below'], 'below' ); // phpcs:ignore
+					echo '</li>';
 				}
 			}
 			echo '</ul></div>';
@@ -670,6 +824,14 @@ final class Restaurant_Menu extends Widget_Base {
 			foreach ( $right_sections as $tid ) {
 				$blk  = $sections_data[ $tid ];
 				$term = $blk['term'];
+
+				// NEW: Above
+				if ( isset( $ib_map[$tid]['above'] ) && ! empty( $ib_map[$tid]['above'] ) ) {
+					echo '<li class="jp-menu__infoblock-li">';
+					echo jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ); // phpcs:ignore
+					echo '</li>';
+				}
+
 				if ( $term && $show_section_name ) {
 					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
 					if ( $show_section_desc && ! empty( $term->description ) ) {
@@ -702,6 +864,13 @@ final class Restaurant_Menu extends Widget_Base {
 						echo '<div class="jp-menu__pricegroup"></div>';
 					}
 					echo '</div></li>';
+				}
+
+				// NEW: Below
+				if ( isset( $ib_map[$tid]['below'] ) && ! empty( $ib_map[$tid]['below'] ) ) {
+					echo '<li class="jp-menu__infoblock-li">';
+					echo jprm_infoblocks_render_group( $ib_map[$tid]['below'], 'below' ); // phpcs:ignore
+					echo '</li>';
 				}
 			}
 			echo '</ul></div>';
@@ -767,6 +936,14 @@ final class Restaurant_Menu extends Widget_Base {
 			foreach ( $section_ids_chunk as $tid ) {
 				$blk  = $sections_data[ $tid ];
 				$term = $blk['term'];
+
+				// NEW: Above
+				if ( isset( $ib_map[$tid]['above'] ) && ! empty( $ib_map[$tid]['above'] ) ) {
+					echo '<li class="jp-menu__infoblock-li">';
+					echo jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ); // phpcs:ignore
+					echo '</li>';
+				}
+
 				if ( $term && $show_section_name ) {
 					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
 					if ( $show_section_desc && ! empty( $term->description ) ) {
@@ -799,6 +976,13 @@ final class Restaurant_Menu extends Widget_Base {
 						echo '<div class="jp-menu__pricegroup"></div>';
 					}
 					echo '</div></li>';
+				}
+
+				// NEW: Below
+				if ( isset( $ib_map[$tid]['below'] ) && ! empty( $ib_map[$tid]['below'] ) ) {
+					echo '<li class="jp-menu__infoblock-li">';
+					echo jprm_infoblocks_render_group( $ib_map[$tid]['below'], 'below' ); // phpcs:ignore
+					echo '</li>';
 				}
 			}
 			echo '</ul></div>';
