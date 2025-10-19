@@ -216,7 +216,9 @@ if ( ! function_exists( 'jprm_render_pricegroup_html' ) ) {
 		echo '</div>'; // .jp-menu__pricegroup
 		return (string) ob_get_clean();
 	}
-	// === Structured price data helper for Matrix layout (safe, additive) ===
+}
+<?php
+// === Structured price data helper for Matrix layout (safe, additive) ===
 // Place this at the END of includes/render/partials/price-block.php
 // It does NOT replace any existing functions.
 
