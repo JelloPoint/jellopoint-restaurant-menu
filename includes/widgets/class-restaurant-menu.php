@@ -843,7 +843,7 @@ final class Restaurant_Menu extends Widget_Base {
 				}
 
 				if ( $term && $show_section_name ) {
-					echo '<li class="jp-menu__section-header'><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
+					echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
 					if ( $show_section_desc && ! empty( $term->description ) ) {
 						echo '<div class="jp-section__desc">' . esc_html( $term->description ) . '</div>';
 					}
@@ -965,7 +965,7 @@ final class Restaurant_Menu extends Widget_Base {
 					$post_id = (int) $post->ID;
 					$title   = get_the_title( $post_id );
 					$desc    = get_post_meta( $post_id, 'jprm_desc', true );
-					echo '<li class="jp-menu__item'><div class="jp-menu__inner">';
+					echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
 					echo '  <div class="jp-menu__content">';
 
 					echo '    <div class="jp-menu__titleline">';
