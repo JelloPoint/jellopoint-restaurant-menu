@@ -166,5 +166,18 @@
 .jp-matrix__cell--value {
   text-align: left;
 }
+/* === Matrix (grid) ====================================================== */
+.jp-matrix{
+  display: grid;
+  grid-auto-rows: auto;
+  column-gap: 0;
+  row-gap: 0;
+}
+.jp-matrix__row{ display: contents; }
+.jp-matrix__cell{ display: block; }
+.jp-matrix__cell--value{ text-align: left; }
+
+/* Ensure full width for Info Blocks background color */
+.jprm-infoblock{ width: 100%; }
 
 
