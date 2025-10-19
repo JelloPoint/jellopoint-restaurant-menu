@@ -216,4 +216,138 @@ if ( ! function_exists( 'jprm_render_pricegroup_html' ) ) {
 		echo '</div>'; // .jp-menu__pricegroup
 		return (string) ob_get_clean();
 	}
+	// === Structured price data helper for Matrix layout (safe, additive) ===
+// Place this at the END of includes/render/partials/price-block.php
+// It does NOT replace any existing functions.
+
+if ( ! function_exists( 'jprm_get_pricegroup_data' ) ) {
+	/**
+	 * Return structured price data for a menu item.
+	 * Attempts to read your internal config via jprm_read_price_config().
+	 * Falls back to a filter so you can supply exact rows if needed.
+	 *
+	 * @param int        $post_id
+	 * @param array|null $label_map     from jprm_build_label_map() (optional)
+	 * @param array      $currency_opts same shape you pass to renderer (optional):
+	 *                                  ['show'=>bool,'symbol'=>string,'position'=>'before|after','spacing'=>'none|thin|normal']
+	 * @return array[] Each row: [
+	 *   'label_id'   => int|null,
+	 *   'label_text' => string,
+	 *   'icon_html'  => string,
+	 *   'amount'     => float|null,
+	 *   'formatted'  => string, // ready to print with currency rules
+	 * ]
+	 */
+	function jprm_get_pricegroup_data( int $post_id, ?array $label_map = null, array $currency_opts = [] ) : array {
+		$rows = [];
+
+		// Try to read the same config used by your HTML renderer.
+		$cfg = function_exists( 'jprm_read_price_config' ) ? jprm_read_price_config( $post_id ) : [];
+
+		// Heuristic extraction to support common shapes:
+		// - $cfg['prices'] = [ {label_id|label|label_text, amount|price|value}, ... ]
+		// - $cfg['groups'] = [ {prices:[...]}, ... ]
+		$maybe_prices = [];
+
+		if ( is_array( $cfg ) ) {
+			if ( isset( $cfg['prices'] ) && is_array( $cfg['prices'] ) ) {
+				$maybe_prices = $cfg['prices'];
+			} elseif ( isset( $cfg['groups'] ) && is_array( $cfg['groups'] ) ) {
+				foreach ( $cfg['groups'] as $g ) {
+					if ( isset( $g['prices'] ) && is_array( $g['prices'] ) ) {
+						$maybe_prices = array_merge( $maybe_prices, $g['prices'] );
+					}
+				}
+			}
+		}
+
+		foreach ( $maybe_prices as $p ) {
+			$label_id = null;
+			if ( isset( $p['label_id'] ) ) {
+				$label_id = (int) $p['label_id'];
+			} elseif ( isset( $p['label'] ) && is_numeric( $p['label'] ) ) {
+				$label_id = (int) $p['label'];
+			}
+
+			$amount = null;
+			if ( isset( $p['amount'] ) && $p['amount'] !== '' ) {
+				$amount = (float) $p['amount'];
+			} elseif ( isset( $p['price'] ) && $p['price'] !== '' ) {
+				$amount = (float) $p['price'];
+			} elseif ( isset( $p['value'] ) && $p['value'] !== '' ) {
+				$amount = (float) $p['value'];
+			}
+
+			$label_text = '';
+			$icon_html  = '';
+
+			// Prefer label_map when we have an id
+			if ( $label_id && is_array( $label_map ) && isset( $label_map[ $label_id ] ) ) {
+				$lm = $label_map[ $label_id ];
+				$label_text = is_array( $lm ) && isset( $lm['text'] ) ? (string) $lm['text'] : (string) $lm;
+				if ( is_array( $lm ) && ! empty( $lm['icon_html'] ) ) {
+					$icon_html = (string) $lm['icon_html'];
+				}
+			} else {
+				// Fallbacks for when config carries the display text directly
+				if ( isset( $p['label_text'] ) ) {
+					$label_text = (string) $p['label_text'];
+				} elseif ( isset( $p['label_name'] ) ) {
+					$label_text = (string) $p['label_name'];
+				} elseif ( isset( $p['label'] ) && ! is_numeric( $p['label'] ) ) {
+					$label_text = (string) $p['label'];
+				}
+			}
+
+			// Format number with currency rules used elsewhere
+			$formatted = '';
+			if ( $amount !== null ) {
+				$symbol   = isset( $currency_opts['symbol'] ) ? (string) $currency_opts['symbol'] : '€';
+				$position = isset( $currency_opts['position'] ) ? (string) $currency_opts['position'] : 'before';
+				$spacing  = isset( $currency_opts['spacing'] ) ? (string) $currency_opts['spacing'] : 'thin';
+				$space    = ( $spacing === 'none' ) ? '' : ( $spacing === 'normal' ? '&nbsp;' : '&#8201;' ); // thin space default
+
+				if ( ! empty( $currency_opts['show'] ) ) {
+					$formatted = ( $position === 'after' )
+						? number_format_i18n( $amount, 0 ) . $space . $symbol
+						: $symbol . $space . number_format_i18n( $amount, 0 );
+				} else {
+					$formatted = number_format_i18n( $amount, 0 );
+				}
+			}
+
+			$rows[] = [
+				'label_id'   => $label_id,
+				'label_text' => $label_text,
+				'icon_html'  => $icon_html,
+				'amount'     => $amount,
+				'formatted'  => $formatted,
+			];
+		}
+
+		/**
+		 * Allow exact/alternate sources to provide data or post-process it.
+		 * Return the final array of rows with keys described above.
+		 */
+		$rows = apply_filters( 'jprm_get_pricegroup_data', $rows, $post_id, $label_map, $currency_opts );
+
+		// Deduplicate by (label_id, label_text, formatted)
+		if ( ! empty( $rows ) ) {
+			$uniq = [];
+			$out  = [];
+			foreach ( $rows as $r ) {
+				$key = md5( json_encode( [
+					(int) ( $r['label_id'] ?? 0 ),
+					(string) ( $r['label_text'] ?? '' ),
+					(string) ( $r['formatted'] ?? '' ),
+				] ) );
+				if ( isset( $uniq[ $key ] ) ) continue;
+				$uniq[ $key ] = true;
+				$out[] = $r;
+			}
+			return $out;
+		}
+
+		return [];
+	}
 }

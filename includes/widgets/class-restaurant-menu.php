@@ -158,6 +158,21 @@ final class Restaurant_Menu extends Widget_Base {
 		$ib_rows = ( isset( $s['info_blocks'] ) && is_array( $s['info_blocks'] ) ) ? $s['info_blocks'] : [];
 		$ib_map  = function_exists('jprm_infoblocks_partition_by_position') ? jprm_infoblocks_partition_by_position( $ib_rows ) : [];
 
+		// NEW: Labels Layout (global + per-section overrides)
+		$global_labels_layout = isset( $s['labels_layout'] ) ? (string) $s['labels_layout'] : 'inline';
+		$global_placeholder   = isset( $s['labels_matrix_placeholder'] ) ? (string) $s['labels_matrix_placeholder'] : '—';
+
+		$section_layouts = [];
+		$overrides = isset( $s['labels_layout_overrides'] ) && is_array( $s['labels_layout_overrides'] ) ? $s['labels_layout_overrides'] : [];
+		foreach ( $overrides as $ov ) {
+			$sid = isset( $ov['section_id'] ) ? (int) $ov['section_id'] : 0;
+			if ( $sid <= 0 ) continue;
+			$section_layouts[ $sid ] = [
+				'layout'      => isset( $ov['layout'] ) ? (string) $ov['layout'] : '',
+				'placeholder' => isset( $ov['placeholder'] ) ? (string) $ov['placeholder'] : '',
+			];
+		}
+
 		$ctx = [
 			'columns'             => $columns,
 			'menu_term'           => $menu_term,
@@ -179,6 +194,9 @@ final class Restaurant_Menu extends Widget_Base {
 			'split_after_1'       => $split_after_1,
 			'split_after_2'       => $split_after_2,
 			'ib_map'              => $ib_map,
+			'section_layouts'     => $section_layouts,
+			'global_labels_layout'=> $global_labels_layout,
+			'global_placeholder'  => $global_placeholder,
 		];
 
 		$template = dirname( __DIR__ ) . '/render/templates/menu.php';
@@ -186,7 +204,6 @@ final class Restaurant_Menu extends Widget_Base {
 			$ctx = $ctx; // local scope for template
 			require $template;
 		} else {
-			// Fail-safe: minimal output
 			echo '<div class="jp-menu--empty">Template missing.</div>';
 		}
 	}
