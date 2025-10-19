@@ -218,7 +218,7 @@ if ( ! function_exists( 'jprm_render_pricegroup_html' ) ) {
 	}
 }
 
-/* ================= Structured data for Matrix layout ================= */
+/* =================  Structured data for Matrix layout ================= */
 
 /**
  * Provide structured label/price rows so templates can render a matrix per section.
