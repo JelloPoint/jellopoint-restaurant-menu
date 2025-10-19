@@ -11,7 +11,7 @@ use JelloPoint\RestaurantMenu\Storage\Price_Repository;
 // --- Ensure storage classes are loaded (Price_Schema + Price_Repository) ---
 if ( ! class_exists( 'JelloPoint\\RestaurantMenu\\Storage\\Price_Schema' ) ) {
     // Adjust the path if your file lives elsewhere:
-    $p = dirname( __DIR__, 2 ) . '/storage/class-price-schema.php ';
+    $p = dirname( __DIR__, 2 ) . '/storage/class-price-schema.php';
     if ( is_readable( $p ) ) {
         require_once $p;
     }
