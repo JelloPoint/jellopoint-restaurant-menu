@@ -222,7 +222,7 @@ trait Restaurant_Menu_Style {
 			'label'=>__('Info Blocks','jellopoint-restaurant-menu'),
 			'tab'=>\Elementor\Controls_Manager::TAB_STYLE,
 		]);
-		/* Title (now rendered; see partial below) */
+		/* Title (rendered in partial) */
 		$this->add_group_control(\Elementor\Group_Control_Typography::get_type(),[
 			'name'=>'infob_title_typo',
 			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Typography::TYPOGRAPHY_SECONDARY],
@@ -241,16 +241,17 @@ trait Restaurant_Menu_Style {
 			'selector'=>'{{WRAPPER}} .jprm-infoblock__content',
 		]);
 		$this->add_control('infob_body_color',[
-			'label'=>__('Body Color','jellopoint-restaurant-menu'), // renamed from "Typography/Body Color"
+			'label'=>__('Body Color','jellopoint-restaurant-menu'),
 			'type'=>\Elementor\Controls_Manager::COLOR,
 			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Colors::COLOR_TEXT],
 			'selectors'=>['{{WRAPPER}} .jprm-infoblock__content'=>'color: {{VALUE}};'],
 		]);
-		/* Background color for whole block (full column width) */
+		/* Background color for whole block (full column width).
+		   NOTE: Some Elementor versions don't have COLOR_BACKGROUND; we use COLOR_TEXT for compatibility. */
 		$this->add_control('infob_bg_color',[
 			'label'=>__('Background Color','jellopoint-restaurant-menu'),
 			'type'=>\Elementor\Controls_Manager::COLOR,
-			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Colors::COLOR_BACKGROUND],
+			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Colors::COLOR_TEXT],
 			'selectors'=>['{{WRAPPER}} .jprm-infoblock'=>'background-color: {{VALUE}};'],
 		]);
 		/* Image size */
