@@ -71,7 +71,7 @@ trait Restaurant_Menu_Style {
 			'label'=>__('Item Title & Description','jellopoint-restaurant-menu'),
 			'tab'=>\Elementor\Controls_Manager::TAB_STYLE,
 		]);
-		/* Item title (works for inline + matrix) */
+		/* Item title (inline + matrix) */
 		$this->add_group_control(\Elementor\Group_Control_Typography::get_type(),[
 			'name'=>'item_title_typo',
 			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Typography::TYPOGRAPHY_PRIMARY],
@@ -222,18 +222,8 @@ trait Restaurant_Menu_Style {
 			'label'=>__('Info Blocks','jellopoint-restaurant-menu'),
 			'tab'=>\Elementor\Controls_Manager::TAB_STYLE,
 		]);
-		/* Title (rendered in partial) */
-		$this->add_group_control(\Elementor\Group_Control_Typography::get_type(),[
-			'name'=>'infob_title_typo',
-			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Typography::TYPOGRAPHY_SECONDARY],
-			'selector'=>'{{WRAPPER}} .jprm-infoblock__title',
-		]);
-		$this->add_control('infob_title_color',[
-			'label'=>__('Title Color','jellopoint-restaurant-menu'),
-			'type'=>\Elementor\Controls_Manager::COLOR,
-			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Colors::COLOR_SECONDARY],
-			'selectors'=>['{{WRAPPER}} .jprm-infoblock__title'=>'color: {{VALUE}};'],
-		]);
+		/* Per your request: remove Title typography/color (title isn’t rendered) */
+
 		/* HTML body */
 		$this->add_group_control(\Elementor\Group_Control_Typography::get_type(),[
 			'name'=>'infob_body_typo',
@@ -246,12 +236,10 @@ trait Restaurant_Menu_Style {
 			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Colors::COLOR_TEXT],
 			'selectors'=>['{{WRAPPER}} .jprm-infoblock__content'=>'color: {{VALUE}};'],
 		]);
-		/* Background color for whole block (full column width).
-		   NOTE: Some Elementor versions don't have COLOR_BACKGROUND; we use COLOR_TEXT for compatibility. */
+		/* Background color for the whole block (full column width) */
 		$this->add_control('infob_bg_color',[
 			'label'=>__('Background Color','jellopoint-restaurant-menu'),
 			'type'=>\Elementor\Controls_Manager::COLOR,
-			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Colors::COLOR_TEXT],
 			'selectors'=>['{{WRAPPER}} .jprm-infoblock'=>'background-color: {{VALUE}};'],
 		]);
 		/* Image size */
@@ -266,26 +254,35 @@ trait Restaurant_Menu_Style {
 		$this->end_controls_section();
 
 
-		/* ===== Matrix (structural; neutral) ===== */
+		/* ===== Matrix (direct selectors so it “just works”) ===== */
 		$this->start_controls_section('jprm_style_matrix',[
 			'label'=>__('Matrix','jellopoint-restaurant-menu'),
 			'tab'=>\Elementor\Controls_Manager::TAB_STYLE,
 		]);
+		/* Title column min width: apply directly to the title cells */
 		$this->add_control('matrix_title_min_width',[
 			'label'=>__('Title column min width','jellopoint-restaurant-menu'),
 			'type'=>\Elementor\Controls_Manager::SLIDER,
 			'size_units'=>['px','rem'],
-			'range'=>['px'=>['min'=>80,'max'=>600,'step'=>1],'rem'=>['min'=>6,'max'=>40,'step'=>0.1]],
+			'range'=>[
+				'px'=>['min'=>80,'max'=>600,'step'=>1],
+				'rem'=>['min'=>6,'max'=>40,'step'=>0.1],
+			],
 			'default'=>['size'=>12,'unit'=>'rem'],
-			'selectors'=>['{{WRAPPER}} .jp-matrix'=>'--jp-mx-title-min: {{SIZE}}{{UNIT}};'],
+			'selectors'=>[
+				'{{WRAPPER}} .jp-matrix__cell--title'=>'min-width: {{SIZE}}{{UNIT}};',
+			],
 		]);
+		/* Column/Row gaps: set directly */
 		$this->add_control('matrix_col_gap',[
 			'label'=>__('Column gap','jellopoint-restaurant-menu'),
 			'type'=>\Elementor\Controls_Manager::SLIDER,
 			'size_units'=>['px'],
 			'range'=>['px'=>['min'=>0,'max'=>48]],
 			'default'=>['size'=>0],
-			'selectors'=>['{{WRAPPER}} .jp-matrix'=>'--jp-mx-col-gap: {{SIZE}}{{UNIT}};'],
+			'selectors'=>[
+				'{{WRAPPER}} .jp-matrix'=>'column-gap: {{SIZE}}{{UNIT}};',
+			],
 		]);
 		$this->add_control('matrix_row_gap',[
 			'label'=>__('Row gap','jellopoint-restaurant-menu'),
@@ -293,8 +290,11 @@ trait Restaurant_Menu_Style {
 			'size_units'=>['px'],
 			'range'=>['px'=>['min'=>0,'max'=>48]],
 			'default'=>['size'=>0],
-			'selectors'=>['{{WRAPPER}} .jp-matrix'=>'--jp-mx-row-gap: {{SIZE}}{{UNIT}};'],
+			'selectors'=>[
+				'{{WRAPPER}} .jp-matrix'=>'row-gap: {{SIZE}}{{UNIT}};',
+			],
 		]);
+		/* Value alignment: set directly on value cells */
 		$this->add_control('matrix_value_align',[
 			'label'=>__('Value alignment','jellopoint-restaurant-menu'),
 			'type'=>\Elementor\Controls_Manager::CHOOSE,
@@ -304,7 +304,9 @@ trait Restaurant_Menu_Style {
 				'center'=>['title'=>__('Center','jellopoint-restaurant-menu'),'icon'=>'eicon-text-align-center'],
 				'right'=>['title'=>__('Right','jellopoint-restaurant-menu'),'icon'=>'eicon-text-align-right'],
 			],
-			'selectors'=>['{{WRAPPER}} .jp-matrix'=>'--jp-mx-text-align: {{VALUE}};'],
+			'selectors'=>[
+				'{{WRAPPER}} .jp-matrix__cell--value'=>'text-align: {{VALUE}};',
+			],
 		]);
 		$this->end_controls_section();
 	}
