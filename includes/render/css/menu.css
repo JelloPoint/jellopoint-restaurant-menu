@@ -288,4 +288,8 @@
 }
 /* Separator between inline-below chips (server-side injected) */
 .jp-chip-sep { display:inline-block; vertical-align:baseline; }
+.jp-chip-sep{
+  display:inline-flex;align-items:center;vertical-align:baseline;
+  margin:0 .6rem;line-height:1;opacity:.75;color:currentColor;
+}
 
