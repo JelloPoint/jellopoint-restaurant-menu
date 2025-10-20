@@ -322,7 +322,7 @@ $this->add_control( 'inline_below_sep_enable', [
 $this->add_control( 'inline_below_sep_content', [
   'label'       => __( 'Separator Content', 'jellopoint-restaurant-menu' ),
   'type'        => \Elementor\Controls_Manager::TEXT,
-  'default'     => '•',
+  'default'     => '**',
   'placeholder' => '• | · / or',
   'condition'   => [
     'labels_layout'           => 'inline_below',
