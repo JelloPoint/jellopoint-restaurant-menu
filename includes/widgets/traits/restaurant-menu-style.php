@@ -11,11 +11,10 @@ trait Restaurant_Menu_Style {
 			'label'=>__('Menu Title & Description','jellopoint-restaurant-menu'),
 			'tab'=>\Elementor\Controls_Manager::TAB_STYLE,
 		]);
-		$this->add_control( 'jprm_curr_heading', [
-			'label'     => __( 'Currency', 'jellopoint-restaurant-menu' ),
-			'type'      => Controls_Manager::HEADING,
-			'separator' => 'before',
-		] );
+		$this->start_controls_section('jprm_style_menu_meta',[
+			'label'=>__('Menu','jellopoint-restaurant-menu'),
+			'tab'=>\Elementor\Controls_Manager::HEADING,
+		]);
 		$this->add_group_control(\Elementor\Group_Control_Typography::get_type(),[
 			'name'=>'menu_title_typo',
 			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Typography::TYPOGRAPHY_PRIMARY],
