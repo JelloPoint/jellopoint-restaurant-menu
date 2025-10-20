@@ -251,7 +251,10 @@ echo $_html; // phpcs:ignore
 echo '</div>';
 ;
 	} else {
-		echo '<div class="jp-menu__pricegroup"></div>';
+		echo '<div class="jp-menu__pricegroup jp--below jp-hassep" ' .
+     'style="display:flex!important;flex-wrap:wrap!important;gap:0!important;' .
+     'align-items:baseline!important;align-content:flex-start!important;justify-content:flex-start!important;' .
+     'text-align:left!important;' . $__vars . '">';
 	}
 	echo '</div></li>';
 }
