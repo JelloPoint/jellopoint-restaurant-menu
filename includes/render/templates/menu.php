@@ -147,7 +147,8 @@ function jprm_item_value_for_label( int $post_id, int $lid, ?array $label_map, a
 function jprm_render_item_inline(
 	int $post_id, bool $show_badges, string $badges_pos, string $badges_pres,
 	string $label_presentation, string $label_position,
-	$label_map, array $currency_opts
+	$label_map, array $currency_opts,
+	bool $sep_on = false, string $sep = '•', string $gap = '.6rem'
 ) : void {
 	$title = get_the_title( $post_id );
 	$desc  = get_post_meta( $post_id, 'jprm_desc', true );
@@ -167,9 +168,16 @@ function jprm_render_item_inline(
 		$_html = is_string( $_html ) ? $_html : '';
 		$_html = jprm_force_inline_row_styles( $_html );
 
-		// Inline layout: normal chip gaps (no separators)
-		$wrap_gap = '.5rem .8rem';
-		echo '<div class="jp-menu__pricegroup" style="display:flex!important;flex-wrap:wrap!important;gap:'.$wrap_gap.'!important;align-items:baseline!important;align-content:flex-start!important;justify-content:flex-start!important;text-align:left!important;">';
+		if ( $sep_on ) {
+			$_html = jprm_inject_inline_separators( $_html, $sep, $gap );
+		}
+
+		// With separators we use gap:0 and rely on the separator margins.
+		$wrap_gap = $sep_on ? '0' : '.5rem .8rem';
+
+		echo '<div class="jp-menu__pricegroup jp--inline'. ( $sep_on ? ' jp-hassep' : '' ) .'"'
+			. ' style="display:flex!important;flex-wrap:wrap!important;gap:' . $wrap_gap . '!important;'
+			. 'align-items:baseline!important;align-content:flex-start!important;justify-content:flex-start!important;text-align:left!important;">';
 		echo $_html; // phpcs:ignore
 		echo '</div>';
 	} else {
@@ -277,27 +285,30 @@ function jprm_render_section_block( $tid, array $blk, array $opts ) : void {
 		if ( empty( $cols ) ) $use_matrix = false; // fallback if no structured data
 	}
 
-	if ( ! $use_matrix ) {
-		foreach ( $items as $post ) {
-			if ( $use_inline_below ) {
-				jprm_render_item_inline_below(
-					(int) $post->ID,
-					$show_badges, $badges_position, $badges_presentation,
-					$label_presentation, $label_position,
-					$label_map, $currency_opts,
-					/* separators active only for Inline Below */
-					$sep_on, $sep_txt, $sep_gap
-				);
-			} else {
-				jprm_render_item_inline(
-					(int) $post->ID,
-					$show_badges, $badges_position, $badges_presentation,
-					$label_presentation, $label_position,
-					$label_map, $currency_opts
-				);
-			}
+if ( ! $use_matrix ) {
+	foreach ( $items as $post ) {
+		if ( $use_inline_below ) {
+			jprm_render_item_inline_below(
+				(int) $post->ID,
+				$show_badges, $badges_position, $badges_presentation,
+				$label_presentation, $label_position,
+				$label_map, $currency_opts,
+				/* separators active */
+				$sep_on, $sep_txt, $sep_gap
+			);
+		} else {
+			jprm_render_item_inline(
+				(int) $post->ID,
+				$show_badges, $badges_position, $badges_presentation,
+				$label_presentation, $label_position,
+				$label_map, $currency_opts,
+				/* separators active for INLINE too */
+				$sep_on, $sep_txt, $sep_gap
+			);
 		}
-	} else {
+	}
+}
+else {
 		// Matrix table rendering
 		$col_ids = array_keys( $cols );
 
