@@ -61,31 +61,37 @@ function jprm_gap_to_thinsp_count( string $gap ) : int {
 }
 
 /**
- * Build a safe text-only separator token so sanitizers won’t strip it.
- * Example: &thinsp;•&thinsp; (repeated thin spaces based on gap).
+ * Build a visible separator as a real flex item (SPAN with inline style),
+ * so it won’t get hidden by font-size:0 or flex quirks.
  */
 function jprm_build_text_separator( string $sep, string $gap ) : string {
-	$sep = ( $sep === '' ) ? '' : $sep;
+	$sep = ($sep === '') ? '' : $sep;
 	if ( $sep === '' ) return '';
-	$thin = '&#8201;'; // &thinsp;
-	$n = jprm_gap_to_thinsp_count( $gap );
-	$pad = str_repeat( $thin, max( 1, min( 4, $n ) ) );
-	// Return as plain text (no tags) so it survives wp_kses and still flows inline.
-	return $pad . esc_html( $sep ) . $pad;
+
+	$gap = trim($gap) !== '' ? $gap : '.6rem';
+	return '<span class="jp-chip-sep" aria-hidden="true" '
+		. 'style="display:inline-flex!important;align-items:center!important;'
+		. 'margin:0 ' . esc_attr($gap) . '!important;opacity:.8!important;'
+		. 'line-height:1!important;font-size:1em!important;'
+		. 'pointer-events:none!important;color:currentColor!important;">'
+		. esc_html($sep)
+		. '</span>';
 }
 
 /**
- * Insert a text-only separator between consecutive .jp-menu__row chips (robust to sanitizers).
+ * Insert the separator element between consecutive .jp-menu__row chips.
  */
 function jprm_inject_inline_separators( string $html, string $sep, string $gap ) : string {
 	$token = jprm_build_text_separator( $sep, $gap );
 	if ( $token === '' ) return $html;
+
 	return preg_replace(
 		'~</div>\s*<div\s+([^>]*\bjp-menu__row\b[^>]*)>~is',
 		'</div>' . $token . '<div $1>',
 		$html
 	);
 }
+
 
 /* === Common readers from context === */
 $columns             = (string) ( $ctx['columns'] ?? '1' );
