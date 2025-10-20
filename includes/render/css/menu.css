@@ -219,3 +219,14 @@
 .jp-menu__inner.jp--inline-below .jp-menu__pricegroup svg {
   display: inline !important;
 }
+/* Remove any theme/old separators or markers before price rows */
+.jp-menu__pricegroup,
+.jp-menu__pricegroup .jp-menu__row {
+  list-style: none !important;
+}
+
+.jp-menu__pricegroup .jp-menu__row::before,
+.jp-menu__pricegroup .jp-menu__row::after,
+.jp-menu__pricegroup .jp-menu__row::marker {
+  content: none !important;
+}
