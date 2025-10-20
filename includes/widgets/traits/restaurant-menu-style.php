@@ -292,7 +292,7 @@ trait Restaurant_Menu_Style {
 
 		/* ===== Matrix ===== */
 		$this->start_controls_section('jprm_style_matrix',[
-			'label'=>__('Matrix','jellopoint-restaurant-menu'),
+			'label'=>__('Matrix Prices','jellopoint-restaurant-menu'),
 			'tab'=>\Elementor\Controls_Manager::TAB_STYLE,
 		]);
 		$this->add_control('matrix_title_min_width',[
