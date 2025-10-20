@@ -228,10 +228,28 @@ function jprm_render_item_inline_below(
 		// Emit CSS once (idempotent). The CSS reads --jprm-inline-sep and --jprm-inline-sep-gap.
 		jprm_emit_sep_css_once();
 
-		// Inline Below wrapper: add jp--below + jp-hassep; use gap:0 so spacing comes from the separator margin.
-		echo '<div class="jp-menu__pricegroup jp--below jp-hassep" style="display:flex!important;flex-wrap:wrap!important;gap:0!important;align-items:baseline!important;align-content:flex-start!important;justify-content:flex-start!important;text-align:left!important;">';
-		echo $_html; // phpcs:ignore
-		echo '</div>';
+		// 1) Ensure the CSS for separators is present (runs once)
+jprm_emit_sep_css_once();
+
+// 2) Build CSS custom properties inline on the wrapper.
+// Use json_encode() to safely quote the separator token for CSS `content`.
+$__sep_token = json_encode( (string) $sep );              // e.g. "-*-"  -> "\"-*-\""
+$__sep_gap   = esc_attr( (string) $gap );                 // e.g. "1.1rem"
+
+$__vars = '--jprm-inline-sep:' . $__sep_token . ';' .
+         '--jprm-inline-sep-gap:' . $__sep_gap . ';';
+
+// 3) Render the pricegroup wrapper with explicit classes and vars.
+// gap:0 so spacing is controlled by the separator margin only.
+echo '<div class="jp-menu__pricegroup jp--below jp-hassep" ' .
+     'style="display:flex!important;flex-wrap:wrap!important;gap:0!important;' .
+     'align-items:baseline!important;align-content:flex-start!important;justify-content:flex-start!important;' .
+     'text-align:left!important;' . $__vars . '">';
+
+echo $_html; // phpcs:ignore
+
+echo '</div>';
+;
 	} else {
 		echo '<div class="jp-menu__pricegroup"></div>';
 	}
