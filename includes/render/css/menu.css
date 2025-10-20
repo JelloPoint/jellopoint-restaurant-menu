@@ -268,8 +268,8 @@
 .jp-menu__inner.jp--inline-below .jp-menu__pricegroup .jp-menu__row::marker {
   content: none !important;
 }
-/* Inline Below — chip separators (driven by controls on the widget wrapper) */
-.elementor-element[style*="--jprm-inline-sep-enabled:1"]
+/* Inline Below — show separator only when the wrapper has class jprm-sep--on-yes */
+.elementor-element.jprm-sep--on-yes
   .jp-menu__inner.jp--inline-below
   .jp-menu__pricegroup
   .jp-menu__row:not(:last-child)::after {
@@ -282,7 +282,8 @@
   vertical-align: baseline;
 }
 
-/* Safety: never add after the last chip */
+/* Never add after the last chip */
 .jp-menu__inner.jp--inline-below .jp-menu__pricegroup .jp-menu__row:last-child::after {
   content: none !important;
 }
+

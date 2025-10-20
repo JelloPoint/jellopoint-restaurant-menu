@@ -307,16 +307,16 @@ $this->add_control( 'labels_layout', [
         'matrix'       => __( 'Matrix',  'jellopoint-restaurant-menu' ),
 	],
 ] );
-// Toggle
+// Toggle: show a separator (Inline Below only)
 $this->add_control( 'inline_below_sep_enable', [
   'label'        => __( 'Show Separator (Inline Below)', 'jellopoint-restaurant-menu' ),
   'type'         => \Elementor\Controls_Manager::SWITCHER,
   'return_value' => 'yes',
   'default'      => '',
   'condition'    => [ 'labels_layout' => 'inline_below' ],
-  'selectors'    => [
-    '{{WRAPPER}}' => '--jprm-inline-sep-enabled:1;', // <-- move to wrapper
-  ],
+
+  // ADD THIS: injects a class on the widget wrapper when ON -> "jprm-sep--on-yes"
+  'prefix_class' => 'jprm-sep--on-',
 ]);
 
 // Content
@@ -330,7 +330,8 @@ $this->add_control( 'inline_below_sep_content', [
     'inline_below_sep_enable' => 'yes',
   ],
   'selectors'   => [
-    '{{WRAPPER}}' => '--jprm-inline-sep:"{{VALUE}}";', // <-- wrapper
+    '{{WRAPPER}}'                          => '--jprm-inline-sep:"{{VALUE}}";',
+    '{{WRAPPER}} .elementor-widget-container' => '--jprm-inline-sep:"{{VALUE}}";',
   ],
 ]);
 
@@ -346,7 +347,8 @@ $this->add_responsive_control( 'inline_below_sep_gap', [
     'inline_below_sep_enable' => 'yes',
   ],
   'selectors'  => [
-    '{{WRAPPER}}' => '--jprm-inline-sep-gap: {{SIZE}}{{UNIT}};', // <-- wrapper
+    '{{WRAPPER}}'                          => '--jprm-inline-sep-gap: {{SIZE}}{{UNIT}};',
+    '{{WRAPPER}} .elementor-widget-container' => '--jprm-inline-sep-gap: {{SIZE}}{{UNIT}};',
   ],
 ]);
 
