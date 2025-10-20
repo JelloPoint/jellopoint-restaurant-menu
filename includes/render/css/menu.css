@@ -180,4 +180,14 @@
 /* Ensure full width for Info Blocks background color */
 .jprm-infoblock{ width: 100%; }
 
+/* Inline Below: stack the price block under the content */
+.jp-menu__inner.jp--inline-below {
+  display: flex;
+  flex-direction: column;
+}
+
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup {
+  margin-top: .35rem; /* tweak as you like */
+}
+
 

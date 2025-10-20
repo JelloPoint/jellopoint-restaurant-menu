@@ -146,7 +146,40 @@ function jprm_render_item_inline( int $post_id, bool $show_badges, string $badge
 	echo '</div></li>';
 }
 
-/* === Section renderer (Inline or Matrix) === */
+/* === Inline-Below item card (new layout) ===
+ * Same content as Inline, but adds a class on the inner wrapper to give CSS a hook
+ * to stack the price block under title/description.
+ */
+function jprm_render_item_inline_below( int $post_id, bool $show_badges, string $badges_pos, string $badges_pres, string $label_presentation, string $label_position, $label_map, array $currency_opts ) : void {
+	$title = get_the_title( $post_id );
+	$desc  = get_post_meta( $post_id, 'jprm_desc', true );
+
+	echo '<li class="jp-menu__item"><div class="jp-menu__inner jp--inline-below">';
+	echo '  <div class="jp-menu__content">';
+
+	echo '    <div class="jp-menu__titleline">';
+	if ( $show_badges && $badges_pos === 'before_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
+		echo jprm_render_badges_inline_html( $post_id, $badges_pres ); // phpcs:ignore
+	}
+	if ( $title !== '' ) echo '      <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
+	if ( $show_badges && $badges_pos === 'after_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
+		echo jprm_render_badges_inline_html( $post_id, $badges_pres ); // phpcs:ignore
+	}
+	echo '    </div>';
+
+	if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
+	echo '  </div>';
+
+	if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
+		// Keep the same pricegroup renderer; CSS will stack it below via .jp--inline-below
+		echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
+	} else {
+		echo '<div class="jp-menu__pricegroup"></div>';
+	}
+	echo '</div></li>';
+}
+
+/* === Section renderer (Inline, Inline Below, or Matrix) === */
 function jprm_render_section_block( $tid, array $blk, array $opts ) : void {
 	$term                = $blk['term'];
 	$items               = $blk['items'];
@@ -188,10 +221,11 @@ function jprm_render_section_block( $tid, array $blk, array $opts ) : void {
 		echo '</li>';
 	}
 
-	// Decide Inline vs Matrix for this section
-	$use_matrix = ( $layout === 'matrix' );
+	// Decide Inline / Inline Below / Matrix for this section
+	$use_matrix       = ( $layout === 'matrix' );
+	$use_inline_below = ( $layout === 'inline_below' );
 
-	// If Matrix chosen, but we cannot get structured data, silently fall back to inline.
+	// If Matrix chosen, but we cannot get structured data, silently fall back to inline/inline-below.
 	if ( $use_matrix ) {
 		$cols = jprm_section_collect_label_columns( $items, $label_map, $currency_opts );
 		if ( empty( $cols ) ) {
@@ -200,18 +234,31 @@ function jprm_render_section_block( $tid, array $blk, array $opts ) : void {
 	}
 
 	if ( ! $use_matrix ) {
-		// Inline:  render each item as before
+		// Inline (classic) or Inline Below
 		foreach ( $items as $post ) {
-			jprm_render_item_inline( (int) $post->ID, $show_badges, $badges_position, $badges_presentation, $label_presentation, $label_position, $label_map, $currency_opts );
+			if ( $use_inline_below ) {
+				jprm_render_item_inline_below(
+					(int) $post->ID,
+					$show_badges, $badges_position, $badges_presentation,
+					$label_presentation, $label_position,
+					$label_map, $currency_opts
+				);
+			} else {
+				jprm_render_item_inline(
+					(int) $post->ID,
+					$show_badges, $badges_position, $badges_presentation,
+					$label_presentation, $label_position,
+					$label_map, $currency_opts
+				);
+			}
 		}
 	} else {
 		// Matrix table
 		$col_ids = array_keys( $cols );
 
-	echo '<li class="jp-menu__matrix">';
-    $__jp_cols = (int) count( $col_ids ); // 1 (title col) + $__jp_cols (label cols)
-    echo '<div class="jp-matrix" style="--jp-matrix-cols:' . $__jp_cols . ';">';
-
+		echo '<li class="jp-menu__matrix">';
+		$__jp_cols = (int) count( $col_ids ); // 1 (title col) + $__jp_cols (label cols)
+		echo '<div class="jp-matrix" style="--jp-matrix-cols:' . $__jp_cols . ';">';
 
 		// Header row
 		echo '<div class="jp-matrix__row jp-matrix__row--header">';

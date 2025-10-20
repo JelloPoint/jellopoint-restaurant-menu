@@ -301,9 +301,10 @@ $this->add_control( 'labels_layout', [
 	'label'   => __( 'Default layout', 'jellopoint-restaurant-menu' ),
 	'type'    => \Elementor\Controls_Manager::SELECT,
 	'default' => 'inline',
-	'options' => [
-		'inline' => __( 'Inline (classic)', 'jellopoint-restaurant-menu' ),
-		'matrix' => __( 'Matrix (per-section table)', 'jellopoint-restaurant-menu' ),
+	 'options' => [
+        'inline'       => __( 'Inline',  'jellopoint-restaurant-menu' ),
+        'inline_below' => __( 'Inline Below',  'jellopoint-restaurant-menu' ),
+        'matrix'       => __( 'Matrix',  'jellopoint-restaurant-menu' ),
 	],
 ] );
 
