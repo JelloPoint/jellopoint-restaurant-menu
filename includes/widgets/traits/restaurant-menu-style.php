@@ -51,6 +51,11 @@ trait Restaurant_Menu_Style {
 			'label'=>__('Section Title & Description','jellopoint-restaurant-menu'),
 			'tab'=>\Elementor\Controls_Manager::TAB_STYLE,
 		]);
+		$this->add_control('menu_title_section_section',[
+			'label'=>__('Section Title','jellopoint-restaurant-menu'),
+			'type'      =>\Elementor\Controls_Manager::HEADING,
+			'separator' => 'before',
+		]);
 		$this->add_group_control(\Elementor\Group_Control_Typography::get_type(),[
 			'name'=>'section_title_typo',
 			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Typography::TYPOGRAPHY_SECONDARY],
@@ -61,6 +66,11 @@ trait Restaurant_Menu_Style {
 			'type'=>\Elementor\Controls_Manager::COLOR,
 			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Colors::COLOR_SECONDARY],
 			'selectors'=>['{{WRAPPER}} .jp-section__title'=>'color: {{VALUE}};'],
+		]);
+		$this->add_control('menu_description_section_section',[
+			'label'=>__('Section Description','jellopoint-restaurant-menu'),
+			'type'      =>\Elementor\Controls_Manager::HEADING,
+			'separator' => 'before',
 		]);
 		$this->add_group_control(\Elementor\Group_Control_Typography::get_type(),[
 			'name'=>'section_desc_typo',
@@ -81,6 +91,11 @@ trait Restaurant_Menu_Style {
 			'label'=>__('Item Title & Description','jellopoint-restaurant-menu'),
 			'tab'=>\Elementor\Controls_Manager::TAB_STYLE,
 		]);
+		$this->add_control('menu_title_item_section',[
+			'label'=>__('Item Title','jellopoint-restaurant-menu'),
+			'type'      =>\Elementor\Controls_Manager::HEADING,
+			'separator' => 'before',
+		]);
 		/* Inline + Matrix titles */
 		$this->add_group_control(\Elementor\Group_Control_Typography::get_type(),[
 			'name'=>'item_title_typo',
@@ -95,6 +110,11 @@ trait Restaurant_Menu_Style {
 				'{{WRAPPER}} .jp-menu__title'=>'color: {{VALUE}};',
 				'{{WRAPPER}} .jp-matrix__title'=>'color: {{VALUE}};',
 			],
+		]);
+		$this->add_control('menu_description_item_section',[
+			'label'=>__('Item Description','jellopoint-restaurant-menu'),
+			'type'      =>\Elementor\Controls_Manager::HEADING,
+			'separator' => 'before',
 		]);
 		/* Inline + Matrix descriptions */
 		$this->add_group_control(\Elementor\Group_Control_Typography::get_type(),[
