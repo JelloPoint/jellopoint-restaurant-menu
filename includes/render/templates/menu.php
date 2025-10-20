@@ -63,11 +63,10 @@ function jprm_force_inline_row_styles( string $html ) : string {
 function jprm_inject_inline_separators( string $html, string $sep = '•', string $gap = '.6rem' ) : string {
 	if ( $sep === '' ) return $html;
 
-	$sep_html = '<span class="jp-chip-sep" style="display:inline-block;vertical-align:baseline;margin:0 '
-		. esc_attr($gap) . ' .5rem ' . esc_attr($gap)
-		. ';opacity:.75;line-height:1;">' . esc_html( $sep ) . '</span>';
+	$sep_html = '<span class="jp-chip-sep" style="display:inline-block;vertical-align:baseline;'
+	          . 'margin:0 ' . esc_attr($gap) . ' .5rem ' . esc_attr($gap) . ';'
+	          . 'opacity:.75;line-height:1;font-size:1rem;">' . esc_html( $sep ) . '</span>';
 
-	// Insert the separator span BETWEEN sibling .jp-menu__row blocks
 	$html = preg_replace(
 		'~</div>\s*<div\s+class="([^"]*\bjp-menu__row\b[^"]*)"~i',
 		'</div>' . $sep_html . '<div class="$1"',
