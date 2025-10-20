@@ -27,30 +27,31 @@ if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
  * inject inline styles into each .jp-menu__row if not present yet.
  */
 function jprm_force_inline_row_styles( string $html ) : string {
-	// 1) Add style attribute to .jp-menu__row blocks if missing
-	$style = 'style="display:inline-flex;flex:0 0 auto;width:auto;max-width:none;margin:0;padding:0;align-items:baseline;gap:.35rem;"';
-	$html = preg_replace(
-		'~<div\s+class="([^"]*\bjp-menu__row\b[^"]*)"(?![^>]*\sstyle=)~i',
-		'<div class="$1" ' . $style,
-		$html
-	);
+  // Make each .jp-menu__row an inline chip that cannot expand or stack
+  $style = 'style="display:inline-flex!important;flex:0 0 auto!important;width:auto!important;max-width:none!important;margin:0!important;padding:0!important;align-items:baseline!important;gap:.35rem!important;"';
+  $html = preg_replace(
+    '~<div\s+class="([^"]*\bjp-menu__row\b[^"]*)"(?![^>]*\sstyle=)~i',
+    '<div class="$1" ' . $style,
+    $html
+  );
 
-	// 2) Ensure .jp-menu__price is inline-flex (do NOT append ">")
-	$html = preg_replace(
-		'~<span\s+class="([^"]*\bjp-menu__price\b[^"]*)"(?![^>]*\sstyle=)~i',
-		'<span class="$1" style="display:inline-flex;align-items:baseline;"',
-		$html
-	);
+  // Ensure .jp-menu__price is inline-flex (no stray >)
+  $html = preg_replace(
+    '~<span\s+class="([^"]*\bjp-menu__price\b[^"]*)"(?![^>]*\sstyle=)~i',
+    '<span class="$1" style="display:inline-flex!important;align-items:baseline!important;"',
+    $html
+  );
 
-	// 3) Ensure .jp-menu__label is inline-flex (do NOT append ">")
-	$html = preg_replace(
-		'~<span\s+class="([^"]*\bjp-menu__label\b[^"]*)"(?![^>]*\sstyle=)~i',
-		'<span class="$1" style="display:inline-flex;align-items:baseline;gap:.35rem;"',
-		$html
-	);
+  // Ensure .jp-menu__label is inline-flex
+  $html = preg_replace(
+    '~<span\s+class="([^"]*\bjp-menu__label\b[^"]*)"(?![^>]*\sstyle=)~i',
+    '<span class="$1" style="display:inline-flex!important;align-items:baseline!important;gap:.35rem!important;"',
+    $html
+  );
 
-	return $html;
+  return $html;
 }
+
 
 /* === Common readers from context === */
 $columns             = (string) ( $ctx['columns'] ?? '1' );
@@ -190,11 +191,11 @@ function jprm_render_item_inline_below( int $post_id, bool $show_badges, string 
 		$_html = is_string( $_html ) ? $_html : '';
 		$_html = jprm_force_inline_row_styles( $_html );
 
-		echo '<div class="jp-menu__pricegroup" style="display:flex;flex-wrap:wrap;gap:.5rem .8rem;align-items:baseline;align-content:flex-start;justify-content:flex-start;text-align:left;">';
+		echo '<div class="jp-menu__pricegroup" style="display:flex!important;flex-wrap:wrap!important;gap:.5rem .8rem!important;align-items:baseline!important;align-content:flex-start!important;justify-content:flex-start!important;text-align:left!important;">';
 		echo $_html; // phpcs:ignore
 		echo '</div>';
 	} else {
-		echo '<div class="jp-menu__pricegroup" style="display:flex;flex-wrap:wrap;gap:.5rem .8rem;align-items:baseline;align-content:flex-start;justify-content:flex-start;text-align:left;"></div>';
+		echo '<div class="jp-menu__pricegroup" style="display:flex!important;flex-wrap:wrap!important;gap:.5rem .8rem!important;align-items:baseline!important;align-content:flex-start!important;justify-content:flex-start!important;text-align:left!important;"></div>';
 	}
 	echo '</div></li>';
 }
