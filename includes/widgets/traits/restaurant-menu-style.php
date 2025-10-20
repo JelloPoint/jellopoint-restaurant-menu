@@ -28,7 +28,7 @@ trait Restaurant_Menu_Style {
 			'selectors'=>['{{WRAPPER}} .jp-menu__meta-title'=>'color: {{VALUE}};'],
 		]);
 		$this->add_control('menu_description_section',[
-			'label'=>__('Description','jellopoint-restaurant-menu'),
+			'label'=>__('Menu Description','jellopoint-restaurant-menu'),
 			'type'      =>\Elementor\Controls_Manager::HEADING,
 			'separator' => 'before',
 		]);
