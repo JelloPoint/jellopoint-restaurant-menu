@@ -32,22 +32,26 @@ function jprm_force_inline_row_styles( string $html ) : string {
 }
 
 /**
- * Insert a separator between consecutive .jp-menu__row chips (Inline Below).
- * Font-size is set so it stays visible even if a parent uses font-size:0.
+ * Insert a visible flex item between consecutive .jp-menu__row chips (Inline Below).
+ * Uses a <div> (flex item) instead of <span> to be robust in flex containers and sanitizers.
  */
 function jprm_inject_inline_separators( string $html, string $sep = '•', string $gap = '.6rem' ) : string {
 	if ( $sep === '' ) return $html;
 
-	$sep_html = '<span class="jp-chip-sep" style="display:inline-block;vertical-align:baseline;'
-	          . 'margin:0 ' . esc_attr($gap) . ';opacity:.75;line-height:1;font-size:1rem;">'
-	          . esc_html( $sep ) . '</span>';
+	$sep_html = '<div class="jp-chip-sep" aria-hidden="true"'
+	          . ' style="display:inline-flex;align-items:center;vertical-align:baseline;'
+	          . 'margin:0 ' . esc_attr($gap) . ';'
+	          . 'opacity:.75;line-height:1;font-size:1em;'
+	          . 'pointer-events:none;color:currentColor;">'
+	          . esc_html( $sep ) . '</div>';
 
-	// ...]</div><div class="jp-menu__row...
+	/* Insert between adjacent .jp-menu__row blocks regardless of attribute order/whitespace */
 	$html = preg_replace(
-		'~</div>\s*<div\s+class="([^"]*\bjp-menu__row\b[^"]*)"~i',
-		'</div>' . $sep_html . '<div class="$1"',
+		'~</div>\s*<div\s+([^>]*\bjp-menu__row\b[^>]*)>~i',
+		'</div>' . $sep_html . '<div $1>',
 		$html
 	);
+
 	return $html;
 }
 
