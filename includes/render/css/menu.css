@@ -230,3 +230,41 @@
 .jp-menu__pricegroup .jp-menu__row::marker {
   content: none !important;
 }
+/* --- INLINE BELOW: force price rows to sit side-by-side, no matter what --- */
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup {
+  display: block !important;           /* don't rely on flex/grid */
+  text-align: left !important;
+  font-size: 0 !important;             /* kill inter-element gaps for inline-block chips */
+  white-space: normal !important;
+}
+
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup .jp-menu__row {
+  display: inline-block !important;    /* inline chips */
+  vertical-align: baseline !important;
+  font-size: 1rem !important;          /* restore text size inside the chip */
+  white-space: nowrap !important;      /* keep price+label on one chip */
+  margin: 0 .8rem .5rem 0 !important;  /* horizontal & vertical spacing */
+  padding: 0 !important;
+  width: auto !important;              /* kill any 100% width overrides */
+  max-width: none !important;
+  float: none !important;
+  clear: none !important;
+}
+
+/* inner bits stay inline */
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup .jp-menu__row .jp-menu__price,
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup .jp-menu__row .jp-menu__label {
+  display: inline-block !important;
+  vertical-align: baseline !important;
+}
+
+/* eliminate accidental markers/separators */
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup,
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup .jp-menu__row {
+  list-style: none !important;
+}
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup .jp-menu__row::before,
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup .jp-menu__row::after,
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup .jp-menu__row::marker {
+  content: none !important;
+}
