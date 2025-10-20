@@ -311,12 +311,11 @@ $this->add_control( 'labels_layout', [
 $this->add_control( 'inline_below_sep_enable', [
   'label'        => __( 'Show Separator (Inline Below)', 'jellopoint-restaurant-menu' ),
   'type'         => \Elementor\Controls_Manager::SWITCHER,
-  'return_value' => 'yes',
+  'return_value' => 'on',                   // <— important: non-empty ON value
   'default'      => '',
   'condition'    => [ 'labels_layout' => 'inline_below' ],
-
-  // ADD THIS: injects a class on the widget wrapper when ON -> "jprm-sep--on-yes"
-  'prefix_class' => 'jprm-sep--on-',
+  'prefix_class' => 'jprm-sep--',           // <— wrapper will get `jprm-sep--on` when ON; no class when OFF
+  'render_type'  => 'template',             // <— forces preview to re-render when toggled
 ]);
 
 // Content
@@ -327,12 +326,13 @@ $this->add_control( 'inline_below_sep_content', [
   'placeholder' => '• | · / or',
   'condition'   => [
     'labels_layout'           => 'inline_below',
-    'inline_below_sep_enable' => 'yes',
+    'inline_below_sep_enable' => 'on',
   ],
   'selectors'   => [
     '{{WRAPPER}}'                          => '--jprm-inline-sep:"{{VALUE}}";',
     '{{WRAPPER}} .elementor-widget-container' => '--jprm-inline-sep:"{{VALUE}}";',
   ],
+  'render_type' => 'template',
 ]);
 
 // Spacing
@@ -344,12 +344,13 @@ $this->add_responsive_control( 'inline_below_sep_gap', [
   'default'    => [ 'size' => 0.6, 'unit' => 'rem' ],
   'condition'  => [
     'labels_layout'           => 'inline_below',
-    'inline_below_sep_enable' => 'yes',
+    'inline_below_sep_enable' => 'on',
   ],
   'selectors'  => [
-    '{{WRAPPER}}'                          => '--jprm-inline-sep-gap: {{SIZE}}{{UNIT}};',
-    '{{WRAPPER}} .elementor-widget-container' => '--jprm-inline-sep-gap: {{SIZE}}{{UNIT}};',
+    '{{WRAPPER}}'                              => '--jprm-inline-sep-gap: {{SIZE}}{{UNIT}};',
+    '{{WRAPPER}} .elementor-widget-container'  => '--jprm-inline-sep-gap: {{SIZE}}{{UNIT}};',
   ],
+  'render_type' => 'template',
 ]);
 
 $this->add_control( 'matrix_placeholder', [
