@@ -202,7 +202,9 @@ function jprm_render_item_inline(
 	echo '  </div>';
 
 	if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
-		echo '<div class="jp-menu__pricegroup">';
+		$__fontfix = $sep_on ? 'font-size:1rem!important;' : '';
+echo '<div class="jp-menu__pricegroup" style="display:flex!important;flex-wrap:wrap!important;gap:'.$wrap_gap.'!important;align-items:baseline!important;align-content:flex-start!important;justify-content:flex-start!important;text-align:left!important;'.$__fontfix.'">';
+
 		echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
 		echo '</div>';
 	} else {
