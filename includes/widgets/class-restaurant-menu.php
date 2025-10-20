@@ -202,7 +202,15 @@ final class Restaurant_Menu extends Widget_Base {
 			'global_placeholder'  => $global_placeholder,
 		];
 		
+			// === Inline Below separator settings (from Controls) ===
+			$sep_on_val = $settings['inline_below_sep_enable'] ?? '';
+			$ctx['inline_below_sep_enable']  = in_array($sep_on_val, ['on','yes','1',1,true], true);
 
+			$ctx['inline_below_sep_content'] = (string) ($settings['inline_below_sep_content'] ?? '•');
+
+			$gap_size = isset($settings['inline_below_sep_gap']['size']) ? (string)$settings['inline_below_sep_gap']['size'] : '0.6';
+			$gap_unit = isset($settings['inline_below_sep_gap']['unit']) ? (string)$settings['inline_below_sep_gap']['unit'] : 'rem';
+			$ctx['inline_below_sep_gap']     = trim($gap_size . $gap_unit);
 
 		$template = dirname( __DIR__ ) . '/render/templates/menu.php';
 		if ( is_readable( $template ) ) {
