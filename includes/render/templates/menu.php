@@ -138,18 +138,18 @@ function jprm_render_item_inline( int $post_id, bool $show_badges, string $badge
 	if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
 	echo '  </div>';
 
+	// WRAPPED pricegroup so CSS can target it
 	if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
+		echo '<div class="jp-menu__pricegroup">';
 		echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
+		echo '</div>';
 	} else {
 		echo '<div class="jp-menu__pricegroup"></div>';
 	}
 	echo '</div></li>';
 }
 
-/* === Inline-Below item card (new layout) ===
- * Same content as Inline, but adds a class on the inner wrapper to give CSS a hook
- * to stack the price block under title/description.
- */
+/* === Inline-Below item card (new layout) === */
 function jprm_render_item_inline_below( int $post_id, bool $show_badges, string $badges_pos, string $badges_pres, string $label_presentation, string $label_position, $label_map, array $currency_opts ) : void {
 	$title = get_the_title( $post_id );
 	$desc  = get_post_meta( $post_id, 'jprm_desc', true );
@@ -170,9 +170,11 @@ function jprm_render_item_inline_below( int $post_id, bool $show_badges, string 
 	if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
 	echo '  </div>';
 
+	// WRAPPED pricegroup so CSS can target it
 	if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
-		// Keep the same pricegroup renderer; CSS will stack it below via .jp--inline-below
+		echo '<div class="jp-menu__pricegroup">';
 		echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
+		echo '</div>';
 	} else {
 		echo '<div class="jp-menu__pricegroup"></div>';
 	}
