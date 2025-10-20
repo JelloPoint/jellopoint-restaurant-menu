@@ -264,5 +264,51 @@
   display: inline-flex !important;
   justify-content: flex-start !important;
 }
+/* ===== Inline Below — make price rows sit next to each other ===== */
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup {
+  display: flex !important;          /* lay out children horizontally */
+  flex-wrap: wrap !important;         /* wrap to next line if needed */
+  gap: .5rem .8rem !important;        /* vertical / horizontal gaps */
+  align-items: baseline !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+  float: none !important;
+}
+
+/* Each price/label pair becomes an inline chip */
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup .jp-menu__row {
+  display: inline-flex !important;
+  width: auto !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  align-items: baseline !important;
+  gap: .35rem !important;
+  float: none !important;
+  grid-column: auto !important;
+}
+
+/* Inner bits should not expand full width */
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup .jp-menu__row .jp-menu__price,
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup .jp-menu__row .jp-menu__label {
+  display: inline-flex !important;
+  width: auto !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  align-items: baseline !important;
+}
+
+/* Icons/text alignment polish */
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup .jp-menu__row .jp-menu__label img,
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup .jp-menu__row .jp-menu__label svg {
+  vertical-align: middle !important;
+  display: inline-block !important;
+}
+
+/* If any theme rule forces block-level spans, neutralize it here */
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup span {
+  display: inline !important;
+}
 
 
