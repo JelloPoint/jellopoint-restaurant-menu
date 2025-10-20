@@ -13,7 +13,7 @@ trait Restaurant_Menu_Style {
 		]);
 		$this->add_control('menu_title_section',[
 			'label'=>__('Menu Title','jellopoint-restaurant-menu'),
-			'type'      => Controls_Manager::HEADING,
+			'type'      =>\Elementor\Controls_Manager::HEADING,
 			'separator' => 'before',
 		]);
 		$this->add_group_control(\Elementor\Group_Control_Typography::get_type(),[
