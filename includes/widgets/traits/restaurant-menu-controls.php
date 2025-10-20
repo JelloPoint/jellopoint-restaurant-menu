@@ -307,22 +307,19 @@ $this->add_control( 'labels_layout', [
         'matrix'       => __( 'Matrix',  'jellopoint-restaurant-menu' ),
 	],
 ] );
-// Toggle: show a separator between chips (Inline Below only)
+// Toggle
 $this->add_control( 'inline_below_sep_enable', [
   'label'        => __( 'Show Separator (Inline Below)', 'jellopoint-restaurant-menu' ),
   'type'         => \Elementor\Controls_Manager::SWITCHER,
   'return_value' => 'yes',
   'default'      => '',
-  'condition'    => [
-    'labels_layout' => 'inline_below', // adjust if your control ID differs
-  ],
-  // When ON, drop a flag into the wrapper via a CSS var (Elementor writes this inline)
+  'condition'    => [ 'labels_layout' => 'inline_below' ],
   'selectors'    => [
-    '{{WRAPPER}} .jp-menu__inner.jp--inline-below' => '--jprm-inline-sep-enabled:1;',
+    '{{WRAPPER}}' => '--jprm-inline-sep-enabled:1;', // <-- move to wrapper
   ],
 ]);
 
-// Content: what to use as separator
+// Content
 $this->add_control( 'inline_below_sep_content', [
   'label'       => __( 'Separator Content', 'jellopoint-restaurant-menu' ),
   'type'        => \Elementor\Controls_Manager::TEXT,
@@ -332,13 +329,12 @@ $this->add_control( 'inline_below_sep_content', [
     'labels_layout'           => 'inline_below',
     'inline_below_sep_enable' => 'yes',
   ],
-  // Write the content into a CSS var (quotes are important for CSS `content`)
   'selectors'   => [
-    '{{WRAPPER}} .jp-menu__inner.jp--inline-below' => '--jprm-inline-sep:"{{VALUE}}";',
+    '{{WRAPPER}}' => '--jprm-inline-sep:"{{VALUE}}";', // <-- wrapper
   ],
 ]);
 
-// Spacing: distance around the separator
+// Spacing
 $this->add_responsive_control( 'inline_below_sep_gap', [
   'label'      => __( 'Separator Spacing', 'jellopoint-restaurant-menu' ),
   'type'       => \Elementor\Controls_Manager::SLIDER,
@@ -350,16 +346,16 @@ $this->add_responsive_control( 'inline_below_sep_gap', [
     'inline_below_sep_enable' => 'yes',
   ],
   'selectors'  => [
-    '{{WRAPPER}} .jp-menu__inner.jp--inline-below' => '--jprm-inline-sep-gap: {{SIZE}}{{UNIT}};',
+    '{{WRAPPER}}' => '--jprm-inline-sep-gap: {{SIZE}}{{UNIT}};', // <-- wrapper
   ],
 ]);
 
-$this->add_control( 'labels_matrix_placeholder', [
-	'label'       => __( 'Matrix placeholder for empty cell', 'jellopoint-restaurant-menu' ),
-	'type'        => \Elementor\Controls_Manager::TEXT,
-	'default'     => '—',
-	'placeholder' => '—',
-] );
+$this->add_control( 'matrix_placeholder', [
+  'label'     => __( 'Placeholder (empty cell)', 'jellopoint-restaurant-menu' ),
+  'type'      => \Elementor\Controls_Manager::TEXT,
+  'default'   => '—',
+  'condition' => [ 'labels_layout' => 'matrix' ], // <-- only show for Matrix
+]);
 
 /* Per-section overrides (scoped to current Menu) */
 $selected_menu_id = 0;

@@ -268,9 +268,11 @@
 .jp-menu__inner.jp--inline-below .jp-menu__pricegroup .jp-menu__row::marker {
   content: none !important;
 }
-/* Inline Below — chip separators (enabled only when the toggle sets the flag) */
-.jp-menu__inner.jp--inline-below[style*="--jprm-inline-sep-enabled:1"]
-  .jp-menu__pricegroup .jp-menu__row:not(:last-child)::after {
+/* Inline Below — show separator only when the wrapper has the flag */
+.elementor-element[style*="--jprm-inline-sep-enabled:1"]
+  .jp-menu__inner.jp--inline-below
+  .jp-menu__pricegroup
+  .jp-menu__row:not(:last-child)::after {
   content: var(--jprm-inline-sep, "•");
   display: inline-block;
   font-size: 1rem;
@@ -280,7 +282,7 @@
   vertical-align: baseline;
 }
 
-/* Never show a stray separator on the last chip */
+/* Never add a separator after the last chip */
 .jp-menu__inner.jp--inline-below .jp-menu__pricegroup .jp-menu__row:last-child::after {
   content: none !important;
 }
