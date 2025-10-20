@@ -6,6 +6,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+
 /* --- Safe helper for menu meta (if not already defined by widget) --- */
 if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
 	function jprm_render_menu_meta( $term, bool $show_title, bool $show_desc, string $scope ) : string {
@@ -23,25 +24,31 @@ if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
 }
 
 /**
- * Emit (once) the CSS that draws separators between inline price chips.
- * We rely on inline CSS variables placed on the wrapper:
- *   --jp-sep-token: "•";
- *   --jp-sep-gap: .6rem;
+ * Emit (once) the CSS that draws separators between inline chips for Inline Below layout.
+ * Uses CSS variables placed by the Elementor controls on the widget container:
+ *   --jprm-inline-sep: "-*-";
+ *   --jprm-inline-sep-gap: 1rem;
  */
 function jprm_emit_sep_css_once() : void {
 	static $done = false;
 	if ( $done ) return;
 	$done = true;
 
-	echo '<style id="jprm-inline-sep-css">'
-		/* ensure separator appears between chips; decouple from theme font-size */
-		. '.jp-menu__pricegroup.jp-hassep{gap:0!important;}'
-		. '.jp-menu__pricegroup.jp-hassep .jp-menu__row + .jp-menu__row::before{'
-		. 'content:var(--jp-sep-token,"•");'
-		. 'display:inline-block;'
-		. 'margin:0 var(--jp-sep-gap,.6rem);'
-		. 'font-size:1rem;line-height:1;opacity:.75;'
-		. 'vertical-align:baseline;pointer-events:none;color:currentColor;}'
+	echo '<style id="jprm-inline-below-sep-css">'
+		/* Only for the Inline Below wrapper we render */
+		. '.jp-menu__pricegroup.jp--below.jp-hassep{'
+		. '  display:flex!important;flex-wrap:wrap!important;gap:0!important;'
+		. '  align-items:baseline!important;align-content:flex-start!important;'
+		. '  justify-content:flex-start!important;text-align:left!important;'
+		. '}'
+		/* Insert a separator between adjacent chips. Content comes from CSS var. */
+		. '.jp-menu__pricegroup.jp--below.jp-hassep .jp-menu__row + .jp-menu__row::before{'
+		. '  content: var(--jprm-inline-sep, "");'
+		. '  display:inline-block;'
+		. '  margin: 0 var(--jprm-inline-sep-gap, .6rem);'
+		. '  font-size:1rem; line-height:1; opacity:.75;'
+		. '  vertical-align:baseline; pointer-events:none; color:currentColor;'
+		. '}'
 		. '</style>';
 }
 
