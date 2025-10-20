@@ -11,6 +11,11 @@ trait Restaurant_Menu_Style {
 			'label'=>__('Menu Title & Description','jellopoint-restaurant-menu'),
 			'tab'=>\Elementor\Controls_Manager::TAB_STYLE,
 		]);
+		$this->add_control('menu_title_section',[
+			'label'=>__('Menu Title','jellopoint-restaurant-menu'),
+			'type'      => Controls_Manager::HEADING,
+			'separator' => 'before',
+		]);
 		$this->add_group_control(\Elementor\Group_Control_Typography::get_type(),[
 			'name'=>'menu_title_typo',
 			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Typography::TYPOGRAPHY_PRIMARY],
