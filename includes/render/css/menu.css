@@ -273,7 +273,7 @@
   .jp-menu__inner.jp--inline-below
   .jp-menu__pricegroup
   .jp-menu__row:not(:last-child)::after {
-  content: var(--jprm-inline-sep, "•");
+  content: var(--jprm-inline-sep, "**");
   display: inline-block;
   font-size: 1rem;
   line-height: 1;
