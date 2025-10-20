@@ -11,7 +11,7 @@ trait Restaurant_Menu_Style {
 			'label'=>__('Menu Title & Description','jellopoint-restaurant-menu'),
 			'tab'=>\Elementor\Controls_Manager::TAB_STYLE,
 		]);
-		$this->start_controls_section('jprm_style_menu_meta',[
+		$this->add_control('jprm_style_menu_meta',[
 			'label'=>__('Menu','jellopoint-restaurant-menu'),
 			'tab'=>\Elementor\Controls_Manager::HEADING,
 		]);
