@@ -356,7 +356,12 @@ $this->add_control( 'matrix_placeholder', [
   'default'   => '—',
   'condition' => [ 'labels_layout' => 'matrix' ], // <-- only show for Matrix
 ]);
-
+$this->add_control( 'matrix_overrides_heading', [
+  'type'      => \Elementor\Controls_Manager::HEADING,
+  'label'     => __( 'Matrix – Section Overrides', 'jellopoint-restaurant-menu' ),
+  'separator' => 'before',
+  'condition' => [ 'labels_layout' => 'matrix' ],
+] );
 /* Per-section overrides (scoped to current Menu) */
 $selected_menu_id = 0;
 try {
@@ -395,13 +400,14 @@ $rep_ov->add_control( 'placeholder', [
 ] );
 
 $this->add_control( 'labels_layout_overrides', [
-	'label'           => __( 'Per-Section Overrides', 'jellopoint-restaurant-menu' ),
-	'type'            => \Elementor\Controls_Manager::REPEATER,
-	'fields'          => $rep_ov->get_controls(),
-	'title_field'     => '{{{ section_id }}} → {{{ layout }}}',
-	'default'         => [],
-	'prevent_empty'   => false, // allow deleting ALL rows
-	'description'     => __( 'Sections list is scoped to the selected Menu. Change Menu and reopen the widget to refresh the list.', 'jellopoint-restaurant-menu' ),
+  'label'           => __( 'Per-Section Overrides', 'jellopoint-restaurant-menu' ),
+  'type'            => \Elementor\Controls_Manager::REPEATER,
+  'fields'          => $rep_ov->get_controls(),
+  'title_field'     => '{{{ section_id }}} → {{{ layout }}}',
+  'default'         => [],
+  'prevent_empty'   => false,
+  'description'     => __( 'Sections list is scoped to the selected Menu. Change Menu and reopen the widget to refresh the list.', 'jellopoint-restaurant-menu' ),
+  'condition'       => [ 'labels_layout' => 'matrix' ], // <-- add this
 ] );
 
 $this->end_controls_section();
