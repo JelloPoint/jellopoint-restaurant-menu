@@ -27,6 +27,11 @@ trait Restaurant_Menu_Style {
 			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Colors::COLOR_PRIMARY],
 			'selectors'=>['{{WRAPPER}} .jp-menu__meta-title'=>'color: {{VALUE}};'],
 		]);
+		$this->add_control('menu_description_section',[
+			'label'=>__('Description','jellopoint-restaurant-menu'),
+			'type'      =>\Elementor\Controls_Manager::HEADING,
+			'separator' => 'before',
+		]);
 		$this->add_group_control(\Elementor\Group_Control_Typography::get_type(),[
 			'name'=>'menu_desc_typo',
 			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Typography::TYPOGRAPHY_TEXT],
