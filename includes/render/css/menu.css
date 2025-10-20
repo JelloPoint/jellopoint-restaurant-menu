@@ -219,5 +219,50 @@
 .jp-menu__inner.jp--inline-below .jp-pricegroup-row {
   justify-content: flex-start !important;
 }
+/* ===== Inline Below — lay out prices/labels on one line (wrapping if needed) ===== */
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup {
+  display: flex !important;      /* turn the whole block into a row */
+  flex-wrap: wrap !important;     /* allow wrap to the next line if long */
+  gap: .5rem .75rem !important;   /* row/column spacing between price chips */
+  align-items: baseline !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+}
+
+/* Many themes make price rows 100% width. Neutralize that here. */
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup > * {
+  width: auto !important;
+  max-width: none !important;
+  display: inline-flex !important;
+  align-items: baseline !important;
+  gap: .35rem;
+  margin: 0 !important;
+  float: none !important;
+}
+
+/* If your markup uses UL/LI for prices, make the LI’s inline as well */
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup li {
+  list-style: none;
+  display: inline-flex !important;
+  width: auto !important;
+  margin: 0 !important;
+  padding: 0;
+}
+
+/* Ensure inner bits don’t force block breaks */
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup span,
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup i,
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup svg {
+  display: inline !important;
+}
+
+/* Some setups right-align inline prices; bring them back to normal here */
+.jp-menu__inner.jp--inline-below .jp-price-row,
+.jp-menu__inner.jp--inline-below .jp-pricegroup-row,
+.jp-menu__inner.jp--inline-below .jprm-price {
+  width: auto !important;
+  display: inline-flex !important;
+  justify-content: flex-start !important;
+}
 
 
