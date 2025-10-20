@@ -13,7 +13,7 @@ trait Restaurant_Menu_Style {
 		]);
 		$this->add_control('jprm_style_menu_meta',[
 			'label'=>__('Menu','jellopoint-restaurant-menu'),
-			'tab'=>\Elementor\Controls_Manager::HEADING,
+			'type'=>\Elementor\Controls_Manager::HEADING,
 		]);
 		$this->add_group_control(\Elementor\Group_Control_Typography::get_type(),[
 			'name'=>'menu_title_typo',
