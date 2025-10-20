@@ -27,25 +27,28 @@ if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
  * inject inline styles into each .jp-menu__row if not present yet.
  */
 function jprm_force_inline_row_styles( string $html ) : string {
-	// Add style attribute to .jp-menu__row blocks if missing
+	// 1) Add style attribute to .jp-menu__row blocks if missing
 	$style = 'style="display:inline-flex;flex:0 0 auto;width:auto;max-width:none;margin:0;padding:0;align-items:baseline;gap:.35rem;"';
-
 	$html = preg_replace(
 		'~<div\s+class="([^"]*\bjp-menu__row\b[^"]*)"(?![^>]*\sstyle=)~i',
 		'<div class="$1" ' . $style,
 		$html
 	);
-	// Also ensure .jp-menu__price and .jp-menu__label are inline-flex
+
+	// 2) Ensure .jp-menu__price is inline-flex (do NOT append ">")
 	$html = preg_replace(
 		'~<span\s+class="([^"]*\bjp-menu__price\b[^"]*)"(?![^>]*\sstyle=)~i',
-		'<span class="$1" style="display:inline-flex;align-items:baseline;">',
+		'<span class="$1" style="display:inline-flex;align-items:baseline;"',
 		$html
 	);
+
+	// 3) Ensure .jp-menu__label is inline-flex (do NOT append ">")
 	$html = preg_replace(
 		'~<span\s+class="([^"]*\bjp-menu__label\b[^"]*)"(?![^>]*\sstyle=)~i',
-		'<span class="$1" style="display:inline-flex;align-items:baseline;gap:.35rem;">',
+		'<span class="$1" style="display:inline-flex;align-items:baseline;gap:.35rem;"',
 		$html
 	);
+
 	return $html;
 }
 
