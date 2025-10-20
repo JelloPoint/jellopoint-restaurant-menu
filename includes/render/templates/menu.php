@@ -28,7 +28,8 @@ if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
  */
 function jprm_force_inline_row_styles( string $html ) : string {
 	// Add style attribute to .jp-menu__row blocks if missing
-	$style = 'style="display:inline-flex;width:auto;max-width:none;margin:0;padding:0;align-items:baseline;gap:.35rem;"';
+	$style = 'style="display:inline-flex;flex:0 0 auto;width:auto;max-width:none;margin:0;padding:0;align-items:baseline;gap:.35rem;"';
+
 	$html = preg_replace(
 		'~<div\s+class="([^"]*\bjp-menu__row\b[^"]*)"(?![^>]*\sstyle=)~i',
 		'<div class="$1" ' . $style,
@@ -186,11 +187,11 @@ function jprm_render_item_inline_below( int $post_id, bool $show_badges, string 
 		$_html = is_string( $_html ) ? $_html : '';
 		$_html = jprm_force_inline_row_styles( $_html );
 
-		echo '<div class="jp-menu__pricegroup" style="display:flex;flex-wrap:wrap;gap:.5rem .8rem;align-items:baseline;justify-content:flex-start;text-align:left;">';
+		echo '<div class="jp-menu__pricegroup" style="display:flex;flex-wrap:wrap;gap:.5rem .8rem;align-items:baseline;align-content:flex-start;justify-content:flex-start;text-align:left;">';
 		echo $_html; // phpcs:ignore
 		echo '</div>';
 	} else {
-		echo '<div class="jp-menu__pricegroup" style="display:flex;flex-wrap:wrap;gap:.5rem .8rem;align-items:baseline;justify-content:flex-start;text-align:left;"></div>';
+		echo '<div class="jp-menu__pricegroup" style="display:flex;flex-wrap:wrap;gap:.5rem .8rem;align-items:baseline;align-content:flex-start;justify-content:flex-start;text-align:left;"></div>';
 	}
 	echo '</div></li>';
 }
