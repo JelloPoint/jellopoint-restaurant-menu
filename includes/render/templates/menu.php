@@ -221,15 +221,15 @@ function jprm_render_item_inline_below(
 		// when separators are ON we set container gap to 0, so spacing is controlled by separator margin
 $wrap_gap = $sep_on ? '0' : '.5rem .8rem';
 
-// DEBUG data-attrs so you can check in the inspector
-$debug_attrs = ' data-sep-on="' . ( $sep_on ? '1' : '0' ) . '"'
-             . ' data-sep="'    . esc_attr( $sep ) . '"'
-             . ' data-gap="'    . esc_attr( $gap ) . '"';
+// DEBUG data-attrs so you can check in the inspector (use very safe escaping)
+$sep_on_attr = $sep_on ? '1' : '0';
+$sep_attr    = htmlspecialchars($sep, ENT_QUOTES, 'UTF-8');
+$gap_attr    = htmlspecialchars($gap, ENT_QUOTES, 'UTF-8');
 
-echo '<div class="jp-menu__pricegroup"'.$debug_attrs.' style="display:flex!important;flex-wrap:wrap!important;gap:'.$wrap_gap.'!important;align-items:baseline!important;align-content:flex-start!important;justify-content:flex-start!important;text-align:left!important;">';
+echo '<div class="jp-menu__pricegroup" data-sep-on="' . $sep_on_attr . '" data-sep="' . $sep_attr . '" data-gap="' . $gap_attr . '" style="display:flex!important;flex-wrap:wrap!important;gap:' . $wrap_gap . '!important;align-items:baseline!important;align-content:flex-start!important;justify-content:flex-start!important;text-align:left!important;">';
 echo $_html; // phpcs:ignore
 echo '</div>';
-echo '<!-- SEP:' . ( $sep_on ? 'on' : 'off' ) . ' sep="' . esc_html( $sep ) . '" gap="' . esc_html( $gap ) . '" -->';
+echo '<!-- SEP:' . ($sep_on ? 'on' : 'off') . ' sep="' . $sep_attr . '" gap="' . $gap_attr . '" -->';
 
 	} else {
 		echo '<div class="jp-menu__pricegroup" style="display:flex!important;flex-wrap:wrap!important;gap:.5rem .8rem!important;align-items:baseline!important;align-content:flex-start!important;justify-content:flex-start!important;text-align:left!important;"></div>';
@@ -294,7 +294,8 @@ function jprm_render_section_block( $tid, array $blk, array $opts ) : void {
 	}
 
 	if ( ! $use_matrix ) {
-		foreif ( $use_inline_below ) {
+		foreach ( $items as $post ) {
+			if ( $use_inline_below ) {
     // Force separators ON for Inline Below so it always shows,
     // while still honoring the chosen character and spacing.
     jprm_render_item_inline_below(
@@ -305,7 +306,6 @@ function jprm_render_section_block( $tid, array $blk, array $opts ) : void {
         true, $sep_txt, $sep_gap
     );
 } else {
-
 				// We still honor the separator toggle here; useful if a section override flips layout.
 				jprm_render_item_inline(
 					(int) $post->ID,
