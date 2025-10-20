@@ -166,12 +166,18 @@ function jprm_render_item_inline(
         $_html = jprm_force_inline_row_styles( $_html );
 
         /* ====== HARD TEST: literal SEP between chips ====== */
-        $_html = preg_replace(
-            '~</div>\s*<div\s+([^>]*\bjp-menu__row\b[^>]*)>~i',
-            '</div> SEP <div $1>',
-            $_html
-        );
-        $gap_css = '0';
+$__sep = jprm_build_text_separator(
+    ($sep_text !== '' ? $sep_text : '•'),
+    ($sep_gap  !== '' ? $sep_gap  : '.6rem')
+);
+$_html = preg_replace(
+    '~</div>\s*(?=<div[^>]*\bjp-menu__row\b)~i',
+    '</div>' . $__sep,
+    $_html
+);
+
+// When separators are injected, kill the wrapper gap:
+$gap_css = '0';
         /* ================================================ */
 
         echo '<div class="jp-menu__pricegroup" style="display:flex!important;flex-wrap:wrap!important;gap:'.$gap_css.'!important;align-items:baseline!important;align-content:flex-start!important;justify-content:flex-start!important;text-align:left!important;">';
@@ -209,12 +215,18 @@ function jprm_render_item_inline_below(
         $_html = jprm_force_inline_row_styles( $_html );
 
         /* ====== HARD TEST: literal SEP between chips ====== */
-        $_html = preg_replace(
-            '~</div>\s*<div\s+([^>]*\bjp-menu__row\b[^>]*)>~i',
-            '</div> SEP <div $1>',
-            $_html
-        );
-        $gap_css = '0';
+        $__sep = jprm_build_text_separator(
+    ($sep_text !== '' ? $sep_text : '•'),
+    ($sep_gap  !== '' ? $sep_gap  : '.6rem')
+);
+$_html = preg_replace(
+    '~</div>\s*(?=<div[^>]*\bjp-menu__row\b)~i',
+    '</div>' . $__sep,
+    $_html
+);
+
+// When separators are injected, kill the wrapper gap:
+$gap_css = '0';
         /* ================================================ */
 
         echo '<div class="jp-menu__pricegroup" style="display:flex!important;flex-wrap:wrap!important;gap:'.$gap_css.'!important;align-items:baseline!important;align-content:flex-start!important;justify-content:flex-start!important;text-align:left!important;">';
