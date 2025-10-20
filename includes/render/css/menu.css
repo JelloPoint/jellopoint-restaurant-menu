@@ -286,4 +286,6 @@
 .jp-menu__inner.jp--inline-below .jp-menu__pricegroup .jp-menu__row:last-child::after {
   content: none !important;
 }
+/* Separator between inline-below chips (server-side injected) */
+.jp-chip-sep { display:inline-block; vertical-align:baseline; }
 
