@@ -3,9 +3,10 @@
  * Unified Menu Template (1/2/3 columns) + Matrix layout per section
  * Expects $ctx (array). See $ctx keys in widget.
  */
+
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-/* ---------------- Meta helper ---------------- */
+/* --- Safe helper for menu meta (if not already defined by widget) --- */
 if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
 	function jprm_render_menu_meta( $term, bool $show_title, bool $show_desc, string $scope ) : string {
 		if ( ! $term || ( ! $show_title && ! $show_desc ) ) return '';
@@ -21,50 +22,39 @@ if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
 	}
 }
 
-/* --------------- One-time CSS --------------- */
-function jprm_emit_once_css() : void {
-	static $done = false;
-	if ( $done ) return;
-	$done = true;
-
-	echo '<style id="jprm-hard-sep-css">'
-	/* pricegroup base (we’ll override gap when separators are ON) */
-	. '.jp-menu__pricegroup{display:flex!important;flex-wrap:wrap!important;gap:.5rem .8rem!important;'
-	. 'align-items:baseline!important;align-content:flex-start!important;justify-content:flex-start!important;text-align:left!important;}'
-	/* each chip inline-flex, even if theme fights us */
-	. '.jp-menu__pricegroup .jp-menu__row{display:inline-flex!important;flex:0 0 auto!important;width:auto!important;max-width:none!important;'
-	. 'margin:0!important;padding:0!important;align-items:baseline!important;gap:.35rem!important;}'
-	. '.jp-menu__pricegroup .jp-menu__price,.jp-menu__pricegroup .jp-menu__label{display:inline-flex!important;align-items:baseline!important;}'
-	/* when we use hard separators, container gap -> 0 (spacing from sep element) */
-	. '.jp-menu__pricegroup.jp-sep-on{gap:0!important;}'
-	/* the visible separator element we inject */
-	. '.jp-chip-sep{display:inline-block!important;vertical-align:baseline!important;opacity:.8;line-height:1;'
-	. 'margin:0 var(--jp-chip-gap,.6rem);font-size:1rem;font-weight:600;pointer-events:none;color:currentColor;}'
-	. '</style>';
-}
-
-/* --------------- Helpers --------------- */
-/** force inline-flex on rows/price/label (beats theme CSS) */
+/**
+ * Force each .jp-menu__row to be an inline “chip” (used only for Inline Below)
+ */
 function jprm_force_inline_row_styles( string $html ) : string {
-	$row = 'style="display:inline-flex!important;flex:0 0 auto!important;width:auto!important;max-width:none!important;'
-	     . 'margin:0!important;padding:0!important;align-items:baseline!important;gap:.35rem!important;"';
-	$html = preg_replace('~<div\s+class="([^"]*\bjp-menu__row\b[^"]*)"(?![^>]*\sstyle=)~i', '<div class="$1" '.$row, $html);
-	$html = preg_replace('~<span\s+class="([^"]*\bjp-menu__price\b[^"]*)"(?![^>]*\sstyle=)~i','<span class="$1" style="display:inline-flex!important;align-items:baseline!important;"',$html);
-	$html = preg_replace('~<span\s+class="([^"]*\bjp-menu__label\b[^"]*)"(?![^>]*\sstyle=)~i','<span class="$1" style="display:inline-flex!important;align-items:baseline!important;gap:.35rem!important;"',$html);
+	$style_row   = 'style="display:inline-flex!important;flex:0 0 auto!important;width:auto!important;max-width:none!important;margin:0!important;padding:0!important;align-items:baseline!important;gap:.35rem!important;"';
+	$style_price = 'style="display:inline-flex!important;align-items:baseline!important;"';
+	$style_label = 'style="display:inline-flex!important;align-items:baseline!important;gap:.35rem!important;"';
+
+	$html = preg_replace('~<div\s+class="([^"]*\bjp-menu__row\b[^"]*)"(?![^>]*\sstyle=)~i', '<div class="$1" ' . $style_row, $html);
+	$html = preg_replace('~<span\s+class="([^"]*\bjp-menu__price\b[^"]*)"(?![^>]*\sstyle=)~i', '<span class="$1" ' . $style_price, $html);
+	$html = preg_replace('~<span\s+class="([^"]*\bjp-menu__label\b[^"]*)"(?![^>]*\sstyle=)~i', '<span class="$1" ' . $style_label, $html);
 	return $html;
 }
 
 /**
- * HARD separator injector: inserts a real <span class="jp-chip-sep">…</span>
- * between consecutive .jp-menu__row elements. This cannot “disappear”.
+ * Insert a visible separator element between chips (robust even if parent has font-size:0)
+ * We use an inline-styled span so sanitizers/CSS can’t hide it.
  */
-function jprm_inject_hard_separators( string $html, string $sep_text = 'SEP' ) : string {
-	if ( $sep_text === '' ) return $html;
-	$sep = '<span class="jp-chip-sep" aria-hidden="true">'.esc_html($sep_text).'</span>';
-	return preg_replace('~</div>\s*(?=<div\s+[^>]*\bjp-menu__row\b)~i', '</div>'.$sep, $html);
+function jprm_inject_inline_separators( string $html, string $sep = '•', string $gap = '.6rem' ) : string {
+	$sep = ($sep === '') ? '•' : $sep;
+
+	$sep_html = '<span class="jp-chip-sep" aria-hidden="true"'
+	          . ' style="display:inline-block;vertical-align:baseline;'
+	          . 'font-size:1rem;line-height:1;opacity:.75;'
+	          . 'margin:0 ' . esc_attr($gap) . ';pointer-events:none;color:currentColor;">'
+	          . esc_html( $sep ) . '</span>';
+
+	// Between closing and next opening price row div
+	$html = preg_replace('~</div>\s*<div\s+([^>]*\bjp-menu__row\b[^>]*)>~is', '</div>' . $sep_html . '<div $1>', $html);
+	return $html;
 }
 
-/* --------------- Read context --------------- */
+/* === Context === */
 $columns             = (string) ( $ctx['columns'] ?? '1' );
 $menu_term           = $ctx['menu_term'] ?? null;
 $show_menu_title     = ! empty( $ctx['show_menu_title'] );
@@ -95,26 +85,32 @@ $section_layouts     = $ctx['section_layouts'] ?? [];
 $global_labels_layout= $ctx['global_labels_layout'] ?? 'inline';
 $global_placeholder  = $ctx['global_placeholder'] ?? '—';
 
-/* Separator controls (hard default to "SEP" so you SEE it) */
-$inline_sep_enable   = true; // force ON to verify
-$inline_sep_content  = (string) ( $ctx['inline_below_sep_content'] ?? 'SEP' ); // <- change to "•" after you see it
-$inline_sep_gap      = (string) ( $ctx['inline_below_sep_gap'] ?? '.6rem' );
+/* Separator controls for Inline Below */
+$inline_below_sep_enable  = ! empty( $ctx['inline_below_sep_enable'] );
+$inline_below_sep_content = (string) ( $ctx['inline_below_sep_content'] ?? '•' );
+$inline_below_sep_gap     = (string) ( $ctx['inline_below_sep_gap'] ?? '.6rem' );
 
-/* --------------- Matrix helpers --------------- */
+/* === Matrix helpers === */
 function jprm_section_collect_label_columns( array $items, ?array $label_map, array $currency_opts ) : array {
 	$cols = [];
 	foreach ( $items as $post ) {
-		$pid   = (int) $post->ID;
-		$rows  = function_exists( 'jprm_get_pricegroup_data' ) ? jprm_get_pricegroup_data( $pid, $label_map, $currency_opts ) : [];
+		$pid  = (int) $post->ID;
+		$rows = function_exists( 'jprm_get_pricegroup_data' ) ? jprm_get_pricegroup_data( $pid, $label_map, $currency_opts ) : [];
 		foreach ( $rows as $r ) {
 			$lid = (int) ( $r['label_id'] ?? 0 );
 			if ( $lid <= 0 && empty( $r['label_text'] ) ) continue;
 			if ( $lid <= 0 ) $lid = crc32( 't:' . (string) $r['label_text'] );
-			if ( ! isset( $cols[$lid] ) ) {
-				$cols[$lid] = [
+			if ( ! isset( $cols[ $lid ] ) ) {
+				$cols[ $lid ] = [
 					'text'      => (string) ( $r['label_text'] ?? '' ),
 					'icon_html' => (string) ( $r['icon_html']  ?? '' ),
 				];
+				if ( $label_map && isset( $label_map[$lid] ) && is_array( $label_map[$lid] ) ) {
+					if ( isset( $label_map[$lid]['text'] ) && $label_map[$lid]['text'] !== '' )
+						$cols[$lid]['text'] = (string) $label_map[$lid]['text'];
+					if ( isset( $label_map[$lid]['icon_html'] ) && $label_map[$lid]['icon_html'] !== '' )
+						$cols[$lid]['icon_html'] = (string) $label_map[$lid]['icon_html'];
+				}
 			}
 		}
 	}
@@ -131,23 +127,23 @@ function jprm_item_value_for_label( int $post_id, int $lid, ?array $label_map, a
 	$rows = function_exists( 'jprm_get_pricegroup_data' ) ? jprm_get_pricegroup_data( $post_id, $label_map, $currency_opts ) : [];
 	if ( empty( $rows ) ) return null;
 	foreach ( $rows as $r ) {
-		if ( (int)($r['label_id'] ?? 0) === $lid ) {
+		$rid = (int) ( $r['label_id'] ?? 0 );
+		if ( $rid === $lid ) {
 			$fmt = (string) ( $r['formatted'] ?? '' );
-			return $fmt !== '' ? $fmt : null;
+			return ( $fmt !== '' ) ? $fmt : null;
 		}
 	}
 	return null;
 }
 
-/* --------------- Item renderers --------------- */
+/* === Item renderers === */
+
+/* Inline (default) — NO separators here; leave stacking to CSS (column on right) */
 function jprm_render_item_inline(
 	int $post_id, bool $show_badges, string $badges_pos, string $badges_pres,
 	string $label_presentation, string $label_position,
-	$label_map, array $currency_opts,
-	bool $sep_on = false, string $sep = 'SEP', string $gap = '.6rem'
+	$label_map, array $currency_opts
 ) : void {
-	jprm_emit_once_css();
-
 	$title = get_the_title( $post_id );
 	$desc  = get_post_meta( $post_id, 'jprm_desc', true );
 
@@ -162,28 +158,24 @@ function jprm_render_item_inline(
 	echo '  </div>';
 
 	if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
-		$_html = (string) jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts );
-		$_html = jprm_force_inline_row_styles( $_html );
-		if ( $sep_on ) $_html = jprm_inject_hard_separators( $_html, $sep );
-
-		$cls = 'jp-menu__pricegroup' . ( $sep_on ? ' jp-sep-on' : '' );
-		$style = $sep_on ? ' style="--jp-chip-gap:' . esc_attr($gap) . ';"' : '';
-
-		echo '<div class="' . $cls . '"' . $style . '>' . $_html . '</div>'; // phpcs:ignore
+		// DO NOT force chips; let CSS keep vertical stack on the right
+		echo '<div class="jp-menu__pricegroup">';
+		echo jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
+		echo '</div>';
 	} else {
 		echo '<div class="jp-menu__pricegroup"></div>';
 	}
 	echo '</div></li>';
 }
 
+/* Inline Below — chips + visible separators */
 function jprm_render_item_inline_below(
-	int $post_id, bool $show_badges, string $badges_pos, string $badges_pres,
+	int $post_id,
+	bool $show_badges, string $badges_pos, string $badges_pres,
 	string $label_presentation, string $label_position,
 	$label_map, array $currency_opts,
-	bool $sep_on = false, string $sep = 'SEP', string $gap = '.6rem'
+	bool $sep_on = false, string $sep = '•', string $gap = '.6rem'
 ) : void {
-	jprm_emit_once_css();
-
 	$title = get_the_title( $post_id );
 	$desc  = get_post_meta( $post_id, 'jprm_desc', true );
 
@@ -198,21 +190,29 @@ function jprm_render_item_inline_below(
 	echo '  </div>';
 
 	if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
-		$_html = (string) jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts );
+		$_html = jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
+		$_html = is_string( $_html ) ? $_html : '';
+		// Make each row a chip
 		$_html = jprm_force_inline_row_styles( $_html );
-		if ( $sep_on ) $_html = jprm_inject_hard_separators( $_html, $sep );
 
-		$cls = 'jp-menu__pricegroup' . ( $sep_on ? ' jp-sep-on' : '' );
-		$style = $sep_on ? ' style="--jp-chip-gap:' . esc_attr($gap) . ';"' : '';
+		if ( $sep_on ) {
+			// Insert robust separator spans (visible even if parent font-size:0)
+			$_html = jprm_inject_inline_separators( $_html, $sep, $gap );
+			$wrap_gap = '0';
+		} else {
+			$wrap_gap = '.5rem .8rem';
+		}
 
-		echo '<div class="' . $cls . '"' . $style . '>' . $_html . '</div>'; // phpcs:ignore
+		echo '<div class="jp-menu__pricegroup" style="display:flex!important;flex-wrap:wrap!important;gap:'.$wrap_gap.'!important;align-items:baseline!important;align-content:flex-start!important;justify-content:flex-start!important;text-align:left!important;">';
+		echo $_html; // phpcs:ignore
+		echo '</div>';
 	} else {
-		echo '<div class="jp-menu__pricegroup"></div>';
+		echo '<div class="jp-menu__pricegroup" style="display:flex!important;flex-wrap:wrap!important;gap:.5rem .8rem!important;align-items:baseline!important;align-content:flex-start!important;justify-content:flex-start!important;text-align:left!important;"></div>';
 	}
 	echo '</div></li>';
 }
 
-/* --------------- Section renderer --------------- */
+/* === Section renderer === */
 function jprm_render_section_block( $tid, array $blk, array $opts ) : void {
 	$term                = $blk['term'];
 	$items               = $blk['items'];
@@ -230,17 +230,25 @@ function jprm_render_section_block( $tid, array $blk, array $opts ) : void {
 	$global_layout       = (string) ( $opts['global_labels_layout'] ?? 'inline' );
 	$global_placeholder  = (string) ( $opts['global_placeholder'] ?? '—' );
 
-	/* Separator opts */
+	// Inline Below separator opts
 	$sep_on  = ! empty( $opts['inline_below_sep_enable'] );
-	$sep_txt = (string) ( $opts['inline_below_sep_content'] ?? 'SEP' );
+	$sep_txt = (string) ( $opts['inline_below_sep_content'] ?? '•' );
 	$sep_gap = (string) ( $opts['inline_below_sep_gap'] ?? '.6rem' );
 
-	$layout = $global_layout;
+	$layout      = $global_layout;
+	$placeholder = $global_placeholder;
+	if ( isset( $section_layouts[$tid] ) ) {
+		$o = $section_layouts[$tid];
+		if ( ! empty( $o['layout'] ) ) $layout = (string) $o['layout'];
+		if ( isset( $o['placeholder'] ) && $o['placeholder'] !== '' ) $placeholder = (string) $o['placeholder'];
+	}
 
-	// ABOVE info blocks
+	// ABOVE Info Blocks
 	if ( isset( $ib_map[$tid]['above'] ) && ! empty( $ib_map[$tid]['above'] ) ) {
 		echo '<li class="jp-menu__infoblock-li">';
-		echo jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ); // phpcs:ignore
+		if ( function_exists('jprm_infoblocks_render_group') ) {
+			echo jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ); // phpcs:ignore
+		}
 		echo '</li>';
 	}
 
@@ -253,73 +261,94 @@ function jprm_render_section_block( $tid, array $blk, array $opts ) : void {
 		echo '</li>';
 	}
 
+	// Decide layout per section
 	$use_matrix       = ( $layout === 'matrix' );
 	$use_inline_below = ( $layout === 'inline_below' );
 
 	if ( $use_matrix ) {
 		$cols = jprm_section_collect_label_columns( $items, $label_map, $currency_opts );
-		if ( empty( $cols ) ) $use_matrix = false;
+		if ( empty( $cols ) ) $use_matrix = false; // fallback if no structured data
 	}
 
 	if ( ! $use_matrix ) {
 		foreach ( $items as $post ) {
-			$pid = (int) $post->ID;
 			if ( $use_inline_below ) {
 				jprm_render_item_inline_below(
-					$pid, $show_badges, $badges_position, $badges_presentation,
+					(int) $post->ID,
+					$show_badges, $badges_position, $badges_presentation,
 					$label_presentation, $label_position,
 					$label_map, $currency_opts,
 					$sep_on, $sep_txt, $sep_gap
 				);
 			} else {
 				jprm_render_item_inline(
-					$pid, $show_badges, $badges_position, $badges_presentation,
+					(int) $post->ID,
+					$show_badges, $badges_position, $badges_presentation,
 					$label_presentation, $label_position,
-					$label_map, $currency_opts,
-					$sep_on, $sep_txt, $sep_gap
+					$label_map, $currency_opts
 				);
 			}
 		}
 	} else {
+		// Matrix table rendering
 		$col_ids = array_keys( $cols );
-		echo '<li class="jp-menu__matrix"><div class="jp-matrix" style="--jp-matrix-cols:' . (int)count($col_ids) . ';">';
-		echo '<div class="jp-matrix__row jp-matrix__row--header"><div class="jp-matrix__cell jp-matrix__cell--head jp-matrix__cell--title"></div>';
+
+		echo '<li class="jp-menu__matrix">';
+		$__jp_cols = (int) count( $col_ids );
+		echo '<div class="jp-matrix" style="--jp-matrix-cols:' . $__jp_cols . ';">';
+
+		echo '<div class="jp-matrix__row jp-matrix__row--header">';
+		echo '<div class="jp-matrix__cell jp-matrix__cell--head jp-matrix__cell--title"></div>';
 		foreach ( $col_ids as $lid ) {
+			$l = $cols[$lid];
 			echo '<div class="jp-matrix__cell jp-matrix__cell--head jp-matrix__cell--label">';
-			echo jprm_label_header_cell( $cols[$lid], $label_presentation ); // phpcs:ignore
+			echo jprm_label_header_cell( $l, $label_presentation ); // phpcs:ignore
 			echo '</div>';
 		}
 		echo '</div>';
+
 		foreach ( $items as $post ) {
 			$pid   = (int) $post->ID;
 			$title = get_the_title( $pid );
 			$desc  = get_post_meta( $pid, 'jprm_desc', true );
+
 			echo '<div class="jp-matrix__row">';
-			echo '<div class="jp-matrix__cell jp-matrix__cell--title"><div class="jp-matrix__titleline">';
+
+			echo '<div class="jp-matrix__cell jp-matrix__cell--title">';
+			echo '<div class="jp-matrix__titleline">';
 			if ( $show_badges && $badges_position === 'before_title' && function_exists( 'jprm_render_badges_inline_html' ) ) echo jprm_render_badges_inline_html( $pid, $badges_presentation ); // phpcs:ignore
 			if ( $title !== '' ) echo '<span class="jp-matrix__title">' . esc_html( $title ) . '</span>';
 			if ( $show_badges && $badges_position === 'after_title' && function_exists( 'jprm_render_badges_inline_html' ) ) echo jprm_render_badges_inline_html( $pid, $badges_presentation ); // phpcs:ignore
 			echo '</div>';
 			if ( is_string( $desc ) && $desc !== '' ) echo '<div class="jp-matrix__desc">' . esc_html( $desc ) . '</div>';
 			echo '</div>';
+
 			foreach ( $col_ids as $lid ) {
-				$val = jprm_item_value_for_label( $pid, (int)$lid, $label_map, $currency_opts );
-				echo '<div class="jp-matrix__cell jp-matrix__cell--value">' . ( $val !== null && $val !== '' ? $val : esc_html( $global_placeholder ) ) . '</div>';
+				$val = jprm_item_value_for_label( $pid, (int) $lid, $label_map, $currency_opts );
+				echo '<div class="jp-matrix__cell jp-matrix__cell--value">';
+				echo ( $val !== null && $val !== '' ) ? $val : esc_html( $global_placeholder );
+				echo '</div>';
 			}
-			echo '</div>';
+
+			echo '</div>'; // row
 		}
-		echo '</div></li>';
+
+		echo '</div>';
+		echo '</li>';
 	}
 
-	// BELOW info blocks
+	// BELOW Info Blocks
 	if ( isset( $ib_map[$tid]['below'] ) && ! empty( $ib_map[$tid]['below'] ) ) {
 		echo '<li class="jp-menu__infoblock-li">';
-		echo jprm_infoblocks_render_group( $ib_map[$tid]['below'], 'below' ); // phpcs:ignore
+		if ( function_exists('jprm_infoblocks_render_group') ) {
+			echo jprm_infoblocks_render_group( $ib_map[$tid]['below'], 'below' ); // phpcs:ignore
+		}
 		echo '</li>';
 	}
 }
 
-/* --------------- Column orchestrators --------------- */
+/* === Column orchestrators (1/2/3) === */
+
 if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
 	echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
 }
@@ -328,10 +357,14 @@ if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'abo
 if ( $columns === '1' ) {
 	echo '<ul class="jp-menu">';
 	if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'first_column' ) {
-		echo '<li class="jp-menu__meta-li">' . jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'col' ) . '</li>'; // phpcs:ignore
+		echo '<li class="jp-menu__meta-li">';
+		echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'col' ); // phpcs:ignore
+		echo '</li>';
 	}
 	foreach ( $sections_order as $tid ) {
-		jprm_render_section_block( $tid, $sections_data[$tid], [
+		$blk = $sections_data[ $tid ] ?? null;
+		if ( ! $blk ) continue;
+		jprm_render_section_block( $tid, $blk, [
 			'show_section_name'   => $show_section_name,
 			'show_section_desc'   => $show_section_desc,
 			'show_badges'         => $show_badges,
@@ -345,9 +378,9 @@ if ( $columns === '1' ) {
 			'section_layouts'     => $section_layouts,
 			'global_labels_layout'=> $global_labels_layout,
 			'global_placeholder'  => $global_placeholder,
-			'inline_below_sep_enable'  => $inline_sep_enable,
-			'inline_below_sep_content' => $inline_sep_content,
-			'inline_below_sep_gap'     => $inline_sep_gap,
+			'inline_below_sep_enable'  => $inline_below_sep_enable,
+			'inline_below_sep_content' => $inline_below_sep_content,
+			'inline_below_sep_gap'     => $inline_below_sep_gap,
 		] );
 	}
 	echo '</ul>';
@@ -359,14 +392,22 @@ if ( $columns === '2' ) {
 	$split_index = null;
 	if ( $split_mode === 'manual' && $split_after_1 !== '' ) {
 		$target = (int) $split_after_1;
-		foreach ( $sections_order as $idx => $tid ) { if ( $tid === $target ) { $split_index = $idx; break; } }
+		foreach ( $sections_order as $idx => $tid ) {
+			if ( $tid === $target ) { $split_index = $idx; break; }
+		}
 	}
 	if ( $split_index === null ) {
-		$total = 0; foreach ( $sections_order as $tid ) { $total += count( $sections_data[$tid]['items'] ); }
-		$half = (int) ceil( $total / 2 ); $acc = 0;
-		foreach ( $sections_order as $idx => $tid ) { $acc += count( $sections_data[$tid]['items'] ); if ( $acc >= $half ) { $split_index = $idx; break; } }
+		$total = 0;
+		foreach ( $sections_order as $tid ) { $total += count( $sections_data[ $tid ]['items'] ?? [] ); }
+		$half = (int) ceil( $total / 2 );
+		$acc  = 0;
+		foreach ( $sections_order as $idx => $tid ) {
+			$acc += count( $sections_data[ $tid ]['items'] ?? [] );
+			if ( $acc >= $half ) { $split_index = $idx; break; }
+		}
 		if ( $split_index === null ) $split_index = count( $sections_order ) - 1;
 	}
+
 	$left_sections  = array_slice( $sections_order, 0, $split_index + 1 );
 	$right_sections = array_slice( $sections_order, $split_index + 1 );
 
@@ -374,10 +415,14 @@ if ( $columns === '2' ) {
 
 	echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--left">';
 	if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'first_column' ) {
-		echo '<li class="jp-menu__meta-li">' . jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'col' ) . '</li>'; // phpcs:ignore
+		echo '<li class="jp-menu__meta-li">';
+		echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'col' ); // phpcs:ignore
+		echo '</li>';
 	}
 	foreach ( $left_sections as $tid ) {
-		jprm_render_section_block( $tid, $sections_data[$tid], [
+		$blk = $sections_data[ $tid ] ?? null;
+		if ( ! $blk ) continue;
+		jprm_render_section_block( $tid, $blk, [
 			'show_section_name'   => $show_section_name,
 			'show_section_desc'   => $show_section_desc,
 			'show_badges'         => $show_badges,
@@ -391,16 +436,18 @@ if ( $columns === '2' ) {
 			'section_layouts'     => $section_layouts,
 			'global_labels_layout'=> $global_labels_layout,
 			'global_placeholder'  => $global_placeholder,
-			'inline_below_sep_enable'  => $inline_sep_enable,
-			'inline_below_sep_content' => $inline_sep_content,
-			'inline_below_sep_gap'     => $inline_sep_gap,
+			'inline_below_sep_enable'  => $inline_below_sep_enable,
+			'inline_below_sep_content' => $inline_below_sep_content,
+			'inline_below_sep_gap'     => $inline_below_sep_gap,
 		] );
 	}
 	echo '</ul></div>';
 
 	echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--right">';
 	foreach ( $right_sections as $tid ) {
-		jprm_render_section_block( $tid, $sections_data[$tid], [
+		$blk = $sections_data[ $tid ] ?? null;
+		if ( ! $blk ) continue;
+		jprm_render_section_block( $tid, $blk, [
 			'show_section_name'   => $show_section_name,
 			'show_section_desc'   => $show_section_desc,
 			'show_badges'         => $show_badges,
@@ -414,9 +461,9 @@ if ( $columns === '2' ) {
 			'section_layouts'     => $section_layouts,
 			'global_labels_layout'=> $global_labels_layout,
 			'global_placeholder'  => $global_placeholder,
-			'inline_below_sep_enable'  => $inline_sep_enable,
-			'inline_below_sep_content' => $inline_sep_content,
-			'inline_below_sep_gap'     => $inline_sep_gap,
+			'inline_below_sep_enable'  => $inline_below_sep_enable,
+			'inline_below_sep_content' => $inline_below_sep_content,
+			'inline_below_sep_gap'     => $inline_below_sep_gap,
 		] );
 	}
 	echo '</ul></div>';
@@ -426,35 +473,58 @@ if ( $columns === '2' ) {
 }
 
 /* 3 columns */
-$total = 0; foreach ( $sections_order as $tid ) { $total += count( $sections_data[$tid]['items'] ); }
+$total = 0;
+foreach ( $sections_order as $tid ) { $total += count( $sections_data[ $tid ]['items'] ?? [] ); }
+
 $col1 = $col2 = $col3 = [];
 if ( $split_mode === 'manual' && $split_after_1 !== '' && $split_after_2 !== '' ) {
-	$idx1 = $idx2 = null; $t1 = (int)$split_after_1; $t2 = (int)$split_after_2;
-	foreach ( $sections_order as $i => $tid ) { if ( $idx1 === null && $tid === $t1 ) $idx1 = $i; if ( $idx2 === null && $tid === $t2 ) $idx2 = $i; if ( $idx1 !== null && $idx2 !== null ) break; }
+	$idx1 = $idx2 = null;
+	$t1   = (int) $split_after_1;
+	$t2   = (int) $split_after_2;
+	foreach ( $sections_order as $i => $tid ) {
+		if ( $idx1 === null && $tid === $t1 ) $idx1 = $i;
+		if ( $idx2 === null && $tid === $t2 ) $idx2 = $i;
+		if ( $idx1 !== null && $idx2 !== null ) break;
+	}
 	if ( $idx1 !== null && $idx2 !== null && $idx2 > $idx1 ) {
 		$col1 = array_slice( $sections_order, 0, $idx1 + 1 );
 		$col2 = array_slice( $sections_order, $idx1 + 1, $idx2 - $idx1 );
 		$col3 = array_slice( $sections_order, $idx2 + 1 );
 	}
 }
-if ( empty($col1) && empty($col2) && empty($col3) ) {
-	$t1 = (int) ceil($total/3); $t2 = (int) ceil(2*$total/3); $i1 = null; $i2 = null; $acc = 0;
-	foreach ( $sections_order as $idx => $tid ) { $acc += count($sections_data[$tid]['items']); if ( $i1 === null && $acc >= $t1 ) $i1 = $idx; if ( $i2 === null && $acc >= $t2 ) { $i2 = $idx; break; } }
-	if ( $i1 === null ) $i1 = 0; if ( $i2 === null ) $i2 = max($i1, count($sections_order)-1);
+if ( empty( $col1 ) && empty( $col2 ) && empty( $col3 ) ) {
+	$t1 = (int) ceil( $total / 3 );
+	$t2 = (int) ceil( (2 * $total) / 3 );
+	$i1 = null; $i2 = null; $acc = 0;
+	foreach ( $sections_order as $idx => $tid ) {
+		$acc += count( $sections_data[ $tid ]['items'] ?? [] );
+		if ( $i1 === null && $acc >= $t1 ) $i1 = $idx;
+		if ( $i2 === null && $acc >= $t2 ) { $i2 = $idx; break; }
+	}
+	if ( $i1 === null ) $i1 = 0;
+	if ( $i2 === null ) $i2 = max( $i1, count( $sections_order ) - 1 );
+
 	$col1 = array_slice( $sections_order, 0, $i1 + 1 );
 	$col2 = array_slice( $sections_order, $i1 + 1, $i2 - $i1 );
 	$col3 = array_slice( $sections_order, $i2 + 1 );
 }
 
 echo '<div class="jp-menu-grid jp-cols-3 jp-menu--cols-3 jp-three-cols">';
-$cols = [ $col1, $col2, $col3 ]; $pos  = [ 'left', 'middle', 'right' ];
-foreach ( $cols as $i => $chunk ) {
+
+$cols = [ $col1, $col2, $col3 ];
+$pos  = [ 'left', 'middle', 'right' ];
+
+foreach ( $cols as $i => $section_ids_chunk ) {
 	echo '<div class="jp-col"><ul class="jp-menu jp-menu--col jp-menu--' . esc_attr( $pos[$i] ) . '">';
 	if ( $i === 0 && $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'first_column' ) {
-		echo '<li class="jp-menu__meta-li">' . jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'col' ) . '</li>'; // phpcs:ignore
+		echo '<li class="jp-menu__meta-li">';
+		echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'col' ); // phpcs:ignore
+		echo '</li>';
 	}
-	foreach ( $chunk as $tid ) {
-		jprm_render_section_block( $tid, $sections_data[$tid], [
+	foreach ( $section_ids_chunk as $tid ) {
+		$blk = $sections_data[ $tid ] ?? null;
+		if ( ! $blk ) continue;
+		jprm_render_section_block( $tid, $blk, [
 			'show_section_name'   => $show_section_name,
 			'show_section_desc'   => $show_section_desc,
 			'show_badges'         => $show_badges,
@@ -468,11 +538,12 @@ foreach ( $cols as $i => $chunk ) {
 			'section_layouts'     => $section_layouts,
 			'global_labels_layout'=> $global_labels_layout,
 			'global_placeholder'  => $global_placeholder,
-			'inline_below_sep_enable'  => $inline_sep_enable,
-			'inline_below_sep_content' => $inline_sep_content,
-			'inline_below_sep_gap'     => $inline_sep_gap,
+			'inline_below_sep_enable'  => $inline_below_sep_enable,
+			'inline_below_sep_content' => $inline_below_sep_content,
+			'inline_below_sep_gap'     => $inline_below_sep_gap,
 		] );
 	}
 	echo '</ul></div>';
 }
+
 echo '</div>';
