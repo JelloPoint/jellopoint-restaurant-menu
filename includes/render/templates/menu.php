@@ -52,6 +52,7 @@ function jprm_emit_sep_css_once() : void {
 		. '</style>';
 }
 
+
 /** Force each .jp-menu__row to be an inline “chip” (beats theme CSS) */
 function jprm_force_inline_row_styles( string $html ) : string {
 	$style = 'style="display:inline-flex!important;flex:0 0 auto!important;width:auto!important;max-width:none!important;margin:0!important;padding:0!important;align-items:baseline!important;gap:.35rem!important;"';
@@ -224,17 +225,11 @@ function jprm_render_item_inline_below(
 		$_html = is_string( $_html ) ? $_html : '';
 		$_html = jprm_force_inline_row_styles( $_html );
 
-		$wrap_gap = '.5rem .8rem';
-		$vars = '';
-		$cls  = 'jp-menu__pricegroup';
-		if ( $sep_on ) {
-			jprm_emit_sep_css_once();
-			$cls .= ' jp-hassep';
-			$vars = '--jp-sep-token:"' . esc_attr( $sep ) . '";--jp-sep-gap:' . esc_attr( $gap ) . ';';
-			$wrap_gap = '0';
-		}
+		// Emit CSS once (idempotent). The CSS reads --jprm-inline-sep and --jprm-inline-sep-gap.
+		jprm_emit_sep_css_once();
 
-		echo '<div class="' . $cls . '" style="display:flex!important;flex-wrap:wrap!important;gap:'.$wrap_gap.'!important;align-items:baseline!important;align-content:flex-start!important;justify-content:flex-start!important;text-align:left!important;'.$vars.'">';
+		// Inline Below wrapper: add jp--below + jp-hassep; use gap:0 so spacing comes from the separator margin.
+		echo '<div class="jp-menu__pricegroup jp--below jp-hassep" style="display:flex!important;flex-wrap:wrap!important;gap:0!important;align-items:baseline!important;align-content:flex-start!important;justify-content:flex-start!important;text-align:left!important;">';
 		echo $_html; // phpcs:ignore
 		echo '</div>';
 	} else {
@@ -242,6 +237,7 @@ function jprm_render_item_inline_below(
 	}
 	echo '</div></li>';
 }
+
 
 /* === Section renderer (Inline, Inline Below, or Matrix) === */
 function jprm_render_section_block( $tid, array $blk, array $opts ) : void {
