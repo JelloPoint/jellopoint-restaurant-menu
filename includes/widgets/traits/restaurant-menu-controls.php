@@ -307,6 +307,52 @@ $this->add_control( 'labels_layout', [
         'matrix'       => __( 'Matrix',  'jellopoint-restaurant-menu' ),
 	],
 ] );
+// Toggle: show a separator between chips (Inline Below only)
+$this->add_control( 'inline_below_sep_enable', [
+  'label'        => __( 'Show Separator (Inline Below)', 'jellopoint-restaurant-menu' ),
+  'type'         => \Elementor\Controls_Manager::SWITCHER,
+  'return_value' => 'yes',
+  'default'      => '',
+  'condition'    => [
+    'labels_layout' => 'inline_below', // adjust if your control ID differs
+  ],
+  // When ON, drop a flag into the wrapper via a CSS var (Elementor writes this inline)
+  'selectors'    => [
+    '{{WRAPPER}} .jp-menu__inner.jp--inline-below' => '--jprm-inline-sep-enabled:1;',
+  ],
+]);
+
+// Content: what to use as separator
+$this->add_control( 'inline_below_sep_content', [
+  'label'       => __( 'Separator Content', 'jellopoint-restaurant-menu' ),
+  'type'        => \Elementor\Controls_Manager::TEXT,
+  'default'     => '•',
+  'placeholder' => '• | · / or',
+  'condition'   => [
+    'labels_layout'           => 'inline_below',
+    'inline_below_sep_enable' => 'yes',
+  ],
+  // Write the content into a CSS var (quotes are important for CSS `content`)
+  'selectors'   => [
+    '{{WRAPPER}} .jp-menu__inner.jp--inline-below' => '--jprm-inline-sep:"{{VALUE}}";',
+  ],
+]);
+
+// Spacing: distance around the separator
+$this->add_responsive_control( 'inline_below_sep_gap', [
+  'label'      => __( 'Separator Spacing', 'jellopoint-restaurant-menu' ),
+  'type'       => \Elementor\Controls_Manager::SLIDER,
+  'size_units' => [ 'px', 'em', 'rem' ],
+  'range'      => [ 'px' => [ 'min' => 0, 'max' => 24 ], 'em' => [ 'min' => 0, 'max' => 2 ] ],
+  'default'    => [ 'size' => 0.6, 'unit' => 'rem' ],
+  'condition'  => [
+    'labels_layout'           => 'inline_below',
+    'inline_below_sep_enable' => 'yes',
+  ],
+  'selectors'  => [
+    '{{WRAPPER}} .jp-menu__inner.jp--inline-below' => '--jprm-inline-sep-gap: {{SIZE}}{{UNIT}};',
+  ],
+]);
 
 $this->add_control( 'labels_matrix_placeholder', [
 	'label'       => __( 'Matrix placeholder for empty cell', 'jellopoint-restaurant-menu' ),
