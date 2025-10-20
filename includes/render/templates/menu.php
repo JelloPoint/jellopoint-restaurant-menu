@@ -21,6 +21,78 @@ if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
 		return $out;
 	}
 }
+/**
+ * Strict, sanitizer-proof chip renderer that does NOT rely on jprm_render_pricegroup_html().
+ * It uses jprm_get_pricegroup_data() and renders our own inline-flex chips, with optional separator.
+ */
+function jprm_render_pricegroup_strict(
+	int $post_id,
+	string $label_presentation,
+	string $label_position,
+	$label_map,
+	array $currency_opts,
+	bool $use_separator = false,
+	string $sep_text = '',
+	string $sep_gap = '.6rem'
+) : string {
+
+	if ( ! function_exists( 'jprm_get_pricegroup_data' ) ) {
+		return ''; // fallback if data provider is absent
+	}
+
+	$rows = jprm_get_pricegroup_data( $post_id, $label_map, $currency_opts );
+	if ( empty( $rows ) || ! is_array( $rows ) ) return '';
+
+	$out_rows = [];
+
+	foreach ( $rows as $r ) {
+		$label_text = trim( (string) ( $r['label_text'] ?? '' ) );
+		$icon_html  = (string) ( $r['icon_html']  ?? '' );
+		$price_html = (string) ( $r['formatted']  ?? '' ); // already formatted (currency, etc.)
+
+		// Build label content based on presentation
+		$label_inner = '';
+		if ( $label_presentation === 'icon' && $icon_html !== '' ) {
+			$label_inner = $icon_html;
+		} elseif ( $label_presentation === 'text' || $icon_html === '' ) {
+			$label_inner = esc_html( $label_text );
+		} else { // icon_text
+			$label_inner = $icon_html . '<span class="jp-menu__label-text">' . esc_html( $label_text ) . '</span>';
+		}
+
+		// Label span
+		$label_span = '<span class="jp-menu__label" style="display:inline-flex!important;align-items:baseline!important;gap:.35rem!important;">'
+		            . $label_inner
+		            . '</span>';
+
+		// Price span (honor "before/after" currency position if already baked into $price_html)
+		$price_span = '<span class="jp-menu__price jp-currency-sp-normal" style="display:inline-flex!important;align-items:baseline!important;">'
+		            . $price_html
+		            . '</span>';
+
+		// Order label/price (right = label left, price right; left = price then label)
+		$inner = ($label_position === 'left')
+			? ($price_span . $label_span)
+			: ($label_span . $price_span);
+
+		$chip = '<div class="jp-menu__row" style="display:inline-flex!important;flex:0 0 auto!important;width:auto!important;max-width:none!important;margin:0!important;padding:0!important;align-items:baseline!important;gap:.35rem!important;">'
+		      . $inner
+		      . '</div>';
+
+		$out_rows[] = $chip;
+	}
+
+	// Join with real separator element if requested
+	if ( $use_separator && trim( (string) $sep_text ) !== '' ) {
+		$sep_html = '<span class="jp-chip-sep" aria-hidden="true"'
+		          . ' style="display:inline-block;vertical-align:baseline;margin:0 ' . esc_attr($sep_gap) . ';opacity:.8;line-height:1;color:currentColor;">'
+		          . esc_html($sep_text)
+		          . '</span>';
+		return implode( $sep_html, $out_rows );
+	}
+
+	return implode('', $out_rows);
+}
 
 /** Make each .jp-menu__row an inline “chip” (beats theme CSS) */
 function jprm_force_inline_row_styles( string $html ) : string {
@@ -146,7 +218,7 @@ function jprm_item_value_for_label( int $post_id, int $lid, ?array $label_map, a
 }
 
 /* === Inline item card (no separators here) === */
-function jprm_render_item_inline(
+(
 	int $post_id, bool $show_badges, string $badges_pos, string $badges_pres,
 	string $label_presentation, string $label_position,
 	$label_map, array $currency_opts
@@ -179,17 +251,15 @@ function jprm_render_item_inline(
 }
 
 /* === Inline-Below item card (only layout that supports separators) === */
-function jprm_render_item_inline_below(
-	int $post_id,
-	bool $show_badges, string $badges_pos, string $badges_pres,
+function jprm_render_item_inline(
+	int $post_id, bool $show_badges, string $badges_pos, string $badges_pres,
 	string $label_presentation, string $label_position,
-	$label_map, array $currency_opts,
-	bool $sep_on = false, string $sep = '•', string $gap = '.6rem'
+	$label_map, array $currency_opts
 ) : void {
 	$title = get_the_title( $post_id );
 	$desc  = get_post_meta( $post_id, 'jprm_desc', true );
 
-	echo '<li class="jp-menu__item"><div class="jp-menu__inner jp--inline-below">';
+	echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
 	echo '  <div class="jp-menu__content">';
 	echo '    <div class="jp-menu__titleline">';
 	if ( $show_badges && $badges_pos === 'before_title' && function_exists( 'jprm_render_badges_inline_html' ) ) echo jprm_render_badges_inline_html( $post_id, $badges_pres ); // phpcs:ignore
@@ -199,26 +269,22 @@ function jprm_render_item_inline_below(
 	if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
 	echo '  </div>';
 
-	if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
-		$_html = jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
-		$_html = is_string( $_html ) ? $_html : '';
-		$_html = jprm_force_inline_row_styles( $_html );
+	// Strict chip renderer (no separators for "inline" layout)
+	$html = jprm_render_pricegroup_strict(
+		$post_id,
+		$label_presentation,
+		$label_position,
+		$label_map,
+		$currency_opts,
+		false, // no separator in "inline"
+		'',
+		'.6rem'
+	);
 
-		// Deterministic separator: split rows and re-join with a real element
-		if ( $sep_on && trim($sep) !== '' ) {
-			$rows  = jprm_split_price_rows( $_html );
-			$_html = jprm_join_rows_with_separator( $rows, $sep, $gap );
-			$wrap_gap = '0'; // spacing controlled by separator margins
-		} else {
-			$wrap_gap = '.5rem .8rem';
-		}
+	echo '<div class="jp-menu__pricegroup" style="display:flex!important;flex-wrap:wrap!important;gap:.5rem .8rem!important;align-items:baseline!important;align-content:flex-start!important;justify-content:flex-start!important;text-align:left!important;">';
+	echo $html; // phpcs:ignore
+	echo '</div>';
 
-		echo '<div class="jp-menu__pricegroup" style="display:flex!important;flex-wrap:wrap!important;gap:' . $wrap_gap . '!important;align-items:baseline!important;align-content:flex-start!important;justify-content:flex-start!important;text-align:left!important;">';
-		echo $_html; // phpcs:ignore
-		echo '</div>';
-	} else {
-		echo '<div class="jp-menu__pricegroup" style="display:flex!important;flex-wrap:wrap!important;gap:.5rem .8rem!important;align-items:baseline!important;align-content:flex-start!important;justify-content:flex-start!important;text-align:left!important;"></div>';
-	}
 	echo '</div></li>';
 }
 
@@ -239,6 +305,44 @@ function jprm_render_section_block( $tid, array $blk, array $opts ) : void {
 	$section_layouts     = $opts['section_layouts'] ?? [];
 	$global_layout       = (string) ( $opts['global_labels_layout'] ?? 'inline' );
 	$global_placeholder  = (string) ( $opts['global_placeholder'] ?? '—' );
+
+	function jprm_render_item_inline(
+	int $post_id, bool $show_badges, string $badges_pos, string $badges_pres,
+	string $label_presentation, string $label_position,
+	$label_map, array $currency_opts
+) : void {
+	$title = get_the_title( $post_id );
+	$desc  = get_post_meta( $post_id, 'jprm_desc', true );
+
+	echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
+	echo '  <div class="jp-menu__content">';
+	echo '    <div class="jp-menu__titleline">';
+	if ( $show_badges && $badges_pos === 'before_title' && function_exists( 'jprm_render_badges_inline_html' ) ) echo jprm_render_badges_inline_html( $post_id, $badges_pres ); // phpcs:ignore
+	if ( $title !== '' ) echo '      <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
+	if ( $show_badges && $badges_pos === 'after_title' && function_exists( 'jprm_render_badges_inline_html' ) ) echo jprm_render_badges_inline_html( $post_id, $badges_pres ); // phpcs:ignore
+	echo '    </div>';
+	if ( is_string( $desc ) && $desc !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
+	echo '  </div>';
+
+	// Strict chip renderer (no separators for "inline" layout)
+	$html = jprm_render_pricegroup_strict(
+		$post_id,
+		$label_presentation,
+		$label_position,
+		$label_map,
+		$currency_opts,
+		false, // no separator in "inline"
+		'',
+		'.6rem'
+	);
+
+	echo '<div class="jp-menu__pricegroup" style="display:flex!important;flex-wrap:wrap!important;gap:.5rem .8rem!important;align-items:baseline!important;align-content:flex-start!important;justify-content:flex-start!important;text-align:left!important;">';
+	echo $html; // phpcs:ignore
+	echo '</div>';
+
+	echo '</div></li>';
+}
+
 
 	/* Inline Below separator opts (only used for Inline Below layout) */
 	$sep_on  = ! empty( $opts['inline_below_sep_enable'] );
