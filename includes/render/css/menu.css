@@ -189,5 +189,35 @@
 .jp-menu__inner.jp--inline-below .jp-menu__pricegroup {
   margin-top: .35rem; /* tweak as you like */
 }
+/* ===== Inline Below layout ===== */
+.jp-menu__inner.jp--inline-below {
+  /* Force a vertical flow, regardless of existing grid/flex */
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  /* If earlier CSS set grid, neutralize it */
+  grid-template-columns: 1fr !important;
+  grid-auto-flow: row !important;
+}
+
+.jp-menu__inner.jp--inline-below .jp-menu__content,
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup {
+  /* Separate row appearance */
+  margin-top: .5rem;
+  /* Neutralize floats / alignment from inline layout */
+  float: none !important;
+  justify-content: flex-start !important;
+}
+
+/* If your inline price row uses right alignment, bring it back to normal for below */
+.jp-menu__inner.jp--inline-below .jp-price-row,
+.jp-menu__inner.jp--inline-below .jp-pricegroup-row {
+  justify-content: flex-start !important;
+}
 
 
