@@ -1,0 +1,9 @@
+{
+  "mode": "multi",
+  "rows": [
+    { "label_ref": "pl-0", "value": "5,50",  "hide_icon": false },
+    { "label_ref": "pl-1", "value": "8,50",  "hide_icon": false },
+    { "label_ref": "pl-2", "value": "15,25", "hide_icon": false },
+    { "label_ref": "Test Custom Label", "value": "5,00", "hide_icon": false, "icon_id": 289 }
+  ]
+}
