@@ -1,4 +1,8 @@
 <?php
+// DEBUG: template fingerprint (remove after testing)
+echo "\n<!-- JP-INLINE-BELOW TEMPLATE LOADED @ " . esc_html( __FILE__ ) . " -->\n";
+if ( function_exists('error_log') ) { @error_log('JP INLINE-BELOW TEMPLATE LOADED: ' . __FILE__); }
+
 // (Optional safety): if helper not loaded, we can still call the global value
 $__has_helper = function_exists('jprm_effective_inline_below_separator');
 if ( function_exists('jprm_debug_section_hit') ) {
@@ -53,6 +57,11 @@ foreach ( $sections_order as $tid ) {
     $inline_below_separator = $__has_helper
         ? jprm_effective_inline_below_separator( $ctx, (int)$tid )
         : ( isset($ctx['inline_below_separator']) ? (string)$ctx['inline_below_separator'] : '' );
+// DEBUG: show effective section values in HTML comments and error_log
+echo "\n<!-- JP-INLINE-BELOW SEC " . (int)$tid . " SEPARATOR: " . esc_html( $inline_below_separator ) . " -->\n";
+if ( function_exists('error_log') ) {
+    @error_log( sprintf('JP INLINE-BELOW SEC %d SEPARATOR="%s"', (int)$tid, $inline_below_separator ) );
+}
 
     // DEBUG: record effective values for this section
     if ( function_exists('jprm_debug_section_hit') ) {

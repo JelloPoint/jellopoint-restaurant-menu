@@ -1,5 +1,9 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) { exit; }
+// DEBUG: template fingerprint (remove after testing)
+echo "\n<!-- JP-MATRIX TEMPLATE LOADED @ " . esc_html( __FILE__ ) . " -->\n";
+if ( function_exists('error_log') ) { @error_log('JP MATRIX TEMPLATE LOADED: ' . __FILE__); }
+
 if ( function_exists('jprm_debug_section_hit') ) {
     jprm_debug_section_hit([
         'file'        => __FILE__,
@@ -158,7 +162,12 @@ foreach ( $sections_order as $tid ) {
     $matrix_placeholder = function_exists('jprm_effective_matrix_placeholder')
     ? jprm_effective_matrix_placeholder( $ctx, (int) $tid )
     : ( isset($ctx['labels_matrix_placeholder']) ? trim( (string) $ctx['labels_matrix_placeholder'] ) : '' );
-    
+    // DEBUG: show effective section values in HTML comments and error_log
+echo "\n<!-- JP-MATRIX SEC " . (int)$tid . " PLACEHOLDER: " . esc_html( $matrix_placeholder ) . " -->\n";
+if ( function_exists('error_log') ) {
+    @error_log( sprintf('JP MATRIX SEC %d PLACEHOLDER="%s"', (int)$tid, $matrix_placeholder ) );
+}
+
     // DEBUG: record effective values for this section
     if ( function_exists('jprm_debug_section_hit') ) {
         $eff_layout = isset($ctx['section_layouts'][$tid]) ? (string)$ctx['section_layouts'][$tid] : (string)($ctx['global_labels_layout'] ?? 'inline');
