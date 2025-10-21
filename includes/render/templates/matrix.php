@@ -147,6 +147,20 @@ foreach ( $sections_order as $tid ) {
     $matrix_placeholder = function_exists('jprm_effective_matrix_placeholder')
     ? jprm_effective_matrix_placeholder( $ctx, (int) $tid )
     : ( isset($ctx['labels_matrix_placeholder']) ? trim( (string) $ctx['labels_matrix_placeholder'] ) : '' );
+    
+    // DEBUG: record effective values for this section
+    if ( function_exists('jprm_debug_section_hit') ) {
+        $eff_layout = isset($ctx['section_layouts'][$tid]) ? (string)$ctx['section_layouts'][$tid] : (string)($ctx['global_labels_layout'] ?? 'inline');
+        jprm_debug_section_hit([
+            'file'        => __FILE__,
+            'line'        => __LINE__,
+            'section_id'  => (int)$tid,
+            'layout'      => $eff_layout,
+            'placeholder' => $matrix_placeholder,
+            'separator'   => '',
+            'note'        => 'matrix header/rows will use this placeholder for empty cells',
+        ]);
+    }
 
 	// ABOVE Info Blocks
 	if ( isset( $ib_map[$tid]['above'] ) && ! empty( $ib_map[$tid]['above'] ) ) {

@@ -1,4 +1,8 @@
 <?php
+// (Optional safety): if helper not loaded, we can still call the global value
+$__has_helper = function_exists('jprm_effective_inline_below_separator');
+
+
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 $menu_term           = $ctx['menu_term'] ?? null;
@@ -34,6 +38,24 @@ echo '<ul class="jp-menu">';
 foreach ( $sections_order as $tid ) {
 	if ( ! isset( $sections_data[ $tid ] ) ) continue;
 	$blk = $sections_data[ $tid ];
+    // Effective separator for this section (override → global)
+    $inline_below_separator = $__has_helper
+        ? jprm_effective_inline_below_separator( $ctx, (int)$tid )
+        : ( isset($ctx['inline_below_separator']) ? (string)$ctx['inline_below_separator'] : '' );
+
+    // DEBUG: record effective values for this section
+    if ( function_exists('jprm_debug_section_hit') ) {
+        $eff_layout = isset($ctx['section_layouts'][$tid]) ? (string)$ctx['section_layouts'][$tid] : (string)($ctx['global_labels_layout'] ?? 'inline');
+        jprm_debug_section_hit([
+            'file'        => __FILE__,
+            'line'        => __LINE__,
+            'section_id'  => (int)$tid,
+            'layout'      => $eff_layout,
+            'placeholder' => '',
+            'separator'   => $inline_below_separator,
+            'note'        => 'inline-below will use this separator between label and price',
+        ]);
+    }
 
 	if ( isset( $ib_map[$tid]['above'] ) && ! empty( $ib_map[$tid]['above'] ) ) {
 		echo '<li class="jp-menu__infoblock-li">';
