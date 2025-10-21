@@ -180,4 +180,19 @@
 /* Ensure full width for Info Blocks background color */
 .jprm-infoblock{ width: 100%; }
 
+/* Default Inline: vertical stack at right */
+.jp-menu__inner { display:grid; grid-template-columns: 1fr auto; gap:.4rem .8rem; }
+.jp-menu__pricegroup { display:flex; flex-direction:column; gap:.25rem; text-align:right; }
+.jp-menu__pricegroup .jp-menu__row { display:flex; align-items:center; gap:.35em; }
+
+/* Inline-Below: chips row */
+.jp-menu__inner.jp--inline-below { display:flex; flex-direction:column; gap:.5rem; }
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup { display:block; font-size:0; }
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup .jp-menu__row { 
+  display:inline-block; font-size:1rem; margin:0 .8rem .5rem 0; white-space:nowrap;
+}
+
+/* Separators: off by default; on only in Inline-Below */
+.jp-chip-sep { display:none; }
+.jp-menu__inner.jp--inline-below .jp-chip-sep { display:inline-block; opacity:.75; }
 
