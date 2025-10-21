@@ -1,10 +1,6 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-/**
- * Inline (classic) template – right-aligned price/labels on the same row.
- */
-
 $menu_term           = $ctx['menu_term'] ?? null;
 $show_menu_title     = ! empty( $ctx['show_menu_title'] );
 $show_menu_desc      = ! empty( $ctx['show_menu_desc'] );
@@ -22,7 +18,7 @@ $badges_position     = (string) ($ctx['badges_position'] ?? 'after_title');
 
 $label_presentation  = (string) ($ctx['label_presentation'] ?? 'icon_text');
 $label_position      = (string) ($ctx['label_position'] ?? 'right');
-$label_map           = $ctx['label_map'] ?? null;
+$label_map           = is_array( $ctx['label_map'] ?? null ) ? $ctx['label_map'] : [];
 $currency_opts       = $ctx['currency_opts'] ?? [];
 
 $ib_map              = $ctx['ib_map'] ?? [];
@@ -67,23 +63,18 @@ foreach ( $sections_order as $tid ) {
 			if ( $show_badges && $badges_position === 'before_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
 				echo jprm_render_badges_inline_html( $pid, $badges_presentation ); // phpcs:ignore
 			}
-			if ( $title !== '' ) {
-				echo '<h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
-			}
+			if ( $title !== '' ) echo '<h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
 			if ( $show_badges && $badges_position === 'after_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
 				echo jprm_render_badges_inline_html( $pid, $badges_presentation ); // phpcs:ignore
 			}
-			echo '</div>'; // .jp-menu__titleline
+			echo '</div>';
 			if ( is_string( $desc ) && $desc !== '' ) {
 				echo '<div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
 			}
-			echo '</div>'; // .jp-menu__content
+			echo '</div>';
 
-			// Right: prices/labels (icons come from the renderer based on $label_presentation)
-			$html = function_exists( 'jprm_render_pricegroup_html' )
-				? (string) jprm_render_pricegroup_html( $pid, $label_presentation, $label_position, $label_map, $currency_opts )
-				: '';
-
+			// Right: pricegroup (icons guaranteed via our helper)
+			$html = jprm_render_pricegroup_inline_ctx( $pid, $label_presentation, $label_position, $label_map, $currency_opts );
 			echo '<div class="jp-menu__pricegroup jp--presentation-' . esc_attr( $label_presentation ) . '">';
 			echo $html; // phpcs:ignore
 			echo '</div>';
