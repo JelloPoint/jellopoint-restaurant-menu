@@ -8,7 +8,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-/* ---------------- Shared helpers ---------------- */
+/* ---------------- Shared helpers (safe to redeclare) ------------------- */
 
 if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
 	function jprm_render_menu_meta( $term, bool $show_title, bool $show_desc, string $scope ) : string {
@@ -25,11 +25,37 @@ if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
 	}
 }
 
-/** Build icon HTML from label meta. */
+/**
+ * Extract ONLY the first <img> or <svg> from an arbitrary HTML snippet.
+ * Prevents dumping whole SVG sprite sheets (which show “all icons”).
+ */
+if ( ! function_exists( 'jprm_sanitize_single_icon' ) ) {
+	function jprm_sanitize_single_icon( string $html ) : string {
+		$html = trim( $html );
+		if ( $html === '' ) return '';
+		// First try <img ...>
+		if ( preg_match( '~<img\b[^>]*>~is', $html, $m ) ) {
+			return $m[0];
+		}
+		// Then first <svg ...>...</svg>
+		if ( preg_match( '~<svg\b[^>]*>.*?</svg>~is', $html, $m ) ) {
+			return $m[0];
+		}
+		return '';
+	}
+}
+
+/** Build icon HTML from label meta (then sanitize to a single icon). */
 if ( ! function_exists( 'jprm_build_icon_html' ) ) {
 	function jprm_build_icon_html( array $meta ) : string {
-		if ( ! empty( $meta['icon_html'] ) ) return (string) $meta['icon_html'];
-
+		// Explicit HTML fields sometimes hold sprite blocks — sanitize.
+		foreach ( ['icon_html','icon','svg'] as $k ) {
+			if ( ! empty( $meta[$k] ) ) {
+				$out = jprm_sanitize_single_icon( (string) $meta[$k] );
+				if ( $out !== '' ) return $out;
+			}
+		}
+		// Attachment ID
 		if ( ! empty( $meta['icon_id'] ) && function_exists( 'wp_get_attachment_image' ) ) {
 			$html = wp_get_attachment_image( (int) $meta['icon_id'], 'thumbnail', false, [
 				'class'    => 'jp-label__icon',
@@ -37,30 +63,30 @@ if ( ! function_exists( 'jprm_build_icon_html' ) ) {
 				'decoding' => 'async',
 				'alt'      => '',
 			] );
-			if ( $html ) return $html;
+			if ( $html ) return jprm_sanitize_single_icon( $html );
 		}
-
-		
+		// Direct URL
+		foreach ( ['icon_url','url','image_url'] as $k ) {
+			if ( ! empty( $meta[$k] ) ) {
+				$url = esc_url( (string) $meta[$k] );
+				return '<img class="jp-label__icon" src="' . $url . '" alt="" loading="lazy" decoding="async" />';
+			}
+		}
+		return '';
 	}
 }
 
-/** Normalize $ctx; DO NOT force any placeholders. */
+/**
+ * Normalize $ctx – ensure keys exist and label icons are synthesized.
+ * IMPORTANT: we do NOT force a matrix placeholder; default is '' (no clutter).
+ */
 if ( ! function_exists( 'jprm_ctx_normalize' ) ) {
 	function jprm_ctx_normalize( array $ctx ) : array {
-		// Presentation default
+		// Defaults
 		if ( empty( $ctx['label_presentation'] ) ) $ctx['label_presentation'] = 'icon_text';
+		if ( ! isset( $ctx['labels_matrix_placeholder'] ) ) $ctx['labels_matrix_placeholder'] = '';
 
-		// Accept several possible keys for the Matrix placeholder (be accommodating)
-		$ph = '';
-		foreach ( ['labels_matrix_placeholder','matrix_placeholder','labels_placeholder'] as $k ) {
-			if ( array_key_exists( $k, $ctx ) ) {
-				$ph = (string) $ctx[$k];
-				break;
-			}
-		}
-		$ctx['labels_matrix_placeholder'] = $ph;
-
-		// Label map (and synthesize icon_html)
+		// Label map
 		$label_map = $ctx['label_map'] ?? null;
 		if ( ! is_array( $label_map ) || empty( $label_map ) ) {
 			if ( function_exists( 'jprm_get_active_labels_map' ) ) {
@@ -71,6 +97,8 @@ if ( ! function_exists( 'jprm_ctx_normalize' ) ) {
 				$label_map = [];
 			}
 		}
+
+		// Ensure icon_html is a single icon
 		$norm = [];
 		foreach ( $label_map as $id => $meta ) {
 			$m = is_array( $meta ) ? $meta : [];
@@ -85,8 +113,8 @@ if ( ! function_exists( 'jprm_ctx_normalize' ) ) {
 }
 
 /**
- * Render a pricegroup (for Inline & Inline-Below) using structured data.
- * (Left here unchanged; Matrix will not use this — it extracts price-only.)
+ * Render a pricegroup (for Inline & Inline-Below) using structured rows so icons show,
+ * and sanitize any incoming icon HTML to just ONE icon.
  */
 if ( ! function_exists( 'jprm_render_pricegroup_inline_ctx' ) ) {
 	function jprm_render_pricegroup_inline_ctx(
@@ -99,7 +127,6 @@ if ( ! function_exists( 'jprm_render_pricegroup_inline_ctx' ) ) {
 		$rows = function_exists( 'jprm_get_pricegroup_data' )
 			? (array) jprm_get_pricegroup_data( $post_id, $label_map, $currency_opts )
 			: [];
-
 		if ( empty( $rows ) ) return '';
 
 		$out = '<div class="jp-pricegroup jp--presentation-' . esc_attr( $presentation ) . '">';
@@ -108,18 +135,19 @@ if ( ! function_exists( 'jprm_render_pricegroup_inline_ctx' ) ) {
 			$label_id   = isset( $r['label_id'] ) ? (string) (int) $r['label_id'] : '';
 			$fmt        = (string) ( $r['formatted'] ?? '' );
 
-			$icon_html  = (string) ( $r['icon_html'] ?? '' );
+			$icon_html  = jprm_sanitize_single_icon( (string) ( $r['icon_html'] ?? '' ) );
 			if ( $icon_html === '' && $label_id !== '' && isset( $label_map[ $label_id ] ) ) {
-				$icon_html = (string) ( $label_map[ $label_id ]['icon_html'] ?? '' );
+				$icon_html = jprm_sanitize_single_icon( (string) ( $label_map[ $label_id ]['icon_html'] ?? '' ) );
 			}
 
+			// Compose chip
 			if ( $presentation === 'icon' ) {
 				$label_chip = $icon_html !== '' ? $icon_html : esc_html( $label_text );
 			} elseif ( $presentation === 'text' ) {
 				$label_chip = esc_html( $label_text );
-			} else {
+			} else { // icon_text
 				$label_chip = ($icon_html !== '' && $label_text !== '')
-					? '<span class="jp-menu__label">' . $icon_html . '<span>' . esc_html( $label_text ) . '</span></span>'
+					? '<span class="jp-menu__label">'.$icon_html.'<span>'.esc_html($label_text).'</span></span>'
 					: ($icon_html !== '' ? $icon_html : esc_html( $label_text ));
 			}
 
@@ -134,7 +162,7 @@ if ( ! function_exists( 'jprm_render_pricegroup_inline_ctx' ) ) {
 	}
 }
 
-/* ---------------- Normalize, pick template, include ---------------- */
+/* ---------------- Normalize, pick template, include ------------------- */
 
 $ctx = isset( $ctx ) && is_array( $ctx ) ? $ctx : [];
 $ctx = jprm_ctx_normalize( $ctx );
