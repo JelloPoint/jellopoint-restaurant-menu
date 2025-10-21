@@ -1,0 +1,20 @@
+
+.jp-menu{list-style:none;margin:0;padding:0;display:grid;grid-template-columns: repeat(1, minmax(0,1fr));grid-row-gap:20px;grid-column-gap:20px}
+.jp-menu__item{position:relative;display:flex;align-items:flex-start}
+.jp-menu__item--image-right{flex-direction:row-reverse}
+.jp-menu__media{flex:0 0 auto;margin-right:15px}
+.jp-menu__item--image-right .jp-menu__media{margin-right:0;margin-left:15px}
+.jp-menu__content{flex:1 1 auto}
+.jp-menu__header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:6px}
+.jp-menu__title{font-weight:600}
+.jp-menu__price{font-weight:600;white-space:nowrap;min-width:80px;text-align:right}
+.jp-menu__desc{opacity:.9}
+.jp-menu__separator{margin-top:10px;border-bottom:1px solid rgba(0,0,0,.12)}
+.jp-menu__badge{position:absolute;z-index:1;display:inline-block;font-size:11px;line-height:1;padding:.35em .55em;border-radius:4px;background:#111;color:#fff}
+.jp-menu__badge--inline{position:static;margin-left:.5em}
+.jp-menu__badge--corner{top:8px}
+.jp-menu__badge--corner-left{left:8px}
+.jp-menu__badge--corner-right{right:8px}
+.jp-menu__pricegroup{display:grid;row-gap:6px;margin-top:6px}
+.jp-menu__price-row{display:flex;justify-content:space-between;gap:12px}
+.jp-price-label{opacity:.85}
