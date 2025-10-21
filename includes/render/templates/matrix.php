@@ -3,10 +3,49 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
  * Matrix template (per-section grid)
- * - Header is TEXT ONLY (no icons)
- * - Columns with no prices for ANY item are auto-hidden
- * - Placeholder uses ONLY $ctx['labels_matrix_placeholder'] (no fallback)
+ * Fixes:
+ *  - No "Item" word in the header (first header cell blank).
+ *  - Matrix header shows icons/text per label_presentation (sanitized to one icon).
+ *  - Placeholder reliably shown for empty cells; updates with control; empty columns auto-hidden.
  */
+
+/* ------------- Local helpers (self-contained) ----------------- */
+
+/** Extract only the first <img> or <svg> from a snippet (avoid dumping sprite blocks). */
+if ( ! function_exists( 'jprm_sanitize_single_icon' ) ) {
+	function jprm_sanitize_single_icon( string $html ) : string {
+		$html = trim( $html );
+		if ( $html === '' ) return '';
+		if ( preg_match( '~<img\b[^>]*>~is', $html, $m ) ) return $m[0];
+		if ( preg_match( '~<svg\b[^>]*>.*?</svg>~is', $html, $m ) ) return $m[0];
+		return '';
+	}
+}
+
+/** Build a header cell (icon/text) according to presentation. */
+function jprm_matrix_header_cell( array $meta, string $presentation ) : string {
+	$text = trim( (string) ( $meta['text'] ?? '' ) );
+	$ico  = '';
+	// Try icon_html (already sanitized by dispatcher) and sanitize again locally for safety.
+	if ( ! empty( $meta['icon_html'] ) ) $ico = jprm_sanitize_single_icon( (string) $meta['icon_html'] );
+	// Fallbacks if templates were passed raw data (rare):
+	if ( $ico === '' && ! empty( $meta['icon'] ) )     $ico = jprm_sanitize_single_icon( (string) $meta['icon'] );
+	if ( $ico === '' && ! empty( $meta['svg'] ) )      $ico = jprm_sanitize_single_icon( (string) $meta['svg'] );
+	if ( $ico === '' && ! empty( $meta['icon_url'] ) ) $ico = '<img class="jp-label__icon" src="' . esc_url( (string)$meta['icon_url'] ) . '" alt="" loading="lazy" decoding="async" />';
+
+	switch ( $presentation ) {
+		case 'icon':
+			return $ico !== '' ? $ico : esc_html( $text );
+		case 'text':
+			return esc_html( $text );
+		case 'icon_text':
+		default:
+			if ( $ico !== '' && $text !== '' ) {
+				return '<span class="jp-menu__label">' . $ico . '<span>' . esc_html( $text ) . '</span></span>';
+			}
+			return $ico !== '' ? $ico : esc_html( $text );
+	}
+}
 
 /** Build ordered columns (seed from label_map; extend if rows use text-only labels). */
 function jprm_matrix_collect_columns( array $items, array $label_map, array $currency_opts ) : array {
@@ -14,8 +53,9 @@ function jprm_matrix_collect_columns( array $items, array $label_map, array $cur
 	// Seed to keep header order stable
 	foreach ( $label_map as $lid => $meta ) {
 		$cols[(string)$lid] = [
-			'text'  => (string) ($meta['title'] ?? ($meta['text'] ?? '')),
-			'_seed' => true,
+			'text'      => (string) ( $meta['title'] ?? ( $meta['text'] ?? '' ) ),
+			'icon_html' => (string) ( $meta['icon_html'] ?? '' ),
+			'_seed'     => true,
 		];
 	}
 	// Extend with text-only labels found in data
@@ -27,7 +67,10 @@ function jprm_matrix_collect_columns( array $items, array $label_map, array $cur
 			$txt = (string) ( $r['label_text'] ?? '' );
 			$key = $lid > 0 ? (string) $lid : ( $txt !== '' ? 't:' . md5( $txt ) : '' );
 			if ( $key !== '' && ! isset( $cols[$key] ) ) {
-				$cols[$key] = [ 'text' => $txt ];
+				$cols[$key] = [
+					'text'      => $txt,
+					'icon_html' => (string) ( $r['icon_html'] ?? '' ),
+				];
 			}
 		}
 	}
@@ -48,7 +91,7 @@ function jprm_matrix_find_cell( array $rows, string $col_key ) : ?string {
 	return null;
 }
 
-/** Column visibility: keep only columns that have at least one price among all items. */
+/** Keep only columns that have at least one price across all items. */
 function jprm_matrix_filter_active_columns( array $items, array $col_keys, array $label_map, array $currency_opts ) : array {
 	$active = [];
 	foreach ( $col_keys as $k ) {
@@ -58,12 +101,23 @@ function jprm_matrix_filter_active_columns( array $items, array $col_keys, array
 			$rows = function_exists( 'jprm_get_pricegroup_data' ) ? jprm_get_pricegroup_data( $pid, $label_map, $currency_opts ) : [];
 			if ( jprm_matrix_find_cell( $rows, $k ) !== null ) { $has_any = true; break; }
 		}
-		if ( $has_any ) { $active[] = $k; }
+		if ( $has_any ) $active[] = $k;
 	}
 	return $active;
 }
 
-/* ---------- Context ---------- */
+/** Resolve placeholder from common keys; if empty, fall back to em-dash. */
+function jprm_matrix_resolve_placeholder( array $ctx ) : string {
+	foreach ( ['labels_matrix_placeholder','matrix_placeholder','labels_placeholder'] as $k ) {
+		if ( array_key_exists( $k, $ctx ) ) {
+			$val = trim( html_entity_decode( (string) $ctx[$k], ENT_QUOTES ) );
+			if ( $val !== '' ) return $val;
+		}
+	}
+	return '—';
+}
+
+/* ------------- Context ----------------- */
 
 $menu_term               = $ctx['menu_term'] ?? null;
 $show_menu_title         = ! empty( $ctx['show_menu_title'] );
@@ -76,25 +130,20 @@ $sections_data           = $ctx['sections_data'] ?? [];
 $show_section_name       = ! empty( $ctx['show_section_name'] );
 $show_section_desc       = ! empty( $ctx['show_section_desc'] );
 
+$label_presentation      = (string) ( $ctx['label_presentation'] ?? 'icon_text' ); // used for header icon/text mode
 $label_map               = is_array( $ctx['label_map'] ?? null ) ? $ctx['label_map'] : [];
 $currency_opts           = $ctx['currency_opts'] ?? [];
 
-// Use ONLY the control value; decode entities; no fallback.
-$matrix_placeholder      = '';
-if ( array_key_exists( 'labels_matrix_placeholder', $ctx ) ) {
-	$raw = (string) $ctx['labels_matrix_placeholder'];
-	$matrix_placeholder = trim( html_entity_decode( $raw, ENT_QUOTES ) );
-}
-
+$matrix_placeholder      = jprm_matrix_resolve_placeholder( $ctx );
 $ib_map                  = $ctx['ib_map'] ?? [];
 
-/* ---------- Top meta ---------- */
+/* ------------- Top meta ----------------- */
 
 if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
 	echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
 }
 
-/* ---------- Sections ---------- */
+/* ------------- Sections ----------------- */
 
 echo '<ul class="jp-menu__matrix">';
 
@@ -120,21 +169,25 @@ foreach ( $sections_order as $tid ) {
 
 	if ( empty( $items ) ) continue;
 
-	// Columns (build → then drop columns with no prices at all)
+	// Columns → then keep only columns that actually have at least one price
 	$cols      = jprm_matrix_collect_columns( $items, $label_map, $currency_opts );
-	$col_keys  = array_keys( $cols );
-	$col_keys  = jprm_matrix_filter_active_columns( $items, $col_keys, $label_map, $currency_opts );
+	$col_keys  = jprm_matrix_filter_active_columns( $items, array_keys( $cols ), $label_map, $currency_opts );
 	$col_count = max( 1, count( $col_keys ) );
 
 	// Grid container
 	echo '<li class="jp-matrix" style="--jp-matrix-cols:' . esc_attr( (string) $col_count ) . '">';
 
-	// HEADER (TEXT ONLY)
+	// HEADER (first cell blank; no "Item" word)
 	echo '<div class="jp-matrix__row">';
-	echo '<div class="jp-matrix__cell jp-matrix__cell--head jp-matrix__cell--item">' . esc_html__( 'Item', 'jellopoint-restaurant-menu' ) . '</div>';
+	echo '<div class="jp-matrix__cell jp-matrix__cell--head jp-matrix__cell--item"></div>';
 	foreach ( $col_keys as $k ) {
-		$label_text = isset( $cols[$k]['text'] ) ? (string) $cols[$k]['text'] : (string) $k;
-		echo '<div class="jp-matrix__cell jp-matrix__cell--head" data-label-key="' . esc_attr($k) . '">' . esc_html( $label_text ) . '</div>';
+		$meta = [
+			'text'      => isset( $cols[$k]['text'] ) ? (string) $cols[$k]['text'] : (string) $k,
+			'icon_html' => isset( $cols[$k]['icon_html'] ) ? (string) $cols[$k]['icon_html'] : '',
+		];
+		echo '<div class="jp-matrix__cell jp-matrix__cell--head" data-label-key="' . esc_attr($k) . '">'
+			. jprm_matrix_header_cell( $meta, $label_presentation )
+			. '</div>';
 	}
 	echo '</div>';
 
@@ -163,7 +216,7 @@ foreach ( $sections_order as $tid ) {
 		echo '</div>'; // row
 	}
 
-	echo '</li>'; // grid
+	echo '</li>'; // .jp-matrix
 
 	// BELOW Info Blocks
 	if ( isset( $ib_map[$tid]['below'] ) && ! empty( $ib_map[$tid]['below'] ) ) {
