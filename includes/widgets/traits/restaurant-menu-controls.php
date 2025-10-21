@@ -298,13 +298,14 @@ $this->start_controls_section(
 
 /* Global layout */
 $this->add_control( 'labels_layout', [
-	'label'   => __( 'Default layout', 'jellopoint-restaurant-menu' ),
-	'type'    => \Elementor\Controls_Manager::SELECT,
-	'default' => 'inline',
-	'options' => [
-		'inline' => __( 'Inline (classic)', 'jellopoint-restaurant-menu' ),
-		'matrix' => __( 'Matrix (per-section table)', 'jellopoint-restaurant-menu' ),
-	],
+    'label'   => __( 'Default layout', 'jellopoint-restaurant-menu' ),
+    'type'    => Controls_Manager::SELECT,
+    'default' => 'inline',
+    'options' => [
+        'inline'       => __( 'Inline (classic)', 'jellopoint-restaurant-menu' ),
+        'inline_below' => __( 'Inline Below (chips under title)', 'jellopoint-restaurant-menu' ),
+        'matrix'       => __( 'Matrix (per-section table)', 'jellopoint-restaurant-menu' ),
+    ],
 ] );
 
 $this->add_control( 'labels_matrix_placeholder', [
@@ -337,13 +338,14 @@ $rep_ov->add_control( 'section_id', [
 	'options' => $section_options_scoped,
 ] );
 $rep_ov->add_control( 'layout', [
-	'label'   => __( 'Layout', 'jellopoint-restaurant-menu' ),
-	'type'    => \Elementor\Controls_Manager::SELECT,
-	'default' => 'inline',
-	'options' => [
-		'inline' => __( 'Inline',  'jellopoint-restaurant-menu' ),
-		'matrix' => __( 'Matrix',  'jellopoint-restaurant-menu' ),
-	],
+    'label'   => __( 'Layout', 'jellopoint-restaurant-menu' ),
+    'type'    => Controls_Manager::SELECT,
+    'default' => 'inline',
+    'options' => [
+        'inline'       => __( 'Inline', 'jellopoint-restaurant-menu' ),
+        'inline_below' => __( 'Inline Below', 'jellopoint-restaurant-menu' ),
+        'matrix'       => __( 'Matrix', 'jellopoint-restaurant-menu' ),
+    ],
 ] );
 $rep_ov->add_control( 'placeholder', [
 	'label'       => __( 'Placeholder (optional)', 'jellopoint-restaurant-menu' ),
