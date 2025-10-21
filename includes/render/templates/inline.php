@@ -2,9 +2,7 @@
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
- * Inline (classic) template
- * Title/desc on the left, price/labels inline on the same row (right side).
- * Expects $ctx from the dispatcher.
+ * Inline (classic) template – right-aligned price/labels on the same row.
  */
 
 $menu_term           = $ctx['menu_term'] ?? null;
@@ -81,12 +79,12 @@ foreach ( $sections_order as $tid ) {
 			}
 			echo '</div>'; // .jp-menu__content
 
-			// Right: prices/labels inline
+			// Right: prices/labels (icons come from the renderer based on $label_presentation)
 			$html = function_exists( 'jprm_render_pricegroup_html' )
 				? (string) jprm_render_pricegroup_html( $pid, $label_presentation, $label_position, $label_map, $currency_opts )
 				: '';
 
-			echo '<div class="jp-menu__pricegroup">';
+			echo '<div class="jp-menu__pricegroup jp--presentation-' . esc_attr( $label_presentation ) . '">';
 			echo $html; // phpcs:ignore
 			echo '</div>';
 

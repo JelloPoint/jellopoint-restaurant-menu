@@ -5,36 +5,42 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * Matrix template (per-section grid)
  * - Matches CSS selectors in menu.css: .jp-menu__matrix (UL), .jp-matrix (grid), .jp-matrix__row, .jp-matrix__cell
  * - Uses structured price rows via jprm_get_pricegroup_data() if available.
- * - Falls back to placeholder if a cell has no price for that label.
- *
- * Expects $ctx array with keys:
- *   - menu_term, show_menu_title, show_menu_desc, menu_pos
- *   - sections_order (array of term_ids), sections_data (term_id => [ 'term'=>WP_Term, 'items'=>array of WP_Post ])
- *   - show_section_name, show_section_desc
- *   - label_map (array), currency_opts (array)
- *   - labels_matrix_placeholder (string)
- *   - badges_presentation/position only affect headers minimally; item cells show title+desc only
- *   - ib_map (per-section Info Blocks)
+ * - Default placeholder is EMPTY (no dashed line clutter).
  */
 
-/* ---------- Small helpers (kept local to this template) ------------------ */
+function jprm_matrix_icon_from_meta( array $meta ) : string {
+	// Accepts: ['icon_html'], or builds from ['icon_id'] / ['icon_url']
+	if ( ! empty( $meta['icon_html'] ) ) {
+		return (string) $meta['icon_html'];
+	}
+	if ( ! empty( $meta['icon_id'] ) && function_exists( 'wp_get_attachment_image' ) ) {
+		$html = wp_get_attachment_image( (int) $meta['icon_id'], 'thumbnail', false, [
+			'class' => 'jp-label__icon',
+			'loading' => 'lazy',
+			'decoding' => 'async',
+			'alt' => '',
+		] );
+		if ( $html ) return $html;
+	}
+	if ( ! empty( $meta['icon_url'] ) ) {
+		$url = esc_url( (string) $meta['icon_url'] );
+		return '<img class="jp-label__icon" src="' . $url . '" alt="" loading="lazy" decoding="async" />';
+	}
+	return '';
+}
 
-/**
- * Collect union of label columns used in a section.
- * Returns: [ label_key => [ 'text' => string, 'icon_html' => string ] ]
- * label_key: numeric label_id if available; otherwise a synthetic "t:<hash>" for text-only labels.
- */
+/** Collect ordered columns from items + seed by $label_map order if provided. */
 function jprm_matrix_collect_columns( array $items, ?array $label_map, array $currency_opts ) : array {
 	$cols = [];
 
-	// Seed columns with label_map order (if provided) so headers are stable
+	// Seed columns with label_map order for stable header order
 	if ( is_array( $label_map ) ) {
 		foreach ( $label_map as $lid => $meta ) {
 			$lid = (int) $lid;
 			$cols[ (string) $lid ] = [
-				'text'      => (string) ( $meta['title']     ?? ( $meta['text'] ?? '' ) ),
-				'icon_html' => (string) ( $meta['icon_html'] ?? '' ),
-				'_seed'     => true, // marks seeded order
+				'text'      => (string) ( $meta['title'] ?? ( $meta['text'] ?? '' ) ),
+				'icon_html' => jprm_matrix_icon_from_meta( is_array($meta) ? $meta : [] ),
+				'_seed'     => true,
 			];
 		}
 	}
@@ -51,18 +57,16 @@ function jprm_matrix_collect_columns( array $items, ?array $label_map, array $cu
 			if ( $key === '' ) continue;
 
 			if ( ! isset( $cols[ $key ] ) ) {
-				// Prefer label_map meta if we can map a numeric id
-				if ( $lid > 0 && isset( $label_map[ $lid ] ) ) {
-					$cols[ $key ] = [
-						'text'      => (string) ( $label_map[ $lid ]['title']     ?? ( $label_map[ $lid ]['text'] ?? $txt ) ),
-						'icon_html' => (string) ( $label_map[ $lid ]['icon_html'] ?? '' ),
-					];
-				} else {
-					$cols[ $key ] = [
-						'text'      => $txt,
-						'icon_html' => (string) ( $r['icon_html'] ?? '' ),
-					];
+				$icon_html = '';
+				if ( $lid > 0 && isset( $label_map[ $lid ] ) && is_array( $label_map[ $lid ] ) ) {
+					$icon_html = jprm_matrix_icon_from_meta( $label_map[ $lid ] );
+				} elseif ( ! empty( $r['icon_html'] ) ) {
+					$icon_html = (string) $r['icon_html'];
 				}
+				$cols[ $key ] = [
+					'text'      => $txt,
+					'icon_html' => $icon_html,
+				];
 			}
 		}
 	}
@@ -120,7 +124,11 @@ $label_presentation      = (string) ( $ctx['label_presentation'] ?? 'icon_text' 
 $label_map               = is_array( $ctx['label_map'] ?? null ) ? $ctx['label_map'] : [];
 $currency_opts           = $ctx['currency_opts'] ?? [];
 
-$matrix_placeholder      = (string) ( $ctx['labels_matrix_placeholder'] ?? '—' );
+// IMPORTANT: Default to EMPTY to avoid those dashed placeholders everywhere.
+$matrix_placeholder      = array_key_exists( 'labels_matrix_placeholder', $ctx )
+	? (string) $ctx['labels_matrix_placeholder']
+	: '';
+
 $ib_map                  = $ctx['ib_map'] ?? [];
 
 /* ---------- Top-level menu meta ----------------------------------------- */
@@ -199,7 +207,7 @@ foreach ( $sections_order as $tid ) {
 		foreach ( $col_keys as $k ) {
 			$val = $rows ? jprm_matrix_find_cell( $rows, $k ) : null;
 			if ( $val === null || $val === '' ) {
-				$val = '<span class="jp-matrix__placeholder">' . esc_html( $matrix_placeholder ) . '</span>';
+				$val = $matrix_placeholder !== '' ? '<span class="jp-matrix__placeholder">' . esc_html( $matrix_placeholder ) . '</span>' : '';
 			}
 			echo '<div class="jp-matrix__cell jp-matrix__cell--value">' . $val . '</div>'; // phpcs:ignore
 		}
