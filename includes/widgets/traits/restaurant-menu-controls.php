@@ -356,20 +356,17 @@ trait Restaurant_Menu_Controls {
 		]);
 
 		$this->add_control(
-    'labels_matrix_placeholder',
-    [
-        'label'       => __( 'Matrix Placeholder', 'jellopoint-restaurant-menu' ),
-        'type'        => \Elementor\Controls_Manager::TEXT,
-        'default'     => '',
-        'placeholder' => '—',
-        'description' => __( 'Shown in Matrix cells when a price is missing. Leave empty for a blank cell.', 'jellopoint-restaurant-menu' ),
-        // 👇 Only show when Matrix layout is selected
-        'condition'   => [
-            'global_labels_layout' => 'matrix',
-        ],
-    ]
-);
-
+    		'labels_matrix_placeholder', [
+        	'label'       => __( 'Matrix Placeholder', 'jellopoint-restaurant-menu' ),
+        	'type'        => \Elementor\Controls_Manager::TEXT,
+        	'default'     => '',
+        	'placeholder' => '—',
+        	'description' => __( 'Shown in Matrix cells when a price is missing. Leave empty for a blank cell.', 'jellopoint-restaurant-menu' ),
+        	// IMPORTANT: your file uses `labels_layout`, not `global_labels_layout`
+        	'condition'   => [
+            'labels_layout' => 'matrix',
+        	],
+    ]);
 
 // === Section Overrides (ALWAYS VISIBLE; supports Inline / Inline Below / Matrix) ===
 $this->add_control( 'matrix_overrides_heading', [
