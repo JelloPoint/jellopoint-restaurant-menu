@@ -199,6 +199,10 @@ final class Restaurant_Menu extends Widget_Base {
 			'ib_map'              => $ib_map,
 			'section_layouts'     => $section_layouts,
 			'global_labels_layout'=> $global_labels_layout,
+			// ▶ pass the Matrix placeholder EXACTLY from the control:
+    		'labels_matrix_placeholder' => isset($settings['labels_matrix_placeholder'])
+        ? html_entity_decode((string)$settings['labels_matrix_placeholder'], ENT_QUOTES)
+        : '',
 			'global_placeholder'  => $global_placeholder,
 		];
 
