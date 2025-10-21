@@ -250,3 +250,15 @@
   color:currentColor !important;
   font-size:1rem !important; /* defeats any parent font-size:0 trick */
 }
+.elementor-element.jprm-sep--on
+  .jp-menu__inner.jp--inline-below
+  .jp-menu__pricegroup
+  .jp-menu__row:not(:last-child)::after {
+  content: var(--jprm-inline-sep, "•");
+  display: inline-block;
+  font-size: 1rem;
+  line-height: 1;
+  opacity: .75;
+  margin-inline: var(--jprm-inline-sep-gap, .6rem);
+  vertical-align: baseline;
+}

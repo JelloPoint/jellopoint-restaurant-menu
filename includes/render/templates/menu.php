@@ -1,11 +1,11 @@
 <?php
 /**
- * Unified Menu Template (1/2/3 columns) + Matrix layout per section
- * Expects $ctx (array). See $ctx keys in widget.
+ * Unified Menu Template (1/2/3 columns) + Matrix + Inline Below
+ * Expects $ctx (array). See $ctx keys built in the widget class.
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-/* --- Safe helper for menu meta (if not already defined by widget) --- */
+/* --- Safe helper for menu meta --- */
 if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
 	function jprm_render_menu_meta( $term, bool $show_title, bool $show_desc, string $scope ) : string {
 		if ( ! $term || ( ! $show_title && ! $show_desc ) ) return '';
@@ -21,7 +21,7 @@ if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
 	}
 }
 
-/** Force each .jp-menu__row to inline “chip” (used only for Inline Below) */
+/** Force each .jp-menu__row to be an inline “chip” (beats theme/Elementor CSS) */
 function jprm_force_inline_row_styles( string $html ) : string {
 	$chip = 'style="display:inline-flex!important;flex:0 0 auto!important;width:auto!important;max-width:none!important;margin:0!important;padding:0!important;align-items:baseline!important;gap:.35rem!important;"';
 	$html = preg_replace('~<div\s+class="([^"]*\bjp-menu__row\b[^"]*)"(?![^>]*\sstyle=)~i','<div class="$1" ' . $chip,$html);
@@ -30,22 +30,35 @@ function jprm_force_inline_row_styles( string $html ) : string {
 	return $html;
 }
 
-/** Build literal separator span (no CSS vars; uses the chosen text and gap) */
-function jprm_build_sep_span( string $sep_text, string $gap_css ) : string {
-	$sep_text = (string) $sep_text;
-	if ( $sep_text === '' ) return '';
-	$gap_css  = ( $gap_css !== '' ) ? $gap_css : '.6rem';
-	// aria-hidden: purely decorative
-	return '<span class="jp-chip-sep" aria-hidden="true" style="display:inline-flex;align-items:center;vertical-align:baseline;margin:0 ' . esc_attr($gap_css) . ';line-height:1;opacity:.75;color:currentColor;font-size:1rem;">' . esc_html( $sep_text ) . '</span>';
+/** Roughly map a CSS gap to 1..4 thin spaces */
+function jprm_gap_to_thinsp_count( string $gap ) : int {
+	$gap = trim( strtolower( (string) $gap ) );
+	if ( $gap === '' ) return 2;
+	$val = floatval( $gap );
+	if ( preg_match( '~px$~', $gap ) ) $val = $val / 16.0; // px → rem-ish
+	// em ~ rem for our purpose
+	if ( $val <= 0.25 ) return 1;
+	if ( $val <= 0.6 )  return 2;
+	if ( $val <= 1.0 )  return 3;
+	return 4;
 }
 
-/** Insert separator span between adjacent .jp-menu__row chips */
-function jprm_insert_separators( string $html, string $sep_text, string $gap_css ) : string {
+/** Build a literal inline separator node (survives sanitizers) */
+function jprm_build_text_separator( string $sep, string $gap ) : string {
+	$sep = (string) $sep;
+	if ( $sep === '' ) return '';
+	$n = jprm_gap_to_thinsp_count( $gap );
+	$pad = str_repeat( '&#8201;', max(1, min(4, $n)) ); // thin space
+	return '<span class="jp-chip-sep" aria-hidden="true" style="display:inline-flex;align-items:center;vertical-align:baseline;margin:0 '.esc_attr($gap).';line-height:1;opacity:.75;color:currentColor;font-size:1rem;">'.$pad . esc_html($sep) . $pad.'</span>';
+}
+
+/** Insert a separator node between consecutive .jp-menu__row chips */
+function jprm_insert_separators( string $html, string $sep_text, string $gap ) : string {
 	if ( $sep_text === '' ) return $html;
-	$sep = jprm_build_sep_span( $sep_text, $gap_css );
+	$node = jprm_build_text_separator( $sep_text, $gap );
 	return preg_replace(
 		'~</div>\s*(?=<div[^>]*\bjp-menu__row\b)~is',
-		'</div>' . $sep,
+		'</div>'.$node,
 		$html
 	);
 }
@@ -81,12 +94,9 @@ $section_layouts     = $ctx['section_layouts'] ?? [];
 $global_labels_layout= $ctx['global_labels_layout'] ?? 'inline';
 $global_placeholder  = $ctx['global_placeholder'] ?? '—';
 
-/* Inline Below separator settings (from Controls) */
-$sep_enabled     = ! empty( $ctx['inline_below_sep_enable'] ); // bool (from widget mapping)
-$sep_text_raw    = (string) ( $ctx['inline_below_sep_content'] ?? '' );
-$sep_gap_raw     = (string) ( $ctx['inline_below_sep_gap'] ?? '.6rem' );
-$sep_text_use    = $sep_enabled ? $sep_text_raw : ''; // empty -> no separators at all
-$sep_gap_use     = ( $sep_gap_raw !== '' ) ? $sep_gap_raw : '.6rem';
+/* Separator options from context (text empty → no separators) */
+$sep_text = (string) ( $ctx['inline_below_sep_content'] ?? '' );
+$sep_gap  = (string) ( $ctx['inline_below_sep_gap']     ?? '.6rem' );
 
 /* === Matrix helpers === */
 function jprm_section_collect_label_columns( array $items, ?array $label_map, array $currency_opts ) : array {
@@ -134,13 +144,12 @@ function jprm_item_value_for_label( int $post_id, int $lid, ?array $label_map, a
 	return null;
 }
 
-/* === Item renderers === */
-
-/** Default Inline: prices stacked (right column). No separators here. */
+/* === Item cards === */
 function jprm_render_item_inline(
 	int $post_id, bool $show_badges, string $badges_pos, string $badges_pres,
 	string $label_presentation, string $label_position,
-	$label_map, array $currency_opts
+	$label_map, array $currency_opts,
+	string $sep_text, string $sep_gap
 ) : void {
 	$title = get_the_title( $post_id );
 	$desc  = get_post_meta( $post_id, 'jprm_desc', true );
@@ -157,17 +166,18 @@ function jprm_render_item_inline(
 
 	if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
 		$_html = (string) jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
-		// DO NOT force chips here: we want default stacked (CSS handles it)
+		$_html = jprm_force_inline_row_styles( $_html );
+		// Inline layout: keep default stack (right side). No extra separators here by default.
 		echo '<div class="jp-menu__pricegroup">';
 		echo $_html; // phpcs:ignore
 		echo '</div>';
 	} else {
 		echo '<div class="jp-menu__pricegroup"></div>';
 	}
+
 	echo '</div></li>';
 }
 
-/** Inline Below: chips side-by-side + optional literal separators */
 function jprm_render_item_inline_below(
 	int $post_id,
 	bool $show_badges, string $badges_pos, string $badges_pres,
@@ -190,22 +200,25 @@ function jprm_render_item_inline_below(
 
 	if ( function_exists( 'jprm_render_pricegroup_html' ) ) {
 		$_html = (string) jprm_render_pricegroup_html( $post_id, $label_presentation, $label_position, $label_map, $currency_opts ); // phpcs:ignore
-		// Force chip styling for rows (side-by-side)
 		$_html = jprm_force_inline_row_styles( $_html );
-		// Insert literal separators if requested
 		if ( $sep_text !== '' ) {
 			$_html = jprm_insert_separators( $_html, $sep_text, $sep_gap );
+			$gap_css = '0';
+		} else {
+			$gap_css = '.5rem .8rem';
 		}
-		echo '<div class="jp-menu__pricegroup" style="display:flex!important;flex-wrap:wrap!important;gap:.5rem .8rem!important;align-items:baseline!important;align-content:flex-start!important;justify-content:flex-start!important;text-align:left!important;">';
+		echo '<div class="jp-menu__pricegroup" style="display:block!important;text-align:left!important;font-size:0!important;white-space:normal!important;">';
+		// chips are inline-block (forced by CSS); just print html (with separators injected)
 		echo $_html; // phpcs:ignore
 		echo '</div>';
 	} else {
 		echo '<div class="jp-menu__pricegroup"></div>';
 	}
+
 	echo '</div></li>';
 }
 
-/* === Section renderer (Inline, Inline Below, or Matrix) === */
+/* === Section renderer === */
 function jprm_render_section_block( $tid, array $blk, array $opts ) : void {
 	$term                = $blk['term'];
 	$items               = $blk['items'];
@@ -223,7 +236,6 @@ function jprm_render_section_block( $tid, array $blk, array $opts ) : void {
 	$global_layout       = (string) ( $opts['global_labels_layout'] ?? 'inline' );
 	$global_placeholder  = (string) ( $opts['global_placeholder'] ?? '—' );
 
-	/* Separator opts (Inline Below only) */
 	$sep_text = (string) ( $opts['inline_below_sep_content'] ?? '' );
 	$sep_gap  = (string) ( $opts['inline_below_sep_gap'] ?? '.6rem' );
 
@@ -235,7 +247,7 @@ function jprm_render_section_block( $tid, array $blk, array $opts ) : void {
 		if ( isset( $o['placeholder'] ) && $o['placeholder'] !== '' ) $placeholder = (string) $o['placeholder'];
 	}
 
-	// ABOVE Info Blocks
+	// ABOVE info blocks
 	if ( isset( $ib_map[$tid]['above'] ) && ! empty( $ib_map[$tid]['above'] ) ) {
 		echo '<li class="jp-menu__infoblock-li">';
 		echo jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ); // phpcs:ignore
@@ -251,13 +263,12 @@ function jprm_render_section_block( $tid, array $blk, array $opts ) : void {
 		echo '</li>';
 	}
 
-	// Decide layout per section
 	$use_matrix       = ( $layout === 'matrix' );
 	$use_inline_below = ( $layout === 'inline_below' );
 
 	if ( $use_matrix ) {
 		$cols = jprm_section_collect_label_columns( $items, $label_map, $currency_opts );
-		if ( empty( $cols ) ) $use_matrix = false; // fallback if no structured data
+		if ( empty( $cols ) ) $use_matrix = false;
 	}
 
 	if ( ! $use_matrix ) {
@@ -275,14 +286,15 @@ function jprm_render_section_block( $tid, array $blk, array $opts ) : void {
 					(int) $post->ID,
 					$show_badges, $badges_position, $badges_presentation,
 					$label_presentation, $label_position,
-					$label_map, $currency_opts
+					$label_map, $currency_opts,
+					/* (Optional) could inject separators for Inline too; we keep stacked defaults here */
+					'', $sep_gap
 				);
 			}
 		}
 	} else {
-		// Matrix table rendering
+		// Matrix rendering
 		$col_ids = array_keys( $cols );
-
 		echo '<li class="jp-menu__matrix">';
 		$__jp_cols = (int) count( $col_ids );
 		echo '<div class="jp-matrix" style="--jp-matrix-cols:' . $__jp_cols . ';">';
@@ -335,8 +347,7 @@ function jprm_render_section_block( $tid, array $blk, array $opts ) : void {
 	}
 }
 
-/* === Column orchestrators (1/2/3) === */
-
+/* === Columns orchestrator === */
 if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
 	echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
 }
@@ -365,9 +376,8 @@ if ( $columns === '1' ) {
 			'section_layouts'     => $section_layouts,
 			'global_labels_layout'=> $global_labels_layout,
 			'global_placeholder'  => $global_placeholder,
-			/* separator opts for Inline Below */
-			'inline_below_sep_content' => $sep_text_use,
-			'inline_below_sep_gap'     => $sep_gap_use,
+			'inline_below_sep_content' => $sep_text,
+			'inline_below_sep_gap'     => $sep_gap,
 		] );
 	}
 	echo '</ul>';
@@ -422,8 +432,8 @@ if ( $columns === '2' ) {
 			'section_layouts'     => $section_layouts,
 			'global_labels_layout'=> $global_labels_layout,
 			'global_placeholder'  => $global_placeholder,
-			'inline_below_sep_content' => $sep_text_use,
-			'inline_below_sep_gap'     => $sep_gap_use,
+			'inline_below_sep_content' => $sep_text,
+			'inline_below_sep_gap'     => $sep_gap,
 		] );
 	}
 	echo '</ul></div>';
@@ -445,8 +455,8 @@ if ( $columns === '2' ) {
 			'section_layouts'     => $section_layouts,
 			'global_labels_layout'=> $global_labels_layout,
 			'global_placeholder'  => $global_placeholder,
-			'inline_below_sep_content' => $sep_text_use,
-			'inline_below_sep_gap'     => $sep_gap_use,
+			'inline_below_sep_content' => $sep_text,
+			'inline_below_sep_gap'     => $sep_gap,
 		] );
 	}
 	echo '</ul></div>';
@@ -520,8 +530,8 @@ foreach ( $cols as $i => $section_ids_chunk ) {
 			'section_layouts'     => $section_layouts,
 			'global_labels_layout'=> $global_labels_layout,
 			'global_placeholder'  => $global_placeholder,
-			'inline_below_sep_content' => $sep_text_use,
-			'inline_below_sep_gap'     => $sep_gap_use,
+			'inline_below_sep_content' => $sep_text,
+			'inline_below_sep_gap'     => $sep_gap,
 		] );
 	}
 	echo '</ul></div>';
