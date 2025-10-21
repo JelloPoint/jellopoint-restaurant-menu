@@ -23,7 +23,7 @@ $currency_opts       = $ctx['currency_opts'] ?? [];
 
 $ib_map              = $ctx['ib_map'] ?? [];
 
-// Step 1: no user separator yet.
+// Step 1: no user-configured separator yet.
 $sep_text = '';
 
 if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
@@ -35,12 +35,14 @@ foreach ( $sections_order as $tid ) {
 	if ( ! isset( $sections_data[ $tid ] ) ) continue;
 	$blk = $sections_data[ $tid ];
 
+	// ABOVE Info Blocks
 	if ( isset( $ib_map[$tid]['above'] ) && ! empty( $ib_map[$tid]['above'] ) ) {
 		echo '<li class="jp-menu__infoblock-li">';
 		echo jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ); // phpcs:ignore
 		echo '</li>';
 	}
 
+	// Section header
 	if ( ! empty( $blk['term'] ) && $show_section_name ) {
 		echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $blk['term']->name ) . '</h3>';
 		if ( $show_section_desc && ! empty( $blk['term']->description ) ) {
@@ -49,6 +51,7 @@ foreach ( $sections_order as $tid ) {
 		echo '</li>';
 	}
 
+	// Items
 	if ( ! empty( $blk['items'] ) && is_array( $blk['items'] ) ) {
 		foreach ( $blk['items'] as $post ) {
 			$pid   = (int) $post->ID;
@@ -57,6 +60,7 @@ foreach ( $sections_order as $tid ) {
 
 			echo '<li class="jp-menu__item"><div class="jp-menu__inner jp--inline-below">';
 
+			// Title + badges + desc
 			echo '<div class="jp-menu__content">';
 			echo '<div class="jp-menu__titleline">';
 			if ( $show_badges && $badges_position === 'before_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
@@ -72,9 +76,10 @@ foreach ( $sections_order as $tid ) {
 			}
 			echo '</div>';
 
+			// Chips row under content (icons guaranteed via our helper)
 			$html = jprm_render_pricegroup_inline_ctx( $pid, $label_presentation, $label_position, $label_map, $currency_opts );
 
-			// (No separator yet in Step 1)
+			// (Separator injection reserved for Step 2)
 			echo '<div class="jp-menu__pricegroup jp--presentation-' . esc_attr( $label_presentation ) . '">';
 			echo $html; // phpcs:ignore
 			echo '</div>';
@@ -83,6 +88,7 @@ foreach ( $sections_order as $tid ) {
 		}
 	}
 
+	// BELOW Info Blocks
 	if ( isset( $ib_map[$tid]['below'] ) && ! empty( $ib_map[$tid]['below'] ) ) {
 		echo '<li class="jp-menu__infoblock-li">';
 		echo jprm_infoblocks_render_group( $ib_map[$tid]['below'], 'below' ); // phpcs:ignore
