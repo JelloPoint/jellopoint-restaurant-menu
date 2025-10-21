@@ -30,14 +30,17 @@ if ( ! function_exists( 'jprm_build_icon_html' ) ) {
 	function jprm_build_icon_html( array $meta ) : string {
 		if ( ! empty( $meta['icon_html'] ) ) return (string) $meta['icon_html'];
 
-		
+		if ( ! empty( $meta['icon_id'] ) && function_exists( 'wp_get_attachment_image' ) ) {
+			$html = wp_get_attachment_image( (int) $meta['icon_id'], 'thumbnail', false, [
+				'class'    => 'jp-label__icon',
+				'loading'  => 'lazy',
+				'decoding' => 'async',
+				'alt'      => '',
+			] );
+			if ( $html ) return $html;
 		}
 
-		if ( ! empty( $meta['icon_url'] ) ) {
-			$url = esc_url( (string) $meta['icon_url'] );
-			return '<img class="jp-label__icon" src="' . $url . '" alt="" loading="lazy" decoding="async" />';
-		}
-		return '';
+		
 	}
 }
 
