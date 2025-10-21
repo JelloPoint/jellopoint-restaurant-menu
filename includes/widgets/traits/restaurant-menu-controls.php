@@ -312,7 +312,7 @@ $this->add_control( 'labels_matrix_placeholder', [
 	'label'       => __( 'Matrix placeholder for empty cell', 'jellopoint-restaurant-menu' ),
 	'type'        => \Elementor\Controls_Manager::TEXT,
 	'default'     => '—',
-	'placeholder' => '—',
+	'placeholder' => '*',
 ] );
 
 /* Per-section overrides (scoped to current Menu) */
@@ -350,7 +350,7 @@ $rep_ov->add_control( 'layout', [
 $rep_ov->add_control( 'placeholder', [
 	'label'       => __( 'Placeholder (optional)', 'jellopoint-restaurant-menu' ),
 	'type'        => \Elementor\Controls_Manager::TEXT,
-	'placeholder' => '*',
+	'placeholder' => '—',
 ] );
 
 $this->add_control( 'labels_layout_overrides', [
