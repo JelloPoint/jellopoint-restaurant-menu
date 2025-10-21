@@ -290,81 +290,133 @@ trait Restaurant_Menu_Controls {
 		] );
 
 		$this->end_controls_section();
-/* --- Labels Layout ------------------------------------------------------ */
-$this->start_controls_section(
-	'jprm_section_labels_layout',
-	[ 'label' => __( 'Labels Layout', 'jellopoint-restaurant-menu' ) ]
-);
 
-/* Global layout */
-$this->add_control( 'labels_layout', [
-    'label'   => __( 'Default layout', 'jellopoint-restaurant-menu' ),
-    'type'    => Controls_Manager::SELECT,
-    'default' => 'inline',
-    'options' => [
-        'inline'       => __( 'Inline (classic)', 'jellopoint-restaurant-menu' ),
-        'inline_below' => __( 'Inline Below (chips under title)', 'jellopoint-restaurant-menu' ),
-        'matrix'       => __( 'Matrix (per-section table)', 'jellopoint-restaurant-menu' ),
-    ],
-] );
+		/* --- Labels Layout ------------------------------------------------------ */
+		$this->start_controls_section(
+			'jprm_section_labels_layout',
+			[ 'label' => __( 'Labels Layout', 'jellopoint-restaurant-menu' ) ]
+		);
 
-$this->add_control( 'labels_matrix_placeholder', [
-	'label'       => __( 'Matrix placeholder for empty cell', 'jellopoint-restaurant-menu' ),
-	'type'        => \Elementor\Controls_Manager::TEXT,
-	'default'     => '—',
-	'placeholder' => '—',
-] );
+		/* Global layout */
+		$this->add_control( 'labels_layout', [
+			'label'   => __( 'Default layout', 'jellopoint-restaurant-menu' ),
+			'type'    => Controls_Manager::SELECT,
+			'default' => 'inline',
+			'options' => [
+				'inline'       => __( 'Inline',  'jellopoint-restaurant-menu' ),
+				'inline_below' => __( 'Inline Below',  'jellopoint-restaurant-menu' ),
+				'matrix'       => __( 'Matrix',  'jellopoint-restaurant-menu' ),
+			],
+		] );
 
-/* Per-section overrides (scoped to current Menu) */
-$selected_menu_id = 0;
-try {
-	$tmp = $this->get_settings_for_display();
-	if ( ! empty( $tmp['menus'] ) ) $selected_menu_id = (int) $tmp['menus'];
-} catch ( \Throwable $e ) {}
+		// Toggle: show a separator (Inline Below only)
+		$this->add_control( 'inline_below_sep_enable', [
+			'label'        => __( 'Show Separator (Inline Below)', 'jellopoint-restaurant-menu' ),
+			'type'         => Controls_Manager::SWITCHER,
+			'return_value' => 'on',              // wrapper class becomes .jprm-sep--on
+			'default'      => '',
+			'condition'    => [ 'labels_layout' => 'inline_below' ],
+			'prefix_class' => 'jprm-sep--',
+			'render_type'  => 'template',
+		]);
 
-$section_options_scoped = [];
-if ( $selected_menu_id > 0 && function_exists( 'jprm_infoblocks_sections_for_menu' ) ) {
-	$section_options_scoped = jprm_infoblocks_sections_for_menu( $selected_menu_id );
-}
-if ( empty( $section_options_scoped ) ) {
-	// Fallback to all Sections taxonomy
-	$section_options_scoped = $this->get_terms_options( 'jprm_section' );
-}
+		// Content
+		$this->add_control( 'inline_below_sep_content', [
+			'label'       => __( 'Separator Content', 'jellopoint-restaurant-menu' ),
+			'type'        => Controls_Manager::TEXT,
+			'default'     => '•',
+			'placeholder' => '• | · / or',
+			'condition'   => [
+				'labels_layout'           => 'inline_below',
+				'inline_below_sep_enable' => 'on',
+			],
+			'selectors'   => [
+				'{{WRAPPER}}'                             => '--jprm-inline-sep:"{{VALUE}}";',
+				'{{WRAPPER}} .elementor-widget-container' => '--jprm-inline-sep:"{{VALUE}}";',
+			],
+			'render_type' => 'template',
+		]);
 
-$rep_ov = new \Elementor\Repeater();
-$rep_ov->add_control( 'section_id', [
-	'label'   => __( 'Section', 'jellopoint-restaurant-menu' ),
-	'type'    => \Elementor\Controls_Manager::SELECT,
-	'options' => $section_options_scoped,
-] );
-$rep_ov->add_control( 'layout', [
-    'label'   => __( 'Layout', 'jellopoint-restaurant-menu' ),
-    'type'    => Controls_Manager::SELECT,
-    'default' => 'inline',
-    'options' => [
-        'inline'       => __( 'Inline', 'jellopoint-restaurant-menu' ),
-        'inline_below' => __( 'Inline Below', 'jellopoint-restaurant-menu' ),
-        'matrix'       => __( 'Matrix', 'jellopoint-restaurant-menu' ),
-    ],
-] );
-$rep_ov->add_control( 'placeholder', [
-	'label'       => __( 'Placeholder (optional)', 'jellopoint-restaurant-menu' ),
-	'type'        => \Elementor\Controls_Manager::TEXT,
-	'placeholder' => '—',
-] );
+		// Spacing
+		$this->add_responsive_control( 'inline_below_sep_gap', [
+			'label'      => __( 'Separator Spacing', 'jellopoint-restaurant-menu' ),
+			'type'       => Controls_Manager::SLIDER,
+			'size_units' => [ 'px', 'em', 'rem' ],
+			'range'      => [ 'px' => [ 'min' => 0, 'max' => 24 ], 'em' => [ 'min' => 0, 'max' => 2 ] ],
+			'default'    => [ 'size' => 0.6, 'unit' => 'rem' ],
+			'condition'  => [
+				'labels_layout'           => 'inline_below',
+				'inline_below_sep_enable' => 'on',
+			],
+			'selectors'  => [
+				'{{WRAPPER}}'                             => '--jprm-inline-sep-gap: {{SIZE}}{{UNIT}};',
+				'{{WRAPPER}} .elementor-widget-container' => '--jprm-inline-sep-gap: {{SIZE}}{{UNIT}};',
+			],
+			'render_type' => 'template',
+		]);
 
-$this->add_control( 'labels_layout_overrides', [
-	'label'           => __( 'Per-Section Overrides', 'jellopoint-restaurant-menu' ),
-	'type'            => \Elementor\Controls_Manager::REPEATER,
-	'fields'          => $rep_ov->get_controls(),
-	'title_field'     => '{{{ section_id }}} → {{{ layout }}}',
-	'default'         => [],
-	'prevent_empty'   => false, // allow deleting ALL rows
-	'description'     => __( 'Sections list is scoped to the selected Menu. Change Menu and reopen the widget to refresh the list.', 'jellopoint-restaurant-menu' ),
-] );
+		$this->add_control( 'matrix_placeholder', [
+			'label'     => __( 'Placeholder (empty cell)', 'jellopoint-restaurant-menu' ),
+			'type'      => Controls_Manager::TEXT,
+			'default'   => '—',
+			'condition' => [ 'labels_layout' => 'matrix' ],
+		] );
 
-$this->end_controls_section();
+		$this->add_control( 'matrix_overrides_heading', [
+			'type'      => Controls_Manager::HEADING,
+			'label'     => __( 'Matrix – Section Overrides', 'jellopoint-restaurant-menu' ),
+			'separator' => 'before',
+			'condition' => [ 'labels_layout' => 'matrix' ],
+		] );
 
+		/* Per-section overrides (scoped to current Menu) */
+		$selected_menu_id = 0;
+		try {
+			$tmp = $this->get_settings_for_display();
+			if ( ! empty( $tmp['menus'] ) ) $selected_menu_id = (int) $tmp['menus'];
+		} catch ( \Throwable $e ) {}
+
+		$section_options_scoped = [];
+		if ( $selected_menu_id > 0 && function_exists( 'jprm_infoblocks_sections_for_menu' ) ) {
+			$section_options_scoped = jprm_infoblocks_sections_for_menu( $selected_menu_id );
+		}
+		if ( empty( $section_options_scoped ) ) {
+			$section_options_scoped = $this->get_terms_options( 'jprm_section' );
+		}
+
+		$rep_ov = new Repeater();
+		$rep_ov->add_control( 'section_id', [
+			'label'   => __( 'Section', 'jellopoint-restaurant-menu' ),
+			'type'    => Controls_Manager::SELECT,
+			'options' => $section_options_scoped,
+		] );
+		$rep_ov->add_control( 'layout', [
+			'label'   => __( 'Layout', 'jellopoint-restaurant-menu' ),
+			'type'    => Controls_Manager::SELECT,
+			'default' => 'inline',
+			'options' => [
+				'inline' => __( 'Inline',  'jellopoint-restaurant-menu' ),
+				'matrix' => __( 'Matrix',  'jellopoint-restaurant-menu' ),
+			],
+		] );
+		$rep_ov->add_control( 'placeholder', [
+			'label'       => __( 'Placeholder (optional)', 'jellopoint-restaurant-menu' ),
+			'type'        => Controls_Manager::TEXT,
+			'placeholder' => '—',
+		] );
+
+		$this->add_control( 'labels_layout_overrides', [
+		  'label'           => __( 'Per-Section Overrides', 'jellopoint-restaurant-menu' ),
+		  'type'            => Controls_Manager::REPEATER,
+		  'fields'          => $rep_ov->get_controls(),
+		  'title_field'     => '{{{ section_id }}} → {{{ layout }}}',
+		  'default'         => [],
+		  'prevent_empty'   => false,
+		  'description'     => __( 'Sections list is scoped to the selected Menu. Change Menu and reopen the widget to refresh the list.', 'jellopoint-restaurant-menu' ),
+		  'condition'       => [ 'labels_layout' => 'matrix' ],
+		] );
+
+		$this->end_controls_section();
 
 		/* --- Badges ------------------------------------------------------------- */
 		$this->start_controls_section(
@@ -463,8 +515,6 @@ $this->end_controls_section();
 
 		$this->end_controls_section();
 
-		
-
 		/* --- Layout (columns, split) ------------------------------------------- */
 		$this->start_controls_section(
 			'jprm_section_layout',
@@ -539,6 +589,7 @@ $this->end_controls_section();
 		] );
 
 		$this->end_controls_section();
-        $this->register_style_controls();
+
+		$this->register_style_controls();
 	}
 }
