@@ -1,6 +1,17 @@
 <?php
 // (Optional safety): if helper not loaded, we can still call the global value
 $__has_helper = function_exists('jprm_effective_inline_below_separator');
+if ( function_exists('jprm_debug_section_hit') ) {
+    jprm_debug_section_hit([
+        'file'        => __FILE__,
+        'line'        => __LINE__,
+        'section_id'  => 0,
+        'layout'      => 'inline_below',
+        'placeholder' => '',
+        'separator'   => '',
+        'note'        => 'inline-below template loaded',
+    ]);
+}
 
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
