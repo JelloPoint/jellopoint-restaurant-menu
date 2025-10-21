@@ -3,22 +3,19 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
  * Matrix template (per-section grid)
- * - Matches CSS selectors in menu.css: .jp-menu__matrix (UL), .jp-matrix (grid), .jp-matrix__row, .jp-matrix__cell
- * - Uses structured price rows via jprm_get_pricegroup_data() if available.
- * - Default placeholder is EMPTY (no dashed line clutter).
+ * Requires $ctx with normalized keys (provided by dispatcher).
  */
 
-function jprm_matrix_icon_from_meta( array $meta ) : string {
-	// Accepts: ['icon_html'], or builds from ['icon_id'] / ['icon_url']
-	if ( ! empty( $meta['icon_html'] ) ) {
-		return (string) $meta['icon_html'];
-	}
+function jprm_matrix_label_icon( array $meta ) : string {
+	// Accept prebuilt HTML
+	if ( ! empty( $meta['icon_html'] ) ) return (string) $meta['icon_html'];
+	// Fallbacks (should already be normalized in dispatcher, but keep here just in case)
 	if ( ! empty( $meta['icon_id'] ) && function_exists( 'wp_get_attachment_image' ) ) {
 		$html = wp_get_attachment_image( (int) $meta['icon_id'], 'thumbnail', false, [
-			'class' => 'jp-label__icon',
-			'loading' => 'lazy',
+			'class'    => 'jp-label__icon',
+			'loading'  => 'lazy',
 			'decoding' => 'async',
-			'alt' => '',
+			'alt'      => '',
 		] );
 		if ( $html ) return $html;
 	}
@@ -29,22 +26,21 @@ function jprm_matrix_icon_from_meta( array $meta ) : string {
 	return '';
 }
 
-/** Collect ordered columns from items + seed by $label_map order if provided. */
-function jprm_matrix_collect_columns( array $items, ?array $label_map, array $currency_opts ) : array {
+/** Collect ordered columns from items, seeded by $label_map order. */
+function jprm_matrix_collect_columns( array $items, array $label_map, array $currency_opts ) : array {
 	$cols = [];
 
-	// Seed columns with label_map order for stable header order
-	if ( is_array( $label_map ) ) {
-		foreach ( $label_map as $lid => $meta ) {
-			$lid = (int) $lid;
-			$cols[ (string) $lid ] = [
-				'text'      => (string) ( $meta['title'] ?? ( $meta['text'] ?? '' ) ),
-				'icon_html' => jprm_matrix_icon_from_meta( is_array($meta) ? $meta : [] ),
-				'_seed'     => true,
-			];
-		}
+	// Seed columns to keep header order stable
+	foreach ( $label_map as $lid => $meta ) {
+		$lid = (string) $lid;
+		$cols[ $lid ] = [
+			'text'      => (string) ( $meta['title'] ?? '' ),
+			'icon_html' => jprm_matrix_label_icon( is_array($meta) ? $meta : [] ),
+			'_seed'     => true,
+		];
 	}
 
+	// Grow columns if items use extra text-only labels
 	foreach ( $items as $post ) {
 		$pid  = (int) $post->ID;
 		$rows = function_exists( 'jprm_get_pricegroup_data' ) ? jprm_get_pricegroup_data( $pid, $label_map, $currency_opts ) : [];
@@ -57,15 +53,9 @@ function jprm_matrix_collect_columns( array $items, ?array $label_map, array $cu
 			if ( $key === '' ) continue;
 
 			if ( ! isset( $cols[ $key ] ) ) {
-				$icon_html = '';
-				if ( $lid > 0 && isset( $label_map[ $lid ] ) && is_array( $label_map[ $lid ] ) ) {
-					$icon_html = jprm_matrix_icon_from_meta( $label_map[ $lid ] );
-				} elseif ( ! empty( $r['icon_html'] ) ) {
-					$icon_html = (string) $r['icon_html'];
-				}
 				$cols[ $key ] = [
 					'text'      => $txt,
-					'icon_html' => $icon_html,
+					'icon_html' => (string) ( $r['icon_html'] ?? '' ),
 				];
 			}
 		}
@@ -107,7 +97,7 @@ function jprm_matrix_find_cell( array $rows, string $col_key ) : ?string {
 	return null;
 }
 
-/* ---------- Read context ------------------------------------------------- */
+/* ---------- Read normalized context ------------------------------------- */
 
 $menu_term               = $ctx['menu_term'] ?? null;
 $show_menu_title         = ! empty( $ctx['show_menu_title'] );
@@ -124,11 +114,7 @@ $label_presentation      = (string) ( $ctx['label_presentation'] ?? 'icon_text' 
 $label_map               = is_array( $ctx['label_map'] ?? null ) ? $ctx['label_map'] : [];
 $currency_opts           = $ctx['currency_opts'] ?? [];
 
-// IMPORTANT: Default to EMPTY to avoid those dashed placeholders everywhere.
-$matrix_placeholder      = array_key_exists( 'labels_matrix_placeholder', $ctx )
-	? (string) $ctx['labels_matrix_placeholder']
-	: '';
-
+$matrix_placeholder      = (string) ( $ctx['labels_matrix_placeholder'] ?? '—' );
 $ib_map                  = $ctx['ib_map'] ?? [];
 
 /* ---------- Top-level menu meta ----------------------------------------- */
@@ -169,13 +155,13 @@ foreach ( $sections_order as $tid ) {
 
 	// Build columns and column order
 	$cols = jprm_matrix_collect_columns( $items, $label_map, $currency_opts );
-	$col_keys = array_keys( $cols );
+	$col_keys  = array_keys( $cols );
 	$col_count = max( 1, count( $col_keys ) );
 
 	// Matrix grid (li itself is the grid container; CSS expects .jp-matrix)
 	echo '<li class="jp-matrix" style="--jp-matrix-cols:' . esc_attr( (string) $col_count ) . '">';
 
-	// Header row: "Item" + each label header according to presentation
+	// Header row: "Item" + each label header
 	echo '<div class="jp-matrix__row">';
 	echo '<div class="jp-matrix__cell jp-matrix__cell--head jp-matrix__cell--item">' . esc_html__( 'Item', 'jellopoint-restaurant-menu' ) . '</div>';
 	foreach ( $col_keys as $k ) {
