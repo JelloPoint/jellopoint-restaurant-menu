@@ -106,17 +106,6 @@ function jprm_matrix_filter_active_columns( array $items, array $col_keys, array
 	return $active;
 }
 
-/** Resolve placeholder from common keys; if empty, fall back to em-dash. */
-function jprm_matrix_resolve_placeholder( array $ctx ) : string {
-	foreach ( ['labels_matrix_placeholder','matrix_placeholder','labels_placeholder'] as $k ) {
-		if ( array_key_exists( $k, $ctx ) ) {
-			$val = trim( html_entity_decode( (string) $ctx[$k], ENT_QUOTES ) );
-			if ( $val !== '' ) return $val;
-		}
-	}
-	return '—';
-}
-
 /* ------------- Context ----------------- */
 
 $menu_term               = $ctx['menu_term'] ?? null;
@@ -134,7 +123,9 @@ $label_presentation      = (string) ( $ctx['label_presentation'] ?? 'icon_text' 
 $label_map               = is_array( $ctx['label_map'] ?? null ) ? $ctx['label_map'] : [];
 $currency_opts           = $ctx['currency_opts'] ?? [];
 
-$matrix_placeholder      = jprm_matrix_resolve_placeholder( $ctx );
+$matrix_placeholder = isset($ctx['labels_matrix_placeholder'])
+    ? trim( html_entity_decode( (string) $ctx['labels_matrix_placeholder'], ENT_QUOTES ) )
+    : '';
 $ib_map                  = $ctx['ib_map'] ?? [];
 
 /* ------------- Top meta ----------------- */
