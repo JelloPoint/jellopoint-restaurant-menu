@@ -6,13 +6,6 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 trait Restaurant_Menu_Style {
 	protected function register_style_controls() : void {
 
-		/* ===== Menu Wrapper ===== */
-		$this->start_controls_section('jprm_style_menu_wrapper',[
-			'label'=>__('Menu Wrapper','jellopoint-restaurant-menu'),
-			'tab'=>\Elementor\Controls_Manager::TAB_STYLE,
-		]);
-		$this->end_controls_section();
-
 		/* ===== Menu Title & Description ===== */
 		$this->start_controls_section('jprm_style_menu_meta',[
 			'label'=>__('Menu Title & Description','jellopoint-restaurant-menu'),
@@ -292,7 +285,7 @@ trait Restaurant_Menu_Style {
 
 		/* ===== Matrix ===== */
 		$this->start_controls_section('jprm_style_matrix',[
-			'label'=>__('Matrix Prices','jellopoint-restaurant-menu'),
+			'label'=>__('Matrix','jellopoint-restaurant-menu'),
 			'tab'=>\Elementor\Controls_Manager::TAB_STYLE,
 		]);
 		$this->add_control('matrix_title_min_width',[

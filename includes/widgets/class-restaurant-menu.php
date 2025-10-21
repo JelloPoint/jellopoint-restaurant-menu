@@ -177,71 +177,30 @@ final class Restaurant_Menu extends Widget_Base {
 		}
 
 		$ctx = [
-	/* === Data used by template === */
-	'columns'        => (string) ( $s['layout_columns'] ?? '1' ),
-	'menu_term'      => ( $menu_term_obj ?? null ),
-
-	'show_menu_title'=> ! empty( $s['show_menu_title'] ),
-	'show_menu_desc' => ! empty( $s['show_menu_description'] ),
-	'menu_pos'       => (string) ( $s['menu_title_position'] ?? 'above_menu' ),
-
-	'sections_order' => $sections_order,
-	'sections_data'  => $sections_data,
-
-	'show_section_name' => ! empty( $s['show_section_name'] ),
-	'show_section_desc' => ! empty( $s['show_section_description'] ),
-
-	/* Badges */
-	'show_badges'         => ! empty( $s['show_badges'] ) && ( $s['show_badges'] === 'yes' ),
-	'badges_presentation' => (string) ( $s['badges_presentation'] ?? 'icon_text' ),
-	'badges_position'     => (string) ( $s['badges_position'] ?? 'after_title' ),
-
-	/* Labels / prices presentation */
-	'label_presentation'  => (string) ( $s['label_presentation'] ?? 'icon_text' ),
-	'label_position'      => (string) ( $s['label_position'] ?? 'right' ),
-	'label_map'           => $label_map,
-	'currency_opts'       => $currency_opts,
-
-	/* Column splitting */
-	'split_mode'          => (string) ( $s['layout_split_mode'] ?? 'auto' ),
-	'split_after_1'       => (string) ( $s['layout_split_after_section']  ?? '' ),
-	'split_after_2'       => (string) ( $s['layout_split_after_section2'] ?? '' ),
-
-	/* Info blocks grouped by section id */
-	'ib_map'              => $infoblocks_map,
-
-	/* Layout selection */
-	'section_layouts'      => $section_layout_overrides,
-	'global_labels_layout' => (string) ( $s['labels_layout'] ?? 'inline' ),
-
-	/* ✅ Use the correct control key for Matrix placeholder */
-	'global_placeholder'   => (string) ( $s['matrix_placeholder'] ?? '—' ),
-
-	/* ✅ Inline Below separator controls (single source of truth) */
-	// “Enable” is only used by CSS path; template will render a separator
-	// if content is non-empty. We still pass the boolean for completeness.
-	'inline_below_sep_enable'  => in_array( ($s['inline_below_sep_enable'] ?? ''), ['on','yes','1',1,true], true ),
-	'inline_below_sep_content' => (string) ( $s['inline_below_sep_content'] ?? '' ), // empty = no separator
-	'inline_below_sep_gap'     => (function($val){
-		// Elementor slider comes as ['size'=>..., 'unit'=>...] or empty
-		$size = isset($val['size']) ? (string)$val['size'] : '0.6';
-		$unit = isset($val['unit']) ? (string)$val['unit'] : 'rem';
-		$size = trim($size) === '' ? '0.6' : $size;
-		$unit = in_array($unit, ['px','em','rem'], true) ? $unit : 'rem';
-		return $size . $unit;
-	})($s['inline_below_sep_gap'] ?? []),
-];
-
-		
-			// === Inline Below separator settings (from Controls) ===
-			$sep_on_val = $settings['inline_below_sep_enable'] ?? '';
-			$ctx['inline_below_sep_enable']  = in_array($sep_on_val, ['on','yes','1',1,true], true);
-
-			$ctx['inline_below_sep_content'] = (string) ($settings['inline_below_sep_content'] ?? '•');
-
-			$gap_size = isset($settings['inline_below_sep_gap']['size']) ? (string)$settings['inline_below_sep_gap']['size'] : '0.6';
-			$gap_unit = isset($settings['inline_below_sep_gap']['unit']) ? (string)$settings['inline_below_sep_gap']['unit'] : 'rem';
-			$ctx['inline_below_sep_gap']     = trim($gap_size . $gap_unit);
+			'columns'             => $columns,
+			'menu_term'           => $menu_term,
+			'show_menu_title'     => $show_menu_title,
+			'show_menu_desc'      => $show_menu_desc,
+			'menu_pos'            => $menu_pos,
+			'sections_order'      => $sections_order,
+			'sections_data'       => $sections_data,
+			'show_section_name'   => $show_section_name,
+			'show_section_desc'   => $show_section_desc,
+			'show_badges'         => $show_badges,
+			'badges_presentation' => $badges_presentation,
+			'badges_position'     => $badges_position,
+			'label_presentation'  => $label_presentation,
+			'label_position'      => $label_position,
+			'label_map'           => $label_map,
+			'currency_opts'       => $currency_opts,
+			'split_mode'          => $split_mode,
+			'split_after_1'       => $split_after_1,
+			'split_after_2'       => $split_after_2,
+			'ib_map'              => $ib_map,
+			'section_layouts'     => $section_layouts,
+			'global_labels_layout'=> $global_labels_layout,
+			'global_placeholder'  => $global_placeholder,
+		];
 
 		$template = dirname( __DIR__ ) . '/render/templates/menu.php';
 		if ( is_readable( $template ) ) {
