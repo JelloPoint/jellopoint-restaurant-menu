@@ -208,6 +208,9 @@ foreach ( $sections_order as $tid ) {
 		foreach ( $col_keys as $k ) {
 			$val = $rows ? jprm_matrix_find_cell( $rows, $k ) : null;
 			if ( $val === null || $val === '' ) {
+                /*PLACEHOLDER DEBUG*/
+                if ( function_exists( 'jprm_debug_placeholder_hit' ) ) { jprm_debug_placeholder_hit( __FILE__, __LINE__, $matrix_placeholder, $k, $pid ); }
+
 				$val = $matrix_placeholder !== '' ? '<span class="jp-matrix__placeholder">' . esc_html( $matrix_placeholder ) . '</span>' : '';
 			}
 			echo '<div class="jp-matrix__cell jp-matrix__cell--value" data-label-key="' . esc_attr($k) . '">' . $val . '</div>'; // phpcs:ignore
