@@ -240,16 +240,9 @@
 }
 
 /* Server-injected literal separator node (from template) */
-.jp-chip-sep{
-  display:inline-flex !important;
-  align-items:center !important;
-  vertical-align:baseline !important;
-  margin:0 var(--jprm-inline-sep-gap, .6rem) !important;
-  line-height:1 !important;
-  opacity:.75 !important;
-  color:currentColor !important;
-  font-size:1rem !important; /* defeats any parent font-size:0 trick */
-}
+/* Hide chip separators everywhere by default … */
+.jp-chip-sep { display: none !important; }
+
 .elementor-element.jprm-sep--on
   .jp-menu__inner.jp--inline-below
   .jp-menu__pricegroup
@@ -261,4 +254,10 @@
   opacity: .75;
   margin-inline: var(--jprm-inline-sep-gap, .6rem);
   vertical-align: baseline;
+}
+
+
+/* …and only show them for Inline Below layout */
+.jp-menu__inner.jp--inline-below .jp-chip-sep {
+  display: inline-flex !important;
 }

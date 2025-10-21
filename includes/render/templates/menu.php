@@ -274,22 +274,24 @@ function jprm_render_section_block( $tid, array $blk, array $opts ) : void {
 	if ( ! $use_matrix ) {
 		foreach ( $items as $post ) {
 			if ( $use_inline_below ) {
-				jprm_render_item_inline_below(
-					(int) $post->ID,
-					$show_badges, $badges_position, $badges_presentation,
-					$label_presentation, $label_position,
-					$label_map, $currency_opts,
-					$sep_text, $sep_gap
-				);
+// INLINE BELOW: may use separators
+jprm_render_item_inline_below(
+  (int) $post->ID,
+  $show_badges, $badges_position, $badges_presentation,
+  $label_presentation, $label_position,
+  $label_map, $currency_opts,
+  $sep_text, $sep_gap
+);
 			} else {
-				jprm_render_item_inline(
-					(int) $post->ID,
-					$show_badges, $badges_position, $badges_presentation,
-					$label_presentation, $label_position,
-					$label_map, $currency_opts,
-					/* (Optional) could inject separators for Inline too; we keep stacked defaults here */
-					'', $sep_gap
-				);
+			// Default INLINE (stacked on the right): DO NOT pass separator text
+jprm_render_item_inline(
+  (int) $post->ID,
+  $show_badges, $badges_position, $badges_presentation,
+  $label_presentation, $label_position,
+  $label_map, $currency_opts,
+  /* sep_text -> force OFF for inline */ '', 
+  $sep_gap
+);
 			}
 		}
 	} else {
