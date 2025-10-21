@@ -355,12 +355,21 @@ trait Restaurant_Menu_Controls {
 			'render_type' => 'template',
 		]);
 
-		$this->add_control( 'matrix_placeholder', [
-			'label'     => __( 'Placeholder (empty cell)', 'jellopoint-restaurant-menu' ),
-			'type'      => Controls_Manager::TEXT,
-			'default'   => '—',
-			'condition' => [ 'labels_layout' => 'matrix' ],
-		] );
+		$this->add_control(
+    'labels_matrix_placeholder',
+    [
+        'label'       => __( 'Matrix Placeholder', 'jellopoint-restaurant-menu' ),
+        'type'        => \Elementor\Controls_Manager::TEXT,
+        'default'     => '',
+        'placeholder' => '—',
+        'description' => __( 'Shown in Matrix cells when a price is missing. Leave empty for a blank cell.', 'jellopoint-restaurant-menu' ),
+        // 👇 Only show when Matrix layout is selected
+        'condition'   => [
+            'global_labels_layout' => 'matrix',
+        ],
+    ]
+);
+
 
 		$this->add_control( 'matrix_overrides_heading', [
 			'type'      => Controls_Manager::HEADING,
