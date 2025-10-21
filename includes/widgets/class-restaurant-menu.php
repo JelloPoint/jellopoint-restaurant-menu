@@ -60,6 +60,37 @@ final class Restaurant_Menu extends Widget_Base {
 			return $out;
 		}
 	}
+	/**
+ * Normalize 'labels_layout_overrides' repeater into a lookup:
+ * $map[SECTION_ID]['matrix']['placeholder']
+ * $map[SECTION_ID]['inline_below']['separator']
+ * (Add other layouts as needed.)
+ */
+private function jprm_normalize_section_overrides( $rows ) : array {
+    $map = [];
+    if ( ! is_array( $rows ) || empty( $rows ) ) return $map;
+
+    foreach ( $rows as $row ) {
+        $sec = isset( $row['section_id'] ) ? (int) $row['section_id'] : 0;
+        if ( $sec <= 0 ) continue;
+
+        $layout = isset( $row['layout'] ) ? (string) $row['layout'] : '';
+
+        // Matrix → placeholder
+        if ( $layout === 'matrix' && array_key_exists( 'placeholder', $row ) ) {
+            $map[$sec]['matrix']['placeholder'] = html_entity_decode( (string) $row['placeholder'], ENT_QUOTES );
+        }
+
+        // Inline-Below → separator
+        if ( $layout === 'inline_below' && array_key_exists( 'separator', $row ) ) {
+            $map[$sec]['inline_below']['separator'] = (string) $row['separator'];
+        }
+
+        // (Inline or other layouts can be added here later if needed.)
+    }
+
+    return $map;
+}
 
 	/* =========================
 	 * Render
@@ -74,6 +105,7 @@ final class Restaurant_Menu extends Widget_Base {
 		if ( ! $css_done ) { $css_done = true; }
 
 		$s = $this->get_settings_for_display();
+		$section_overrides = $this->jprm_normalize_section_overrides( $s['labels_layout_overrides'] ?? [] );
 		$mode = isset( $s['data_mode'] ) ? (string) $s['data_mode'] : null;
 
 		// Static mode (unchanged)
@@ -198,12 +230,25 @@ final class Restaurant_Menu extends Widget_Base {
 			'split_after_2'       => $split_after_2,
 			'ib_map'              => $ib_map,
 			'section_layouts'     => $section_layouts,
+			'section_overrides'        => $section_overrides,
+'labels_matrix_placeholder' => isset( $s['labels_matrix_placeholder'] )
+    ? html_entity_decode( (string) $s['labels_matrix_placeholder'], ENT_QUOTES )
+    : '',
+'inline_below_separator'    => isset( $s['inline_below_separator'] )
+    ? (string) $s['inline_below_separator']
+    : '',
+
 			'global_labels_layout'=> $global_labels_layout,
 			'labels_matrix_placeholder' => isset($s['labels_matrix_placeholder'])
     ? html_entity_decode((string)$s['labels_matrix_placeholder'], ENT_QUOTES)
     : '',
 			'global_placeholder'  => $global_placeholder,
 		];
+// Load overrides helper so templates can call jprm_effective_*()
+$__jp_overrides = dirname( __DIR__ ) . '/helpers/overrides.php'; // path: includes/helpers/overrides.php
+if ( file_exists( $__jp_overrides ) ) {
+    require_once $__jp_overrides;
+}
 
 		$template = dirname( __DIR__ ) . '/render/templates/menu.php';
 		if ( is_readable( $template ) ) {

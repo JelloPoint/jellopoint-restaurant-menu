@@ -143,6 +143,10 @@ foreach ( $sections_order as $tid ) {
 	$blk = $sections_data[ $tid ];
 	$term  = $blk['term']  ?? null;
 	$items = $blk['items'] ?? [];
+    // Effective placeholder for this section: override → global
+    $matrix_placeholder = function_exists('jprm_effective_matrix_placeholder')
+    ? jprm_effective_matrix_placeholder( $ctx, (int) $tid )
+    : ( isset($ctx['labels_matrix_placeholder']) ? trim( (string) $ctx['labels_matrix_placeholder'] ) : '' );
 
 	// ABOVE Info Blocks
 	if ( isset( $ib_map[$tid]['above'] ) && ! empty( $ib_map[$tid]['above'] ) ) {
