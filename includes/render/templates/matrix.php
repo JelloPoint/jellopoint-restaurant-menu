@@ -1,5 +1,16 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) { exit; }
+if ( function_exists('jprm_debug_section_hit') ) {
+    jprm_debug_section_hit([
+        'file'        => __FILE__,
+        'line'        => __LINE__,
+        'section_id'  => 0,
+        'layout'      => 'matrix',
+        'placeholder' => '',
+        'separator'   => '',
+        'note'        => 'matrix template loaded',
+    ]);
+}
 
 /**
  * Matrix template (per-section grid)
