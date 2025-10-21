@@ -13,7 +13,7 @@ if ( function_exists('jprm_debug_section_hit') ) {
 }
 
 /**
- * Matrix template (per-section grid)
+ * Matrix  template (per-section grid)
  * Fixes:
  *  - No "Item" word in the header (first header cell blank).
  *  - Matrix header shows icons/text per label_presentation (sanitized to one icon).
