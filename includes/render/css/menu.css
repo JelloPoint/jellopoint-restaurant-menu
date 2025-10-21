@@ -1,0 +1,183 @@
+/* JPRM Menu – reset */
+.jp-menu { margin: 0; padding: 0; list-style: none; }
+.jp-menu li { list-style: none !important; margin: 0; padding: 0; }
+.jp-menu > li::marker { content: ''; } /* kill stubborn bullets */
+
+/* Structure */
+.jp-menu__item { margin: 0 0 .9rem 0; }
+.jp-menu__inner { display: grid; grid-template-columns: 1fr auto; gap: .4rem .8rem; align-items: start; }
+.jp-menu__content { min-width: 0; }
+.jp-menu__title { margin: 0; }
+.jp-menu__desc { opacity: .85; }
+
+/* Price group */
+.jp-menu__pricegroup { display: flex; flex-direction: column; gap: .25rem; text-align: right; }
+
+/* One price line (price+currency wrapper) */
+.jp-menu__price {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;                    /* spacing controlled via classes below */
+  justify-content: flex-end;
+  line-height: 1.2;
+}
+
+/* Amount text */
+.jp-menu__amount { font-weight: 600; white-space: nowrap; }
+
+/* Label + icon */
+.jp-menu__label { display: inline-flex; gap: .35em; align-items: center; white-space: nowrap; opacity: .95; }
+.jp-menu__icon {
+  width: 1.1em !important;
+  height: 1.1em !important;
+  max-width: 1.1em !important;
+  max-height: 1.1em !important;
+  object-fit: contain;
+  vertical-align: -0.2em;
+  display: inline-block;
+  border-radius: 2px;
+}
+/* If WP injects width/height attributes, force them down */
+.jp-menu__icon[width], .jp-menu__icon[height] { width: 1.1em !important; height: 1.1em !important; }
+
+/* Horizontal layout for label + price rows */
+.jp-menu__pricegroup .jp-menu__row { display: inline-flex; align-items: center; gap: .35em; flex-wrap: nowrap; }
+.jp-menu__pricegroup .jp-menu__price,
+.jp-menu__pricegroup .jp-menu__label { display: inline-flex; align-items: center; }
+
+/* Currency order + spacing (class-driven, no entities) */
+/* Before symbol */
+.jp-menu__price.jp-currency-pos-before .jp-menu__currency { order: 0; }
+.jp-menu__price.jp-currency-pos-before .jp-menu__amount   { order: 1; }
+/* After symbol */
+.jp-menu__price.jp-currency-pos-after  .jp-menu__amount   { order: 0; }
+.jp-menu__price.jp-currency-pos-after  .jp-menu__currency { order: 1; }
+/* Spacing sizes */
+.jp-menu__price.jp-currency-pos-before.jp-currency-sp-none   .jp-menu__currency { margin-right: 0; }
+.jp-menu__price.jp-currency-pos-before.jp-currency-sp-thin   .jp-menu__currency { margin-right: .15em; }
+.jp-menu__price.jp-currency-pos-before.jp-currency-sp-normal .jp-menu__currency { margin-right: .3em; }
+
+.jp-menu__price.jp-currency-pos-after.jp-currency-sp-none    .jp-menu__currency { margin-left: 0; }
+.jp-menu__price.jp-currency-pos-after.jp-currency-sp-thin    .jp-menu__currency { margin-left: .15em; }
+.jp-menu__price.jp-currency-pos-after.jp-currency-sp-normal  .jp-menu__currency { margin-left: .3em; }
+
+/* Grid (2/3 columns) */
+.jp-menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.jp-menu-grid.jp-cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+@media (max-width: 992px) { .jp-menu-grid.jp-cols-3 { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 768px) { .jp-menu-grid { grid-template-columns: 1fr; } }
+.jp-menu-grid .jp-col { min-width: 0; }
+
+/* Section headers inside columns */
+.jp-menu__section-header { margin: 0 0 6px 0; padding: 0; }
+.jp-section__title { margin: 0 0 2px 0; font-size: 1.05em; line-height: 1.2; }
+.jp-section__desc { margin: 0 0 8px 0; font-size: 0.95em; opacity: 0.8; }
+
+/* Info blocks (kept from inline, in case you use them now) */
+.jp-infoblocks { display: flex; gap: .5rem; flex-wrap: wrap; margin: .75rem 0; }
+.jp-infoblock { padding: .4em .7em; border-radius: .35em; font-size: .95em; line-height: 1.2; }
+.jp-infoblock--subtle { background: #f6f7f7; border: 1px solid #dcdcde; }
+.jp-infoblock--accent { background: #eef6ff; border: 1px solid #b9d7ff; }
+.jp-infoblock--note   { background: #fff7e6; border: 1px solid #f1cf8a; }
+.jp-infoblock__img { max-width: 100%; height: auto; display: block; }
+.jp-infoblock .jp-button { display: inline-block; text-decoration: none; padding: .45em .8em; border-radius: .35em; border: 1px solid #2271b1; }
+
+/* Badges: keep icons small and inline */
+.jp-menu__badges { display: inline-flex; gap: .35em; align-items: center; }
+
+.jp-badge { display: inline-flex; align-items: center; gap: .35em; }
+
+.jp-badge__icon,
+.jp-badge__icon img {
+  width: 16px !important;
+  height: 16px !important;
+  max-width: 16px !important;
+  max-height: 16px !important;
+  display: inline-block;
+  object-fit: contain;
+  vertical-align: -0.2em;
+  border-radius: 2px;
+}
+/* Title line: title + badges stay on one line */
+.jp-menu__titleline{
+  display:flex;
+  align-items:center;
+  gap:.35em;
+  flex-wrap:wrap; /* allows wrap only if very narrow */
+}
+.jp-menu__titleline .jp-menu__title{
+  margin:0;            /* kill block margins */
+  line-height:1.2;
+}
+
+/* Badges inline next to the title */
+.jp-menu__badges{
+  display:inline-flex;
+  align-items:center;
+  gap:.35em;
+}
+
+/* Badge icon sizing (matches our earlier patch) */
+.jp-badge{ display:inline-flex; align-items:center; gap:.35em; }
+.jp-badge__icon, .jp-badge__icon img{
+  width:16px !important;
+  height:16px !important;
+  max-width:16px !important;
+  max-height:16px !important;
+  display:inline-block;
+  object-fit:contain;
+  vertical-align:-0.2em;
+  border-radius:2px;
+}
+/* === Matrix layout (structural only; no visual styling) === */
+/* Grid: first column is the item title/desc, then one column per label. */
+
+.jp-menu__matrix { list-style: none; } /* neutralize UL/LI effects */
+
+.jp-matrix {
+  display: grid;
+  /* 1st column flexible for titles; then N auto-sized value columns */
+  grid-template-columns: minmax(12rem, 1fr) repeat(var(--jp-matrix-cols, 1), auto);
+  column-gap: 0; /* styling later */
+  row-gap: 0;    /* styling later */
+}
+
+/* Each "row" becomes just a logical wrapper; cells place into the grid */
+.jp-matrix__row {
+  display: contents;
+}
+
+/* Every cell occupies one grid cell in row order */
+.jp-matrix__cell {
+  /* no padding/margins here; styling comes later */
+  /* Prevent external styles forcing block layout */
+  display: block;
+}
+
+/* Title (leftmost) sits in the first grid column automatically */
+.jp-matrix__cell--title {}
+
+/* Header cells occupy the label columns in the first row */
+.jp-matrix__row--header .jp-matrix__cell--title {
+  /* keep empty; just the top-left empty corner */
+}
+
+/* Value cells stay neutral; we’ll style later in Style tab */
+.jp-matrix__cell--value {
+  text-align: left;
+}
+/* === Matrix (grid) ====================================================== */
+.jp-matrix{
+  display: grid;
+  grid-auto-rows: auto;
+  column-gap: 0;
+  row-gap: 0;
+}
+.jp-matrix__row{ display: contents; }
+.jp-matrix__cell{ display: block; }
+.jp-matrix__cell--value{ text-align: left; }
+
+/* Ensure full width for Info Blocks background color */
+.jprm-infoblock{ width: 100%; }
+
+
