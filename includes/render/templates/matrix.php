@@ -2,8 +2,10 @@
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
- * Matrix template (per-section grid).
- * Uses normalized $ctx and jprm_get_pricegroup_data().
+ * Matrix template (per-section grid)
+ * Fixes:
+ *  - Header shows TEXT ONLY (no icons/chips), preventing any “icons row” before the header.
+ *  - Placeholder reliably appears for empty price cells, with a visible fallback '—'.
  */
 
 /** Build ordered columns (seed from label_map; extend if some rows use text-only labels). */
@@ -12,9 +14,8 @@ function jprm_matrix_collect_columns( array $items, array $label_map, array $cur
 	// Seed to keep header order stable
 	foreach ( $label_map as $lid => $meta ) {
 		$cols[(string)$lid] = [
-			'text'      => (string) ($meta['title'] ?? ''),
-			'icon_html' => (string) ($meta['icon_html'] ?? ''),
-			'_seed'     => true,
+			'text' => (string) ($meta['title'] ?? ($meta['text'] ?? '')),
+			'_seed' => true,
 		];
 	}
 	// Extend with text-only labels found in data
@@ -26,25 +27,11 @@ function jprm_matrix_collect_columns( array $items, array $label_map, array $cur
 			$txt = (string) ( $r['label_text'] ?? '' );
 			$key = $lid > 0 ? (string) $lid : ( $txt !== '' ? 't:' . md5( $txt ) : '' );
 			if ( $key !== '' && ! isset( $cols[$key] ) ) {
-				$cols[$key] = [
-					'text'      => $txt,
-					'icon_html' => (string) ( $r['icon_html'] ?? '' ),
-				];
+				$cols[$key] = [ 'text' => $txt ];
 			}
 		}
 	}
 	return $cols;
-}
-
-/** Header cell according to presentation (icon sanitized upstream). */
-function jprm_matrix_label_header( array $l, string $presentation ) : string {
-	$text = trim( (string ) ( $l['text'] ?? '' ) );
-	$ico  = (string) ( $l['icon_html'] ?? '' );
-	if ( $presentation === 'icon' ) return $ico !== '' ? $ico : esc_html( $text );
-	if ( $presentation === 'text' ) return esc_html( $text );
-	return ($ico !== '' && $text !== '')
-		? '<span class="jp-menu__label">'.$ico.'<span>'.esc_html($text).'</span></span>'
-		: ($ico !== '' ? $ico : esc_html( $text ));
 }
 
 /** Find formatted price for a given column key from rows. */
@@ -61,7 +48,7 @@ function jprm_matrix_find_cell( array $rows, string $col_key ) : ?string {
 	return null;
 }
 
-/** Resolve matrix placeholder across common control keys. */
+/** Resolve matrix placeholder across common keys; ensure a visible fallback. */
 function jprm_matrix_resolve_placeholder( array $ctx ) : string {
 	foreach ( ['labels_matrix_placeholder','matrix_placeholder','labels_placeholder'] as $k ) {
 		if ( array_key_exists( $k, $ctx ) ) {
@@ -69,7 +56,8 @@ function jprm_matrix_resolve_placeholder( array $ctx ) : string {
 			if ( $val !== '' ) return $val;
 		}
 	}
-	return ''; // default: no clutter
+	// Visible fallback so empty cells are obvious
+	return '—';
 }
 
 /* ---------- Context ---------- */
@@ -85,14 +73,13 @@ $sections_data           = $ctx['sections_data'] ?? [];
 $show_section_name       = ! empty( $ctx['show_section_name'] );
 $show_section_desc       = ! empty( $ctx['show_section_desc'] );
 
-$label_presentation      = (string) ( $ctx['label_presentation'] ?? 'icon_text' );
 $label_map               = is_array( $ctx['label_map'] ?? null ) ? $ctx['label_map'] : [];
 $currency_opts           = $ctx['currency_opts'] ?? [];
 
 $matrix_placeholder      = jprm_matrix_resolve_placeholder( $ctx );
 $ib_map                  = $ctx['ib_map'] ?? [];
 
-/* ---------- Global meta ---------- */
+/* ---------- Top meta ---------- */
 
 if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
 	echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
@@ -129,20 +116,19 @@ foreach ( $sections_order as $tid ) {
 	$col_keys  = array_keys( $cols );
 	$col_count = max( 1, count( $col_keys ) );
 
-	// Grid
+	// Grid container
 	echo '<li class="jp-matrix" style="--jp-matrix-cols:' . esc_attr( (string) $col_count ) . '">';
 
-	// Header
+	// HEADER (TEXT ONLY – prevents any icon/sprite block pushing content)
 	echo '<div class="jp-matrix__row">';
 	echo '<div class="jp-matrix__cell jp-matrix__cell--head jp-matrix__cell--item">' . esc_html__( 'Item', 'jellopoint-restaurant-menu' ) . '</div>';
 	foreach ( $col_keys as $k ) {
-		echo '<div class="jp-matrix__cell jp-matrix__cell--head" data-label-key="' . esc_attr($k) . '">'
-			. jprm_matrix_label_header( $cols[$k], $label_presentation )
-			. '</div>';
+		$label_text = isset( $cols[$k]['text'] ) ? (string) $cols[$k]['text'] : (string) $k;
+		echo '<div class="jp-matrix__cell jp-matrix__cell--head" data-label-key="' . esc_attr($k) . '">' . esc_html( $label_text ) . '</div>';
 	}
 	echo '</div>';
 
-	// Rows
+	// ROWS
 	foreach ( $items as $post ) {
 		$pid   = (int) $post->ID;
 		$title = get_the_title( $pid );
@@ -159,7 +145,7 @@ foreach ( $sections_order as $tid ) {
 		foreach ( $col_keys as $k ) {
 			$val = $rows ? jprm_matrix_find_cell( $rows, $k ) : null;
 			if ( $val === null || $val === '' ) {
-				$val = $matrix_placeholder !== '' ? '<span class="jp-matrix__placeholder">' . esc_html( $matrix_placeholder ) . '</span>' : '';
+				$val = '<span class="jp-matrix__placeholder">' . esc_html( $matrix_placeholder ) . '</span>';
 			}
 			echo '<div class="jp-matrix__cell jp-matrix__cell--value" data-label-key="' . esc_attr($k) . '">' . $val . '</div>'; // phpcs:ignore
 		}
@@ -167,7 +153,7 @@ foreach ( $sections_order as $tid ) {
 		echo '</div>'; // row
 	}
 
-	echo '</li>';
+	echo '</li>'; // grid
 
 	// BELOW Info Blocks
 	if ( isset( $ib_map[$tid]['below'] ) && ! empty( $ib_map[$tid]['below'] ) ) {
