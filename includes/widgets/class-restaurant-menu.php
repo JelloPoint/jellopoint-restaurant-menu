@@ -105,6 +105,26 @@ private function jprm_normalize_section_overrides( $rows ) : array {
 		if ( ! $css_done ) { $css_done = true; }
 
 		$s = $this->get_settings_for_display();
+
+		// Build a simple per-section overrides map we can pass to templates
+$section_overrides = [];
+if ( ! empty( $s['labels_layout_overrides'] ) && is_array( $s['labels_layout_overrides'] ) ) {
+	foreach ( $s['labels_layout_overrides'] as $ov ) {
+		$sid = isset( $ov['section_id'] ) ? (int) $ov['section_id'] : 0;
+		if ( $sid <= 0 ) { continue; }
+		$lay = isset( $ov['layout'] ) ? (string) $ov['layout'] : '';
+		$ph  = isset( $ov['placeholder'] ) ? (string) $ov['placeholder'] : '';
+		if ( $lay !== '' ) {
+			$section_overrides[$sid]['layout'] = $lay;
+		}
+		// matrix placeholder override (if provided)
+		if ( $ph !== '' ) {
+			$section_overrides[$sid]['matrix']['placeholder'] = html_entity_decode( $ph, ENT_QUOTES );
+		}
+	}
+}
+
+
 		// Normalize repeater overrides into a map we can pass to templates
 		$section_overrides = $this->jprm_normalize_section_overrides( $s['labels_layout_overrides'] ?? [] );
 		$mode = isset( $s['data_mode'] ) ? (string) $s['data_mode'] : null;
@@ -231,15 +251,17 @@ private function jprm_normalize_section_overrides( $rows ) : array {
 			'split_after_2'       => $split_after_2,
 			'ib_map'              => $ib_map,
 			'section_layouts'     => $section_layouts,
-			'section_layouts'     => $section_layouts,
-			'section_overrides' => $section_overrides,
-			'labels_matrix_placeholder' => isset( $s['labels_matrix_placeholder'] )
-    		? html_entity_decode( (string) $s['labels_matrix_placeholder'], ENT_QUOTES )
-    		: '',
-			'inline_below_separator' => isset( $s['inline_below_separator'] )
-    		? (string) $s['inline_below_separator']
-    		: '',
-			'global_placeholder'  => $global_placeholder,
+			'section_layouts'          => $section_layouts,
+'section_overrides'        => $section_overrides, // new: normalized repeater map
+'global_labels_layout'     => $global_labels_layout,
+
+// pass the Matrix placeholder EXACTLY from the control (use $s, not $settings)
+'labels_matrix_placeholder' => isset( $s['labels_matrix_placeholder'] )
+    ? html_entity_decode( (string) $s['labels_matrix_placeholder'], ENT_QUOTES )
+    : '',
+
+// keep the legacy/global placeholder used by menu.php’s matrix rendering
+'global_placeholder'       => $global_placeholder,
 			'global_labels_layout'=> $global_labels_layout,
 			'labels_matrix_placeholder' => isset($s['labels_matrix_placeholder'])
     ? html_entity_decode((string)$s['labels_matrix_placeholder'], ENT_QUOTES)
@@ -261,11 +283,12 @@ if ( file_exists( $__jp_overrides ) ) {
 if ( ! empty( $_GET['jprm_probe'] ) && function_exists( 'error_log' ) ) {
     @error_log( 'JPRM include template: ' . $template );
 }
-// Load per-section overrides helper (path from /includes/widgets/ → /includes/helpers/)
+// Load per-section overrides helper (makes jprm_effective_* available to templates if needed)
 $__jp_overrides = dirname( __DIR__ ) . '/helpers/overrides.php';
 if ( file_exists( $__jp_overrides ) ) {
-    require_once $__jp_overrides;
+	require_once $__jp_overrides;
 }
+
 
 		$template = dirname( __DIR__ ) . '/render/templates/menu.php';
 		if ( is_readable( $template ) ) {

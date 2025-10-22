@@ -9,10 +9,12 @@
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 /* DEBUG  TEMPLATE OVERRIDES*/
 if ( ! empty( $_GET['jprm_probe'] ) ) {
-    echo "\n<!-- jprm: menu.php loaded -->\n";
-    echo "<!-- jprm: section_layouts = " . esc_html( json_encode( $ctx['section_layouts'] ?? [] ) ) . " -->\n";
-    echo "<!-- jprm: section_overrides = " . esc_html( json_encode( $ctx['section_overrides'] ?? [] ) ) . " -->\n";
+	echo "\n<!-- jprm: section_layouts = " . esc_html( json_encode( $ctx['section_layouts'] ?? [] ) ) . " -->\n";
+	echo "<!-- jprm: section_overrides = " . esc_html( json_encode( $ctx['section_overrides'] ?? [] ) ) . " -->\n";
+	echo "<!-- jprm: labels_matrix_placeholder = " . esc_html( (string) ( $ctx['labels_matrix_placeholder'] ?? '' ) ) . " -->\n";
+	echo "<!-- jprm: global_placeholder = " . esc_html( (string) ( $ctx['global_placeholder'] ?? '' ) ) . " -->\n";
 }
+
 /* END DEBUG*/
 /* ---------------- Shared helpers (safe to redeclare) ------------------- */
 
