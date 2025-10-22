@@ -249,6 +249,11 @@ $__jp_overrides = dirname( __DIR__ ) . '/helpers/overrides.php'; // path: includ
 if ( file_exists( $__jp_overrides ) ) {
     require_once $__jp_overrides;
 }
+$__jp_helpers = dirname(__DIR__) . '/helpers/overrides.php';
+if (file_exists($__jp_helpers)) {
+    require_once $__jp_helpers;
+}
+
 
 		$template = dirname( __DIR__ ) . '/render/templates/menu.php';
 		if ( is_readable( $template ) ) {
