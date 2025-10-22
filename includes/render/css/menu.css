@@ -289,3 +289,28 @@
 .jp-inline-below .jp-menu__desc { margin: 0; }
 .jp-inline-below .jp-menu__desc p:last-child { margin-bottom: 0; }
 
+
+/* Multi-column wrapper */
+.jp-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--jp-cols, 1), minmax(0, 1fr));
+  gap: 1.25rem; /* space between columns */
+}
+
+/* Column ULs should have no extra margins */
+.jp-menu-grid .jp-menu--col {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Keep section blocks intact; avoid internal splitting by the browser */
+.jp-menu__section-header,
+.jp-menu__infoblock-li,
+.jp-matrix,
+.jp-inline,
+.jp-inline-below,
+.jp-menu__item {
+  break-inside: avoid;
+}
+
