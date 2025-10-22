@@ -217,4 +217,29 @@
 
 .jp-matrix__row { display: contents; }
 .jp-matrix__cell { padding: .25rem 0; }
+/*ADDED FOR INLINE BELOW*/
+/* Inline-Below: one horizontal line of label/price pairs under the title */
+.jp-inline-below .jp-inline-below__line {
+  display: flex;
+  flex-wrap: wrap;             /* wrap gracefully if too many pairs */
+  gap: 0.35rem 1rem;           /* space between pairs */
+  align-items: baseline;
+  margin-top: 0.25rem;         /* a hair under the title/desc */
+}
+
+.jp-inline-below .jp-chipline {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;                /* space between chip, sep, price */
+}
+
+.jp-inline-below .jp-chipline--noprice .jp-sep { display: none; }
+.jp-inline-below .jp-sep { opacity: 0.7; }
+
+/* keep chips tidy */
+.jp-inline-below .jp-chip .jp-menu__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
 

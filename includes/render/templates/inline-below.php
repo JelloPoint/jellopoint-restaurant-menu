@@ -2,7 +2,7 @@
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
- * Inline-Below (per-section)
+ * Inline-Below (per section): render all label/price pairs on ONE line below title/desc.
  * Expects $_section_ctx = [
  *   'term','items','label_presentation','label_position','label_map','currency_opts','inline_separator'
  * ]
@@ -11,14 +11,13 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 $sctx = isset($_section_ctx) && is_array($_section_ctx) ? $_section_ctx : [];
 $items = is_array($sctx['items'] ?? null) ? $sctx['items'] : [];
 $label_presentation = (string)($sctx['label_presentation'] ?? 'icon_text');
-$label_position     = (string)($sctx['label_position'] ?? 'right');
 $label_map          = is_array($sctx['label_map'] ?? null) ? $sctx['label_map'] : [];
 $currency_opts      = is_array($sctx['currency_opts'] ?? null) ? $sctx['currency_opts'] : [];
 $sep                = (string)($sctx['inline_separator'] ?? '');
 
 if (empty($items)) return;
 
-/* helpers (guarded, because this file is included per section) */
+/* shared helpers (guarded) */
 if (!function_exists('jprm_sanitize_single_icon')) {
 	function jprm_sanitize_single_icon(string $html): string {
 		$html = trim($html);
@@ -28,22 +27,25 @@ if (!function_exists('jprm_sanitize_single_icon')) {
 		return '';
 	}
 }
-if (!function_exists('jprm_label_chip')) {
-	function jprm_label_chip(array $meta, string $presentation): string {
-		$text = trim((string)($meta['text'] ?? ''));
-		$ico  = '';
-		if (!empty($meta['icon_html'])) $ico = jprm_sanitize_single_icon((string)$meta['icon_html']);
-		if ($ico === '' && !empty($meta['icon']))     $ico = jprm_sanitize_single_icon((string)$meta['icon']);
-		if ($ico === '' && !empty($meta['svg']))      $ico = jprm_sanitize_single_icon((string)$meta['svg']);
-		if ($ico === '' && !empty($meta['icon_url'])) $ico = '<img class="jp-label__icon" src="' . esc_url((string)$meta['icon_url']) . '" alt="" loading="lazy" decoding="async" />';
-		switch ($presentation) {
-			case 'icon':      return $ico !== '' ? $ico : esc_html($text);
-			case 'text':      return esc_html($text);
-			case 'icon_text':
-			default:
-				if ($ico !== '' && $text !== '') return '<span class="jp-menu__label">'.$ico.'<span>'.esc_html($text).'</span></span>';
-				return $ico !== '' ? $ico : esc_html($text);
-		}
+if (!function_exists('jprm_label_chip_inline_below')) {
+	function jprm_label_chip_inline_below(array $meta, string $presentation): string {
+        $text = trim((string)($meta['text'] ?? ''));
+        $ico  = '';
+        if (!empty($meta['icon_html'])) $ico = jprm_sanitize_single_icon((string)$meta['icon_html']);
+        if ($ico === '' && !empty($meta['icon']))     $ico = jprm_sanitize_single_icon((string)$meta['icon']);
+        if ($ico === '' && !empty($meta['svg']))      $ico = jprm_sanitize_single_icon((string)$meta['svg']);
+        if ($ico === '' && !empty($meta['icon_url'])) $ico = '<img class="jp-label__icon" src="' . esc_url((string)$meta['icon_url']) . '" alt="" loading="lazy" decoding="async" />';
+
+        switch ($presentation) {
+            case 'icon':     return $ico !== '' ? $ico : esc_html($text);
+            case 'text':     return esc_html($text);
+            case 'icon_text':
+            default:
+                if ($ico !== '' && $text !== '') {
+                    return '<span class="jp-menu__label">'.$ico.'<span>'.esc_html($text).'</span></span>';
+                }
+                return $ico !== '' ? $ico : esc_html($text);
+        }
 	}
 }
 
@@ -57,14 +59,16 @@ foreach ($items as $post) {
 
 	echo '<div class="jp-menu__item"><div class="jp-menu__inner">';
 
+	// Content (title/desc)
 	echo '<div class="jp-menu__content">';
 		if ($title !== '') echo '<div class="jp-menu__title">' . esc_html($title) . '</div>';
 		if (is_string($desc) && $desc !== '') echo '<div class="jp-menu__desc">' . esc_html($desc) . '</div>';
 	echo '</div>';
 
-	echo '<div class="jp-menu__pricegroup">';
+	// ONE-LINE price group just below
+	echo '<div class="jp-inline-below__line">';
 
-	/* render each label row: chip [ + SEP ] price, only when a price exists */
+	$pairs = [];
 	foreach ($rows as $r) {
 		$price = (string)($r['formatted'] ?? '');
 		$lbl   = [
@@ -75,21 +79,27 @@ foreach ($items as $post) {
 			'icon_url'  => (string)($r['icon_url'] ?? ''),
 		];
 
-		if ($price === '') {
-			// no price: show only the chip (or skip entirely if you prefer)
-			echo '<div class="jp-price-row"><span class="jp-chip">'. jprm_label_chip($lbl, $label_presentation) .'</span></div>';
-			continue;
-		}
+		$chip = '<span class="jp-chip">'. jprm_label_chip_inline_below($lbl, $label_presentation) .'</span>';
 
-		echo '<div class="jp-price-row">';
-			echo '<span class="jp-chip">'. jprm_label_chip($lbl, $label_presentation) .'</span>';
-			if ($sep !== '') echo '<span class="jp-sep">'. esc_html($sep) .'</span>';
-			echo '<span class="jp-price">'. $price .'</span>'; // formatted already
-		echo '</div>';
+		// Only show separator if there is a price
+		if ($price !== '') {
+			$pairs[] = '<span class="jp-chipline jp-chipline--priced">'
+				. $chip
+				. ( $sep !== '' ? '<span class="jp-sep">'. esc_html($sep) .'</span>' : '' )
+				. '<span class="jp-price">'. $price .'</span>'
+				. '</span>';
+		} else {
+			// No price → show just the chip (kept inline, slimmer style)
+			$pairs[] = '<span class="jp-chipline jp-chipline--noprice">'. $chip .'</span>';
+		}
 	}
 
-	echo '</div>'; // .jp-menu__pricegroup
-	echo '</div></div>'; // .jp-menu__item
+	// Join all pairs inline; CSS ensures they appear on one line (wrapping as needed)
+	echo implode('', $pairs);
+
+	echo '</div>'; // .jp-inline-below__line
+
+	echo '</div></div>'; // inner
 }
 
 echo '</li>';
