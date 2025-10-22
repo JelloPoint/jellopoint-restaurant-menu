@@ -244,11 +244,12 @@ private function jprm_normalize_section_overrides( $rows ) : array {
     : '',
 			'global_placeholder'  => $global_placeholder,
 		];
-// Load overrides helper (path from /includes/widgets/ to /includes/helpers/)
+// Load overrides helper (from /includes/helpers/)
 $__jp_overrides = dirname( __DIR__ ) . '/helpers/overrides.php';
 if ( file_exists( $__jp_overrides ) ) {
     require_once $__jp_overrides;
 } else {
+    // Only shows when you add ?jprm_probe=1 to the URL
     if ( ! empty( $_GET['jprm_probe'] ) ) {
         echo "\n<!-- jprm: overrides.php NOT FOUND at {$__jp_overrides} -->\n";
     }
