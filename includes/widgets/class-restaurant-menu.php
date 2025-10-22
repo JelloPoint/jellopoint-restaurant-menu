@@ -105,6 +105,7 @@ private function jprm_normalize_section_overrides( $rows ) : array {
 		if ( ! $css_done ) { $css_done = true; }
 
 		$s = $this->get_settings_for_display();
+		// Normalize repeater overrides into a map we can pass to templates
 		$section_overrides = $this->jprm_normalize_section_overrides( $s['labels_layout_overrides'] ?? [] );
 		$mode = isset( $s['data_mode'] ) ? (string) $s['data_mode'] : null;
 
@@ -230,14 +231,15 @@ private function jprm_normalize_section_overrides( $rows ) : array {
 			'split_after_2'       => $split_after_2,
 			'ib_map'              => $ib_map,
 			'section_layouts'     => $section_layouts,
-			'section_overrides'        => $section_overrides,
-'labels_matrix_placeholder' => isset( $s['labels_matrix_placeholder'] )
-    ? html_entity_decode( (string) $s['labels_matrix_placeholder'], ENT_QUOTES )
-    : '',
-'inline_below_separator'    => isset( $s['inline_below_separator'] )
-    ? (string) $s['inline_below_separator']
-    : '',
-
+			'section_layouts'     => $section_layouts,
+			'section_overrides' => $section_overrides,
+			'labels_matrix_placeholder' => isset( $s['labels_matrix_placeholder'] )
+    		? html_entity_decode( (string) $s['labels_matrix_placeholder'], ENT_QUOTES )
+    		: '',
+			'inline_below_separator' => isset( $s['inline_below_separator'] )
+    		? (string) $s['inline_below_separator']
+    		: '',
+			'global_placeholder'  => $global_placeholder,
 			'global_labels_layout'=> $global_labels_layout,
 			'labels_matrix_placeholder' => isset($s['labels_matrix_placeholder'])
     ? html_entity_decode((string)$s['labels_matrix_placeholder'], ENT_QUOTES)
@@ -255,17 +257,14 @@ if ( file_exists( $__jp_overrides ) ) {
     }
 }
 
-/*DEBUG OVERRIDES*/
-// Load overrides helper so templates can call jprm_effective_*()
-$__jp_overrides = dirname( __DIR__ ) . '/helpers/overrides.php'; // path: includes/helpers/overrides.php
-if ( file_exists( $__jp_overrides ) ) {
-    require_once $__jp_overrides;
-}
-/*DEBUG END*/
-
 // (optional) one-time include path probe, only when you add ?jprm_probe=1 to the URL
 if ( ! empty( $_GET['jprm_probe'] ) && function_exists( 'error_log' ) ) {
     @error_log( 'JPRM include template: ' . $template );
+}
+// Load per-section overrides helper (path from /includes/widgets/ → /includes/helpers/)
+$__jp_overrides = dirname( __DIR__ ) . '/helpers/overrides.php';
+if ( file_exists( $__jp_overrides ) ) {
+    require_once $__jp_overrides;
 }
 
 		$template = dirname( __DIR__ ) . '/render/templates/menu.php';
