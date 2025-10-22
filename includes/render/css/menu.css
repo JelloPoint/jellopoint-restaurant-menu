@@ -242,4 +242,17 @@
   align-items: center;
   gap: 0.25rem;
 }
+/* Inline-Below: remove any vertical gap between description and the price row */
+.jp-inline-below .jp-menu__inner { gap: 0; }                 /* kill any flex gap on the item container */
+.jp-inline-below .jp-menu__content { margin: 0; padding: 0; } /* no bottom space from the content block */
+
+/* ensure the last text element in content has no trailing margin */
+.jp-inline-below .jp-menu__content > *:last-child { margin-bottom: 0; }
+
+/* price line sits flush under content */
+.jp-inline-below .jp-inline-below__line { margin-top: 0; }
+
+/* belt-and-suspenders: titles/descriptions themselves don’t push space */
+.jp-inline-below .jp-menu__title,
+.jp-inline-below .jp-menu__desc { margin: 0; }
 
