@@ -194,19 +194,37 @@ private function jprm_normalize_section_overrides( $rows ) : array {
 		$ib_map  = function_exists('jprm_infoblocks_partition_by_position') ? jprm_infoblocks_partition_by_position( $ib_rows ) : [];
 
 		// NEW: Labels Layout (global + per-section overrides)
-		$global_labels_layout = isset( $s['labels_layout'] ) ? (string) $s['labels_layout'] : 'inline';
-		$global_placeholder   = isset( $s['labels_matrix_placeholder'] ) ? (string) $s['labels_matrix_placeholder'] : '—';
+$global_labels_layout = isset( $s['labels_layout'] ) ? (string) $s['labels_layout'] : 'inline';
+$global_placeholder   = isset( $s['labels_matrix_placeholder'] ) ? (string) $s['labels_matrix_placeholder'] : '—';
 
-		$section_layouts = [];
-		$overrides = isset( $s['labels_layout_overrides'] ) && is_array( $s['labels_layout_overrides'] ) ? $s['labels_layout_overrides'] : [];
-		foreach ( $overrides as $ov ) {
-			$sid = isset( $ov['section_id'] ) ? (int) $ov['section_id'] : 0;
-			if ( $sid <= 0 ) continue;
-			$section_layouts[ $sid ] = [
-				'layout'      => isset( $ov['layout'] ) ? (string) $ov['layout'] : '',
-				'placeholder' => isset( $ov['placeholder'] ) ? (string) $ov['placeholder'] : '',
-			];
-		}
+// Build per-section overrides into $section_layouts, supporting both Matrix (placeholder) and Inline Below (separator)
+$section_layouts = [];
+$overrides = ( isset( $s['labels_layout_overrides'] ) && is_array( $s['labels_layout_overrides'] ) ) ? $s['labels_layout_overrides'] : [];
+foreach ( $overrides as $ov ) {
+    $sid = isset( $ov['section_id'] ) ? (int) $ov['section_id'] : 0;
+    if ( $sid <= 0 ) continue;
+
+    $layout      = isset( $ov['layout'] ) ? (string) $ov['layout'] : '';
+    $placeholder = isset( $ov['placeholder'] ) ? (string) $ov['placeholder'] : '';
+    $separator   = isset( $ov['separator'] )   ? (string) $ov['separator']   : '';
+
+    // Start with an existing row if one was set earlier
+    if ( ! isset( $section_layouts[ $sid ] ) ) {
+        $section_layouts[ $sid ] = [ 'layout' => '', 'placeholder' => '', 'separator' => '' ];
+    }
+    if ( $layout !== '' ) {
+        $section_layouts[ $sid ]['layout'] = $layout;
+    }
+    // If this row targets Matrix, capture its placeholder if provided
+    if ( $layout === 'matrix' && $placeholder !== '' ) {
+        $section_layouts[ $sid ]['placeholder'] = $placeholder;
+    }
+    // If this row targets Inline Below, capture its separator if provided
+    if ( $layout === 'inline_below' && $separator !== '' ) {
+        $section_layouts[ $sid ]['separator'] = $separator;
+    }
+}
+
 
 		$ctx = [
 			'columns'             => $columns,
@@ -229,31 +247,24 @@ private function jprm_normalize_section_overrides( $rows ) : array {
 			'split_after_1'       => $split_after_1,
 			'split_after_2'       => $split_after_2,
 			'ib_map'              => $ib_map,
-			'section_layouts'     => $section_layouts,
-			'section_overrides'        => $section_overrides,
+			'section_layouts'       => $section_layouts,
+
+// globals used by templates
+'global_labels_layout'  => $global_labels_layout,
 'labels_matrix_placeholder' => isset( $s['labels_matrix_placeholder'] )
     ? html_entity_decode( (string) $s['labels_matrix_placeholder'], ENT_QUOTES )
     : '',
 'inline_below_separator'    => isset( $s['inline_below_separator'] )
     ? (string) $s['inline_below_separator']
     : '',
-
-			'global_labels_layout'=> $global_labels_layout,
-			'labels_matrix_placeholder' => isset($s['labels_matrix_placeholder'])
-    ? html_entity_decode((string)$s['labels_matrix_placeholder'], ENT_QUOTES)
-    : '',
-			'global_placeholder'  => $global_placeholder,
+'global_placeholder'    => $global_placeholder,
 		];
+
 // Load overrides helper so templates can call jprm_effective_*()
 $__jp_overrides = dirname( __DIR__ ) . '/helpers/overrides.php'; // path: includes/helpers/overrides.php
 if ( file_exists( $__jp_overrides ) ) {
     require_once $__jp_overrides;
 }
-$__jp_helpers = dirname(__DIR__) . '/helpers/overrides.php';
-if (file_exists($__jp_helpers)) {
-    require_once $__jp_helpers;
-}
-
 
 		$template = dirname( __DIR__ ) . '/render/templates/menu.php';
 		if ( is_readable( $template ) ) {

@@ -1,92 +1,93 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-$menu_term           = $ctx['menu_term'] ?? null;
-$show_menu_title     = ! empty( $ctx['show_menu_title'] );
-$show_menu_desc      = ! empty( $ctx['show_menu_desc'] );
-$menu_pos            = $ctx['menu_pos'] ?? 'above_menu';
+/**
+ * Inline-Below (per-section)
+ * Expects $_section_ctx = [
+ *   'term','items','label_presentation','label_position','label_map','currency_opts','inline_separator'
+ * ]
+ */
 
-$sections_order      = $ctx['sections_order'] ?? [];
-$sections_data       = $ctx['sections_data'] ?? [];
+$sctx = isset($_section_ctx) && is_array($_section_ctx) ? $_section_ctx : [];
+$items = is_array($sctx['items'] ?? null) ? $sctx['items'] : [];
+$label_presentation = (string)($sctx['label_presentation'] ?? 'icon_text');
+$label_position     = (string)($sctx['label_position'] ?? 'right');
+$label_map          = is_array($sctx['label_map'] ?? null) ? $sctx['label_map'] : [];
+$currency_opts      = is_array($sctx['currency_opts'] ?? null) ? $sctx['currency_opts'] : [];
+$sep                = (string)($sctx['inline_separator'] ?? '');
 
-$show_section_name   = ! empty( $ctx['show_section_name'] );
-$show_section_desc   = ! empty( $ctx['show_section_desc'] );
+if (empty($items)) return;
 
-$show_badges         = ! empty( $ctx['show_badges'] );
-$badges_presentation = (string) ($ctx['badges_presentation'] ?? 'icon_text');
-$badges_position     = (string) ($ctx['badges_position'] ?? 'after_title');
-
-$label_presentation  = (string) ($ctx['label_presentation'] ?? 'icon_text');
-$label_position      = (string) ($ctx['label_position'] ?? 'right');
-$label_map           = is_array( $ctx['label_map'] ?? null ) ? $ctx['label_map'] : [];
-$currency_opts       = $ctx['currency_opts'] ?? [];
-
-$ib_map              = $ctx['ib_map'] ?? [];
-
-// Step 1: no user-configured separator yet.
-$sep_text = '';
-
-if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
-	echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
-}
-
-echo '<ul class="jp-menu">';
-foreach ( $sections_order as $tid ) {
-	if ( ! isset( $sections_data[ $tid ] ) ) continue;
-	$blk = $sections_data[ $tid ];
-
-	if ( isset( $ib_map[$tid]['above'] ) && ! empty( $ib_map[$tid]['above'] ) ) {
-		echo '<li class="jp-menu__infoblock-li">';
-		echo jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ); // phpcs:ignore
-		echo '</li>';
-	}
-
-	if ( ! empty( $blk['term'] ) && $show_section_name ) {
-		echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $blk['term']->name ) . '</h3>';
-		if ( $show_section_desc && ! empty( $blk['term']->description ) ) {
-			echo '<div class="jp-section__desc">' . esc_html( $blk['term']->description ) . '</div>';
-		}
-		echo '</li>';
-	}
-
-	if ( ! empty( $blk['items'] ) && is_array( $blk['items'] ) ) {
-		foreach ( $blk['items'] as $post ) {
-			$pid   = (int) $post->ID;
-			$title = get_the_title( $pid );
-			$desc  = get_post_meta( $pid, 'jprm_desc', true );
-
-			echo '<li class="jp-menu__item"><div class="jp-menu__inner jp--inline-below">';
-
-			echo '<div class="jp-menu__content">';
-			echo '<div class="jp-menu__titleline">';
-			if ( $show_badges && $badges_position === 'before_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
-				echo jprm_render_badges_inline_html( $pid, $badges_presentation ); // phpcs:ignore
-			}
-			if ( $title !== '' ) echo '<h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
-			if ( $show_badges && $badges_position === 'after_title' && function_exists( 'jprm_render_badges_inline_html' ) ) {
-				echo jprm_render_badges_inline_html( $pid, $badges_presentation ); // phpcs:ignore
-			}
-			echo '</div>';
-			if ( is_string( $desc ) && $desc !== '' ) {
-				echo '<div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
-			}
-			echo '</div>';
-
-			$html = jprm_render_pricegroup_inline_ctx( $pid, $label_presentation, $label_position, $label_map, $currency_opts );
-
-			// (Separator injection reserved for Step 2)
-			echo '<div class="jp-menu__pricegroup jp--presentation-' . esc_attr( $label_presentation ) . '">';
-			echo $html; // phpcs:ignore
-			echo '</div>';
-
-			echo '</div></li>';
-		}
-	}
-
-	if ( isset( $ib_map[$tid]['below'] ) && ! empty( $ib_map[$tid]['below'] ) ) {
-		echo '<li class="jp-menu__infoblock-li">';
-		echo jprm_infoblocks_render_group( $ib_map[$tid]['below'], 'below' ); // phpcs:ignore
-		echo '</li>';
+/* a tiny label renderer (icon/text) reused from matrix header */
+if (!function_exists('jprm_sanitize_single_icon')) {
+	function jprm_sanitize_single_icon(string $html): string {
+		$html = trim($html);
+		if ($html === '') return '';
+		if (preg_match('~<img\b[^>]*>~is', $html, $m)) return $m[0];
+		if (preg_match('~<svg\b[^>]*>.*?</svg>~is', $html, $m)) return $m[0];
+		return '';
 	}
 }
-echo '</ul>';
+function jprm_label_chip(array $meta, string $presentation): string {
+	$text = trim((string)($meta['text'] ?? ''));
+	$ico  = '';
+	if (!empty($meta['icon_html'])) $ico = jprm_sanitize_single_icon((string)$meta['icon_html']);
+	if ($ico === '' && !empty($meta['icon']))     $ico = jprm_sanitize_single_icon((string)$meta['icon']);
+	if ($ico === '' && !empty($meta['svg']))      $ico = jprm_sanitize_single_icon((string)$meta['svg']);
+	if ($ico === '' && !empty($meta['icon_url'])) $ico = '<img class="jp-label__icon" src="' . esc_url((string)$meta['icon_url']) . '" alt="" loading="lazy" decoding="async" />';
+	switch ($presentation) {
+		case 'icon':      return $ico !== '' ? $ico : esc_html($text);
+		case 'text':      return esc_html($text);
+		case 'icon_text':
+		default:
+			if ($ico !== '' && $text !== '') return '<span class="jp-menu__label">'.$ico.'<span>'.esc_html($text).'</span></span>';
+			return $ico !== '' ? $ico : esc_html($text);
+	}
+}
+
+echo '<li class="jp-inline-below">';
+
+foreach ($items as $post) {
+	$pid   = (int)$post->ID;
+	$title = get_the_title($pid);
+	$desc  = get_post_meta($pid, 'jprm_desc', true);
+	$rows  = function_exists('jprm_get_pricegroup_data') ? jprm_get_pricegroup_data($pid, $label_map, $currency_opts) : [];
+
+	echo '<div class="jp-menu__item"><div class="jp-menu__inner">';
+
+	echo '<div class="jp-menu__content">';
+		if ($title !== '') echo '<div class="jp-menu__title">' . esc_html($title) . '</div>';
+		if (is_string($desc) && $desc !== '') echo '<div class="jp-menu__desc">' . esc_html($desc) . '</div>';
+	echo '</div>';
+
+	echo '<div class="jp-menu__pricegroup">';
+
+	/* render each label row: chip [ + SEP ] price, only when a price exists */
+	foreach ($rows as $r) {
+		$price = (string)($r['formatted'] ?? '');
+		$lbl   = [
+			'text'      => (string)($r['label_text'] ?? ''),
+			'icon_html' => (string)($r['icon_html'] ?? ''),
+			'icon'      => (string)($r['icon'] ?? ''),
+			'svg'       => (string)($r['svg'] ?? ''),
+			'icon_url'  => (string)($r['icon_url'] ?? ''),
+		];
+
+		if ($price === '') {
+			// no price: show only the chip (or skip entirely if you prefer)
+			echo '<div class="jp-price-row"><span class="jp-chip">'. jprm_label_chip($lbl, $label_presentation) .'</span></div>';
+			continue;
+		}
+
+		echo '<div class="jp-price-row">';
+			echo '<span class="jp-chip">'. jprm_label_chip($lbl, $label_presentation) .'</span>';
+			if ($sep !== '') echo '<span class="jp-sep">'. esc_html($sep) .'</span>';
+			echo '<span class="jp-price">'. $price .'</span>'; // formatted already
+		echo '</div>';
+	}
+
+	echo '</div>'; // .jp-menu__pricegroup
+	echo '</div></div>'; // .jp-menu__item
+}
+
+echo '</li>';
