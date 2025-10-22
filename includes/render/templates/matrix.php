@@ -149,7 +149,11 @@ foreach ( $sections_order as $tid ) {
     $matrix_placeholder = function_exists('jprm_effective_matrix_placeholder')
     ? jprm_effective_matrix_placeholder( $ctx, (int) $tid )
     : ( isset($ctx['labels_matrix_placeholder']) ? trim( (string) $ctx['labels_matrix_placeholder'] ) : '' );
-
+/*DEBUG*/
+if ( ! empty( $_GET['jprm_probe'] ) ) {
+    echo "\n<!-- jprm: matrix sec {$tid} placeholder = " . esc_html( $matrix_placeholder ) . " -->\n";
+}
+/*DEBUG END*/
 	// ABOVE Info Blocks
 	if ( isset( $ib_map[$tid]['above'] ) && ! empty( $ib_map[$tid]['above'] ) ) {
 		echo '<li class="jp-menu__infoblock-li">'. jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ) .'</li>'; // phpcs:ignore
