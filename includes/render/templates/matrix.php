@@ -17,7 +17,7 @@ $matrix_placeholder = (string)($sctx['matrix_placeholder'] ?? '');
 
 if (empty($items)) return;
 
-/* helpers */
+/* helpers (guarded, because this file is included per section) */
 if (!function_exists('jprm_sanitize_single_icon')) {
 	function jprm_sanitize_single_icon(string $html): string {
 		$html = trim($html);
@@ -27,63 +27,71 @@ if (!function_exists('jprm_sanitize_single_icon')) {
 		return '';
 	}
 }
-function jprm_matrix_header_cell(array $meta, string $presentation): string {
-	$text = trim((string)($meta['text'] ?? ''));
-	$ico  = '';
-	if (!empty($meta['icon_html'])) $ico = jprm_sanitize_single_icon((string)$meta['icon_html']);
-	if ($ico === '' && !empty($meta['icon']))     $ico = jprm_sanitize_single_icon((string)$meta['icon']);
-	if ($ico === '' && !empty($meta['svg']))      $ico = jprm_sanitize_single_icon((string)$meta['svg']);
-	if ($ico === '' && !empty($meta['icon_url'])) $ico = '<img class="jp-label__icon" src="' . esc_url((string)$meta['icon_url']) . '" alt="" loading="lazy" decoding="async" />';
-	switch ($presentation) {
-		case 'icon':      return $ico !== '' ? $ico : esc_html($text);
-		case 'text':      return esc_html($text);
-		case 'icon_text':
-		default:
-			if ($ico !== '' && $text !== '') return '<span class="jp-menu__label">'.$ico.'<span>'.esc_html($text).'</span></span>';
-			return $ico !== '' ? $ico : esc_html($text);
+if (!function_exists('jprm_matrix_header_cell')) {
+	function jprm_matrix_header_cell(array $meta, string $presentation): string {
+		$text = trim((string)($meta['text'] ?? ''));
+		$ico  = '';
+		if (!empty($meta['icon_html'])) $ico = jprm_sanitize_single_icon((string)$meta['icon_html']);
+		if ($ico === '' && !empty($meta['icon']))     $ico = jprm_sanitize_single_icon((string)$meta['icon']);
+		if ($ico === '' && !empty($meta['svg']))      $ico = jprm_sanitize_single_icon((string)$meta['svg']);
+		if ($ico === '' && !empty($meta['icon_url'])) $ico = '<img class="jp-label__icon" src="' . esc_url((string)$meta['icon_url']) . '" alt="" loading="lazy" decoding="async" />';
+		switch ($presentation) {
+			case 'icon':      return $ico !== '' ? $ico : esc_html($text);
+			case 'text':      return esc_html($text);
+			case 'icon_text':
+			default:
+				if ($ico !== '' && $text !== '') return '<span class="jp-menu__label">'.$ico.'<span>'.esc_html($text).'</span></span>';
+				return $ico !== '' ? $ico : esc_html($text);
+		}
 	}
 }
-function jprm_matrix_collect_columns(array $items, array $label_map, array $currency_opts): array {
-	$cols = [];
-	foreach ($label_map as $lid => $meta) {
-		$cols[(string)$lid] = ['text'=>(string)($meta['title'] ?? ($meta['text'] ?? '')), 'icon_html'=>(string)($meta['icon_html'] ?? ''), '_seed'=>true];
+if (!function_exists('jprm_matrix_collect_columns')) {
+	function jprm_matrix_collect_columns(array $items, array $label_map, array $currency_opts): array {
+		$cols = [];
+		foreach ($label_map as $lid => $meta) {
+			$cols[(string)$lid] = ['text'=>(string)($meta['title'] ?? ($meta['text'] ?? '')), 'icon_html'=>(string)($meta['icon_html'] ?? ''), '_seed'=>true];
+		}
+		foreach ($items as $post) {
+			$pid = (int)$post->ID;
+			$rows = function_exists('jprm_get_pricegroup_data') ? jprm_get_pricegroup_data($pid, $label_map, $currency_opts) : [];
+			foreach ($rows as $r) {
+				$lid = isset($r['label_id']) ? (int)$r['label_id'] : 0;
+				$txt = (string)($r['label_text'] ?? '');
+				$key = $lid > 0 ? (string)$lid : ($txt !== '' ? 't:'.md5($txt) : '');
+				if ($key !== '' && !isset($cols[$key])) {
+					$cols[$key] = ['text'=>$txt, 'icon_html'=>(string)($r['icon_html'] ?? '')];
+				}
+			}
+		}
+		return $cols;
 	}
-	foreach ($items as $post) {
-		$pid = (int)$post->ID;
-		$rows = function_exists('jprm_get_pricegroup_data') ? jprm_get_pricegroup_data($pid, $label_map, $currency_opts) : [];
+}
+if (!function_exists('jprm_matrix_find_cell')) {
+	function jprm_matrix_find_cell(array $rows, string $col_key): ?string {
 		foreach ($rows as $r) {
 			$lid = isset($r['label_id']) ? (int)$r['label_id'] : 0;
 			$txt = (string)($r['label_text'] ?? '');
 			$key = $lid > 0 ? (string)$lid : ($txt !== '' ? 't:'.md5($txt) : '');
-			if ($key !== '' && !isset($cols[$key])) {
-				$cols[$key] = ['text'=>$txt, 'icon_html'=>(string)($r['icon_html'] ?? '')];
+			if ($key === $col_key) {
+				$fmt = (string)($r['formatted'] ?? '');
+				return $fmt !== '' ? $fmt : null;
 			}
 		}
+		return null;
 	}
-	return $cols;
 }
-function jprm_matrix_find_cell(array $rows, string $col_key): ?string {
-	foreach ($rows as $r) {
-		$lid = isset($r['label_id']) ? (int)$r['label_id'] : 0;
-		$txt = (string)($r['label_text'] ?? '');
-		$key = $lid > 0 ? (string)$lid : ($txt !== '' ? 't:'.md5($txt) : '');
-		if ($key === $col_key) {
-			$fmt = (string)($r['formatted'] ?? '');
-			return $fmt !== '' ? $fmt : null;
+if (!function_exists('jprm_matrix_filter_active_columns')) {
+	function jprm_matrix_filter_active_columns(array $items, array $col_keys, array $label_map, array $currency_opts): array {
+		$active = [];
+		foreach ($col_keys as $k) {
+			foreach ($items as $post) {
+				$pid  = (int)$post->ID;
+				$rows = function_exists('jprm_get_pricegroup_data') ? jprm_get_pricegroup_data($pid, $label_map, $currency_opts) : [];
+				if (jprm_matrix_find_cell($rows, $k) !== null) { $active[] = $k; break; }
+			}
 		}
+		return $active;
 	}
-	return null;
-}
-function jprm_matrix_filter_active_columns(array $items, array $col_keys, array $label_map, array $currency_opts): array {
-	$active = [];
-	foreach ($col_keys as $k) {
-		foreach ($items as $post) {
-			$pid  = (int)$post->ID;
-			$rows = function_exists('jprm_get_pricegroup_data') ? jprm_get_pricegroup_data($pid, $label_map, $currency_opts) : [];
-			if (jprm_matrix_find_cell($rows, $k) !== null) { $active[] = $k; break; }
-		}
-	}
-	return $active;
 }
 
 /* grid build */

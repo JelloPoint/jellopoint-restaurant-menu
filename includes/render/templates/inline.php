@@ -6,7 +6,6 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * Expects $_section_ctx = [
  *   'term','items','label_presentation','label_position','label_map','currency_opts'
  * ]
- * (No separator/placeholder logic needed here.)
  */
 
 $sctx = isset($_section_ctx) && is_array($_section_ctx) ? $_section_ctx : [];
@@ -18,6 +17,7 @@ $currency_opts      = is_array($sctx['currency_opts'] ?? null) ? $sctx['currency
 
 if (empty($items)) return;
 
+/* helpers (guarded, because this file is included per section) */
 if (!function_exists('jprm_sanitize_single_icon')) {
 	function jprm_sanitize_single_icon(string $html): string {
 		$html = trim($html);
@@ -27,20 +27,22 @@ if (!function_exists('jprm_sanitize_single_icon')) {
 		return '';
 	}
 }
-function jprm_label_chip_inline(array $meta, string $presentation): string {
-	$text = trim((string)($meta['text'] ?? ''));
-	$ico  = '';
-	if (!empty($meta['icon_html'])) $ico = jprm_sanitize_single_icon((string)$meta['icon_html']);
-	if ($ico === '' && !empty($meta['icon']))     $ico = jprm_sanitize_single_icon((string)$meta['icon']);
-	if ($ico === '' && !empty($meta['svg']))      $ico = jprm_sanitize_single_icon((string)$meta['svg']);
-	if ($ico === '' && !empty($meta['icon_url'])) $ico = '<img class="jp-label__icon" src="' . esc_url((string)$meta['icon_url']) . '" alt="" loading="lazy" decoding="async" />';
-	switch ($presentation) {
-		case 'icon':      return $ico !== '' ? $ico : esc_html($text);
-		case 'text':      return esc_html($text);
-		case 'icon_text':
-		default:
-			if ($ico !== '' && $text !== '') return '<span class="jp-menu__label">'.$ico.'<span>'.esc_html($text).'</span></span>';
-			return $ico !== '' ? $ico : esc_html($text);
+if (!function_exists('jprm_label_chip_inline')) {
+	function jprm_label_chip_inline(array $meta, string $presentation): string {
+		$text = trim((string)($meta['text'] ?? ''));
+		$ico  = '';
+		if (!empty($meta['icon_html'])) $ico = jprm_sanitize_single_icon((string)$meta['icon_html']);
+		if ($ico === '' && !empty($meta['icon']))     $ico = jprm_sanitize_single_icon((string)$meta['icon']);
+		if ($ico === '' && !empty($meta['svg']))      $ico = jprm_sanitize_single_icon((string)$meta['svg']);
+		if ($ico === '' && !empty($meta['icon_url'])) $ico = '<img class="jp-label__icon" src="' . esc_url((string)$meta['icon_url']) . '" alt="" loading="lazy" decoding="async" />';
+		switch ($presentation) {
+			case 'icon':      return $ico !== '' ? $ico : esc_html($text);
+			case 'text':      return esc_html($text);
+			case 'icon_text':
+			default:
+				if ($ico !== '' && $text !== '') return '<span class="jp-menu__label">'.$ico.'<span>'.esc_html($text).'</span></span>';
+				return $ico !== '' ? $ico : esc_html($text);
+		}
 	}
 }
 
