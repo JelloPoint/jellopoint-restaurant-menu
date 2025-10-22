@@ -17,6 +17,33 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  *   - labels_matrix_placeholder, inline_below_separator, global_placeholder
  */
 
+/* --- Local fallback for jprm_render_menu_meta() to avoid fatal --- */
+if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
+	/**
+	 * Render menu term title/description. Returns HTML string.
+	 */
+	function jprm_render_menu_meta( $menu_term, bool $show_title, bool $show_desc, string $scope = 'global' ) : string {
+		if ( ! $menu_term ) return '';
+		$out = '';
+		$title = is_object( $menu_term ) && isset( $menu_term->name ) ? (string) $menu_term->name : '';
+		$desc  = is_object( $menu_term ) && isset( $menu_term->description ) ? (string) $menu_term->description : '';
+
+		if ( $show_title || ( $show_desc && $desc !== '' ) ) {
+			$out .= '<li class="jp-menu__meta jp-menu__meta--' . esc_attr( $scope ) . '">';
+			if ( $show_title && $title !== '' ) {
+				$out .= '<h2 class="jp-menu__title">' . esc_html( $title ) . '</h2>';
+			}
+			if ( $show_desc && $desc !== '' ) {
+				$out .= '<div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
+			}
+			$out .= '</li>';
+		}
+		return $out;
+	}
+}
+
+/* -------- Unpack ctx -------- */
+
 $menu_term        = $ctx['menu_term'] ?? null;
 $show_menu_title  = ! empty( $ctx['show_menu_title'] );
 $show_menu_desc   = ! empty( $ctx['show_menu_desc'] );
@@ -43,13 +70,18 @@ $global_matrix_placeholder = (string) ( $ctx['labels_matrix_placeholder'] ?? '' 
 $global_inline_separator   = (string) ( $ctx['inline_below_separator'] ?? '' );
 $global_placeholder_legacy = (string) ( $ctx['global_placeholder'] ?? '—' );
 
-// Top meta (title/desc above)
+/* -------- Top meta (above) -------- */
+
 if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
+	// jprm_render_menu_meta returns markup; echo it
 	echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 }
 
-// List wrapper
+/* -------- List wrapper -------- */
+
 echo '<ul class="jp-menu">';
+
+/* -------- Sections -------- */
 
 foreach ( $sections_order as $tid ) {
 	if ( ! isset( $sections_data[ $tid ] ) ) continue;
@@ -72,7 +104,7 @@ foreach ( $sections_order as $tid ) {
 		echo '<li class="jp-menu__infoblock-li">'. jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ) .'</li>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
-	// Determine effective layout: override → global
+	// Determine effective layout: overrides → global
 	$layout = $global_labels_layout;
 	if ( isset( $section_layouts[ $tid ]['layout'] ) && $section_layouts[ $tid ]['layout'] !== '' ) {
 		$layout = (string) $section_layouts[ $tid ]['layout'];
@@ -145,7 +177,8 @@ foreach ( $sections_order as $tid ) {
 
 echo '</ul>';
 
-// Bottom meta (title/desc below)
+/* -------- Bottom meta (below) -------- */
+
 if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'below_menu' ) {
 	echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 }
