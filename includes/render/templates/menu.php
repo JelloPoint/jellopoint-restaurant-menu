@@ -7,7 +7,9 @@
  */
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
-
+/* DEBUG TEMPLATE OVERRIDES*/
+if (!empty($_GET['jprm_probe'])) { echo "\n<!-- jprm: menu.php loaded -->\n"; }
+/* END DEBUG*/
 /* ---------------- Shared helpers (safe to redeclare) ------------------- */
 
 if ( ! function_exists( 'jprm_render_menu_meta' ) ) {

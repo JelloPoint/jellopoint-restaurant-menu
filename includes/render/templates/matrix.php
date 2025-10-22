@@ -1,6 +1,8 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) { exit; }
-
+/* DEBUG TEMPLATE OVERRIDES*/
+if (!empty($_GET['jprm_probe'])) { echo "\n<!-- jprm: menu.php loaded -->\n"; }
+/* END DEBUG*/
 /**
  * Matrix template (per-section grid)
  * Fixes:

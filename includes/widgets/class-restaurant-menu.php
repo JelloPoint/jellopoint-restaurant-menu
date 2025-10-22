@@ -249,6 +249,18 @@ $__jp_overrides = dirname( __DIR__ ) . '/helpers/overrides.php'; // path: includ
 if ( file_exists( $__jp_overrides ) ) {
     require_once $__jp_overrides;
 }
+/*DEBUG OVERRIDES*/
+// Load overrides helper so templates can call jprm_effective_*()
+$__jp_overrides = dirname( __DIR__ ) . '/helpers/overrides.php'; // path: includes/helpers/overrides.php
+if ( file_exists( $__jp_overrides ) ) {
+    require_once $__jp_overrides;
+}
+/*DEBUG END*/
+
+// (optional) one-time include path probe, only when you add ?jprm_probe=1 to the URL
+if ( ! empty( $_GET['jprm_probe'] ) && function_exists( 'error_log' ) ) {
+    @error_log( 'JPRM include template: ' . $template );
+}
 
 		$template = dirname( __DIR__ ) . '/render/templates/menu.php';
 		if ( is_readable( $template ) ) {
