@@ -7,7 +7,7 @@
  */
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
-/* DEBUG TEMPLATE OVERRIDES*/
+/* DEBUG  TEMPLATE OVERRIDES*/
 if ( ! empty( $_GET['jprm_probe'] ) ) {
     echo "\n<!-- jprm: menu.php loaded -->\n";
     echo "<!-- jprm: section_layouts = " . esc_html( json_encode( $ctx['section_layouts'] ?? [] ) ) . " -->\n";
