@@ -255,4 +255,37 @@
 /* belt-and-suspenders: titles/descriptions themselves don’t push space */
 .jp-inline-below .jp-menu__title,
 .jp-inline-below .jp-menu__desc { margin: 0; }
+/* INLINE-BELOW: ensure price row is FULL-WIDTH below content */
+.jp-inline-below .jp-menu__inner {
+  display: grid;               /* respect existing grid if already grid; harmless if flex */
+  grid-template-columns: 1fr;  /* single column for this layout */
+  gap: 0.25rem;                /* small vertical rhythm */
+}
+
+/* make both content and the below pricegroup span the whole width */
+.jp-inline-below .jp-menu__content,
+.jp-inline-below .jp-menu__pricegroup--below {
+  grid-column: 1 / -1;
+}
+
+/* one horizontal line of pairs that wraps nicely */
+.jp-inline-below .jp-inline-below__line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  align-items: baseline;
+  margin-top: 0;               /* hug the description */
+}
+
+/* tidy pairs */
+.jp-inline-below .jp-chipline { display: inline-flex; align-items: baseline; gap: 0.35rem; }
+.jp-inline-below .jp-chipline--noprice .jp-sep { display: none; }
+.jp-inline-below .jp-sep { opacity: 0.7; }
+
+/* kill stray margins inside content so it sits tight to the price row */
+.jp-inline-below .jp-menu__content { margin: 0; padding: 0; }
+.jp-inline-below .jp-menu__content > *:last-child { margin-bottom: 0; }
+.jp-inline-below .jp-menu__title,
+.jp-inline-below .jp-menu__desc { margin: 0; }
+.jp-inline-below .jp-menu__desc p:last-child { margin-bottom: 0; }
 
