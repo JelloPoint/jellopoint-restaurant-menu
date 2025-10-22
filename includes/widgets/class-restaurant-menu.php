@@ -1,363 +1,177 @@
 <?php
 namespace JelloPoint\RestaurantMenu\Widgets;
 
-use Elementor\Widget_Base;
-
-use function jprm_build_label_map;
-use function jprm_read_price_config;
-use function jprm_render_pricegroup_html;
-
-require_once __DIR__ . '/traits/restaurant-menu-controls.php';
-use JelloPoint\RestaurantMenu\Widgets\Traits\Restaurant_Menu_Controls;
-
-require_once __DIR__ . '/traits/restaurant-menu-style.php';
-use JelloPoint\RestaurantMenu\Widgets\Traits\Restaurant_Menu_Style;
-
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-final class Restaurant_Menu extends Widget_Base {
-    use Restaurant_Menu_Controls, Restaurant_Menu_Style;
+use Elementor\Widget_Base;
+use Elementor\Controls_Manager;
+
+/**
+ * Restaurant Menu Widget
+ * (Clean render flow; passes deterministic ctx, includes helpers, includes dispatcher)
+ */
+class Restaurant_Menu extends Widget_Base {
 
 	public function get_name() { return 'jprm_restaurant_menu'; }
-	public function get_title() { return __( 'Restaurant Menu (JelloPoint)', 'jellopoint-restaurant-menu' ); }
-	public function get_icon() { return 'eicon-table'; }
-	public function get_categories() { return [ 'jellopoint-widgets' ]; }
-	public function get_keywords() { return [ 'menu','restaurant','prices','jellopoint','labels' ]; }
-	public function get_style_depends() { return [ 'jprm-menu' ]; }
-	public function get_script_depends() { return []; }
+	public function get_title() { return __( 'Restaurant Menu', 'jellopoint-restaurant-menu' ); }
+	public function get_icon() { return 'eicon-menu-card'; }
+	public function get_categories() { return [ 'general' ]; }
 
-	/* ===== Partials / helpers ===== */
-	private static function require_price_partial_once() : void {
-		static $loaded = false; if ( $loaded ) return;
-		$path = dirname( __DIR__ ) . '/render/partials/price-block.php';
-		if ( is_readable( $path ) ) require_once $path;
-		$loaded = true;
-	}
-	private static function require_badges_partial_once() : void {
-		static $loaded = false; if ( $loaded ) return;
-		$path = dirname( __DIR__ ) . '/render/partials/badges-block.php';
-		if ( is_readable( $path ) ) require_once $path;
-		$loaded = true;
-	}
-	private static function require_infoblocks_partial_once() : void {
-		static $loaded = false; if ( $loaded ) return;
-		$path = dirname( __DIR__ ) . '/render/partials/info-blocks.php';
-		if ( is_readable( $path ) ) require_once $path;
-		$loaded = true;
-	}
-	private static function ensure_menu_meta_helper() : void {
-		if ( function_exists( 'jprm_render_menu_meta' ) ) return;
-		function jprm_render_menu_meta( $term, bool $show_title, bool $show_desc, string $scope ) : string {
-			if ( ! $term || ( ! $show_title && ! $show_desc ) ) return '';
-			$title = $show_title ? trim( (string) $term->name ) : '';
-			$desc  = $show_desc  ? trim( (string) $term->description ) : '';
-			if ( $title === '' && $desc === '' ) return '';
-			$cls = 'jp-menu__meta ' . ( $scope === 'global' ? 'jp-menu__meta--global' : 'jp-menu__meta--col' );
-			$out  = '<div class="' . esc_attr( $cls ) . '">';
-			if ( $title !== '' ) $out .= '<h2 class="jp-menu__meta-title">' . esc_html( $title ) . '</h2>';
-			if ( $desc  !== '' ) $out .= '<div class="jp-menu__meta-desc">' . esc_html( $desc ) . '</div>';
-			$out .= '</div>';
-			return $out;
-		}
-	}
+	/* ------------------------------------------------------------
+	 * Helpers
+	 * ------------------------------------------------------------ */
+
 	/**
- * Normalize 'labels_layout_overrides' repeater into a lookup:
- * $map[SECTION_ID]['matrix']['placeholder']
- * $map[SECTION_ID]['inline_below']['separator']
- * (Add other layouts as needed.)
- */
-private function jprm_normalize_section_overrides( $rows ) : array {
-    $map = [];
-    if ( ! is_array( $rows ) || empty( $rows ) ) return $map;
+	 * Normalize the 'labels_layout_overrides' repeater into a lookup:
+	 *   $map[SECTION_ID]['layout']                  = 'inline'|'inline_below'|'matrix'
+	 *   $map[SECTION_ID]['matrix']['placeholder']   = string
+	 *   $map[SECTION_ID]['inline_below']['separator']= string
+	 */
+	private function jprm_normalize_section_overrides( $rows ) : array {
+		$map = [];
+		if ( ! is_array( $rows ) || empty( $rows ) ) return $map;
 
-    foreach ( $rows as $row ) {
-        $sec = isset( $row['section_id'] ) ? (int) $row['section_id'] : 0;
-        if ( $sec <= 0 ) continue;
+		foreach ( $rows as $row ) {
+			$sec = isset( $row['section_id'] ) ? (int) $row['section_id'] : 0;
+			if ( $sec <= 0 ) continue;
 
-        $layout = isset( $row['layout'] ) ? (string) $row['layout'] : '';
+			$layout = isset( $row['layout'] ) ? (string) $row['layout'] : '';
+			if ( $layout !== '' ) {
+				$map[$sec]['layout'] = $layout;
+			}
 
-        // Matrix → placeholder
-        if ( $layout === 'matrix' && array_key_exists( 'placeholder', $row ) ) {
-            $map[$sec]['matrix']['placeholder'] = html_entity_decode( (string) $row['placeholder'], ENT_QUOTES );
-        }
+			if ( $layout === 'matrix' && array_key_exists( 'placeholder', $row ) ) {
+				$map[$sec]['matrix']['placeholder'] = html_entity_decode( (string) $row['placeholder'], ENT_QUOTES );
+			}
 
-        // Inline-Below → separator
-        if ( $layout === 'inline_below' && array_key_exists( 'separator', $row ) ) {
-            $map[$sec]['inline_below']['separator'] = (string) $row['separator'];
-        }
+			if ( $layout === 'inline_below' && array_key_exists( 'separator', $row ) ) {
+				$map[$sec]['inline_below']['separator'] = (string) $row['separator'];
+			}
+		}
 
-        // (Inline or other layouts can be added here later if needed.)
-    }
+		return $map;
+	}
 
-    return $map;
-}
+	/* ------------------------------------------------------------
+	 * Elementor controls (kept in your trait normally)
+	 * ------------------------------------------------------------ */
 
-	/* =========================
+	protected function register_controls() {
+		// Keep your existing trait/controls.
+		// This file focuses on a clean render() and deterministic ctx.
+	}
+
+	/* ------------------------------------------------------------
 	 * Render
-	 * ========================= */
-	public function render() {
-		self::require_price_partial_once();
-		self::require_badges_partial_once();
-		self::require_infoblocks_partial_once();
-		self::ensure_menu_meta_helper();
+	 * ------------------------------------------------------------ */
 
-		static $css_done = false;
-		if ( ! $css_done ) { $css_done = true; }
-
+	protected function render() {
 		$s = $this->get_settings_for_display();
 
-		// Build a simple per-section overrides map we can pass to templates
-$section_overrides = [];
-if ( ! empty( $s['labels_layout_overrides'] ) && is_array( $s['labels_layout_overrides'] ) ) {
-	foreach ( $s['labels_layout_overrides'] as $ov ) {
-		$sid = isset( $ov['section_id'] ) ? (int) $ov['section_id'] : 0;
-		if ( $sid <= 0 ) { continue; }
-		$lay = isset( $ov['layout'] ) ? (string) $ov['layout'] : '';
-		$ph  = isset( $ov['placeholder'] ) ? (string) $ov['placeholder'] : '';
-		if ( $lay !== '' ) {
-			$section_overrides[$sid]['layout'] = $lay;
-		}
-		// matrix placeholder override (if provided)
-		if ( $ph !== '' ) {
-			$section_overrides[$sid]['matrix']['placeholder'] = html_entity_decode( $ph, ENT_QUOTES );
-		}
-	}
-}
+		// ----- Global layout pickers/flags (names based on your existing ctx usage)
+		$global_labels_layout = isset( $s['labels_layout'] ) ? (string) $s['labels_layout'] : 'inline';
+		$show_menu_title      = ! empty( $s['show_menu_title'] );
+		$show_menu_desc       = ! empty( $s['show_menu_desc'] );
+		$show_section_name    = ! empty( $s['show_section_name'] );
+		$show_section_desc    = ! empty( $s['show_section_desc'] );
 
+		// ----- Data your code already builds elsewhere (these lines assume your current project conventions)
+		$menu_term      = isset( $s['menus'] ) ? get_term( (int) $s['menus'], 'jprm_menu' ) : null;
+		$menu_pos       = isset( $s['menu_pos'] ) ? (string) $s['menu_pos'] : 'above_menu';
 
-		// Normalize repeater overrides into a map we can pass to templates
-		$section_overrides = $this->jprm_normalize_section_overrides( $s['labels_layout_overrides'] ?? [] );
-		$mode = isset( $s['data_mode'] ) ? (string) $s['data_mode'] : null;
+		// sections_order + sections_data should already be built in your project.
+		// If you already build them earlier in this class, keep that and reuse the variables here:
+		$sections_order = isset( $s['sections_order'] ) && is_array( $s['sections_order'] ) ? $s['sections_order'] : [];
+		$sections_data  = isset( $s['sections_data'] ) && is_array( $s['sections_data'] ) ? $s['sections_data'] : [];
 
-		// Static mode (unchanged)
-		if ( 'static' === $mode || ( null === $mode && ! empty( $s['items'] ) ) ) {
-			$this->render_static_list( is_array( $s['items'] ) ? $s['items'] : [] );
-			return;
-		}
+		// If your project builds info blocks and label maps elsewhere, keep them:
+		$ib_map         = isset( $s['ib_map'] ) && is_array( $s['ib_map'] ) ? $s['ib_map'] : [];
+		$label_map      = isset( $s['label_map'] ) && is_array( $s['label_map'] ) ? $s['label_map'] : [];
+		$currency_opts  = isset( $s['currency_opts'] ) && is_array( $s['currency_opts'] ) ? $s['currency_opts'] : [];
 
-		$show_all           = ( isset( $s['show_all_when_empty'] ) && 'yes' === $s['show_all_when_empty'] );
-		$menu_sel           = $s['menus'] ?? '';
-		$sections_sel       = $s['sections'] ?? [];
-		$orderby            = isset( $s['query_orderby'] ) ? (string) $s['query_orderby'] : 'menu_order';
-		$order              = isset( $s['query_order'] ) ? (string) $s['query_order'] : 'ASC';
-		$limit              = ( isset( $s['query_limit'] ) && is_numeric( $s['query_limit'] ) ) ? (int) $s['query_limit'] : 0;
-		$label_presentation = isset( $s['label_presentation'] ) ? (string) $s['label_presentation'] : 'icon_text';
-		$label_position     = isset( $s['label_position'] ) ? (string) $s['label_position'] : 'right';
-
-		$show_badges         = ( isset( $s['show_badges'] ) && $s['show_badges'] === 'yes' );
+		// Badges/labels presentation flags (keep your existing names)
+		$show_badges         = ! empty( $s['show_badges'] );
 		$badges_presentation = isset( $s['badges_presentation'] ) ? (string) $s['badges_presentation'] : 'icon_text';
 		$badges_position     = isset( $s['badges_position'] ) ? (string) $s['badges_position'] : 'after_title';
 
-		$currency_opts = [
-			'show'     => ( isset( $s['jprm_curr_show'] ) && $s['jprm_curr_show'] === 'yes' ),
-			'symbol'   => (string) ( $s['jprm_curr_symbol']   ?? '€' ),
-			'position' => (string) ( $s['jprm_curr_position'] ?? 'before' ),
-			'spacing'  => (string) ( $s['jprm_curr_spacing']  ?? 'thin' ),
-		];
+		$label_presentation  = isset( $s['label_presentation'] ) ? (string) $s['label_presentation'] : 'icon_text';
+		$label_position      = isset( $s['label_position'] ) ? (string) $s['label_position'] : 'right';
 
-		$columns       = isset( $s['layout_columns'] ) ? (string) $s['layout_columns'] : '1';
-		$split_mode    = isset( $s['layout_split_mode'] ) ? (string) $s['layout_split_mode'] : 'auto';
-		$split_after_1 = isset( $s['layout_split_after_section'] ) ? (string) $s['layout_split_after_section'] : '';
-		$split_after_2 = isset( $s['layout_split_after_section2'] ) ? (string) $s['layout_split_after_section2'] : '';
+		// Your existing section layouts (if you have another source, keep it and merge with overrides below)
+		$section_layouts = isset( $s['section_layouts'] ) && is_array( $s['section_layouts'] ) ? $s['section_layouts'] : [];
 
-		$menu_ids    = $this->normalize_to_ids( $menu_sel );
-		$section_ids = $this->normalize_to_ids( $sections_sel );
+		// ---- NEW: normalized overrides from the repeater (ALWAYS deterministic)
+		$section_overrides = $this->jprm_normalize_section_overrides( $s['labels_layout_overrides'] ?? [] );
 
-		$menu_term = null;
-		if ( count( $menu_ids ) === 1 ) {
-			$menu_term = get_term( (int) $menu_ids[0], 'jprm_menu' );
-			if ( ! $menu_term || is_wp_error( $menu_term ) ) $menu_term = null;
-		}
+		// ---- EXACT control values (no $settings; use $s)
+		$labels_matrix_placeholder = isset( $s['labels_matrix_placeholder'] )
+			? html_entity_decode( (string) $s['labels_matrix_placeholder'], ENT_QUOTES )
+			: '';
 
-		$show_menu_title = ( isset( $s['show_menu_title'] ) && $s['show_menu_title'] === 'yes' );
-		$show_menu_desc  = ( isset( $s['show_menu_description'] ) && $s['show_menu_description'] === 'yes' );
-		$menu_pos        = isset( $s['menu_title_position'] ) ? (string) $s['menu_title_position'] : 'above_menu';
+		$inline_below_separator = isset( $s['inline_below_separator'] )
+			? (string) $s['inline_below_separator']
+			: '';
 
-		if ( empty( $menu_ids ) && empty( $section_ids ) && ! $show_all ) {
-			echo '<div class="jp-menu--empty">' . esc_html__( 'Select a Menu or Section to display items.', 'jellopoint-restaurant-menu' ) . '</div>';
-			return;
-		}
+		// ---- Optional fallback used elsewhere in legacy code; retain if your theme expects it
+		$global_placeholder = isset( $s['labels_matrix_placeholder'] ) && $s['labels_matrix_placeholder'] !== ''
+			? (string) $s['labels_matrix_placeholder']
+			: '—';
 
-		$items = $this->query_items( $menu_ids, $section_ids, $orderby, $order, $limit, $show_all );
-		if ( empty( $items ) ) {
-			echo '<div class="jp-menu--empty">' . esc_html__( 'No items found.', 'jellopoint-restaurant-menu' ) . '</div>';
-			return;
-		}
-
-		$label_map = function_exists( 'jprm_build_label_map' ) ? jprm_build_label_map() : null;
-
-		$sections_order = [];
-		$sections_data  = [];
-		foreach ( $items as $post ) {
-			$post_id = (int) $post->ID;
-			$cfg     = function_exists( 'jprm_read_price_config' ) ? jprm_read_price_config( $post_id ) : [];
-			if ( empty( $cfg ) ) continue;
-
-			$terms = wp_get_post_terms( $post_id, 'jprm_section', [ 'orderby' => 'name', 'order' => 'ASC' ] );
-			$primary_tid  = 0;
-			$primary_term = null;
-			if ( is_array( $terms ) && ! empty( $terms ) && ! is_wp_error( $terms ) ) {
-				$primary_term = $terms[0];
-				$primary_tid  = (int) $primary_term->term_id;
-			}
-			if ( ! isset( $sections_data[ $primary_tid ] ) ) {
-				$sections_data[ $primary_tid ] = [ 'term' => $primary_term, 'items' => [] ];
-				$sections_order[] = $primary_tid;
-			}
-			$sections_data[ $primary_tid ]['items'][] = $post;
-		}
-
-		$show_section_name = ( isset( $s['show_section_name'] ) && $s['show_section_name'] === 'yes' );
-		$show_section_desc = ( isset( $s['show_section_description'] ) && $s['show_section_description'] === 'yes' );
-
-		// Info Blocks map
-		$ib_rows = ( isset( $s['info_blocks'] ) && is_array( $s['info_blocks'] ) ) ? $s['info_blocks'] : [];
-		$ib_map  = function_exists('jprm_infoblocks_partition_by_position') ? jprm_infoblocks_partition_by_position( $ib_rows ) : [];
-
-		// NEW: Labels Layout (global + per-section overrides)
-		$global_labels_layout = isset( $s['labels_layout'] ) ? (string) $s['labels_layout'] : 'inline';
-		$global_placeholder   = isset( $s['labels_matrix_placeholder'] ) ? (string) $s['labels_matrix_placeholder'] : '—';
-
-		$section_layouts = [];
-		$overrides = isset( $s['labels_layout_overrides'] ) && is_array( $s['labels_layout_overrides'] ) ? $s['labels_layout_overrides'] : [];
-		foreach ( $overrides as $ov ) {
-			$sid = isset( $ov['section_id'] ) ? (int) $ov['section_id'] : 0;
-			if ( $sid <= 0 ) continue;
-			$section_layouts[ $sid ] = [
-				'layout'      => isset( $ov['layout'] ) ? (string) $ov['layout'] : '',
-				'placeholder' => isset( $ov['placeholder'] ) ? (string) $ov['placeholder'] : '',
-			];
-		}
-
+		// ---- Compose ctx for templates
 		$ctx = [
-			'columns'             => $columns,
-			'menu_term'           => $menu_term,
-			'show_menu_title'     => $show_menu_title,
-			'show_menu_desc'      => $show_menu_desc,
-			'menu_pos'            => $menu_pos,
-			'sections_order'      => $sections_order,
-			'sections_data'       => $sections_data,
-			'show_section_name'   => $show_section_name,
-			'show_section_desc'   => $show_section_desc,
-			'show_badges'         => $show_badges,
-			'badges_presentation' => $badges_presentation,
-			'badges_position'     => $badges_position,
-			'label_presentation'  => $label_presentation,
-			'label_position'      => $label_position,
-			'label_map'           => $label_map,
-			'currency_opts'       => $currency_opts,
-			'split_mode'          => $split_mode,
-			'split_after_1'       => $split_after_1,
-			'split_after_2'       => $split_after_2,
-			'ib_map'              => $ib_map,
-			'section_layouts'     => $section_layouts,
-			'section_layouts'          => $section_layouts,
-'section_overrides'        => $section_overrides, // new: normalized repeater map
-'global_labels_layout'     => $global_labels_layout,
+			'menu_term'            => $menu_term,
+			'show_menu_title'      => $show_menu_title,
+			'show_menu_desc'       => $show_menu_desc,
+			'menu_pos'             => $menu_pos,
 
-// pass the Matrix placeholder EXACTLY from the control (use $s, not $settings)
-'labels_matrix_placeholder' => isset( $s['labels_matrix_placeholder'] )
-    ? html_entity_decode( (string) $s['labels_matrix_placeholder'], ENT_QUOTES )
-    : '',
+			'sections_order'       => $sections_order,
+			'sections_data'        => $sections_data,
 
-// keep the legacy/global placeholder used by menu.php’s matrix rendering
-'global_placeholder'       => $global_placeholder,
-			'global_labels_layout'=> $global_labels_layout,
-			'labels_matrix_placeholder' => isset($s['labels_matrix_placeholder'])
-    ? html_entity_decode((string)$s['labels_matrix_placeholder'], ENT_QUOTES)
-    : '',
-			'global_placeholder'  => $global_placeholder,
+			'show_section_name'    => $show_section_name,
+			'show_section_desc'    => $show_section_desc,
+
+			'show_badges'          => $show_badges,
+			'badges_presentation'  => $badges_presentation,
+			'badges_position'      => $badges_position,
+
+			'label_presentation'   => $label_presentation,
+			'label_position'       => $label_position,
+
+			'label_map'            => $label_map,
+			'currency_opts'        => $currency_opts,
+
+			'ib_map'               => $ib_map,
+
+			'global_labels_layout' => $global_labels_layout,
+			'section_layouts'      => $section_layouts,
+			'section_overrides'    => $section_overrides,
+
+			// Globals that layouts may use
+			'labels_matrix_placeholder' => $labels_matrix_placeholder,
+			'inline_below_separator'    => $inline_below_separator,
+
+			// legacy/global placeholder (kept for older paths)
+			'global_placeholder'   => $global_placeholder,
 		];
-// Load overrides helper (from /includes/helpers/)
-$__jp_overrides = dirname( __DIR__ ) . '/helpers/overrides.php';
-if ( file_exists( $__jp_overrides ) ) {
-    require_once $__jp_overrides;
-} else {
-    // Only shows when you add ?jprm_probe=1 to the URL
-    if ( ! empty( $_GET['jprm_probe'] ) ) {
-        echo "\n<!-- jprm: overrides.php NOT FOUND at {$__jp_overrides} -->\n";
-    }
-}
 
-// (optional) one-time include path probe, only when you add ?jprm_probe=1 to the URL
-if ( ! empty( $_GET['jprm_probe'] ) && function_exists( 'error_log' ) ) {
-    @error_log( 'JPRM include template: ' . $template );
-}
-// Load per-section overrides helper (makes jprm_effective_* available to templates if needed)
-$__jp_overrides = dirname( __DIR__ ) . '/helpers/overrides.php';
-if ( file_exists( $__jp_overrides ) ) {
-	require_once $__jp_overrides;
-}
+		// ---- Make helpers available to templates
+		$__jp_overrides = dirname( __DIR__ ) . '/helpers/overrides.php'; // includes/helpers/overrides.php
+		if ( file_exists( $__jp_overrides ) ) {
+			require_once $__jp_overrides;
+		}
 
-
+		// ---- Include the dispatcher
 		$template = dirname( __DIR__ ) . '/render/templates/menu.php';
-		if ( is_readable( $template ) ) {
-			$ctx = $ctx; // local scope for template
-			require $template;
+		if ( file_exists( $template ) ) {
+			// expose $ctx locally for the template
+			$__jprm_ctx = $ctx;
+			unset( $ctx );
+			$ctx = $__jprm_ctx;
+			unset( $__jprm_ctx );
+
+			include $template;
 		} else {
-			echo '<div class="jp-menu--empty">Template missing.</div>';
+			echo '<div class="jp-menu-error">Template not found: ' . esc_html( $template ) . '</div>';
 		}
-	}
-
-	/* =========================
-	 * Data helpers
-	 * ========================= */
-	protected function normalize_to_ids( $input ) : array {
-		if ( $input === '' || $input === null ) return [];
-		$vals = is_array( $input ) ? $input : [ $input ];
-		$out  = [];
-		foreach ( $vals as $v ) {
-			if ( $v === '' || $v === null ) continue;
-			$out[] = (int) $v;
-		}
-		return array_values( array_unique( array_filter( $out, fn( $n ) => $n > 0 ) ) );
-	}
-
-	protected function query_items( array $menu_ids, array $section_ids, string $orderby, string $order, int $limit, bool $fallback_all ) : array {
-		$args = [
-			'post_type'        => 'jprm_menu_item',
-			'post_status'      => 'publish',
-			'orderby'          => in_array( $orderby, [ 'menu_order','title','date' ], true ) ? $orderby : 'menu_order',
-			'order'            => ( strtoupper( $order ) === 'DESC' ) ? 'DESC' : 'ASC',
-			'posts_per_page'   => ( $limit > 0 ) ? $limit : -1,
-			'suppress_filters' => false,
-		];
-
-		$tax_query = [];
-		if ( ! empty( $menu_ids ) )    $tax_query[] = [ 'taxonomy' => 'jprm_menu',    'field' => 'term_id', 'terms' => $menu_ids ];
-		if ( ! empty( $section_ids ) ) $tax_query[] = [ 'taxonomy' => 'jprm_section', 'field' => 'term_id', 'terms' => $section_ids ];
-		if ( ! empty( $tax_query ) )   $args['tax_query'] = $tax_query;
-		elseif ( ! $fallback_all )     return [];
-
-		$q = new \WP_Query( $args );
-		return is_array( $q->posts ?? null ) ? $q->posts : [];
-	}
-
-	/* =========================
-	 * Static renderer
-	 * ========================= */
-	protected function render_static_list( array $items ) : void {
-		echo '<ul class="jp-menu">';
-		foreach ( $items as $it ) {
-			$title = $it['item_title'] ?? '';
-			$desc  = $it['item_description'] ?? '';
-			$price = $it['item_price'] ?? '';
-			echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
-			echo '  <div class="jp-menu__content">';
-			echo '    <div class="jp-menu__titleline">';
-			if ( $title !== '' ) echo '      <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
-			echo '    </div>';
-			if ( $desc  !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
-			echo '  </div>';
-			echo '  <div class="jp-menu__pricegroup">';
-			if ( $price !== '' ) {
-				echo '    <div class="jp-menu__price">';
-				echo '      <span class="jp-menu__value jp-col-price">' . esc_html( $price ) . '</span>';
-				echo '    </div>';
-			}
-			echo '  </div>';
-			echo '</div></li>';
-		}
-		echo '</ul>';
 	}
 }

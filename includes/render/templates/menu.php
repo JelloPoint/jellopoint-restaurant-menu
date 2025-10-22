@@ -1,193 +1,151 @@
 <?php
-/**
- * Menu dispatcher – routes to inline / inline-below / matrix templates
- * and provides shared helpers used by all templates.
- *
- * Expects $ctx from the widget render().
- */
-
 if ( ! defined( 'ABSPATH' ) ) { exit; }
-/* DEBUG  TEMPLATE OVERRIDES*/
-if ( ! empty( $_GET['jprm_probe'] ) ) {
-	echo "\n<!-- jprm: section_layouts = " . esc_html( json_encode( $ctx['section_layouts'] ?? [] ) ) . " -->\n";
-	echo "<!-- jprm: section_overrides = " . esc_html( json_encode( $ctx['section_overrides'] ?? [] ) ) . " -->\n";
-	echo "<!-- jprm: labels_matrix_placeholder = " . esc_html( (string) ( $ctx['labels_matrix_placeholder'] ?? '' ) ) . " -->\n";
-	echo "<!-- jprm: global_placeholder = " . esc_html( (string) ( $ctx['global_placeholder'] ?? '' ) ) . " -->\n";
-}
-
-/* END DEBUG*/
-/* ---------------- Shared helpers (safe to redeclare) ------------------- */
-
-if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
-	function jprm_render_menu_meta( $term, bool $show_title, bool $show_desc, string $scope ) : string {
-		if ( ! $term || ( ! $show_title && ! $show_desc ) ) return '';
-		$title = $show_title ? trim( (string) $term->name ) : '';
-		$desc  = $show_desc  ? trim( (string) $term->description ) : '';
-		if ( $title === '' && $desc === '' ) return '';
-		$cls = 'jp-menu__meta ' . ( $scope === 'global' ? 'jp-menu__meta--global' : 'jp-menu__meta--col' );
-		$out  = '<div class="' . esc_attr( $cls ) . '">';
-		if ( $title !== '' ) $out .= '<h2 class="jp-menu__meta-title">' . esc_html( $title ) . '</h2>';
-		if ( $desc  !== '' ) $out .= '<div class="jp-menu__meta-desc">' . esc_html( $desc ) . '</div>';
-		$out .= '</div>';
-		return $out;
-	}
-}
 
 /**
- * Extract ONLY the first <img> or <svg> from an arbitrary HTML snippet.
- * Prevents dumping whole SVG sprite sheets (which show “all icons”).
+ * Menu dispatcher
+ * - Picks layout per section (override → global)
+ * - Computes effective Matrix placeholder & Inline-Below separator (override → global)
+ * - Includes the chosen layout template with a per-section context
+ *
+ * Expected ctx keys:
+ *   - menu_term, show_menu_title, show_menu_desc, menu_pos
+ *   - sections_order, sections_data
+ *   - show_section_name, show_section_desc
+ *   - label_presentation, label_position, label_map, currency_opts
+ *   - ib_map
+ *   - global_labels_layout, section_layouts, section_overrides
+ *   - labels_matrix_placeholder, inline_below_separator, global_placeholder
  */
-if ( ! function_exists( 'jprm_sanitize_single_icon' ) ) {
-	function jprm_sanitize_single_icon( string $html ) : string {
-		$html = trim( $html );
-		if ( $html === '' ) return '';
-		// First try <img ...>
-		if ( preg_match( '~<img\b[^>]*>~is', $html, $m ) ) {
-			return $m[0];
+
+$menu_term        = $ctx['menu_term'] ?? null;
+$show_menu_title  = ! empty( $ctx['show_menu_title'] );
+$show_menu_desc   = ! empty( $ctx['show_menu_desc'] );
+$menu_pos         = $ctx['menu_pos'] ?? 'above_menu';
+
+$sections_order   = is_array( $ctx['sections_order'] ?? null ) ? $ctx['sections_order'] : [];
+$sections_data    = is_array( $ctx['sections_data'] ?? null )  ? $ctx['sections_data']  : [];
+
+$show_section_name= ! empty( $ctx['show_section_name'] );
+$show_section_desc= ! empty( $ctx['show_section_desc'] );
+
+$label_presentation = (string) ( $ctx['label_presentation'] ?? 'icon_text' );
+$label_position     = (string) ( $ctx['label_position'] ?? 'right' );
+$label_map          = is_array( $ctx['label_map'] ?? null ) ? $ctx['label_map'] : [];
+$currency_opts      = is_array( $ctx['currency_opts'] ?? null ) ? $ctx['currency_opts'] : [];
+
+$ib_map             = is_array( $ctx['ib_map'] ?? null ) ? $ctx['ib_map'] : [];
+
+$global_labels_layout     = (string) ( $ctx['global_labels_layout'] ?? 'inline' );
+$section_layouts          = is_array( $ctx['section_layouts'] ?? null ) ? $ctx['section_layouts'] : [];
+$section_overrides        = is_array( $ctx['section_overrides'] ?? null ) ? $ctx['section_overrides'] : [];
+
+$global_matrix_placeholder = (string) ( $ctx['labels_matrix_placeholder'] ?? '' );
+$global_inline_separator   = (string) ( $ctx['inline_below_separator'] ?? '' );
+$global_placeholder_legacy = (string) ( $ctx['global_placeholder'] ?? '—' );
+
+// Top meta (title/desc above)
+if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
+	echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+}
+
+// List wrapper
+echo '<ul class="jp-menu">';
+
+foreach ( $sections_order as $tid ) {
+	if ( ! isset( $sections_data[ $tid ] ) ) continue;
+
+	$blk   = $sections_data[ $tid ];
+	$term  = $blk['term']  ?? null;
+	$items = $blk['items'] ?? [];
+
+	// Section header (name/desc)
+	if ( $term && $show_section_name ) {
+		echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
+		if ( $show_section_desc && ! empty( $term->description ) ) {
+			echo '<div class="jp-section__desc">' . esc_html( $term->description ) . '</div>';
 		}
-		// Then first <svg ...>...</svg>
-		if ( preg_match( '~<svg\b[^>]*>.*?</svg>~is', $html, $m ) ) {
-			return $m[0];
-		}
-		return '';
+		echo '</li>';
+	}
+
+	// ABOVE info blocks
+	if ( isset( $ib_map[$tid]['above'] ) && ! empty( $ib_map[$tid]['above'] ) ) {
+		echo '<li class="jp-menu__infoblock-li">'. jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ) .'</li>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	}
+
+	// Determine effective layout: override → global
+	$layout = $global_labels_layout;
+	if ( isset( $section_layouts[ $tid ]['layout'] ) && $section_layouts[ $tid ]['layout'] !== '' ) {
+		$layout = (string) $section_layouts[ $tid ]['layout'];
+	}
+	if ( isset( $section_overrides[ $tid ]['layout'] ) && $section_overrides[ $tid ]['layout'] !== '' ) {
+		$layout = (string) $section_overrides[ $tid ]['layout'];
+	}
+
+	// Effective values per layout (override → global)
+	$effective_matrix_placeholder = $global_matrix_placeholder !== '' ? $global_matrix_placeholder : $global_placeholder_legacy;
+	if ( isset( $section_layouts[ $tid ]['placeholder'] ) && $section_layouts[ $tid ]['placeholder'] !== '' ) {
+		$effective_matrix_placeholder = (string) $section_layouts[ $tid ]['placeholder'];
+	}
+	if ( isset( $section_overrides[ $tid ]['matrix']['placeholder'] ) && $section_overrides[ $tid ]['matrix']['placeholder'] !== '' ) {
+		$effective_matrix_placeholder = (string) $section_overrides[ $tid ]['matrix']['placeholder'];
+	}
+
+	$effective_inline_separator = (string) $global_inline_separator;
+	if ( isset( $section_layouts[ $tid ]['separator'] ) && $section_layouts[ $tid ]['separator'] !== '' ) {
+		$effective_inline_separator = (string) $section_layouts[ $tid ]['separator'];
+	}
+	if ( isset( $section_overrides[ $tid ]['inline_below']['separator'] ) && $section_overrides[ $tid ]['inline_below']['separator'] !== '' ) {
+		$effective_inline_separator = (string) $section_overrides[ $tid ]['inline_below']['separator'];
+	}
+
+	// Per-section ctx to pass into the chosen layout
+	$sctx = [
+		'term'                => $term,
+		'items'               => $items,
+
+		'label_presentation'  => $label_presentation,
+		'label_position'      => $label_position,
+		'label_map'           => $label_map,
+		'currency_opts'       => $currency_opts,
+
+		// effective values for this section
+		'matrix_placeholder'  => $effective_matrix_placeholder,
+		'inline_separator'    => $effective_inline_separator,
+	];
+
+	// Include selected layout
+	$base = __DIR__;
+	switch ( $layout ) {
+		case 'matrix':
+			$file = $base . '/matrix.php';
+			break;
+		case 'inline_below':
+			$file = $base . '/inline-below.php';
+			break;
+		case 'inline':
+		default:
+			$file = $base . '/inline.php';
+			break;
+	}
+
+	if ( file_exists( $file ) ) {
+		// expose $sctx and $ctx (full) to the included layout
+		$_section_ctx = $sctx;
+		include $file;
+		unset( $_section_ctx );
+	} else {
+		echo '<li class="jp-menu__error">Missing layout template: ' . esc_html( basename( $file ) ) . '</li>';
+	}
+
+	// BELOW info blocks
+	if ( isset( $ib_map[$tid]['below'] ) && ! empty( $ib_map[$tid]['below'] ) ) {
+		echo '<li class="jp-menu__infoblock-li">'. jprm_infoblocks_render_group( $ib_map[$tid]['below'], 'below' ) .'</li>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 }
 
-/** Build icon HTML from label meta (then sanitize to a single icon). */
-if ( ! function_exists( 'jprm_build_icon_html' ) ) {
-	function jprm_build_icon_html( array $meta ) : string {
-		// Explicit HTML fields sometimes hold sprite blocks — sanitize.
-		foreach ( ['icon_html','icon','svg'] as $k ) {
-			if ( ! empty( $meta[$k] ) ) {
-				$out = jprm_sanitize_single_icon( (string) $meta[$k] );
-				if ( $out !== '' ) return $out;
-			}
-		}
-		// Attachment ID
-		if ( ! empty( $meta['icon_id'] ) && function_exists( 'wp_get_attachment_image' ) ) {
-			$html = wp_get_attachment_image( (int) $meta['icon_id'], 'thumbnail', false, [
-				'class'    => 'jp-label__icon',
-				'loading'  => 'lazy',
-				'decoding' => 'async',
-				'alt'      => '',
-			] );
-			if ( $html ) return jprm_sanitize_single_icon( $html );
-		}
-		// Direct URL
-		foreach ( ['icon_url','url','image_url'] as $k ) {
-			if ( ! empty( $meta[$k] ) ) {
-				$url = esc_url( (string) $meta[$k] );
-				return '<img class="jp-label__icon" src="' . $url . '" alt="" loading="lazy" decoding="async" />';
-			}
-		}
-		return '';
-	}
-}
+echo '</ul>';
 
-/**
- * Normalize $ctx – ensure keys exist and label icons are synthesized.
- * IMPORTANT: we do NOT force a matrix placeholder; default is '' (no clutter).
- */
-if ( ! function_exists( 'jprm_ctx_normalize' ) ) {
-	function jprm_ctx_normalize( array $ctx ) : array {
-		// Defaults
-		if ( empty( $ctx['label_presentation'] ) ) $ctx['label_presentation'] = 'icon_text';
-		if ( ! isset( $ctx['labels_matrix_placeholder'] ) ) $ctx['labels_matrix_placeholder'] = '';
-
-		// Label map
-		$label_map = $ctx['label_map'] ?? null;
-		if ( ! is_array( $label_map ) || empty( $label_map ) ) {
-			if ( function_exists( 'jprm_get_active_labels_map' ) ) {
-				$label_map = (array) jprm_get_active_labels_map();
-			} elseif ( function_exists( 'jprm_labels_store_get' ) ) {
-				$label_map = (array) jprm_labels_store_get();
-			} else {
-				$label_map = [];
-			}
-		}
-
-		// Ensure icon_html is a single icon
-		$norm = [];
-		foreach ( $label_map as $id => $meta ) {
-			$m = is_array( $meta ) ? $meta : [];
-			$m['title']     = isset( $m['title'] ) ? (string) $m['title'] : (string) ( $m['text'] ?? '' );
-			$m['icon_html'] = jprm_build_icon_html( $m );
-			$norm[ (string) ( is_numeric( $id ) ? (int) $id : $id ) ] = $m;
-		}
-		$ctx['label_map'] = $norm;
-
-		return $ctx;
-	}
-}
-
-/**
- * Render a pricegroup (for Inline & Inline-Below) using structured rows so icons show,
- * and sanitize any incoming icon HTML to just ONE icon.
- */
-if ( ! function_exists( 'jprm_render_pricegroup_inline_ctx' ) ) {
-	function jprm_render_pricegroup_inline_ctx(
-		int $post_id,
-		string $presentation,
-		string $label_position,
-		array $label_map,
-		array $currency_opts
-	) : string {
-		$rows = function_exists( 'jprm_get_pricegroup_data' )
-			? (array) jprm_get_pricegroup_data( $post_id, $label_map, $currency_opts )
-			: [];
-		if ( empty( $rows ) ) return '';
-
-		$out = '<div class="jp-pricegroup jp--presentation-' . esc_attr( $presentation ) . '">';
-		foreach ( $rows as $r ) {
-			$label_text = (string) ( $r['label_text'] ?? '' );
-			$label_id   = isset( $r['label_id'] ) ? (string) (int) $r['label_id'] : '';
-			$fmt        = (string) ( $r['formatted'] ?? '' );
-
-			$icon_html  = jprm_sanitize_single_icon( (string) ( $r['icon_html'] ?? '' ) );
-			if ( $icon_html === '' && $label_id !== '' && isset( $label_map[ $label_id ] ) ) {
-				$icon_html = jprm_sanitize_single_icon( (string) ( $label_map[ $label_id ]['icon_html'] ?? '' ) );
-			}
-
-			// Compose chip
-			if ( $presentation === 'icon' ) {
-				$label_chip = $icon_html !== '' ? $icon_html : esc_html( $label_text );
-			} elseif ( $presentation === 'text' ) {
-				$label_chip = esc_html( $label_text );
-			} else { // icon_text
-				$label_chip = ($icon_html !== '' && $label_text !== '')
-					? '<span class="jp-menu__label">'.$icon_html.'<span>'.esc_html($label_text).'</span></span>'
-					: ($icon_html !== '' ? $icon_html : esc_html( $label_text ));
-			}
-
-			if ( $label_position === 'left' ) {
-				$out .= '<div class="jp-menu__row"><span class="jp-chip">'.$label_chip.'</span><span class="jp-price">'.$fmt.'</span></div>';
-			} else {
-				$out .= '<div class="jp-menu__row"><span class="jp-price">'.$fmt.'</span><span class="jp-chip">'.$label_chip.'</span></div>';
-			}
-		}
-		$out .= '</div>';
-		return $out;
-	}
-}
-
-/* ---------------- Normalize, pick template, include ------------------- */
-
-$ctx = isset( $ctx ) && is_array( $ctx ) ? $ctx : [];
-$ctx = jprm_ctx_normalize( $ctx );
-
-$layout = isset( $ctx['global_labels_layout'] ) ? (string) $ctx['global_labels_layout'] : 'inline';
-$layout = in_array( $layout, [ 'inline', 'inline_below', 'matrix' ], true ) ? $layout : 'inline';
-
-$base_dir = __DIR__;
-switch ( $layout ) {
-	case 'matrix':       $tpl = $base_dir . '/matrix.php';       break;
-	case 'inline_below': $tpl = $base_dir . '/inline-below.php'; break;
-	case 'inline':
-	default:             $tpl = $base_dir . '/inline.php';        break;
-}
-
-if ( file_exists( $tpl ) ) {
-	include $tpl; // $ctx in scope
-} else {
-	echo '<ul class="jp-menu"></ul>';
+// Bottom meta (title/desc below)
+if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'below_menu' ) {
+	echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 }
