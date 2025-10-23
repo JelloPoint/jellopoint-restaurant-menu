@@ -343,7 +343,7 @@ $this->start_controls_section(
 );
 
 /* ==============================
- * Prices
+ * Prices (short-class selectors)
  * ============================== */
 $this->add_control(
     'jprm_prices_heading',
@@ -354,64 +354,61 @@ $this->add_control(
     ]
 );
 
-// Amount typography
+// Typography for the whole price token ($ 5, $ 10)
 $this->add_group_control(
     \Elementor\Group_Control_Typography::get_type(),
     [
-        'name'     => 'jprm_price_amount_typography',
-        'selector' =>
-            '{{WRAPPER}} .jp-price, ' .
-            '{{WRAPPER}} .jp-matrix__cell--value .jp-price',
+        'name'     => 'jprm_price_typography',
+        'selector' => '{{WRAPPER}} .jp-price',
     ]
 );
 
-// Amount color
+// Color (affects both currency and amount because they are one text node)
 $this->add_control(
-    'jprm_price_amount_color',
+    'jprm_price_color',
     [
-        'label'     => __( 'Amount Color', 'jellopoint-restaurant-menu' ),
+        'label'     => __( 'Color', 'jellopoint-restaurant-menu' ),
         'type'      => Controls_Manager::COLOR,
         'selectors' => [
-            '{{WRAPPER}} .jp-price'                      => 'color: {{VALUE}};',
-            '{{WRAPPER}} .jp-matrix__cell--value .jp-menu__amount' => 'color: {{VALUE}};',
+            '{{WRAPPER}} .jp-price' => 'color: {{VALUE}};',
         ],
     ]
 );
 
-// Currency color (position remains in Content tab)
-$this->add_control(
-    'jprm_price_currency_color',
-    [
-        'label'     => __( 'Currency Color', 'jellopoint-restaurant-menu' ),
-        'type'      => Controls_Manager::COLOR,
-        'selectors' => [
-            '{{WRAPPER}} .jp-menu__currency'                      => 'color: {{VALUE}};',
-            '{{WRAPPER}} .jp-matrix__cell--value .jp-menu__currency' => 'color: {{VALUE}};',
-        ],
-    ]
-);
-
-// Currency spacing (visual gap before/after)
+// Alignment of the price column (works when the item uses grid with .jp-menu__pricegroup as the grid item)
 $this->add_responsive_control(
-    'jprm_price_currency_gap',
+    'jprm_price_align',
     [
-        'label'      => __( 'Currency Spacing', 'jellopoint-restaurant-menu' ),
+        'label'   => __( 'Price Column Alignment', 'jellopoint-restaurant-menu' ),
+        'type'    => Controls_Manager::CHOOSE,
+        'options' => [
+            'start'  => [ 'title' => __( 'Left', 'jellopoint-restaurant-menu' ),   'icon' => 'eicon-text-align-left' ],
+            'center' => [ 'title' => __( 'Center', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-center' ],
+            'end'    => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-text-align-right' ],
+        ],
+        'selectors' => [
+            '{{WRAPPER}} .jp-menu__pricegroup' => 'justify-self: {{VALUE}};',
+        ],
+    ]
+);
+
+// Vertical gap between the price rows (safe even if container isn't flex)
+$this->add_responsive_control(
+    'jprm_price_rows_gap',
+    [
+        'label'      => __( 'Row Gap (multiple prices)', 'jellopoint-restaurant-menu' ),
         'type'       => Controls_Manager::SLIDER,
         'size_units' => [ 'em', 'px' ],
         'range'      => [
-            'em' => [ 'min' => 0, 'max' => 1,  'step' => 0.05 ],
-            'px' => [ 'min' => 0, 'max' => 16, 'step' => 1 ],
+            'em' => [ 'min' => 0, 'max' => 2,  'step' => 0.05 ],
+            'px' => [ 'min' => 0, 'max' => 32, 'step' => 1 ],
         ],
         'selectors'  => [
-            // currency before amount
-            '{{WRAPPER}} .jp-price.jp-currency-pos-before .jp-menu__currency' => 'margin-right: {{SIZE}}{{UNIT}};',
-            '{{WRAPPER}} .jp-matrix__cell--value .jp-price.jp-currency-pos-before .jp-menu__currency' => 'margin-right: {{SIZE}}{{UNIT}};',
-            // currency after amount
-            '{{WRAPPER}} .jp-price.jp-currency-pos-after .jp-menu__currency'  => 'margin-left: {{SIZE}}{{UNIT}};',
-            '{{WRAPPER}} .jp-matrix__cell--value .jp-price.jp-currency-pos-after .jp-menu__currency'  => 'margin-left: {{SIZE}}{{UNIT}};',
+            '{{WRAPPER}} .jp-menu__pricegroup .jp-price-row + .jp-price-row' => 'margin-top: {{SIZE}}{{UNIT}};',
         ],
     ]
 );
+
 
 // Alignment (Inline + Inline-Below) – act on the pricegroup
 $this->add_responsive_control(
