@@ -343,8 +343,9 @@ $this->start_controls_section(
 );
 
 /* ==============================
- * Prices (short-class selectors)
+ * Prices (grouped by layout)
  * ============================== */
+
 $this->add_control(
     'jprm_prices_heading',
     [
@@ -354,45 +355,43 @@ $this->add_control(
     ]
 );
 
-// Typography for the whole price token ($ 5, $ 10)
+/* --- Common (applies to all layouts) ---------------------- */
+
+$this->add_control(
+    'jprm_prices_common_heading',
+    [
+        'label'     => __( 'Common', 'jellopoint-restaurant-menu' ),
+        'type'      => Controls_Manager::HEADING,
+        'separator' => 'none',
+    ]
+);
+
+// Whole price token (currency + amount are one text node for now)
 $this->add_group_control(
     \Elementor\Group_Control_Typography::get_type(),
     [
         'name'     => 'jprm_price_typography',
-        'selector' => '{{WRAPPER}} .jp-price',
+        'selector' =>
+            // default/inline/inline-below
+            '{{WRAPPER}} .jp-price, ' .
+            // matrix cell
+            '{{WRAPPER}} .jp-matrix__cell--value .jp-price',
     ]
 );
 
-// Color (affects both currency and amount because they are one text node)
 $this->add_control(
     'jprm_price_color',
     [
         'label'     => __( 'Color', 'jellopoint-restaurant-menu' ),
         'type'      => Controls_Manager::COLOR,
         'selectors' => [
-            '{{WRAPPER}} .jp-price' => 'color: {{VALUE}};',
+            '{{WRAPPER}} .jp-price'                         => 'color: {{VALUE}};',
+            '{{WRAPPER}} .jp-matrix__cell--value .jp-price' => 'color: {{VALUE}};',
         ],
     ]
 );
 
-// Alignment of the price column (works when the item uses grid with .jp-menu__pricegroup as the grid item)
-$this->add_responsive_control(
-    'jprm_price_align',
-    [
-        'label'   => __( 'Price Column Alignment', 'jellopoint-restaurant-menu' ),
-        'type'    => Controls_Manager::CHOOSE,
-        'options' => [
-            'start'  => [ 'title' => __( 'Left', 'jellopoint-restaurant-menu' ),   'icon' => 'eicon-text-align-left' ],
-            'center' => [ 'title' => __( 'Center', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-center' ],
-            'end'    => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-text-align-right' ],
-        ],
-        'selectors' => [
-            '{{WRAPPER}} .jp-menu__pricegroup' => 'justify-self: {{VALUE}};',
-        ],
-    ]
-);
-
-// Vertical gap between the price rows (safe even if container isn't flex)
+// Vertical gap between multiple price rows (affects inline & inline-below)
 $this->add_responsive_control(
     'jprm_price_rows_gap',
     [
@@ -404,52 +403,73 @@ $this->add_responsive_control(
             'px' => [ 'min' => 0, 'max' => 32, 'step' => 1 ],
         ],
         'selectors'  => [
-            '{{WRAPPER}} .jp-menu__pricegroup .jp-price-row + .jp-price-row' => 'margin-top: {{SIZE}}{{UNIT}};',
+            '{{WRAPPER}} .jp-inline .jp-menu__pricegroup .jp-price-row + .jp-price-row'       => 'margin-top: {{SIZE}}{{UNIT}};',
+            '{{WRAPPER}} .jp-inline-below .jp-menu__pricegroup .jp-price-row + .jp-price-row' => 'margin-top: {{SIZE}}{{UNIT}};',
         ],
     ]
 );
 
+/* --- Inline ------------------------------------------------ */
 
-// Alignment (Inline + Inline-Below) – act on the pricegroup
-$this->add_responsive_control(
-    'jprm_price_align',
+$this->add_control(
+    'jprm_prices_inline_heading',
     [
-        'label'   => __( 'Price Alignment', 'jellopoint-restaurant-menu' ),
+        'label'     => __( 'Inline', 'jellopoint-restaurant-menu' ),
+        'type'      => Controls_Manager::HEADING,
+        'separator' => 'before',
+    ]
+);
+
+// Column alignment (Inline) – grid item alignment
+$this->add_responsive_control(
+    'jprm_price_align_inline',
+    [
+        'label'   => __( 'Price Column Alignment', 'jellopoint-restaurant-menu' ),
         'type'    => Controls_Manager::CHOOSE,
         'options' => [
-            'left'   => [ 'title' => __( 'Left', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-left' ],
+            'start'  => [ 'title' => __( 'Left', 'jellopoint-restaurant-menu' ),   'icon' => 'eicon-text-align-left' ],
             'center' => [ 'title' => __( 'Center', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-center' ],
-            'right'  => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-right' ],
+            'end'    => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-text-align-right' ],
         ],
         'selectors' => [
-            '{{WRAPPER}} .jp-inline .jp-pricegroup'       => 'text-align: {{VALUE}};',
-            '{{WRAPPER}} .jp-inline-below .jp-pricegroup' => 'text-align: {{VALUE}};',
+            '{{WRAPPER}} .jp-inline .jp-menu__pricegroup' => 'justify-self: {{VALUE}};',
         ],
     ]
 );
 
-// Matrix alignment (value cell)
-$this->add_responsive_control(
-    'jprm_price_align_matrix',
+/* --- Inline-Below ----------------------------------------- */
+
+$this->add_control(
+    'jprm_prices_inline_below_heading',
     [
-        'label'   => __( 'Price Alignment (Matrix)', 'jellopoint-restaurant-menu' ),
+        'label'     => __( 'Inline-Below', 'jellopoint-restaurant-menu' ),
+        'type'      => Controls_Manager::HEADING,
+        'separator' => 'before',
+    ]
+);
+
+// Column alignment (Inline-Below)
+$this->add_responsive_control(
+    'jprm_price_align_inline_below',
+    [
+        'label'   => __( 'Price Column Alignment', 'jellopoint-restaurant-menu' ),
         'type'    => Controls_Manager::CHOOSE,
         'options' => [
-            'left'   => [ 'title' => __( 'Left', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-left' ],
+            'start'  => [ 'title' => __( 'Left', 'jellopoint-restaurant-menu' ),   'icon' => 'eicon-text-align-left' ],
             'center' => [ 'title' => __( 'Center', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-center' ],
-            'right'  => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-right' ],
+            'end'    => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-text-align-right' ],
         ],
         'selectors' => [
-            '{{WRAPPER}} .jp-matrix__cell--value' => 'text-align: {{VALUE}};',
+            '{{WRAPPER}} .jp-inline-below .jp-menu__pricegroup' => 'justify-self: {{VALUE}};',
         ],
     ]
 );
 
-// Inline-below: vertical gap to the chips/labels row
+// Gap from price rows to chip/labels line (Inline-Below)
 $this->add_responsive_control(
-    'jprm_price_labels_gap',
+    'jprm_price_labels_gap_inline_below',
     [
-        'label'      => __( 'Gap to Labels (Inline-Below)', 'jellopoint-restaurant-menu' ),
+        'label'      => __( 'Gap to Labels', 'jellopoint-restaurant-menu' ),
         'type'       => Controls_Manager::SLIDER,
         'size_units' => [ 'em', 'px' ],
         'range'      => [
@@ -462,18 +482,18 @@ $this->add_responsive_control(
     ]
 );
 
-// Separator appearance (toggle is in Content)
+// Separator appearance (toggle stays in Content)
 $this->add_control(
-    'jprm_sep_heading',
+    'jprm_sep_inline_below_heading',
     [
-        'label'     => __( 'Separator (Inline-Below)', 'jellopoint-restaurant-menu' ),
+        'label'     => __( 'Separator', 'jellopoint-restaurant-menu' ),
         'type'      => Controls_Manager::HEADING,
         'separator' => 'before',
     ]
 );
 
 $this->add_control(
-    'jprm_sep_color',
+    'jprm_sep_color_inline_below',
     [
         'label'     => __( 'Color', 'jellopoint-restaurant-menu' ),
         'type'      => Controls_Manager::COLOR,
@@ -484,7 +504,7 @@ $this->add_control(
 );
 
 $this->add_responsive_control(
-    'jprm_sep_opacity',
+    'jprm_sep_opacity_inline_below',
     [
         'label' => __( 'Opacity', 'jellopoint-restaurant-menu' ),
         'type'  => Controls_Manager::SLIDER,
@@ -496,7 +516,7 @@ $this->add_responsive_control(
 );
 
 $this->add_responsive_control(
-    'jprm_sep_xpad',
+    'jprm_sep_xpad_inline_below',
     [
         'label'      => __( 'Horizontal Padding', 'jellopoint-restaurant-menu' ),
         'type'       => Controls_Manager::SLIDER,
@@ -510,6 +530,35 @@ $this->add_responsive_control(
         ],
     ]
 );
+
+/* --- Matrix ------------------------------------------------ */
+
+$this->add_control(
+    'jprm_prices_matrix_heading',
+    [
+        'label'     => __( 'Matrix', 'jellopoint-restaurant-menu' ),
+        'type'      => Controls_Manager::HEADING,
+        'separator' => 'before',
+    ]
+);
+
+// Text alignment inside the "value" cell
+$this->add_responsive_control(
+    'jprm_price_align_matrix',
+    [
+        'label'   => __( 'Value Cell Alignment', 'jellopoint-restaurant-menu' ),
+        'type'    => Controls_Manager::CHOOSE,
+        'options' => [
+            'left'   => [ 'title' => __( 'Left', 'jellopoint-restaurant-menu' ),   'icon' => 'eicon-text-align-left' ],
+            'center' => [ 'title' => __( 'Center', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-center' ],
+            'right'  => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-text-align-right' ],
+        ],
+        'selectors' => [
+            '{{WRAPPER}} .jp-matrix__cell--value' => 'text-align: {{VALUE}};',
+        ],
+    ]
+);
+
 
 /* ==============================
  * Labels

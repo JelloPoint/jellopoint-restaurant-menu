@@ -47,3 +47,37 @@ function jprm_item_value_for_label( int $post_id, int $lid, ?array $label_map, a
   }
   return null;
 }
+
+
+if ( ! function_exists( 'jprm_render_price_token' ) ) {
+	/**
+	 * Render a price token with separate currency + amount using short classes.
+	 *
+	 * @param string $amount   Numeric/text amount, e.g. '5' or '10.50'.
+	 * @param string $currency Currency symbol, e.g. '€' or '$'.
+	 * @param string $pos      'before' | 'after'
+	 * @param array  $span_attrib Optional extra attributes for the outer <span class="jp-price">.
+	 */
+	function jprm_render_price_token( string $amount, string $currency, string $pos = 'before', array $span_attrib = [] ) : void {
+		$pos = ( $pos === 'after' ) ? 'after' : 'before';
+		$classes = 'jp-price jp-currency-pos-' . $pos;
+
+		// Merge user attributes (optional)
+		$attr = array_merge( [ 'class' => $classes ], $span_attrib );
+		$attr_str = '';
+		foreach ( $attr as $k => $v ) {
+			$attr_str .= sprintf( ' %s="%s"', esc_attr( $k ), esc_attr( $v ) );
+		}
+
+		echo '<span' . $attr_str . '>';
+		if ( $pos === 'before' ) {
+			echo '<span class="jp-currency">' . esc_html( $currency ) . '</span>';
+			echo '<span class="jp-amount">'   . esc_html( $amount )   . '</span>';
+		} else {
+			echo '<span class="jp-amount">'   . esc_html( $amount )   . '</span>';
+			echo '<span class="jp-currency">' . esc_html( $currency ) . '</span>';
+		}
+		echo '</span>';
+	}
+}
+
