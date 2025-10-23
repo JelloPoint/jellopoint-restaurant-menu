@@ -1,22 +1,6 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-/** Menu meta (shared) */
-if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
-  function jprm_render_menu_meta( $term, bool $show_title, bool $show_desc, string $scope ) : string {
-    if ( ! $term || ( ! $show_title && ! $show_desc ) ) return '';
-    $title = $show_title ? trim( (string) $term->name ) : '';
-    $desc  = $show_desc  ? trim( (string) $term->description ) : '';
-    if ( $title === '' && $desc === '' ) return '';
-    $cls = 'jp-menu__meta ' . ( $scope === 'global' ? 'jp-menu__meta--global' : 'jp-menu__meta--col' );
-    $out  = '<div class="' . esc_attr( $cls ) . '">';
-    if ( $title !== '' ) $out .= '<h2 class="jp-menu__meta-title">' . esc_html( $title ) . '</h2>';
-    if ( $desc  !== '' ) $out .= '<div class="jp-menu__meta-desc">' . esc_html( $desc ) . '</div>';
-    $out .= '</div>';
-    return $out;
-  }
-}
-
 /** Collect label columns for Matrix */
 function jprm_section_collect_label_columns( array $items, ?array $label_map, array $currency_opts ) : array {
   $cols = [];
