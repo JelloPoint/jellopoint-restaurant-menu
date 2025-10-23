@@ -333,7 +333,7 @@ trait Restaurant_Menu_Style {
 
 
 
-/* ===== Prices & Labels ===== */
+/* ===== Prices & Labels (wired to current CSS classes) ===== */
 $this->start_controls_section(
     'jprm_style_prices_labels',
     [
@@ -360,10 +360,8 @@ $this->add_group_control(
     [
         'name'     => 'jprm_price_amount_typography',
         'selector' =>
-            // Inline / Inline-below
-            '{{WRAPPER}} .jp-price__amount, ' .
-            // Matrix cell
-            '{{WRAPPER}} .jp-matrix__cell--price .jp-price__amount',
+            '{{WRAPPER}} .jp-menu__amount, ' .
+            '{{WRAPPER}} .jp-matrix__cell--value .jp-menu__amount',
     ]
 );
 
@@ -374,26 +372,26 @@ $this->add_control(
         'label'     => __( 'Amount Color', 'jellopoint-restaurant-menu' ),
         'type'      => Controls_Manager::COLOR,
         'selectors' => [
-            '{{WRAPPER}} .jp-price__amount'                      => 'color: {{VALUE}};',
-            '{{WRAPPER}} .jp-matrix__cell--price .jp-price__amount' => 'color: {{VALUE}};',
+            '{{WRAPPER}} .jp-menu__amount'                      => 'color: {{VALUE}};',
+            '{{WRAPPER}} .jp-matrix__cell--value .jp-menu__amount' => 'color: {{VALUE}};',
         ],
     ]
 );
 
-// Currency color (visual; position stays in Content tab)
+// Currency color (position remains in Content tab)
 $this->add_control(
     'jprm_price_currency_color',
     [
         'label'     => __( 'Currency Color', 'jellopoint-restaurant-menu' ),
         'type'      => Controls_Manager::COLOR,
         'selectors' => [
-            '{{WRAPPER}} .jp-price__currency'                      => 'color: {{VALUE}};',
-            '{{WRAPPER}} .jp-matrix__cell--price .jp-price__currency' => 'color: {{VALUE}};',
+            '{{WRAPPER}} .jp-menu__currency'                      => 'color: {{VALUE}};',
+            '{{WRAPPER}} .jp-matrix__cell--value .jp-menu__currency' => 'color: {{VALUE}};',
         ],
     ]
 );
 
-// Currency spacing (visual; Content controls Position)
+// Currency spacing (visual gap before/after)
 $this->add_responsive_control(
     'jprm_price_currency_gap',
     [
@@ -401,22 +399,21 @@ $this->add_responsive_control(
         'type'       => Controls_Manager::SLIDER,
         'size_units' => [ 'em', 'px' ],
         'range'      => [
-            'em' => [ 'min' => 0, 'max' => 1,   'step' => 0.05 ],
-            'px' => [ 'min' => 0, 'max' => 16,  'step' => 1 ],
+            'em' => [ 'min' => 0, 'max' => 1,  'step' => 0.05 ],
+            'px' => [ 'min' => 0, 'max' => 16, 'step' => 1 ],
         ],
         'selectors'  => [
-            // If currency is before amount
-            '{{WRAPPER}} .jp-price--before .jp-price__currency' => 'margin-right: {{SIZE}}{{UNIT}};',
-            // If currency is after amount
-            '{{WRAPPER}} .jp-price--after .jp-price__currency'  => 'margin-left: {{SIZE}}{{UNIT}};',
-            // Matrix variants
-            '{{WRAPPER}} .jp-matrix__cell--price .jp-price--before .jp-price__currency' => 'margin-right: {{SIZE}}{{UNIT}};',
-            '{{WRAPPER}} .jp-matrix__cell--price .jp-price--after .jp-price__currency'  => 'margin-left: {{SIZE}}{{UNIT}};',
+            // currency before amount
+            '{{WRAPPER}} .jp-menu__price.jp-currency-pos-before .jp-menu__currency' => 'margin-right: {{SIZE}}{{UNIT}};',
+            '{{WRAPPER}} .jp-matrix__cell--value .jp-menu__price.jp-currency-pos-before .jp-menu__currency' => 'margin-right: {{SIZE}}{{UNIT}};',
+            // currency after amount
+            '{{WRAPPER}} .jp-menu__price.jp-currency-pos-after .jp-menu__currency'  => 'margin-left: {{SIZE}}{{UNIT}};',
+            '{{WRAPPER}} .jp-matrix__cell--value .jp-menu__price.jp-currency-pos-after .jp-menu__currency'  => 'margin-left: {{SIZE}}{{UNIT}};',
         ],
     ]
 );
 
-// Alignment (Inline + Inline-below)
+// Alignment (Inline + Inline-Below) – act on the pricegroup
 $this->add_responsive_control(
     'jprm_price_align',
     [
@@ -428,13 +425,13 @@ $this->add_responsive_control(
             'right'  => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-right' ],
         ],
         'selectors' => [
-            '{{WRAPPER}} .jp-inline .jp-price'       => 'text-align: {{VALUE}};',
-            '{{WRAPPER}} .jp-inline-below .jp-price' => 'text-align: {{VALUE}};',
+            '{{WRAPPER}} .jp-inline .jp-menu__pricegroup'       => 'text-align: {{VALUE}};',
+            '{{WRAPPER}} .jp-inline-below .jp-menu__pricegroup' => 'text-align: {{VALUE}};',
         ],
     ]
 );
 
-// Matrix: alignment (keep separate; matrix cells behave differently)
+// Matrix alignment (value cell)
 $this->add_responsive_control(
     'jprm_price_align_matrix',
     [
@@ -446,12 +443,12 @@ $this->add_responsive_control(
             'right'  => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-right' ],
         ],
         'selectors' => [
-            '{{WRAPPER}} .jp-matrix__cell--price' => 'text-align: {{VALUE}};',
+            '{{WRAPPER}} .jp-matrix__cell--value' => 'text-align: {{VALUE}};',
         ],
     ]
 );
 
-// Inline-below: vertical gap between price row and labels row
+// Inline-below: vertical gap to the chips/labels row
 $this->add_responsive_control(
     'jprm_price_labels_gap',
     [
@@ -463,12 +460,12 @@ $this->add_responsive_control(
             'px' => [ 'min' => 0, 'max' => 48, 'step' => 1 ],
         ],
         'selectors'  => [
-            '{{WRAPPER}} .jp-inline-below .jp-labels' => 'margin-top: {{SIZE}}{{UNIT}};',
+            '{{WRAPPER}} .jp-inline-below .jp-chipline' => 'margin-top: {{SIZE}}{{UNIT}};',
         ],
     ]
 );
 
-// Inline-below separator appearance (toggle lives in Content)
+// Separator appearance (toggle is in Content)
 $this->add_control(
     'jprm_sep_heading',
     [
@@ -479,26 +476,12 @@ $this->add_control(
 );
 
 $this->add_control(
-    'jprm_sep_char',
-    [
-        'label'       => __( 'Character', 'jellopoint-restaurant-menu' ),
-        'type'        => Controls_Manager::TEXT,
-        'default'     => '•',
-        'placeholder' => '•  –  /  ·',
-        'selectors'   => [
-            '{{WRAPPER}} .jp-inline-below .jp-sep' => 'content: "{{VALUE}}";',
-        ],
-        'description' => __( 'Used only when separator is enabled in Content tab.', 'jellopoint-restaurant-menu' ),
-    ]
-);
-
-$this->add_control(
     'jprm_sep_color',
     [
         'label'     => __( 'Color', 'jellopoint-restaurant-menu' ),
         'type'      => Controls_Manager::COLOR,
         'selectors' => [
-            '{{WRAPPER}} .jp-inline-below .jp-sep' => 'color: {{VALUE}}; opacity: var(--jprm-sep-opacity,1);',
+            '{{WRAPPER}} .jp-inline-below .jp-sep' => 'color: {{VALUE}};',
         ],
     ]
 );
@@ -510,7 +493,7 @@ $this->add_responsive_control(
         'type'  => Controls_Manager::SLIDER,
         'range' => [ 'px' => [ 'min' => 0, 'max' => 1, 'step' => 0.05 ] ],
         'selectors' => [
-            '{{WRAPPER}}' => '--jprm-sep-opacity: {{SIZE}};',
+            '{{WRAPPER}} .jp-inline-below .jp-sep' => 'opacity: {{SIZE}};',
         ],
     ]
 );
@@ -527,22 +510,6 @@ $this->add_responsive_control(
         ],
         'selectors'  => [
             '{{WRAPPER}} .jp-inline-below .jp-sep' => 'padding: 0 {{SIZE}}{{UNIT}};',
-        ],
-    ]
-);
-
-$this->add_control(
-    'jprm_sep_valign',
-    [
-        'label'   => __( 'Vertical Align', 'jellopoint-restaurant-menu' ),
-        'type'    => Controls_Manager::SELECT,
-        'default' => 'baseline',
-        'options' => [
-            'baseline' => __( 'Baseline', 'jellopoint-restaurant-menu' ),
-            'middle'   => __( 'Middle', 'jellopoint-restaurant-menu' ),
-        ],
-        'selectors' => [
-            '{{WRAPPER}} .jp-inline-below .jp-sep' => 'vertical-align: {{VALUE}};',
         ],
     ]
 );
@@ -565,39 +532,25 @@ $this->add_group_control(
     [
         'name'     => 'jprm_label_typography',
         'selector' =>
-            '{{WRAPPER}} .jp-label, ' .
-            '{{WRAPPER}} .jp-matrix__cell--labels .jp-label',
+            '{{WRAPPER}} .jp-menu__label, ' .
+            '{{WRAPPER}} .jp-matrix .jp-menu__label',
     ]
 );
 
-// Label text color (also drives icon color if icon inherits currentColor)
+// Label text color (affects only text now; icon color will work after renderer tweak)
 $this->add_control(
     'jprm_label_text_color',
     [
         'label'     => __( 'Text Color', 'jellopoint-restaurant-menu' ),
         'type'      => Controls_Manager::COLOR,
         'selectors' => [
-            '{{WRAPPER}} .jp-label'                           => 'color: {{VALUE}};',
-            '{{WRAPPER}} .jp-matrix__cell--labels .jp-label'  => 'color: {{VALUE}};',
+            '{{WRAPPER}} .jp-menu__label'          => 'color: {{VALUE}};',
+            '{{WRAPPER}} .jp-matrix .jp-menu__label' => 'color: {{VALUE}};',
         ],
     ]
 );
 
-// Optional: explicit icon color (overrides inheritance)
-$this->add_control(
-    'jprm_label_icon_color',
-    [
-        'label'     => __( 'Icon Color', 'jellopoint-restaurant-menu' ),
-        'type'      => Controls_Manager::COLOR,
-        'selectors' => [
-            '{{WRAPPER}} .jp-label__icon-svg'                          => 'color: {{VALUE}};',
-            '{{WRAPPER}} .jp-matrix__cell--labels .jp-label__icon-svg' => 'color: {{VALUE}};',
-        ],
-        'description' => __( 'If unset, icons inherit the label text color.', 'jellopoint-restaurant-menu' ),
-    ]
-);
-
-// Icon size
+// Icon size (current IMG-based icons)
 $this->add_responsive_control(
     'jprm_label_icon_size',
     [
@@ -606,13 +559,13 @@ $this->add_responsive_control(
         'size_units' => [ 'px' ],
         'range'      => [ 'px' => [ 'min' => 8, 'max' => 64, 'step' => 1 ] ],
         'selectors'  => [
-            '{{WRAPPER}} .jp-label__icon-svg'                          => 'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};',
-            '{{WRAPPER}} .jp-matrix__cell--labels .jp-label__icon-svg' => 'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};',
+            '{{WRAPPER}} .jp-menu__icon'           => 'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};',
+            '{{WRAPPER}} .jp-matrix .jp-menu__icon' => 'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};',
         ],
     ]
 );
 
-// Icon gap
+// Icon gap (works for IMG now; will also apply to inline SVG later)
 $this->add_responsive_control(
     'jprm_label_icon_gap',
     [
@@ -624,21 +577,21 @@ $this->add_responsive_control(
             'px' => [ 'min' => 0, 'max' => 24, 'step' => 1 ],
         ],
         'selectors'  => [
-            '{{WRAPPER}} .jp-label__icon-svg'                          => 'margin-right: {{SIZE}}{{UNIT}};',
-            '{{WRAPPER}} .jp-matrix__cell--labels .jp-label__icon-svg' => 'margin-right: {{SIZE}}{{UNIT}};',
+            '{{WRAPPER}} .jp-menu__icon'            => 'margin-right: {{SIZE}}{{UNIT}};',
+            '{{WRAPPER}} .jp-matrix .jp-menu__icon' => 'margin-right: {{SIZE}}{{UNIT}};',
         ],
     ]
 );
 
-// Chip styling (Inline-Below / chip variants)
+// Chip styling (Inline-Below chips)
 $this->add_responsive_control(
     'jprm_label_chip_padding',
     [
-        'label'      => __( 'Chip Padding', 'jellopoint-restaurant-menu' ),
+        'label'      => __( 'Chip Padding (Inline-Below)', 'jellopoint-restaurant-menu' ),
         'type'       => Controls_Manager::DIMENSIONS,
         'size_units' => [ 'px', 'em' ],
         'selectors'  => [
-            '{{WRAPPER}} .jp-label.is-chip' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+            '{{WRAPPER}} .jp-inline-below .jp-chip .jp-menu__label' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
         ],
     ]
 );
@@ -646,12 +599,12 @@ $this->add_responsive_control(
 $this->add_responsive_control(
     'jprm_label_chip_radius',
     [
-        'label'      => __( 'Chip Radius', 'jellopoint-restaurant-menu' ),
+        'label'      => __( 'Chip Radius (Inline-Below)', 'jellopoint-restaurant-menu' ),
         'type'       => Controls_Manager::SLIDER,
         'size_units' => [ 'px' ],
         'range'      => [ 'px' => [ 'min' => 0, 'max' => 24, 'step' => 1 ] ],
         'selectors'  => [
-            '{{WRAPPER}} .jp-label.is-chip' => 'border-radius: {{SIZE}}{{UNIT}};',
+            '{{WRAPPER}} .jp-inline-below .jp-chip .jp-menu__label' => 'border-radius: {{SIZE}}{{UNIT}};',
         ],
     ]
 );
@@ -659,10 +612,10 @@ $this->add_responsive_control(
 $this->add_control(
     'jprm_label_chip_bg',
     [
-        'label'     => __( 'Chip Background', 'jellopoint-restaurant-menu' ),
+        'label'     => __( 'Chip Background (Inline-Below)', 'jellopoint-restaurant-menu' ),
         'type'      => Controls_Manager::COLOR,
         'selectors' => [
-            '{{WRAPPER}} .jp-label.is-chip' => 'background-color: {{VALUE}};',
+            '{{WRAPPER}} .jp-inline-below .jp-chip .jp-menu__label' => 'background-color: {{VALUE}};',
         ],
     ]
 );
@@ -670,12 +623,12 @@ $this->add_control(
 $this->add_responsive_control(
     'jprm_label_chip_border_width',
     [
-        'label'      => __( 'Chip Border Width', 'jellopoint-restaurant-menu' ),
+        'label'      => __( 'Chip Border Width (Inline-Below)', 'jellopoint-restaurant-menu' ),
         'type'       => Controls_Manager::SLIDER,
         'size_units' => [ 'px' ],
         'range'      => [ 'px' => [ 'min' => 0, 'max' => 4, 'step' => 1 ] ],
         'selectors'  => [
-            '{{WRAPPER}} .jp-label.is-chip' => 'border-width: {{SIZE}}{{UNIT}}; border-style: solid;',
+            '{{WRAPPER}} .jp-inline-below .jp-chip .jp-menu__label' => 'border-width: {{SIZE}}{{UNIT}}; border-style: solid;',
         ],
     ]
 );
@@ -683,19 +636,19 @@ $this->add_responsive_control(
 $this->add_control(
     'jprm_label_chip_border_color',
     [
-        'label'     => __( 'Chip Border Color', 'jellopoint-restaurant-menu' ),
+        'label'     => __( 'Chip Border Color (Inline-Below)', 'jellopoint-restaurant-menu' ),
         'type'      => Controls_Manager::COLOR,
         'selectors' => [
-            '{{WRAPPER}} .jp-label.is-chip' => 'border-color: {{VALUE}};',
+            '{{WRAPPER}} .jp-inline-below .jp-chip .jp-menu__label' => 'border-color: {{VALUE}};',
         ],
     ]
 );
 
-// Labels flow & alignment
+// Labels row gap
 $this->add_responsive_control(
     'jprm_labels_gap',
     [
-        'label'      => __( 'Inter-label Gap', 'jellopoint-restaurant-menu' ),
+        'label'      => __( 'Labels Row Gap', 'jellopoint-restaurant-menu' ),
         'type'       => Controls_Manager::SLIDER,
         'size_units' => [ 'em', 'px' ],
         'range'      => [
@@ -703,42 +656,16 @@ $this->add_responsive_control(
             'px' => [ 'min' => 0, 'max' => 32, 'step' => 1 ],
         ],
         'selectors'  => [
-            '{{WRAPPER}} .jp-labels' => 'gap: {{SIZE}}{{UNIT}};',
-        ],
-    ]
-);
-
-$this->add_control(
-    'jprm_labels_wrap',
-    [
-        'label'        => __( 'Wrap Labels', 'jellopoint-restaurant-menu' ),
-        'type'         => Controls_Manager::SWITCHER,
-        'label_on'     => __( 'Yes', 'jellopoint-restaurant-menu' ),
-        'label_off'    => __( 'No', 'jellopoint-restaurant-menu' ),
-        'return_value' => 'wrap',
-        'selectors'    => [
-            '{{WRAPPER}} .jp-labels' => 'flex-wrap: {{VALUE}};',
-        ],
-    ]
-);
-
-$this->add_responsive_control(
-    'jprm_labels_align',
-    [
-        'label'   => __( 'Labels Alignment', 'jellopoint-restaurant-menu' ),
-        'type'    => Controls_Manager::CHOOSE,
-        'options' => [
-            'flex-start' => [ 'title' => __( 'Left', 'jellopoint-restaurant-menu' ),   'icon' => 'eicon-text-align-left' ],
-            'center'     => [ 'title' => __( 'Center', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-center' ],
-            'flex-end'   => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-text-align-right' ],
-        ],
-        'selectors' => [
-            '{{WRAPPER}} .jp-labels' => 'justify-content: {{VALUE}};',
+            // General rows inside pricegroup
+            '{{WRAPPER}} .jp-menu__pricegroup .jp-menu__row' => 'gap: {{SIZE}}{{UNIT}};',
+            // Inline-Below chip line
+            '{{WRAPPER}} .jp-inline-below .jp-chipline'      => 'gap: {{SIZE}}{{UNIT}};',
         ],
     ]
 );
 
 $this->end_controls_section();
+
 
 
 
