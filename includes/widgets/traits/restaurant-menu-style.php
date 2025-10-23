@@ -360,8 +360,8 @@ $this->add_group_control(
     [
         'name'     => 'jprm_price_amount_typography',
         'selector' =>
-            '{{WRAPPER}} .jp-menu__amount, ' .
-            '{{WRAPPER}} .jp-matrix__cell--value .jp-menu__amount',
+            '{{WRAPPER}} .jp-price, ' .
+            '{{WRAPPER}} .jp-matrix__cell--value .jp-price',
     ]
 );
 
