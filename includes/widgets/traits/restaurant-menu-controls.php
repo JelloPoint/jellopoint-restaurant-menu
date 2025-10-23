@@ -257,12 +257,6 @@ trait Restaurant_Menu_Controls {
 			],
 		] );
 
-		$this->add_control( 'heading_prices', [
-			'label'     => __( 'Prices', 'jellopoint-restaurant-menu' ),
-			'type'      => Controls_Manager::HEADING,
-			'separator' => 'before',
-		] );
-
 		$this->add_control( 'heading_labels', [
 			'label'     => __( 'Labels', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::HEADING,
