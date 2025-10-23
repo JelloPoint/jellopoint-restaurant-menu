@@ -372,7 +372,7 @@ $this->add_control(
         'label'     => __( 'Amount Color', 'jellopoint-restaurant-menu' ),
         'type'      => Controls_Manager::COLOR,
         'selectors' => [
-            '{{WRAPPER}} .jp-menu__amount'                      => 'color: {{VALUE}};',
+            '{{WRAPPER}} .jp-menu__price'                      => 'color: {{VALUE}};',
             '{{WRAPPER}} .jp-matrix__cell--value .jp-menu__amount' => 'color: {{VALUE}};',
         ],
     ]
