@@ -34,7 +34,9 @@ $this->add_group_control(
     Group_Control_Typography::get_type(),
     [
         'name'     => 'jprm_menu_title_typography',
-        'selector' => '{{WRAPPER}} .jp-menu__meta-title',
+        'selector' =>
+            '{{WRAPPER}} .jp-menu__meta-title, ' .   // _shared.php variant
+            '{{WRAPPER}} .jp-menu__title',           // menu.php variant
     ]
 );
 
@@ -45,6 +47,7 @@ $this->add_control(
         'type'      => Controls_Manager::COLOR,
         'selectors' => [
             '{{WRAPPER}} .jp-menu__meta-title' => 'color: {{VALUE}};',
+            '{{WRAPPER}} .jp-menu__title'      => 'color: {{VALUE}};',
         ],
     ]
 );
@@ -78,7 +81,7 @@ $this->add_responsive_control(
             ],
         ],
         'selectors' => [
-            // Align the whole meta block so title + description follow together
+            // Align the whole meta block so title+description follow together
             '{{WRAPPER}} .jp-menu__meta' => 'text-align: {{VALUE}};',
         ],
     ]
@@ -92,6 +95,7 @@ $this->add_responsive_control(
         'size_units' => [ 'px', 'em', '%' ],
         'selectors'  => [
             '{{WRAPPER}} .jp-menu__meta-title' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+            '{{WRAPPER}} .jp-menu__title'      => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
         ],
     ]
 );
@@ -104,6 +108,7 @@ $this->add_responsive_control(
         'size_units' => [ 'px', 'em', '%' ],
         'selectors'  => [
             '{{WRAPPER}} .jp-menu__meta-title' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+            '{{WRAPPER}} .jp-menu__title'      => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
         ],
     ]
 );
@@ -124,7 +129,9 @@ $this->add_group_control(
     Group_Control_Typography::get_type(),
     [
         'name'     => 'jprm_menu_desc_typography',
-        'selector' => '{{WRAPPER}} .jp-menu__meta-desc',
+        'selector' =>
+            '{{WRAPPER}} .jp-menu__meta-desc, ' .   // _shared.php variant
+            '{{WRAPPER}} .jp-menu__desc',           // menu.php variant
     ]
 );
 
@@ -135,6 +142,7 @@ $this->add_control(
         'type'      => Controls_Manager::COLOR,
         'selectors' => [
             '{{WRAPPER}} .jp-menu__meta-desc' => 'color: {{VALUE}};',
+            '{{WRAPPER}} .jp-menu__desc'      => 'color: {{VALUE}};',
         ],
     ]
 );
@@ -168,7 +176,7 @@ $this->add_responsive_control(
             ],
         ],
         'selectors' => [
-            // Redundant when title align is set, but kept for explicit control if needed
+            // Kept for explicit control; shared with title align via the same container
             '{{WRAPPER}} .jp-menu__meta' => 'text-align: {{VALUE}};',
         ],
     ]
@@ -182,6 +190,7 @@ $this->add_responsive_control(
         'size_units' => [ 'px', 'em', '%' ],
         'selectors'  => [
             '{{WRAPPER}} .jp-menu__meta-desc' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+            '{{WRAPPER}} .jp-menu__desc'      => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
         ],
     ]
 );
@@ -194,11 +203,13 @@ $this->add_responsive_control(
         'size_units' => [ 'px', 'em', '%' ],
         'selectors'  => [
             '{{WRAPPER}} .jp-menu__meta-desc' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+            '{{WRAPPER}} .jp-menu__desc'      => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
         ],
     ]
 );
 
 $this->end_controls_section();
+
 
 		/* ===== Item Title & Description ===== */
 		$this->start_controls_section('jprm_style_items',[
