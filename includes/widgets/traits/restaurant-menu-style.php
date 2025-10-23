@@ -404,11 +404,11 @@ $this->add_responsive_control(
         ],
         'selectors'  => [
             // currency before amount
-            '{{WRAPPER}} .jp-menu__price.jp-currency-pos-before .jp-menu__currency' => 'margin-right: {{SIZE}}{{UNIT}};',
-            '{{WRAPPER}} .jp-matrix__cell--value .jp-menu__price.jp-currency-pos-before .jp-menu__currency' => 'margin-right: {{SIZE}}{{UNIT}};',
+            '{{WRAPPER}} .jp-price.jp-currency-pos-before .jp-menu__currency' => 'margin-right: {{SIZE}}{{UNIT}};',
+            '{{WRAPPER}} .jp-matrix__cell--value .jp-price.jp-currency-pos-before .jp-menu__currency' => 'margin-right: {{SIZE}}{{UNIT}};',
             // currency after amount
-            '{{WRAPPER}} .jp-menu__price.jp-currency-pos-after .jp-menu__currency'  => 'margin-left: {{SIZE}}{{UNIT}};',
-            '{{WRAPPER}} .jp-matrix__cell--value .jp-menu__price.jp-currency-pos-after .jp-menu__currency'  => 'margin-left: {{SIZE}}{{UNIT}};',
+            '{{WRAPPER}} .jp-price.jp-currency-pos-after .jp-menu__currency'  => 'margin-left: {{SIZE}}{{UNIT}};',
+            '{{WRAPPER}} .jp-matrix__cell--value .jp-price.jp-currency-pos-after .jp-menu__currency'  => 'margin-left: {{SIZE}}{{UNIT}};',
         ],
     ]
 );
@@ -425,8 +425,8 @@ $this->add_responsive_control(
             'right'  => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-right' ],
         ],
         'selectors' => [
-            '{{WRAPPER}} .jp-inline .jp-menu__pricegroup'       => 'text-align: {{VALUE}};',
-            '{{WRAPPER}} .jp-inline-below .jp-menu__pricegroup' => 'text-align: {{VALUE}};',
+            '{{WRAPPER}} .jp-inline .jp-pricegroup'       => 'text-align: {{VALUE}};',
+            '{{WRAPPER}} .jp-inline-below .jp-pricegroup' => 'text-align: {{VALUE}};',
         ],
     ]
 );
@@ -657,7 +657,7 @@ $this->add_responsive_control(
         ],
         'selectors'  => [
             // General rows inside pricegroup
-            '{{WRAPPER}} .jp-menu__pricegroup .jp-menu__row' => 'gap: {{SIZE}}{{UNIT}};',
+            '{{WRAPPER}} .jp-pricegroup .jp-menu__row' => 'gap: {{SIZE}}{{UNIT}};',
             // Inline-Below chip line
             '{{WRAPPER}} .jp-inline-below .jp-chipline'      => 'gap: {{SIZE}}{{UNIT}};',
         ],
