@@ -164,158 +164,158 @@ $this->add_responsive_control(
 
 $this->end_controls_section();
 
-/* ===== Item Title & Description (scoped to items only) ===== */
-$this->start_controls_section(
-    'jprm_style_item_text',
-    [
-        'label' => __( 'Item Title & Description', 'jellopoint-restaurant-menu' ),
-        'tab'   => Controls_Manager::TAB_STYLE,
-    ]
-);
+		/* ===== Item Title & Description (scoped to items only) ===== */
+		$this->start_controls_section(
+			'jprm_style_item_text',
+			[
+				'label' => __( 'Item Title & Description', 'jellopoint-restaurant-menu' ),
+				'tab'   => Controls_Manager::TAB_STYLE,
+			]
+		);
 
-/* ==============================
- * Item Title (ITEMS ONLY)
- * ============================== */
-$this->add_control(
-    'jprm_item_title_heading',
-    [
-        'label'     => __( 'Item Title', 'jellopoint-restaurant-menu' ),
-        'type'      => Controls_Manager::HEADING,
-        'separator' => 'none',
-    ]
-);
+		/* ==============================
+		* Item Title (ITEMS ONLY)
+		* ============================== */
+		$this->add_control(
+			'jprm_item_title_heading',
+			[
+				'label'     => __( 'Item Title', 'jellopoint-restaurant-menu' ),
+				'type'      => Controls_Manager::HEADING,
+				'separator' => 'none',
+			]
+		);
 
-$this->add_group_control(
-    Group_Control_Typography::get_type(),
-    [
-        'name'     => 'jprm_item_title_typography',
-        'selector' => '{{WRAPPER}} .jp-menu__item .jp-menu__title',
-    ]
-);
+		$this->add_group_control(
+			Group_Control_Typography::get_type(),
+			[
+				'name'     => 'jprm_item_title_typography',
+				'selector' => '{{WRAPPER}} .jp-menu__item .jp-menu__title',
+			]
+		);
 
-$this->add_control(
-    'jprm_item_title_color',
-    [
-        'label'     => __( 'Color', 'jellopoint-restaurant-menu' ),
-        'type'      => Controls_Manager::COLOR,
-        'selectors' => [
-            '{{WRAPPER}} .jp-menu__item .jp-menu__title' => 'color: {{VALUE}};',
-        ],
-    ]
-);
+		$this->add_control(
+			'jprm_item_title_color',
+			[
+				'label'     => __( 'Color', 'jellopoint-restaurant-menu' ),
+				'type'      => Controls_Manager::COLOR,
+				'selectors' => [
+					'{{WRAPPER}} .jp-menu__item .jp-menu__title' => 'color: {{VALUE}};',
+				],
+			]
+		);
 
-$this->add_responsive_control(
-    'jprm_item_title_align',
-    [
-        'label'   => __( 'Alignment', 'jellopoint-restaurant-menu' ),
-        'type'    => Controls_Manager::CHOOSE,
-        'options' => [
-            'left'   => [ 'title' => __( 'Left', 'jellopoint-restaurant-menu' ),   'icon' => 'eicon-text-align-left' ],
-            'center' => [ 'title' => __( 'Center', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-center' ],
-            'right'  => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-text-align-right' ],
-        ],
-        'selectors' => [
-            '{{WRAPPER}} .jp-menu__item .jp-menu__title' => 'text-align: {{VALUE}};',
-        ],
-    ]
-);
+		$this->add_responsive_control(
+			'jprm_item_title_align',
+			[
+				'label'   => __( 'Alignment', 'jellopoint-restaurant-menu' ),
+				'type'    => Controls_Manager::CHOOSE,
+				'options' => [
+					'left'   => [ 'title' => __( 'Left', 'jellopoint-restaurant-menu' ),   'icon' => 'eicon-text-align-left' ],
+					'center' => [ 'title' => __( 'Center', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-center' ],
+					'right'  => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-text-align-right' ],
+				],
+				'selectors' => [
+					'{{WRAPPER}} .jp-menu__item .jp-menu__title' => 'text-align: {{VALUE}};',
+				],
+			]
+		);
 
-$this->add_responsive_control(
-    'jprm_item_title_margin',
-    [
-        'label'      => __( 'Margin', 'jellopoint-restaurant-menu' ),
-        'type'       => Controls_Manager::DIMENSIONS,
-        'size_units' => [ 'px', 'em', '%' ],
-        'selectors'  => [
-            '{{WRAPPER}} .jp-menu__item .jp-menu__title' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-        ],
-    ]
-);
+		$this->add_responsive_control(
+			'jprm_item_title_margin',
+			[
+				'label'      => __( 'Margin', 'jellopoint-restaurant-menu' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => [ 'px', 'em', '%' ],
+				'selectors'  => [
+					'{{WRAPPER}} .jp-menu__item .jp-menu__title' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				],
+			]
+		);
 
-$this->add_responsive_control(
-    'jprm_item_title_padding',
-    [
-        'label'      => __( 'Padding', 'jellopoint-restaurant-menu' ),
-        'type'       => Controls_Manager::DIMENSIONS,
-        'size_units' => [ 'px', 'em', '%' ],
-        'selectors'  => [
-            '{{WRAPPER}} .jp-menu__item .jp-menu__title' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-        ],
-    ]
-);
+		$this->add_responsive_control(
+			'jprm_item_title_padding',
+			[
+				'label'      => __( 'Padding', 'jellopoint-restaurant-menu' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => [ 'px', 'em', '%' ],
+				'selectors'  => [
+					'{{WRAPPER}} .jp-menu__item .jp-menu__title' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				],
+			]
+		);
 
-/* ==============================
- * Item Description (ITEMS ONLY)
- * ============================== */
-$this->add_control(
-    'jprm_item_desc_heading',
-    [
-        'label'     => __( 'Item Description', 'jellopoint-restaurant-menu' ),
-        'type'      => Controls_Manager::HEADING,
-        'separator' => 'before',
-    ]
-);
+		/* ==============================
+		* Item Description (ITEMS ONLY)
+		* ============================== */
+		$this->add_control(
+			'jprm_item_desc_heading',
+			[
+				'label'     => __( 'Item Description', 'jellopoint-restaurant-menu' ),
+				'type'      => Controls_Manager::HEADING,
+				'separator' => 'before',
+			]
+		);
 
-$this->add_group_control(
-    Group_Control_Typography::get_type(),
-    [
-        'name'     => 'jprm_item_desc_typography',
-        'selector' => '{{WRAPPER}} .jp-menu__item .jp-menu__desc',
-    ]
-);
+		$this->add_group_control(
+			Group_Control_Typography::get_type(),
+			[
+				'name'     => 'jprm_item_desc_typography',
+				'selector' => '{{WRAPPER}} .jp-menu__item .jp-menu__desc',
+			]
+		);
 
-$this->add_control(
-    'jprm_item_desc_color',
-    [
-        'label'     => __( 'Color', 'jellopoint-restaurant-menu' ),
-        'type'      => Controls_Manager::COLOR,
-        'selectors' => [
-            '{{WRAPPER}} .jp-menu__item .jp-menu__desc' => 'color: {{VALUE}};',
-        ],
-    ]
-);
+		$this->add_control(
+			'jprm_item_desc_color',
+			[
+				'label'     => __( 'Color', 'jellopoint-restaurant-menu' ),
+				'type'      => Controls_Manager::COLOR,
+				'selectors' => [
+					'{{WRAPPER}} .jp-menu__item .jp-menu__desc' => 'color: {{VALUE}};',
+				],
+			]
+		);
 
-$this->add_responsive_control(
-    'jprm_item_desc_align',
-    [
-        'label'   => __( 'Alignment', 'jellopoint-restaurant-menu' ),
-        'type'    => Controls_Manager::CHOOSE,
-        'options' => [
-            'left'   => [ 'title' => __( 'Left', 'jellopoint-restaurant-menu' ),   'icon' => 'eicon-text-align-left' ],
-            'center' => [ 'title' => __( 'Center', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-center' ],
-            'right'  => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-text-align-right' ],
-        ],
-        'selectors' => [
-            '{{WRAPPER}} .jp-menu__item .jp-menu__desc' => 'text-align: {{VALUE}};',
-        ],
-    ]
-);
+		$this->add_responsive_control(
+			'jprm_item_desc_align',
+			[
+				'label'   => __( 'Alignment', 'jellopoint-restaurant-menu' ),
+				'type'    => Controls_Manager::CHOOSE,
+				'options' => [
+					'left'   => [ 'title' => __( 'Left', 'jellopoint-restaurant-menu' ),   'icon' => 'eicon-text-align-left' ],
+					'center' => [ 'title' => __( 'Center', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-center' ],
+					'right'  => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-text-align-right' ],
+				],
+				'selectors' => [
+					'{{WRAPPER}} .jp-menu__item .jp-menu__desc' => 'text-align: {{VALUE}};',
+				],
+			]
+		);
 
-$this->add_responsive_control(
-    'jprm_item_desc_margin',
-    [
-        'label'      => __( 'Margin', 'jellopoint-restaurant-menu' ),
-        'type'       => Controls_Manager::DIMENSIONS,
-        'size_units' => [ 'px', 'em', '%' ],
-        'selectors'  => [
-            '{{WRAPPER}} .jp-menu__item .jp-menu__desc' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-        ],
-    ]
-);
+		$this->add_responsive_control(
+			'jprm_item_desc_margin',
+			[
+				'label'      => __( 'Margin', 'jellopoint-restaurant-menu' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => [ 'px', 'em', '%' ],
+				'selectors'  => [
+					'{{WRAPPER}} .jp-menu__item .jp-menu__desc' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				],
+			]
+		);
 
-$this->add_responsive_control(
-    'jprm_item_desc_padding',
-    [
-        'label'      => __( 'Padding', 'jellopoint-restaurant-menu' ),
-        'type'       => Controls_Manager::DIMENSIONS,
-        'size_units' => [ 'px', 'em', '%' ],
-        'selectors'  => [
-            '{{WRAPPER}} .jp-menu__item .jp-menu__desc' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-        ],
-    ]
-);
+		$this->add_responsive_control(
+			'jprm_item_desc_padding',
+			[
+				'label'      => __( 'Padding', 'jellopoint-restaurant-menu' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => [ 'px', 'em', '%' ],
+				'selectors'  => [
+					'{{WRAPPER}} .jp-menu__item .jp-menu__desc' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				],
+			]
+		);
 
-$this->end_controls_section();
+		$this->end_controls_section();
 
 
 
