@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 trait Restaurant_Menu_Style {
 	protected function register_style_controls() : void {
 
-		/* ===== Menu Title & Description ===== */
+/* ===== Menu Title & Description ===== */
 $this->start_controls_section(
     'jprm_style_menu_meta',
     [
@@ -34,7 +34,7 @@ $this->add_group_control(
     Group_Control_Typography::get_type(),
     [
         'name'     => 'jprm_menu_title_typography',
-        'selector' => '{{WRAPPER}} .jp-menu__title',
+        'selector' => '{{WRAPPER}} .jp-menu__meta-title',
     ]
 );
 
@@ -44,7 +44,7 @@ $this->add_control(
         'label'     => __( 'Color', 'jellopoint-restaurant-menu' ),
         'type'      => Controls_Manager::COLOR,
         'selectors' => [
-            '{{WRAPPER}} .jp-menu__title' => 'color: {{VALUE}};',
+            '{{WRAPPER}} .jp-menu__meta-title' => 'color: {{VALUE}};',
         ],
     ]
 );
@@ -78,7 +78,8 @@ $this->add_responsive_control(
             ],
         ],
         'selectors' => [
-            '{{WRAPPER}} .jp-menu__title' => 'text-align: {{VALUE}};',
+            // Align the whole meta block so title + description follow together
+            '{{WRAPPER}} .jp-menu__meta' => 'text-align: {{VALUE}};',
         ],
     ]
 );
@@ -90,7 +91,7 @@ $this->add_responsive_control(
         'type'       => Controls_Manager::DIMENSIONS,
         'size_units' => [ 'px', 'em', '%' ],
         'selectors'  => [
-            '{{WRAPPER}} .jp-menu__title' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+            '{{WRAPPER}} .jp-menu__meta-title' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
         ],
     ]
 );
@@ -102,7 +103,7 @@ $this->add_responsive_control(
         'type'       => Controls_Manager::DIMENSIONS,
         'size_units' => [ 'px', 'em', '%' ],
         'selectors'  => [
-            '{{WRAPPER}} .jp-menu__title' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+            '{{WRAPPER}} .jp-menu__meta-title' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
         ],
     ]
 );
@@ -123,7 +124,7 @@ $this->add_group_control(
     Group_Control_Typography::get_type(),
     [
         'name'     => 'jprm_menu_desc_typography',
-        'selector' => '{{WRAPPER}} .jp-menu__description',
+        'selector' => '{{WRAPPER}} .jp-menu__meta-desc',
     ]
 );
 
@@ -133,7 +134,7 @@ $this->add_control(
         'label'     => __( 'Color', 'jellopoint-restaurant-menu' ),
         'type'      => Controls_Manager::COLOR,
         'selectors' => [
-            '{{WRAPPER}} .jp-menu__description' => 'color: {{VALUE}};',
+            '{{WRAPPER}} .jp-menu__meta-desc' => 'color: {{VALUE}};',
         ],
     ]
 );
@@ -167,7 +168,8 @@ $this->add_responsive_control(
             ],
         ],
         'selectors' => [
-            '{{WRAPPER}} .jp-menu__description' => 'text-align: {{VALUE}};',
+            // Redundant when title align is set, but kept for explicit control if needed
+            '{{WRAPPER}} .jp-menu__meta' => 'text-align: {{VALUE}};',
         ],
     ]
 );
@@ -179,7 +181,7 @@ $this->add_responsive_control(
         'type'       => Controls_Manager::DIMENSIONS,
         'size_units' => [ 'px', 'em', '%' ],
         'selectors'  => [
-            '{{WRAPPER}} .jp-menu__description' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+            '{{WRAPPER}} .jp-menu__meta-desc' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
         ],
     ]
 );
@@ -191,13 +193,12 @@ $this->add_responsive_control(
         'type'       => Controls_Manager::DIMENSIONS,
         'size_units' => [ 'px', 'em', '%' ],
         'selectors'  => [
-            '{{WRAPPER}} .jp-menu__description' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+            '{{WRAPPER}} .jp-menu__meta-desc' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
         ],
     ]
 );
 
 $this->end_controls_section();
-
 
 		/* ===== Item Title & Description ===== */
 		$this->start_controls_section('jprm_style_items',[
