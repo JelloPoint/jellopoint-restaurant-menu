@@ -7,63 +7,201 @@ trait Restaurant_Menu_Style {
 	protected function register_style_controls() : void {
 
 		/* ===== Menu Title & Description ===== */
-		$this->start_controls_section('jprm_style_menu_meta',[
-			'label'=>__('Menu Title & Description','jellopoint-restaurant-menu'),
-			'tab'=>\Elementor\Controls_Manager::TAB_STYLE,
-		]);
-		$this->add_group_control(\Elementor\Group_Control_Typography::get_type(),[
-			'name'=>'menu_title_typo',
-			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Typography::TYPOGRAPHY_PRIMARY],
-			'selector'=>'{{WRAPPER}} .jp-menu__meta-title',
-		]);
-		$this->add_control('menu_title_color',[
-			'label'=>__('Title Color','jellopoint-restaurant-menu'),
-			'type'=>\Elementor\Controls_Manager::COLOR,
-			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Colors::COLOR_PRIMARY],
-			'selectors'=>['{{WRAPPER}} .jp-menu__meta-title'=>'color: {{VALUE}};'],
-		]);
-		$this->add_group_control(\Elementor\Group_Control_Typography::get_type(),[
-			'name'=>'menu_desc_typo',
-			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Typography::TYPOGRAPHY_TEXT],
-			'selector'=>'{{WRAPPER}} .jp-menu__meta-desc',
-		]);
-		$this->add_control('menu_desc_color',[
-			'label'=>__('Description Color','jellopoint-restaurant-menu'),
-			'type'=>\Elementor\Controls_Manager::COLOR,
-			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Colors::COLOR_TEXT],
-			'selectors'=>['{{WRAPPER}} .jp-menu__meta-desc'=>'color: {{VALUE}};'],
-		]);
-		$this->end_controls_section();
+		$this->start_controls_section(
+	'jprm_section_menu_title_desc',
+	[
+		'label' => __( 'Menu Title & Description', 'jellopoint-restaurant-menu' ),
+		'tab'   => Controls_Manager::TAB_STYLE,
+	]
+);
 
+/* ==============================
+ * Menu Title
+ * ============================== */
+$this->add_control(
+	'jprm_menu_title_heading',
+	[
+		'label'     => __( 'Menu Title', 'jellopoint-restaurant-menu' ),
+		'type'      => Controls_Manager::HEADING,
+		'separator' => 'none',
+	]
+);
 
-		/* ===== Section Title & Description ===== */
-		$this->start_controls_section('jprm_style_sections',[
-			'label'=>__('Section Title & Description','jellopoint-restaurant-menu'),
-			'tab'=>\Elementor\Controls_Manager::TAB_STYLE,
-		]);
-		$this->add_group_control(\Elementor\Group_Control_Typography::get_type(),[
-			'name'=>'section_title_typo',
-			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Typography::TYPOGRAPHY_SECONDARY],
-			'selector'=>'{{WRAPPER}} .jp-section__title',
-		]);
-		$this->add_control('section_title_color',[
-			'label'=>__('Title Color','jellopoint-restaurant-menu'),
-			'type'=>\Elementor\Controls_Manager::COLOR,
-			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Colors::COLOR_SECONDARY],
-			'selectors'=>['{{WRAPPER}} .jp-section__title'=>'color: {{VALUE}};'],
-		]);
-		$this->add_group_control(\Elementor\Group_Control_Typography::get_type(),[
-			'name'=>'section_desc_typo',
-			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Typography::TYPOGRAPHY_TEXT],
-			'selector'=>'{{WRAPPER}} .jp-section__desc',
-		]);
-		$this->add_control('section_desc_color',[
-			'label'=>__('Description Color','jellopoint-restaurant-menu'),
-			'type'=>\Elementor\Controls_Manager::COLOR,
-			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Colors::COLOR_TEXT],
-			'selectors'=>['{{WRAPPER}} .jp-section__desc'=>'color: {{VALUE}};'],
-		]);
-		$this->end_controls_section();
+// Typography
+$this->add_group_control(
+	Group_Control_Typography::get_type(),
+	[
+		'name'     => 'jprm_menu_title_typography',
+		'selector' => '{{WRAPPER}} .jp-menu__title',
+	]
+);
+
+// Color (label just "Color")
+$this->add_control(
+	'jprm_menu_title_color',
+	[
+		'label'     => __( 'Color', 'jellopoint-restaurant-menu' ),
+		'type'      => Controls_Manager::COLOR,
+		'selectors' => [
+			'{{WRAPPER}} .jp-menu__title' => 'color: {{VALUE}};',
+		],
+	]
+);
+
+// More settings (Alignment)
+$this->add_control(
+	'jprm_menu_title_more_heading',
+	[
+		'label'     => __( 'More settings', 'jellopoint-restaurant-menu' ),
+		'type'      => Controls_Manager::HEADING,
+		'separator' => 'before',
+	]
+);
+
+$this->add_responsive_control(
+	'jprm_menu_title_align',
+	[
+		'label'   => __( 'Alignment', 'jellopoint-restaurant-menu' ),
+		'type'    => Controls_Manager::CHOOSE,
+		'options' => [
+			'left'   => [
+				'title' => __( 'Left', 'jellopoint-restaurant-menu' ),
+				'icon'  => 'eicon-text-align-left',
+			],
+			'center' => [
+				'title' => __( 'Center', 'jellopoint-restaurant-menu' ),
+				'icon'  => 'eicon-text-align-center',
+			],
+			'right'  => [
+				'title' => __( 'Right', 'jellopoint-restaurant-menu' ),
+				'icon'  => 'eicon-text-align-right',
+			],
+		],
+		'selectors' => [
+			'{{WRAPPER}} .jp-menu__title' => 'text-align: {{VALUE}};',
+		],
+	]
+);
+
+// Spacing (Margin & Padding)
+$this->add_responsive_control(
+	'jprm_menu_title_margin',
+	[
+		'label'      => __( 'Margin', 'jellopoint-restaurant-menu' ),
+		'type'       => Controls_Manager::DIMENSIONS,
+		'size_units' => [ 'px', 'em', '%' ],
+		'selectors'  => [
+			'{{WRAPPER}} .jp-menu__title' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+		],
+	]
+);
+
+$this->add_responsive_control(
+	'jprm_menu_title_padding',
+	[
+		'label'      => __( 'Padding', 'jellopoint-restaurant-menu' ),
+		'type'       => Controls_Manager::DIMENSIONS,
+		'size_units' => [ 'px', 'em', '%' ],
+		'selectors'  => [
+			'{{WRAPPER}} .jp-menu__title' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+		],
+	]
+);
+
+/* ==============================
+ * Menu Description
+ * ============================== */
+$this->add_control(
+	'jprm_menu_desc_heading',
+	[
+		'label'     => __( 'Menu Description', 'jellopoint-restaurant-menu' ),
+		'type'      => Controls_Manager::HEADING,
+		'separator' => 'before',
+	]
+);
+
+// Typography
+$this->add_group_control(
+	Group_Control_Typography::get_type(),
+	[
+		'name'     => 'jprm_menu_desc_typography',
+		'selector' => '{{WRAPPER}} .jp-menu__description',
+	]
+);
+
+// Color (label just "Color")
+$this->add_control(
+	'jprm_menu_desc_color',
+	[
+		'label'     => __( 'Color', 'jellopoint-restaurant-menu' ),
+		'type'      => Controls_Manager::COLOR,
+		'selectors' => [
+			'{{WRAPPER}} .jp-menu__description' => 'color: {{VALUE}};',
+		],
+	]
+);
+
+// More settings (Alignment)
+$this->add_control(
+	'jprm_menu_desc_more_heading',
+	[
+		'label'     => __( 'More settings', 'jellopoint-restaurant-menu' ),
+		'type'      => Controls_Manager::HEADING,
+		'separator' => 'before',
+	]
+);
+
+$this->add_responsive_control(
+	'jprm_menu_desc_align',
+	[
+		'label'   => __( 'Alignment', 'jellopoint-restaurant-menu' ),
+		'type'    => Controls_Manager::CHOOSE,
+		'options' => [
+			'left'   => [
+				'title' => __( 'Left', 'jellopoint-restaurant-menu' ),
+				'icon'  => 'eicon-text-align-left',
+			],
+			'center' => [
+				'title' => __( 'Center', 'jellopoint-restaurant-menu' ),
+				'icon'  => 'eicon-text-align-center',
+			],
+			'right'  => [
+				'title' => __( 'Right', 'jellopoint-restaurant-menu' ),
+				'icon'  => 'eicon-text-align-right',
+			],
+		],
+		'selectors' => [
+			'{{WRAPPER}} .jp-menu__description' => 'text-align: {{VALUE}};',
+		],
+	]
+);
+
+// Spacing (Margin & Padding)
+$this->add_responsive_control(
+	'jprm_menu_desc_margin',
+	[
+		'label'      => __( 'Margin', 'jellopoint-restaurant-menu' ),
+		'type'       => Controls_Manager::DIMENSIONS,
+		'size_units' => [ 'px', 'em', '%' ],
+		'selectors'  => [
+			'{{WRAPPER}} .jp-menu__description' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+		],
+	]
+);
+
+$this->add_responsive_control(
+	'jprm_menu_desc_padding',
+	[
+		'label'      => __( 'Padding', 'jellopoint-restaurant-menu' ),
+		'type'       => Controls_Manager::DIMENSIONS,
+		'size_units' => [ 'px', 'em', '%' ],
+		'selectors'  => [
+			'{{WRAPPER}} .jp-menu__description' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+		],
+	]
+);
+
+$this->end_controls_section();
 
 
 		/* ===== Item Title & Description ===== */
