@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 trait Restaurant_Menu_Style {
 	protected function register_style_controls() : void {
 
-/* ===== Menu Title & Description ===== */
+/* ===== Menu Title & Description (scoped to meta only) ===== */
 $this->start_controls_section(
     'jprm_style_menu_meta',
     [
@@ -19,7 +19,7 @@ $this->start_controls_section(
 );
 
 /* ==============================
- * Menu Title
+ * Menu Title  (META ONLY)
  * ============================== */
 $this->add_control(
     'jprm_menu_title_heading',
@@ -34,7 +34,7 @@ $this->add_group_control(
     Group_Control_Typography::get_type(),
     [
         'name'     => 'jprm_menu_title_typography',
-        'selector' => '{{WRAPPER}} .jp-menu__title',
+        'selector' => '{{WRAPPER}} .jp-menu__meta .jp-menu__title',
     ]
 );
 
@@ -44,33 +44,24 @@ $this->add_control(
         'label'     => __( 'Color', 'jellopoint-restaurant-menu' ),
         'type'      => Controls_Manager::COLOR,
         'selectors' => [
-            '{{WRAPPER}} .jp-menu__title' => 'color: {{VALUE}};',
+            '{{WRAPPER}} .jp-menu__meta .jp-menu__title' => 'color: {{VALUE}};',
         ],
     ]
 );
 
-// Independent alignment (applies to title element only)
+// Independent alignment — meta title only
 $this->add_responsive_control(
     'jprm_menu_title_align',
     [
         'label'   => __( 'Alignment', 'jellopoint-restaurant-menu' ),
         'type'    => Controls_Manager::CHOOSE,
         'options' => [
-            'left' => [
-                'title' => __( 'Left', 'jellopoint-restaurant-menu' ),
-                'icon'  => 'eicon-text-align-left',
-            ],
-            'center' => [
-                'title' => __( 'Center', 'jellopoint-restaurant-menu' ),
-                'icon'  => 'eicon-text-align-center',
-            ],
-            'right' => [
-                'title' => __( 'Right', 'jellopoint-restaurant-menu' ),
-                'icon'  => 'eicon-text-align-right',
-            ],
+            'left'   => [ 'title' => __( 'Left', 'jellopoint-restaurant-menu' ),   'icon' => 'eicon-text-align-left' ],
+            'center' => [ 'title' => __( 'Center', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-center' ],
+            'right'  => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-text-align-right' ],
         ],
         'selectors' => [
-            '{{WRAPPER}} .jp-menu__title' => 'text-align: {{VALUE}};',
+            '{{WRAPPER}} .jp-menu__meta .jp-menu__title' => 'text-align: {{VALUE}};',
         ],
     ]
 );
@@ -82,7 +73,7 @@ $this->add_responsive_control(
         'type'       => Controls_Manager::DIMENSIONS,
         'size_units' => [ 'px', 'em', '%' ],
         'selectors'  => [
-            '{{WRAPPER}} .jp-menu__title' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+            '{{WRAPPER}} .jp-menu__meta .jp-menu__title' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
         ],
     ]
 );
@@ -94,13 +85,13 @@ $this->add_responsive_control(
         'type'       => Controls_Manager::DIMENSIONS,
         'size_units' => [ 'px', 'em', '%' ],
         'selectors'  => [
-            '{{WRAPPER}} .jp-menu__title' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+            '{{WRAPPER}} .jp-menu__meta .jp-menu__title' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
         ],
     ]
 );
 
 /* ==============================
- * Menu Description
+ * Menu Description  (META ONLY)
  * ============================== */
 $this->add_control(
     'jprm_menu_desc_heading',
@@ -115,7 +106,7 @@ $this->add_group_control(
     Group_Control_Typography::get_type(),
     [
         'name'     => 'jprm_menu_desc_typography',
-        'selector' => '{{WRAPPER}} .jp-menu__desc',
+        'selector' => '{{WRAPPER}} .jp-menu__meta .jp-menu__desc',
     ]
 );
 
@@ -125,33 +116,24 @@ $this->add_control(
         'label'     => __( 'Color', 'jellopoint-restaurant-menu' ),
         'type'      => Controls_Manager::COLOR,
         'selectors' => [
-            '{{WRAPPER}} .jp-menu__desc' => 'color: {{VALUE}};',
+            '{{WRAPPER}} .jp-menu__meta .jp-menu__desc' => 'color: {{VALUE}};',
         ],
     ]
 );
 
-// Independent alignment (applies to description element only)
+// Independent alignment — meta description only
 $this->add_responsive_control(
     'jprm_menu_desc_align',
     [
         'label'   => __( 'Alignment', 'jellopoint-restaurant-menu' ),
         'type'    => Controls_Manager::CHOOSE,
         'options' => [
-            'left' => [
-                'title' => __( 'Left', 'jellopoint-restaurant-menu' ),
-                'icon'  => 'eicon-text-align-left',
-            ],
-            'center' => [
-                'title' => __( 'Center', 'jellopoint-restaurant-menu' ),
-                'icon'  => 'eicon-text-align-center',
-            ],
-            'right' => [
-                'title' => __( 'Right', 'jellopoint-restaurant-menu' ),
-                'icon'  => 'eicon-text-align-right',
-            ],
+            'left'   => [ 'title' => __( 'Left', 'jellopoint-restaurant-menu' ),   'icon' => 'eicon-text-align-left' ],
+            'center' => [ 'title' => __( 'Center', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-center' ],
+            'right'  => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-text-align-right' ],
         ],
         'selectors' => [
-            '{{WRAPPER}} .jp-menu__desc' => 'text-align: {{VALUE}};',
+            '{{WRAPPER}} .jp-menu__meta .jp-menu__desc' => 'text-align: {{VALUE}};',
         ],
     ]
 );
@@ -163,7 +145,7 @@ $this->add_responsive_control(
         'type'       => Controls_Manager::DIMENSIONS,
         'size_units' => [ 'px', 'em', '%' ],
         'selectors'  => [
-            '{{WRAPPER}} .jp-menu__desc' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+            '{{WRAPPER}} .jp-menu__meta .jp-menu__desc' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
         ],
     ]
 );
@@ -175,12 +157,13 @@ $this->add_responsive_control(
         'type'       => Controls_Manager::DIMENSIONS,
         'size_units' => [ 'px', 'em', '%' ],
         'selectors'  => [
-            '{{WRAPPER}} .jp-menu__desc' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+            '{{WRAPPER}} .jp-menu__meta .jp-menu__desc' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
         ],
     ]
 );
 
 $this->end_controls_section();
+
 
 
 
