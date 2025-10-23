@@ -248,17 +248,27 @@ foreach ( $overrides as $ov ) {
 			'split_after_2'       => $split_after_2,
 			'ib_map'              => $ib_map,
 			'section_layouts'       => $section_layouts,
+			// Multi-column controls (new keys) + legacy fallbacks
+			'layout_columns'               => isset($s['layout_columns']) ? (string)$s['layout_columns'] : ( isset($s['columns']) ? (string)$s['columns'] : '1' ),
+			'layout_split_mode'            => isset($s['layout_split_mode']) ? (string)$s['layout_split_mode'] : ( isset($s['split_mode']) ? (string)$s['split_mode'] : 'auto' ),
+			'layout_split_after_section'   => isset($s['layout_split_after_section']) ? (int)$s['layout_split_after_section'] : 0,
+			'layout_split_after_section2'  => isset($s['layout_split_after_section2']) ? (int)$s['layout_split_after_section2'] : 0,
 
-// globals used by templates
-'global_labels_layout'  => $global_labels_layout,
-'labels_matrix_placeholder' => isset( $s['labels_matrix_placeholder'] )
-    ? html_entity_decode( (string) $s['labels_matrix_placeholder'], ENT_QUOTES )
-    : '',
-'inline_below_separator'    => isset( $s['inline_below_separator'] )
-    ? (string) $s['inline_below_separator']
-    : '',
-'global_placeholder'    => $global_placeholder,
-		];
+			// (optional) keep legacy keys too, in case something else still reads them
+			'columns'                      => isset($s['layout_columns']) ? (string)$s['layout_columns'] : ( isset($s['columns']) ? (string)$s['columns'] : '1' ),
+			'split_mode'                   => isset($s['layout_split_mode']) ? (string)$s['layout_split_mode'] : ( isset($s['split_mode']) ? (string)$s['split_mode'] : 'auto' ),
+
+
+			// globals used by templates
+			'global_labels_layout'  => $global_labels_layout,
+			'labels_matrix_placeholder' => isset( $s['labels_matrix_placeholder'] )
+    		? html_entity_decode( (string) $s['labels_matrix_placeholder'], ENT_QUOTES )
+    		: '',
+			'inline_below_separator'    => isset( $s['inline_below_separator'] )
+    		? (string) $s['inline_below_separator']
+    		: '',
+			'global_placeholder'    => $global_placeholder,
+				];
 
 // Load overrides helper so templates can call jprm_effective_*()
 $__jp_overrides = dirname( __DIR__ ) . '/helpers/overrides.php'; // path: includes/helpers/overrides.php
