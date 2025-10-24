@@ -371,11 +371,7 @@ $this->add_group_control(
     \Elementor\Group_Control_Typography::get_type(),
     [
         'name'     => 'jprm_price_typography',
-        'selector' =>
-            // default/inline/inline-below
-            '{{WRAPPER}} .jp-price, ' .
-            // matrix cell
-            '{{WRAPPER}} .jp-matrix__cell--value .jp-price',
+        'selector' => '{{WRAPPER}} .jp-price, {{WRAPPER}} .jp-matrix__cell--value .jp-price',
     ]
 );
 
@@ -403,8 +399,10 @@ $this->add_responsive_control(
             'px' => [ 'min' => 0, 'max' => 32, 'step' => 1 ],
         ],
         'selectors'  => [
-            '{{WRAPPER}} .jp-inline .jp-menu__pricegroup .jp-price-row + .jp-price-row'       => 'margin-top: {{SIZE}}{{UNIT}};',
-            '{{WRAPPER}} .jp-inline-below .jp-menu__pricegroup .jp-price-row + .jp-price-row' => 'margin-top: {{SIZE}}{{UNIT}};',
+            // Inline & Inline-Below: each additional .jp-price-row
+            '{{WRAPPER}} .jp-menu__pricegroup .jp-price-row + .jp-price-row' => 'margin-top: {{SIZE}}{{UNIT}};',
+            // Matrix: multiple .jp-price inside the same value cell
+            '{{WRAPPER}} .jp-matrix__cell--value .jp-price + .jp-price' => 'margin-top: {{SIZE}}{{UNIT}};',
         ],
     ]
 );
