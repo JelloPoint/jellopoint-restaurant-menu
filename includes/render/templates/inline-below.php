@@ -14,6 +14,9 @@ $items = is_array($sctx['items'] ?? null) ? $sctx['items'] : [];
 $label_presentation = (string)($sctx['label_presentation'] ?? 'icon_text');
 $label_map          = is_array($sctx['label_map'] ?? null) ? $sctx['label_map'] : [];
 $currency_opts      = is_array($sctx['currency_opts'] ?? null) ? $sctx['currency_opts'] : [];
+$show_badges         = ! empty( $sctx['show_badges'] );
+$badges_presentation = (string) ( $sctx['badges_presentation'] ?? 'icon_text' );
+$badges_position     = (string) ( $sctx['badges_position'] ?? 'after_title' );
 $sep                = (string)($sctx['inline_separator'] ?? '');
 
 if (empty($items)) return;
@@ -61,9 +64,19 @@ foreach ($items as $post) {
 
 	// LEFT / TOP: content
 	echo '<div class="jp-menu__content">';
+	echo '<div class="jp-menu__titleline">';
+		$badges = $show_badges ? jprm_get_badges_for_post( $pid ) : [];
+		if ( $show_badges && $badges && $badges_position === 'before_title' ) {
+			echo jprm_render_badges( $badges, $badges_presentation ); // before title
+		}
 		if ($title !== '') echo '<div class="jp-menu__title">' . esc_html($title) . '</div>';
-		if (is_string($desc) && $desc !== '') echo '<div class="jp-menu__desc">' . esc_html($desc) . '</div>';
-	echo '</div>';
+		if ( $show_badges && $badges && $badges_position === 'after_title' ) {
+			echo jprm_render_badges( $badges, $badges_presentation );  // after title
+		}
+	echo '</div>'; // .jp-menu__titleline
+	if ( is_string($desc) && $desc !== '' ) echo '<div class="jp-menu__desc">' . esc_html($desc) . '</div>';
+echo '</div>';
+
 
 	// FULL-WIDTH row BELOW content (spans both columns when grid is used)
 	echo '<div class="jp-menu__pricegroup jp-menu__pricegroup--below">';

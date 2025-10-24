@@ -12,6 +12,9 @@ $sctx = isset($_section_ctx) && is_array($_section_ctx) ? $_section_ctx : [];
 $items = is_array($sctx['items'] ?? null) ? $sctx['items'] : [];
 $label_presentation = (string)($sctx['label_presentation'] ?? 'icon_text');
 $label_map  = is_array($sctx['label_map'] ?? null) ? $sctx['label_map'] : [];
+$show_badges         = ! empty( $sctx['show_badges'] );
+$badges_presentation = (string) ( $sctx['badges_presentation'] ?? 'icon_text' );
+$badges_position     = (string) ( $sctx['badges_position'] ?? 'after_title' );
 $currency_opts = is_array($sctx['currency_opts'] ?? null) ? $sctx['currency_opts'] : [];
 $matrix_placeholder = (string)($sctx['matrix_placeholder'] ?? '');
 
@@ -122,9 +125,19 @@ foreach ($items as $post) {
 	echo '<div class="jp-matrix__row" data-post-id="' . esc_attr((string)$pid) . '">';
 
 	echo '<div class="jp-matrix__cell jp-matrix__cell--item">';
-	if ($title !== '') echo '<div class="jp-menu__title">' . esc_html($title) . '</div>';
-	if (is_string($desc) && $desc !== '') echo '<div class="jp-menu__desc">' . esc_html($desc) . '</div>';
-	echo '</div>';
+	echo '<div class="jp-menu__titleline">';
+		$badges = $show_badges ? jprm_get_badges_for_post( $pid ) : [];
+		if ( $show_badges && $badges && $badges_position === 'before_title' ) {
+			echo jprm_render_badges( $badges, $badges_presentation );
+		}
+		if ($title !== '') echo '<div class="jp-menu__title">' . esc_html($title) . '</div>';
+		if ( $show_badges && $badges && $badges_position === 'after_title' ) {
+			echo jprm_render_badges( $badges, $badges_presentation );
+		}
+	echo '</div>'; // .jp-menu__titleline
+	if ( is_string($desc) && $desc !== '' ) echo '<div class="jp-menu__desc">' . esc_html($desc) . '</div>';
+echo '</div>';
+
 
 	foreach ($col_keys as $k) {
 		$val = $rows ? jprm_matrix_find_cell($rows, $k) : null;
