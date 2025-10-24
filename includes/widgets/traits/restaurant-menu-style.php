@@ -366,23 +366,24 @@ $this->add_control(
     ]
 );
 
-// Whole price token (currency + amount are one text node for now)
+// Common → Typography — FIX for Matrix value cells (no .jp-price wrapper in Matrix)
 $this->add_group_control(
     \Elementor\Group_Control_Typography::get_type(),
     [
         'name'     => 'jprm_price_typography',
-        'selector' => '{{WRAPPER}} .jp-price, {{WRAPPER}} .jp-matrix__cell--value .jp-price',
+        'selector' => '{{WRAPPER}} .jp-price, {{WRAPPER}} .jp-matrix__cell--value',
     ]
 );
 
+// Common → Color — FIX for Matrix value cells
 $this->add_control(
     'jprm_price_color',
     [
         'label'     => __( 'Color', 'jellopoint-restaurant-menu' ),
         'type'      => Controls_Manager::COLOR,
         'selectors' => [
-            '{{WRAPPER}} .jp-price'                         => 'color: {{VALUE}};',
-            '{{WRAPPER}} .jp-matrix__cell--value .jp-price' => 'color: {{VALUE}};',
+            '{{WRAPPER}} .jp-price'                 => 'color: {{VALUE}};',
+            '{{WRAPPER}} .jp-matrix__cell--value'   => 'color: {{VALUE}};',
         ],
     ]
 );
@@ -541,7 +542,7 @@ $this->add_control(
     ]
 );
 
-// Matrix → Value Cell Alignment — FIX
+// Matrix → Value Cell Alignment — target the actual value cells
 $this->add_responsive_control(
     'jprm_price_align_matrix',
     [
@@ -553,11 +554,12 @@ $this->add_responsive_control(
             'right'  => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-text-align-right' ],
         ],
         'selectors' => [
-            // Text alignment on the value cell (affects inline content like .jp-price)
-            '{{WRAPPER}} .jp-matrix__cell--value' => 'text-align: {{VALUE}};',
+            // Apply directly on the cell so both plain text "$ 5" and placeholders align
+            '{{WRAPPER}} .jp-matrix__row .jp-matrix__cell--value' => 'text-align: {{VALUE}};',
         ],
     ]
 );
+
 
 
 /* ==============================
@@ -596,7 +598,7 @@ $this->add_control(
     ]
 );
 
-// Labels → Icon Size — FIX
+// Labels → Icon Size — target IMG icons everywhere (matrix head + rows + inline)
 $this->add_responsive_control(
     'jprm_label_icon_size',
     [
@@ -605,11 +607,12 @@ $this->add_responsive_control(
         'size_units' => [ 'px' ],
         'range'      => [ 'px' => [ 'min' => 8, 'max' => 64, 'step' => 1 ] ],
         'selectors'  => [
-            '{{WRAPPER}} .jp-menu__icon'            => 'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};',
-            '{{WRAPPER}} .jp-matrix .jp-menu__icon' => 'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};',
+            // Set width and keep aspect ratio
+            '{{WRAPPER}} img.jp-menu__icon' => 'width: {{SIZE}}{{UNIT}}; height: auto;',
         ],
     ]
 );
+
 
 
 // Icon gap (works for IMG now; will also apply to inline SVG later)
