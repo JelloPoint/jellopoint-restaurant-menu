@@ -314,7 +314,7 @@
   break-inside: avoid;
 }
 /* Kill any list-style bullets leaking from theme styles */
-.jp-menu { list-style: none; }
+.jp-menu__meta { list-style: none; }
 .jp-menu li { list-style: none; }
 .jp-menu li::marker { content: none; } /* Safari-friendly */
 /* Make the price row items share a baseline: labels/icons centered with price */
