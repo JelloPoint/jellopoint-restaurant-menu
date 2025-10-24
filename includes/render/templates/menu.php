@@ -104,15 +104,24 @@ $__render_section = function( int $tid ) use (
 
 	// Per-section ctx to pass to layout
 	$sctx = [
-		'term'               => $term,
-		'items'              => $items,
-		'label_presentation' => $label_presentation,
-		'label_position'     => $label_position,
-		'label_map'          => $label_map,
-		'currency_opts'      => $currency_opts,
-		'matrix_placeholder' => $effective_matrix_placeholder,
-		'inline_separator'   => $effective_inline_separator,
-	];
+	'term'               => $term,
+	'items'              => $items,
+
+	// labels (already there)
+	'label_presentation' => $label_presentation,
+	'label_position'     => $label_position,
+	'label_map'          => $label_map,
+
+	// 💡 badges (NEW)
+	'show_badges'         => ! empty( $ctx['show_badges'] ),
+	'badges_presentation' => (string) ( $ctx['badges_presentation'] ?? 'icon_text' ),
+	'badges_position'     => (string) ( $ctx['badges_position'] ?? 'after_title' ),
+
+	// price + layout
+	'currency_opts'      => $currency_opts,
+	'matrix_placeholder' => $effective_matrix_placeholder,
+	'inline_separator'   => $effective_inline_separator,
+];
 
 	// Choose and include layout
 	$base = __DIR__;

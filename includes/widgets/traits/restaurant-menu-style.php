@@ -714,9 +714,6 @@ $this->add_responsive_control(
 
 $this->end_controls_section();
 
-
-
-
 		/* ===== Badges ===== */
 		$this->start_controls_section('jprm_style_badges',[
 			'label'=>__('Badges','jellopoint-restaurant-menu'),
