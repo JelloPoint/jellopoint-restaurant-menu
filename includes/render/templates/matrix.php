@@ -126,18 +126,25 @@ foreach ($items as $post) {
 
 	echo '<div class="jp-matrix__cell jp-matrix__cell--item">';
 	echo '<div class="jp-menu__titleline">';
-		$badges = $show_badges ? jprm_get_badges_for_post( $pid ) : [];
-		if ( $show_badges && $badges && $badges_position === 'before_title' ) {
+		$badges = ! empty( $sctx['show_badges'] ) ? jprm_get_badges_from_meta( $pid ) : [];
+		$badges_position     = isset( $sctx['badges_position'] ) ? (string) $sctx['badges_position'] : 'after_title';
+		$badges_presentation = isset( $sctx['badges_presentation'] ) ? (string) $sctx['badges_presentation'] : 'icon_text';
+
+		if ( $badges && $badges_position === 'before_title' ) {
 			echo jprm_render_badges( $badges, $badges_presentation );
 		}
-		if ($title !== '') echo '<div class="jp-menu__title">' . esc_html($title) . '</div>';
-		if ( $show_badges && $badges && $badges_position === 'after_title' ) {
+		if ( $title !== '' ) {
+			echo '<div class="jp-menu__title">' . esc_html( $title ) . '</div>';
+		}
+		if ( $badges && $badges_position === 'after_title' ) {
 			echo jprm_render_badges( $badges, $badges_presentation );
 		}
 	echo '</div>'; // .jp-menu__titleline
-	if ( is_string($desc) && $desc !== '' ) echo '<div class="jp-menu__desc">' . esc_html($desc) . '</div>';
-echo '</div>';
 
+	if ( is_string( $desc ) && $desc !== '' ) {
+		echo '<div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
+	}
+	echo '</div>';
 
 	foreach ($col_keys as $k) {
 		$val = $rows ? jprm_matrix_find_cell($rows, $k) : null;

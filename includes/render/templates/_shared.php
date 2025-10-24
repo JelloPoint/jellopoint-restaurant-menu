@@ -103,25 +103,52 @@ if ( ! function_exists( 'jprm_get_badges_for_post' ) ) {
 		return $out;
 	}
 }
+
+/**
+ * Fetch badges from post meta 'jprm_item_badges'.
+ * Accepts array, JSON string, or CSV string. Returns array of ['text'=>..., 'ico'=> ''].
+ */
+if ( ! function_exists( 'jprm_get_badges_from_meta' ) ) {
+	function jprm_get_badges_from_meta( int $post_id ) : array {
+		$val = get_post_meta( $post_id, 'jprm_item_badges', true );
+		$list = [];
+
+		if ( is_array( $val ) ) {
+			$list = $val;
+		} elseif ( is_string( $val ) && $val !== '' ) {
+			$decoded = json_decode( $val, true );
+			if ( is_array( $decoded ) ) {
+				$list = $decoded;
+			} else {
+				$list = array_map( 'trim', explode( ',', $val ) );
+			}
+		}
+
+		$out = [];
+		foreach ( $list as $raw ) {
+			if ( ! is_string( $raw ) ) continue;
+			$slug = trim( $raw );
+			if ( $slug === '' ) continue;
+			// prettify "dairy-free" -> "Dairy Free"
+			$label = ucwords( str_replace( ['-', '_'], ' ', $slug ) );
+			$out[] = [ 'text' => $label, 'ico' => '' ];
+		}
+		return $out;
+	}
+}
+
+/**
+ * Render badges as inline elements next to the title.
+ * Presentation: 'text' | 'icon' | 'icon_text' (icons empty for now, so text is used).
+ */
 if ( ! function_exists( 'jprm_render_badges' ) ) {
 	function jprm_render_badges( array $badges, string $presentation = 'icon_text' ) : string {
 		if ( empty( $badges ) ) return '';
 		$html = '<span class="jp-badges">';
 		foreach ( $badges as $b ) {
-			$text = isset( $b['text'] ) ? trim( (string) $b['text'] ) : '';
-			$ico  = isset( $b['ico'] )  ? (string) $b['ico'] : '';
-			switch ( $presentation ) {
-				case 'icon':      $inner = ( $ico !== '' ) ? $ico : esc_html( $text ); break;
-				case 'text':      $inner = esc_html( $text ); break;
-				case 'icon_text':
-				default:
-					$inner = ( $ico !== '' && $text !== '' )
-						? '<span class="jp-badge">' . $ico . '<span>' . esc_html( $text ) . '</span></span>'
-						: '<span class="jp-badge">' . ( $ico !== '' ? $ico : esc_html( $text ) ) . '</span>';
-					$html .= $inner;
-					continue 2; // already wrapped in .jp-badge
-			}
-			$html .= '<span class="jp-badge">' . $inner . '</span>';
+			$text = isset( $b['text'] ) ? (string) $b['text'] : '';
+			if ( $text === '' ) continue;
+			$html .= '<span class="jp-badge"><span>' . esc_html( $text ) . '</span></span>';
 		}
 		$html .= '</span>';
 		return $html;
