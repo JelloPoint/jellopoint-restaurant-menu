@@ -335,4 +335,8 @@
 
 /* Matrix headers also use labels: center them too */
 .jp-matrix .jp-matrix__cell--head .jp-menu__label { display: inline-flex; align-items: center; gap: .35em; }
+/* Title line badges */
+.jp-menu__titleline { display:flex; align-items:center; gap:.5em; flex-wrap:wrap; }
+.jp-badges { display:inline-flex; align-items:center; gap:.35em; }
+.jp-badge { display:inline-flex; align-items:center; gap:.35em; }
 
