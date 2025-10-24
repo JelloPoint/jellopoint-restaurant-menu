@@ -418,7 +418,7 @@ $this->add_control(
     ]
 );
 
-// Column alignment (Inline) – grid item alignment
+// Inline → Price Column Alignment — FIX
 $this->add_responsive_control(
     'jprm_price_align_inline',
     [
@@ -430,7 +430,8 @@ $this->add_responsive_control(
             'end'    => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-text-align-right' ],
         ],
         'selectors' => [
-            '{{WRAPPER}} .jp-inline .jp-menu__pricegroup' => 'justify-self: {{VALUE}};',
+            // Grid item alignment + text fallback (covers varied CSS)
+            '{{WRAPPER}} .jp-inline .jp-menu__pricegroup' => 'justify-self: {{VALUE}}; text-align: {{VALUE == "start" ? "left" : (VALUE == "end" ? "right" : "center")}};',
         ],
     ]
 );
@@ -540,7 +541,7 @@ $this->add_control(
     ]
 );
 
-// Text alignment inside the "value" cell
+// Matrix → Value Cell Alignment — FIX
 $this->add_responsive_control(
     'jprm_price_align_matrix',
     [
@@ -552,6 +553,7 @@ $this->add_responsive_control(
             'right'  => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-text-align-right' ],
         ],
         'selectors' => [
+            // Text alignment on the value cell (affects inline content like .jp-price)
             '{{WRAPPER}} .jp-matrix__cell--value' => 'text-align: {{VALUE}};',
         ],
     ]
@@ -594,7 +596,7 @@ $this->add_control(
     ]
 );
 
-// Icon size (current IMG-based icons)
+// Labels → Icon Size — FIX
 $this->add_responsive_control(
     'jprm_label_icon_size',
     [
@@ -603,11 +605,12 @@ $this->add_responsive_control(
         'size_units' => [ 'px' ],
         'range'      => [ 'px' => [ 'min' => 8, 'max' => 64, 'step' => 1 ] ],
         'selectors'  => [
-            '{{WRAPPER}} .jp-menu__icon'           => 'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};',
+            '{{WRAPPER}} .jp-menu__icon'            => 'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};',
             '{{WRAPPER}} .jp-matrix .jp-menu__icon' => 'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};',
         ],
     ]
 );
+
 
 // Icon gap (works for IMG now; will also apply to inline SVG later)
 $this->add_responsive_control(
