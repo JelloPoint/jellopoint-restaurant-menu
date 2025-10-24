@@ -605,7 +605,7 @@ $this->add_responsive_control(
         'label'      => __( 'Icon Size', 'jellopoint-restaurant-menu' ),
         'type'       => Controls_Manager::SLIDER,
         'size_units' => [ 'px' ],
-        'range'      => [ 'px' => [ 'min' => 8, 'max' => 64, 'step' => 1 ] ],
+        'range'      => [ 'px' => [ 'min' => 12, 'max' => 64, 'step' => 1 ] ],
         'selectors'  => [
             // Override HTML width/height attributes and any theme max-width
             '{{WRAPPER}} img.jp-menu__icon' => 'width: {{SIZE}}{{UNIT}} !important; height: auto !important; max-width: none !important;',

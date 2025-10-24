@@ -313,4 +313,21 @@
 .jp-menu__item {
   break-inside: avoid;
 }
+/* Kill any list-style bullets leaking from theme styles */
+.jp-menu { list-style: none; }
+.jp-menu li { list-style: none; }
+.jp-menu li::marker { content: none; } /* Safari-friendly */
+/* Make the price row items share a baseline: labels/icons centered with price */
+.jp-price-row { display: flex; align-items: center; gap: .35em; }
+
+/* Inline-below chip row: center chips with separators */
+.jp-inline-below .jp-chipline { display: flex; flex-wrap: wrap; align-items: center; gap: .35em; }
+.jp-inline-below .jp-sep { align-self: center; line-height: 1; }
+
+/* Labels themselves: icon + text centered */
+.jp-menu__label { display: inline-flex; align-items: center; gap: .35em; }
+.jp-menu__icon { display: inline-block; vertical-align: middle; }  /* works for <img> icons */
+
+/* Matrix headers also use labels: center them too */
+.jp-matrix .jp-matrix__cell--head .jp-menu__label { display: inline-flex; align-items: center; gap: .35em; }
 
