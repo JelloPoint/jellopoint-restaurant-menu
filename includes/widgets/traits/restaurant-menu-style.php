@@ -598,7 +598,7 @@ $this->add_control(
     ]
 );
 
-// Labels → Icon Size — target IMG icons everywhere (matrix head + rows + inline)
+// Labels → Icon Size — FORCE override (works in Matrix header/rows and inline)
 $this->add_responsive_control(
     'jprm_label_icon_size',
     [
@@ -607,13 +607,11 @@ $this->add_responsive_control(
         'size_units' => [ 'px' ],
         'range'      => [ 'px' => [ 'min' => 8, 'max' => 64, 'step' => 1 ] ],
         'selectors'  => [
-            // Set width and keep aspect ratio
-            '{{WRAPPER}} img.jp-menu__icon' => 'width: {{SIZE}}{{UNIT}}; height: auto;',
+            // Override HTML width/height attributes and any theme max-width
+            '{{WRAPPER}} img.jp-menu__icon' => 'width: {{SIZE}}{{UNIT}} !important; height: auto !important; max-width: none !important;',
         ],
     ]
 );
-
-
 
 // Icon gap (works for IMG now; will also apply to inline SVG later)
 $this->add_responsive_control(
