@@ -103,24 +103,24 @@ $__render_section = function( int $tid ) use (
 	}
 
 	// Per-section ctx to pass to layout
-	$sctx = [
-	'term'               => $term,
-	'items'              => $items,
+$sctx = [
+    'term'               => $term,
+    'items'              => $items,
 
-	// labels (already there)
-	'label_presentation' => $label_presentation,
-	'label_position'     => $label_position,
-	'label_map'          => $label_map,
+    // labels (existing)
+    'label_presentation' => $label_presentation,
+    'label_position'     => $label_position,
+    'label_map'          => $label_map,
 
-	// 💡 badges (NEW)
-	'show_badges'         => ! empty( $ctx['show_badges'] ),
-	'badges_presentation' => (string) ( $ctx['badges_presentation'] ?? 'icon_text' ),
-	'badges_position'     => (string) ( $ctx['badges_position'] ?? 'after_title' ),
+    // prices / layout (existing)
+    'currency_opts'      => $currency_opts,
+    'matrix_placeholder' => $effective_matrix_placeholder,
+    'inline_separator'   => $effective_inline_separator,
 
-	// price + layout
-	'currency_opts'      => $currency_opts,
-	'matrix_placeholder' => $effective_matrix_placeholder,
-	'inline_separator'   => $effective_inline_separator,
+    // badges (NEW)
+    'show_badges'         => ! empty( $ctx['show_badges'] ),
+    'badges_presentation' => (string) ( $ctx['badges_presentation'] ?? 'icon_text' ),
+    'badges_position'     => (string) ( $ctx['badges_position'] ?? 'after_title' ),
 ];
 
 	// Choose and include layout
@@ -132,6 +132,10 @@ $__render_section = function( int $tid ) use (
 		default:             $file = $base . '/inline.php';       break;
 	}
 	if ( file_exists( $file ) ) {
+			// Make sure the badges renderer is loaded for all layouts
+	if ( ! function_exists( 'jprm_render_badges_inline_html' ) ) {
+		require_once __DIR__ . '/badges-block.php';
+	}
 		$_section_ctx = $sctx;
 		include $file;
 		unset( $_section_ctx );

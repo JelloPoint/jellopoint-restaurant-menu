@@ -61,25 +61,46 @@ foreach ($items as $post) {
 
 	echo '<div class="jp-menu__content">';
 	echo '<div class="jp-menu__titleline">';
-		$badges = ! empty( $sctx['show_badges'] ) ? jprm_get_badges_from_meta( $pid ) : [];
-		$badges_position     = isset( $sctx['badges_position'] ) ? (string) $sctx['badges_position'] : 'after_title';
-		$badges_presentation = isset( $sctx['badges_presentation'] ) ? (string) $sctx['badges_presentation'] : 'icon_text';
 
-		if ( $badges && $badges_position === 'before_title' ) {
-			echo jprm_render_badges( $badges, $badges_presentation );
-		}
-		if ( $title !== '' ) {
-			echo '<div class="jp-menu__title">' . esc_html( $title ) . '</div>';
-		}
-		if ( $badges && $badges_position === 'after_title' ) {
-			echo jprm_render_badges( $badges, $badges_presentation );
-		}
-	echo '</div>'; // .jp-menu__titleline
+    // === Badges (uses badges-block.php renderer) ===
+    // Read widget settings passed via $sctx
+    $__show_badges = ! empty( $sctx['show_badges'] );
+    $__pres        = (string) ( $sctx['badges_presentation'] ?? 'icon_text' );
+    $__pos         = (string) ( $sctx['badges_position'] ?? 'after_title' );
 
-	if ( is_string( $desc ) && $desc !== '' ) {
-		echo '<div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
-	}
-	echo '</div>';
+    // Resolve the current item ID robustly
+    $__pid = isset( $pid ) ? (int) $pid
+            : ( isset( $item['ID'] ) ? (int) $item['ID']
+            : ( isset( $item->ID )   ? (int) $item->ID : 0 ) );
+
+    // Generate badges HTML once (empty string if disabled or no ID)
+    $__badges_html = ( $__show_badges && $__pid )
+        ? jprm_render_badges_inline_html( $__pid, $__pres )
+        : '';
+
+    // Before title?
+    if ( $__badges_html && $__pos === 'before_title' ) {
+        echo $__badges_html;
+    }
+
+    // Title
+    if ( $title !== '' ) {
+        echo '<div class="jp-menu__title">' . esc_html( $title ) . '</div>';
+    }
+
+    // After title?
+    if ( $__badges_html && $__pos === 'after_title' ) {
+        echo $__badges_html;
+    }
+
+echo '</div>'; // .jp-menu__titleline
+
+// Description (unchanged)
+if ( is_string( $desc ) && $desc !== '' ) {
+    echo '<div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
+}
+echo '</div>';
+
 
 	echo '<div class="jp-menu__pricegroup">';
 
