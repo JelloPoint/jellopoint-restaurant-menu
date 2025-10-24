@@ -87,7 +87,7 @@ if ( is_admin() ) {
 	// Optional debug addon if present
 	//if ( file_exists( JPRM_PLUGIN_PATH . 'includes/debug/inspector-badges.php' ) ) {
 	//	require_once JPRM_PLUGIN_PATH . 'includes/debug/inspector-badges.php';
-	}
+	//}
 }
 
 // Register routes for ALL contexts (front + admin).
