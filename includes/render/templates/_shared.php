@@ -79,5 +79,53 @@ if ( ! function_exists( 'jprm_render_price_token' ) ) {
 		}
 		echo '</span>';
 	}
+  // ===== Badges: collect from taxonomy + render =====
+if ( ! function_exists( 'jprm_get_badges_for_post' ) ) {
+	function jprm_get_badges_for_post( int $post_id ) : array {
+		$out = [];
+		$terms = get_the_terms( $post_id, 'jprm_badge' );
+		if ( is_array( $terms ) ) {
+			foreach ( $terms as $t ) {
+				$meta_icon_html = get_term_meta( $t->term_id, 'icon_html', true );
+				$meta_icon_url  = get_term_meta( $t->term_id, 'icon_url',  true );
+				$ico = '';
+				if ( is_string( $meta_icon_html ) && $meta_icon_html !== '' ) {
+					$ico = $meta_icon_html;
+				} elseif ( is_string( $meta_icon_url ) && $meta_icon_url !== '' ) {
+					$ico = '<img class="jp-menu__icon" src="' . esc_url( $meta_icon_url ) . '" alt="" loading="lazy" decoding="async" />';
+				}
+				$out[] = [
+					'text' => (string) $t->name,
+					'ico'  => $ico, // may be empty → text-only badge
+				];
+			}
+		}
+		return $out;
+	}
+}
+if ( ! function_exists( 'jprm_render_badges' ) ) {
+	function jprm_render_badges( array $badges, string $presentation = 'icon_text' ) : string {
+		if ( empty( $badges ) ) return '';
+		$html = '<span class="jp-badges">';
+		foreach ( $badges as $b ) {
+			$text = isset( $b['text'] ) ? trim( (string) $b['text'] ) : '';
+			$ico  = isset( $b['ico'] )  ? (string) $b['ico'] : '';
+			switch ( $presentation ) {
+				case 'icon':      $inner = ( $ico !== '' ) ? $ico : esc_html( $text ); break;
+				case 'text':      $inner = esc_html( $text ); break;
+				case 'icon_text':
+				default:
+					$inner = ( $ico !== '' && $text !== '' )
+						? '<span class="jp-badge">' . $ico . '<span>' . esc_html( $text ) . '</span></span>'
+						: '<span class="jp-badge">' . ( $ico !== '' ? $ico : esc_html( $text ) ) . '</span>';
+					$html .= $inner;
+					continue 2; // already wrapped in .jp-badge
+			}
+			$html .= '<span class="jp-badge">' . $inner . '</span>';
+		}
+		$html .= '</span>';
+		return $html;
+	}
+}
 }
 
