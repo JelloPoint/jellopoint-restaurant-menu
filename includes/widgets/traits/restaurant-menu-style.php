@@ -355,7 +355,7 @@ $this->add_control(
     ]
 );
 
-/* --- Common (applies to all layouts) ---------------------- */
+/* --- Common  (applies to all layouts) ---------------------- */
 
 $this->add_control(
     'jprm_prices_common_heading',
