@@ -314,9 +314,14 @@
   break-inside: avoid;
 }
 /* Kill any list-style bullets leaking from theme styles */
-.jp-menu__meta { list-style: none; }
-.jp-menu li { list-style: none; }
-.jp-menu li::marker { content: none; } /* Safari-friendly */
+.jp-menu,
+.jp-menu__meta,
+.jp-menu__meta li {
+	list-style: none;
+}
+.jp-menu__meta li::marker {
+	content: none;
+}
 /* Make the price row items share a baseline: labels/icons centered with price */
 .jp-price-row { display: flex; align-items: center; gap: .35em; }
 
