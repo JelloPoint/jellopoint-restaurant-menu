@@ -85,31 +85,45 @@ if ( isset($_GET['jprm_dbg']) ) { echo "\n<!-- inline-below pid=$pid rows=" . (i
 		echo '<div class="jp-inline-below__line">';
 
 			$pairs = [];
-			foreach ($rows as $r) {
-				$price = (string)($r['formatted'] ?? '');
-				$lbl   = [
-					'text'      => (string)($r['label_text'] ?? ''),
-					'icon_html' => (string)($r['icon_html'] ?? ''),
-					'icon'      => (string)($r['icon'] ?? ''),
-					'svg'       => (string)($r['svg'] ?? ''),
-					'icon_url'  => (string)($r['icon_url'] ?? ''),
-				];
-				
-				$chip = '<span class="jp-chip">'. jprm_label_chip_inline_below($lbl, $label_presentation) .'</span>';
 
-				if ($price !== '') {
-    $pairs[] = '<span class="jp-chipline jp-chipline--priced">'
-        . $chip
-        . '<span class="jp-price">'. $price .'</span>'
-        . ( $sep !== '' ? '<span class="jp-sep">'. esc_html($sep) .'</span>' : '' )
-        . '</span>';
-} else {
-    $pairs[] = '<span class="jp-chipline jp-chipline--noprice">'. $chip .'</span>';
+// Count rows that actually have a price formatted
+$__priced_total = 0;
+foreach ($rows as $r) {
+    if (isset($r['formatted']) && (string)$r['formatted'] !== '') {
+        $__priced_total++;
+    }
 }
 
-			}
+$__priced_printed = 0;
 
-			echo implode('', $pairs);
+foreach ($rows as $r) {
+    $price = (string)($r['formatted'] ?? '');
+    $lbl   = [
+        'text'      => (string)($r['label_text'] ?? ''),
+        'icon_html' => (string)($r['icon_html'] ?? ''),
+        'icon'      => (string)($r['icon'] ?? ''),
+        'svg'       => (string)($r['svg'] ?? ''),
+        'icon_url'  => (string)($r['icon_url'] ?? ''),
+    ];
+
+    $chip = '<span class="jp-chip">'. jprm_label_chip_inline_below($lbl, $label_presentation) .'</span>';
+
+    if ($price !== '') {
+        $__priced_printed++;
+        $show_sep_here = ($sep !== '' && $__priced_printed < $__priced_total);
+
+        $pairs[] = '<span class="jp-chipline jp-chipline--priced">'
+            . $chip
+            . '<span class="jp-price">'. $price .'</span>'
+            . ( $show_sep_here ? '<span class="jp-sep">'. esc_html($sep) .'</span>' : '' )
+            . '</span>';
+    } else {
+        $pairs[] = '<span class="jp-chipline jp-chipline--noprice">'. $chip .'</span>';
+    }
+}
+
+echo implode('', $pairs);
+
 
 		echo '</div>'; // .jp-inline-below__line
 	echo '</div>'; // .jp-menu__pricegroup--below
