@@ -68,7 +68,7 @@ foreach ($items as $post) {
 	$desc  = get_post_meta($pid, 'jprm_desc', true);
 	$rows  = function_exists('jprm_get_pricegroup_data') ? jprm_get_pricegroup_data($pid, $label_map, $currency_opts) : [];
 
-/*DEBUG START*/	
+/*DEBUG  START*/	
 if ( isset($_GET['jprm_dbg']) ) { echo "\n<!-- inline-below pid=$pid rows=" . (is_array($rows)?count($rows):0) . " sep='". esc_html($sep) ."' -->\n"; }
 /*DEBUG STOP*/
 	
