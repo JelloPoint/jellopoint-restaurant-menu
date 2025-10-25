@@ -64,15 +64,18 @@ if ( class_exists('\Elementor\Plugin') ) {
     try { $is_editor = \Elementor\Plugin::$instance->editor->is_edit_mode(); } catch (\Throwable $e) {}
 }
 
+$toggle_on = ! empty( $ctx['inline_below_sep_enable'] ) && $ctx['inline_below_sep_enable'] === 'on';
+
 $global_inline_separator = '';
 if ( ! empty( $ctx['inline_below_separator'] ) ) {
     $global_inline_separator = (string) $ctx['inline_below_separator'];
 } elseif ( ! empty( $ctx['inline_separator'] ) ) {
     $global_inline_separator = (string) $ctx['inline_separator'];
-} elseif ( $is_editor ) {
-    // Show a harmless dot in the editor so you can style it before saving
+} elseif ( $is_editor && $toggle_on ) {
+    // Only show preview dot if toggle is ON but content not set yet
     $global_inline_separator = '·';
 }
+
 
 /** Render a single section by term-id */
 $__render_section = function( int $tid ) use (

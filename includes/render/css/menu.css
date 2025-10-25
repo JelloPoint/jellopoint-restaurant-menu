@@ -351,4 +351,70 @@
   padding: 0 .35em;      /* space on both sides of the separator */
   line-height: 1;
 }
+/* ==== INLINE-BELOW — authoritative overrides (append at end) ==== */
+/* Structure: 
+   <div class="jp-menu__pricegroup jp-menu__pricegroup--below">
+     <div class="jp-inline-below__line">
+       <span class="jp-chipline jp-chipline--priced">
+         <span class="jp-chip"><span class="jp-menu__label">[icon][text]</span></span>
+         <span class="jp-price">[price]</span>
+         <span class="jp-sep">[SEP]</span>  <-- optional, only when enabled & non-empty
+       </span>
+       ...
+     </div>
+   </div>
+*/
+
+/* One horizontal line of pairs that wraps nicely */
+.jp-menu__pricegroup--below .jp-inline-below__line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;      /* space between pairs */
+  align-items: center;
+  margin-top: 0.25rem;
+}
+
+/* A single (label, price, sep) tuple */
+.jp-menu__pricegroup--below .jp-chipline {
+  display: inline-flex;
+  align-items: center;    /* vertical centering of label + price */
+  gap: 0;                 /* we’ll control spacing explicitly below */
+}
+
+/* Label (chip) — keep icon + text aligned */
+.jp-menu__pricegroup--below .jp-chip .jp-menu__label {
+  display: inline-flex;
+  align-items: center;
+  gap: .35em;
+}
+
+/* Price — ensure there is ALWAYS a gap after the label, even without a separator */
+.jp-menu__pricegroup--below .jp-chipline .jp-price {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  margin-left: .45em;     /* default space between label → price */
+}
+
+/* Separator (when present) sits AFTER the price; 
+   give it a little space on the LEFT only (no trailing space after the last item) */
+.jp-menu__pricegroup--below .jp-chipline .jp-sep {
+  display: inline-flex;
+  align-items: center;
+  opacity: .75;
+  padding-left: .35em;    /* space before the separator */
+  padding-right: 0;       /* no space after the separator */
+  line-height: 1;
+}
+
+/* If a chipline has no price, never show a separator */
+.jp-menu__pricegroup--below .jp-chipline--noprice .jp-sep { 
+  display: none !important; 
+}
+
+/* Kill any trailing space after the very last element in the chipline */
+.jp-menu__pricegroup--below .jp-chipline > :last-child {
+  margin-right: 0 !important;
+  padding-right: 0 !important;
+}
 
