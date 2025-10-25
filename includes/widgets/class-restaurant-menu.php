@@ -264,13 +264,12 @@ foreach ( $overrides as $ov ) {
 			'labels_matrix_placeholder' => isset( $s['labels_matrix_placeholder'] )
     		? html_entity_decode( (string) $s['labels_matrix_placeholder'], ENT_QUOTES )
     		: '',
-			'inline_below_separator'    => isset( $s['inline_below_separator'] )
-    		? (string) $s['inline_below_separator']
+			// Inline-Below separator (from Content tab controls)
+			'inline_below_separator' => (
+    		! empty( $s['inline_below_sep_enable'] ) && $s['inline_below_sep_enable'] === 'on'
+			)
+    		? (string) ( $s['inline_below_sep_content'] ?? '' )
     		: '',
-			// NEW alias for templates that expect 'inline_separator'
-'inline_separator' => isset( $s['inline_below_separator'] )
-    ? (string) $s['inline_below_separator']
-    : '',
 			'global_placeholder'    => $global_placeholder,
 				];
 
