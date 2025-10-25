@@ -94,19 +94,19 @@ if ( isset($_GET['jprm_dbg']) ) { echo "\n<!-- inline-below pid=$pid rows=" . (i
 					'svg'       => (string)($r['svg'] ?? ''),
 					'icon_url'  => (string)($r['icon_url'] ?? ''),
 				];
+				
 				$chip = '<span class="jp-chip">'. jprm_label_chip_inline_below($lbl, $label_presentation) .'</span>';
 
-if ( isset($_GET['jprm_dbg']) ) echo "<!-- sep_debug: '". esc_html($sep) ."' -->\n";
-
 				if ($price !== '') {
-					$pairs[] = '<span class="jp-chipline jp-chipline--priced">'
-						. $chip
-						. ( $sep !== '' ? '<span class="jp-sep">'. esc_html($sep) .'</span>' : '' )
-						. '<span class="jp-price">'. $price .'</span>'
-						. '</span>';
-				} else {
-					$pairs[] = '<span class="jp-chipline jp-chipline--noprice">'. $chip .'</span>';
-				}
+    $pairs[] = '<span class="jp-chipline jp-chipline--priced">'
+        . $chip
+        . '<span class="jp-price">'. $price .'</span>'
+        . ( $sep !== '' ? '<span class="jp-sep">'. esc_html($sep) .'</span>' : '' )
+        . '</span>';
+} else {
+    $pairs[] = '<span class="jp-chipline jp-chipline--noprice">'. $chip .'</span>';
+}
+
 			}
 
 			echo implode('', $pairs);
