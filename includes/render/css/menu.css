@@ -335,4 +335,20 @@
 
 /* Matrix headers also use labels: center them too */
 .jp-matrix .jp-matrix__cell--head .jp-menu__label { display: inline-flex; align-items: center; gap: .35em; }
+/* Inline-Below: keep label + price nicely spaced even without a separator */
+.jp-inline-below .jp-chipline { 
+  display: inline-flex;
+  align-items: center;
+  gap: .35em;            /* space between chip (label) and price, and also around sep if present */
+}
+
+.jp-inline-below .jp-chipline .jp-price { 
+  line-height: 1;        /* keeps numbers vertically centered next to icon/text */
+}
+
+/* If you want a little breathing room around the separator after the price */
+.jp-inline-below .jp-chipline .jp-sep {
+  padding: 0 .35em;      /* space on both sides of the separator */
+  line-height: 1;
+}
 
