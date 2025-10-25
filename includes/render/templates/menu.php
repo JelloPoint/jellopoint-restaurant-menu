@@ -47,7 +47,7 @@ $global_labels_layout     = (string) ( $ctx['global_labels_layout'] ?? 'inline' 
 $section_layouts          = is_array( $ctx['section_layouts'] ?? null ) ? $ctx['section_layouts'] : [];
 
 $global_matrix_placeholder = (string) ( $ctx['labels_matrix_placeholder'] ?? '' );
-$global_inline_separator   = (string) ( $ctx['inline_separator'] ?? '' );
+$global_inline_separator   = (string) ( $ctx['inline_below_separator'] ?? '' );
 $global_placeholder_legacy = (string) ( $ctx['global_placeholder'] ?? '—' );
 
 /* -------- read your existing control names -------- */
