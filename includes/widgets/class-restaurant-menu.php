@@ -267,6 +267,10 @@ foreach ( $overrides as $ov ) {
 			'inline_below_separator'    => isset( $s['inline_below_separator'] )
     		? (string) $s['inline_below_separator']
     		: '',
+			// NEW alias for templates that expect 'inline_separator'
+'inline_separator' => isset( $s['inline_below_separator'] )
+    ? (string) $s['inline_below_separator']
+    : '',
 			'global_placeholder'    => $global_placeholder,
 				];
 
