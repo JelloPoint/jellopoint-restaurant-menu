@@ -14,7 +14,7 @@ $items = is_array($sctx['items'] ?? null) ? $sctx['items'] : [];
 $label_presentation = (string)($sctx['label_presentation'] ?? 'icon_text');
 $label_map          = is_array($sctx['label_map'] ?? null) ? $sctx['label_map'] : [];
 $currency_opts      = is_array($sctx['currency_opts'] ?? null) ? $sctx['currency_opts'] : [];
-$sep                = (string)($sctx['inline_below_separator'] ?? '');
+$sep                = (string)($sctx['inline_separator'] ?? '');
 
 // Ensure separator is visible in the Elementor editor even if not saved yet
 $is_editor = false;
