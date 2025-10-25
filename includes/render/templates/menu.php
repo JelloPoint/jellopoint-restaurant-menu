@@ -58,6 +58,22 @@ $split_after_section_id_2   = (int) ( $ctx['layout_split_after_section2'] ?? 0 )
 
 /* -------- helpers -------- */
 
+// === Inline-Below separator from widget settings (supports both keys) ===
+$is_editor = false;
+if ( class_exists('\Elementor\Plugin') ) {
+    try { $is_editor = \Elementor\Plugin::$instance->editor->is_edit_mode(); } catch (\Throwable $e) {}
+}
+
+$global_inline_separator = '';
+if ( ! empty( $ctx['inline_below_separator'] ) ) {
+    $global_inline_separator = (string) $ctx['inline_below_separator'];
+} elseif ( ! empty( $ctx['inline_separator'] ) ) {
+    $global_inline_separator = (string) $ctx['inline_separator'];
+} elseif ( $is_editor ) {
+    // Show a harmless dot in the editor so you can style it before saving
+    $global_inline_separator = '·';
+}
+
 /** Render a single section by term-id */
 $__render_section = function( int $tid ) use (
 	$sections_data, $show_section_name, $show_section_desc, $ib_map,
