@@ -96,6 +96,8 @@ if ( isset($_GET['jprm_dbg']) ) { echo "\n<!-- inline-below pid=$pid rows=" . (i
 				];
 				$chip = '<span class="jp-chip">'. jprm_label_chip_inline_below($lbl, $label_presentation) .'</span>';
 
+if ( isset($_GET['jprm_dbg']) ) echo "<!-- sep_debug: '". esc_html($sep) ."' -->\n";
+
 				if ($price !== '') {
 					$pairs[] = '<span class="jp-chipline jp-chipline--priced">'
 						. $chip
