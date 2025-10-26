@@ -185,3 +185,236 @@
 .jp-menu__pricegroup { display:flex; flex-direction:column; gap:.25rem; text-align:right; }
 .jp-menu__pricegroup .jp-menu__row { display:flex; align-items:center; gap:.35em; }
 
+/* Inline-Below: chips row */
+.jp-menu__inner.jp--inline-below { display:flex; flex-direction:column; gap:.5rem; }
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup { display:block; font-size:0; }
+.jp-menu__inner.jp--inline-below .jp-menu__pricegroup .jp-menu__row { 
+  display:inline-block; font-size:1rem; margin:0 .8rem .5rem 0; white-space:nowrap;
+}
+
+/* Separators: off by default; on only in Inline-Below */
+.jp-chip-sep { display:none; }
+.jp-menu__inner.jp--inline-below .jp-chip-sep { display:inline-block; opacity:.75; }
+/* Matrix list reset: kill default bullets/left indent */
+.jp-menu__matrix,
+.jp-menu__matrix > li {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* If your theme forces extra indent on ULs, hard-reset it */
+.jp-menu__matrix {
+  padding-inline-start: 0;
+}
+
+/* Matrix grid (keeps current behavior) */
+.jp-matrix {
+  display: grid;
+  grid-template-columns: auto repeat(var(--jp-matrix-cols, 3), auto);
+  column-gap: 1.25rem; /* tweak if you want tighter/wider spacing */
+}
+
+.jp-matrix__row { display: contents; }
+.jp-matrix__cell { padding: .25rem 0; }
+/*ADDED FOR INLINE BELOW*/
+/* Inline-Below: one horizontal line of label/price pairs under the title */
+.jp-inline-below .jp-inline-below__line {
+  display: flex;
+  flex-wrap: wrap;             /* wrap gracefully if too many pairs */
+  gap: 0.35rem 1rem;           /* space between pairs */
+  align-items: baseline;
+  margin-top: 0.25rem;         /* a hair under the title/desc */
+}
+
+.jp-inline-below .jp-chipline {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;                /* space between chip, sep, price */
+}
+
+.jp-inline-below .jp-chipline--noprice .jp-sep { display: none; }
+.jp-inline-below .jp-sep { opacity: 0.7; }
+
+/* keep chips tidy */
+.jp-inline-below .jp-chip .jp-menu__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+/* Inline-Below: remove any vertical gap between description and the price row */
+.jp-inline-below .jp-menu__inner { gap: 0; }                 /* kill any flex gap on the item container */
+.jp-inline-below .jp-menu__content { margin: 0; padding: 0; } /* no bottom space from the content block */
+
+/* ensure the last text element in content has no trailing margin */
+.jp-inline-below .jp-menu__content > *:last-child { margin-bottom: 0; }
+
+/* price line sits flush under content */
+.jp-inline-below .jp-inline-below__line { margin-top: 0; }
+
+/* belt-and-suspenders: titles/descriptions themselves don’t push space */
+.jp-inline-below .jp-menu__title,
+.jp-inline-below .jp-menu__desc { margin: 0; }
+/* INLINE-BELOW: ensure price row is FULL-WIDTH below content */
+.jp-inline-below .jp-menu__inner {
+  display: grid;               /* respect existing grid if already grid; harmless if flex */
+  grid-template-columns: 1fr;  /* single column for this layout */
+  gap: 0.25rem;                /* small vertical rhythm */
+}
+
+/* make both content and the below pricegroup span the whole width */
+.jp-inline-below .jp-menu__content,
+.jp-inline-below .jp-menu__pricegroup--below {
+  grid-column: 1 / -1;
+}
+
+/* one horizontal line of pairs that wraps nicely */
+.jp-inline-below .jp-inline-below__line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  align-items: baseline;
+  margin-top: 0;               /* hug the description */
+}
+
+/* tidy pairs */
+.jp-inline-below .jp-chipline { display: inline-flex; align-items: baseline; gap: 0.35rem; }
+.jp-inline-below .jp-chipline--noprice .jp-sep { display: none; }
+.jp-inline-below .jp-sep { opacity: 0.7; }
+
+/* kill stray margins inside content so it sits tight to the price row */
+.jp-inline-below .jp-menu__content { margin: 0; padding: 0; }
+.jp-inline-below .jp-menu__content > *:last-child { margin-bottom: 0; }
+.jp-inline-below .jp-menu__title,
+.jp-inline-below .jp-menu__desc { margin: 0; }
+.jp-inline-below .jp-menu__desc p:last-child { margin-bottom: 0; }
+
+
+/* Multi-column wrapper */
+.jp-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--jp-cols, 1), minmax(0, 1fr));
+  gap: 1.25rem; /* space between columns */
+}
+
+/* Column ULs should have no extra margins */
+.jp-menu-grid .jp-menu--col {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Keep section blocks intact; avoid internal splitting by the browser */
+.jp-menu__section-header,
+.jp-menu__infoblock-li,
+.jp-matrix,
+.jp-inline,
+.jp-inline-below,
+.jp-menu__item {
+  break-inside: avoid;
+}
+/* Kill any list-style bullets leaking from theme styles */
+.jp-menu,
+.jp-menu__meta,
+.jp-menu__meta li {
+	list-style: none;
+}
+.jp-menu__meta li::marker {
+	content: none;
+}
+/* Make the price row items share a baseline: labels/icons centered with price */
+.jp-price-row { display: flex; align-items: center; gap: .35em; }
+
+/* Inline-below chip row: center chips with separators */
+.jp-inline-below .jp-chipline { display: flex; flex-wrap: wrap; align-items: center; gap: .35em; }
+.jp-inline-below .jp-sep { align-self: center; line-height: 1; }
+
+/* Labels themselves: icon + text centered */
+.jp-menu__label { display: inline-flex; align-items: center; gap: .35em; }
+.jp-menu__icon { display: inline-block; vertical-align: middle; }  /* works for <img> icons */
+
+/* Matrix headers also use labels: center them too */
+.jp-matrix .jp-matrix__cell--head .jp-menu__label { display: inline-flex; align-items: center; gap: .35em; }
+/* Inline-Below: keep label + price nicely spaced even without a separator */
+.jp-inline-below .jp-chipline { 
+  display: inline-flex;
+  align-items: center;
+  gap: .35em;            /* space between chip (label) and price, and also around sep if present */
+}
+
+.jp-inline-below .jp-chipline .jp-price { 
+  line-height: 1;        /* keeps numbers vertically centered next to icon/text */
+}
+
+/* If you want a little breathing room around the separator after the price */
+.jp-inline-below .jp-chipline .jp-sep {
+  padding: 0 .35em;      /* space on both sides of the separator */
+  line-height: 1;
+}
+/* ==== INLINE-BELOW — authoritative overrides (append at end) ==== */
+/* Structure: 
+   <div class="jp-menu__pricegroup jp-menu__pricegroup--below">
+     <div class="jp-inline-below__line">
+       <span class="jp-chipline jp-chipline--priced">
+         <span class="jp-chip"><span class="jp-menu__label">[icon][text]</span></span>
+         <span class="jp-price">[price]</span>
+         <span class="jp-sep">[SEP]</span>  <-- optional, only when enabled & non-empty
+       </span>
+       ...
+     </div>
+   </div>
+*/
+
+/* One horizontal line of pairs that wraps nicely */
+.jp-menu__pricegroup--below .jp-inline-below__line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;      /* space between pairs */
+  align-items: center;
+  margin-top: 0.25rem;
+}
+
+/* A single (label, price, sep) tuple */
+.jp-menu__pricegroup--below .jp-chipline {
+  display: inline-flex;
+  align-items: center;    /* vertical centering of label + price */
+  gap: 0;                 /* we’ll control spacing explicitly below */
+}
+
+/* Label (chip) — keep icon + text aligned */
+.jp-menu__pricegroup--below .jp-chip .jp-menu__label {
+  display: inline-flex;
+  align-items: center;
+  gap: .35em;
+}
+
+/* Price — ensure there is ALWAYS a gap after the label, even without a separator */
+.jp-menu__pricegroup--below .jp-chipline .jp-price {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  margin-left: .45em;     /* default space between label → price */
+}
+
+/* Separator (when present) sits AFTER the price; 
+   give it a little space on the LEFT only (no trailing space after the last item) */
+.jp-menu__pricegroup--below .jp-chipline .jp-sep {
+  display: inline-flex;
+  align-items: center;
+  opacity: .75;
+  padding-left: .35em;    /* space before the separator */
+  padding-right: 0;       /* no space after the separator */
+  line-height: 1;
+}
+
+/* If a chipline has no price, never show a separator */
+.jp-menu__pricegroup--below .jp-chipline--noprice .jp-sep { 
+  display: none !important; 
+}
+
+/* Kill any trailing space after the very last element in the chipline */
+.jp-menu__pricegroup--below .jp-chipline > :last-child {
+  margin-right: 0 !important;
+  padding-right: 0 !important;
+}
+
