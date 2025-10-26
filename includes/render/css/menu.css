@@ -298,7 +298,7 @@
   display: inline-flex;
   align-items: center;
   line-height: 1;
-  margin-left: 0.45em;      /* ← default gap between label → price */
+  margin-left: 0.25em;      /* ← default gap between label → price */
 }
 
 /* separator: appears AFTER price; no trailing space after it */
