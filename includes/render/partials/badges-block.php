@@ -20,13 +20,14 @@ function jprm_render_badges_inline_html( int $post_id, string $presentation = 'i
 	}
 
 	// Load catalog (v1 first, then legacy)
-	$catalog = get_option( 'jprm_dietary_badges_v1', null );
-	if ( ! is_array( $catalog ) ) {
-		$catalog = get_option( 'jprm_dietary_badges', [] );
-	}
-	if ( ! is_array( $catalog ) || empty( $catalog ) ) {
-		return '';
-	}
+	// NEW (works even if v1 exists but is empty)
+$catalog = get_option( 'jprm_dietary_badges_v1', null );
+if ( ! is_array( $catalog ) || empty( $catalog ) ) {
+    $catalog = get_option( 'jprm_dietary_badges', [] );
+}
+if ( ! is_array( $catalog ) || empty( $catalog ) ) {
+    return ''; // no catalog at all
+}
 
 	// Build fast lookup by slug; catalog entries expected like:
 	// [ [ 'name' => 'Vegan', 'slug' => 'vegan', 'icon_url' => '...', 'active' => 1, 'order' => 0 ], ... ]
