@@ -102,6 +102,11 @@ private function jprm_normalize_section_overrides( $rows ) : array {
 		self::require_infoblocks_partial_once();
 		self::ensure_menu_meta_helper();
 
+		// DEBUG: confirm badges partial loaded correctly
+if ( ! function_exists( 'jprm_render_badges_inline_html' ) ) {
+	error_log( 'JPRM: badges function not loaded (check includes/render/partials/badges-block.php path/readability).' );
+}
+
 		static $css_done = false;
 		if ( ! $css_done ) { $css_done = true; }
 
@@ -126,7 +131,7 @@ private function jprm_normalize_section_overrides( $rows ) : array {
 
 		$show_badges         = ( isset( $s['show_badges'] ) && $s['show_badges'] === 'yes' );
 		$badges_presentation = isset( $s['badges_presentation'] ) ? (string) $s['badges_presentation'] : 'icon_text';
-		$badges_position     = isset( $s['badges_position'] ) ? (string) $s['badges_position'] : 'after_title';
+		$badges_position     = isset( $s['badges_position'] ) ? (string) $s['badges_position'] : 'after';
 
 		$currency_opts = [
 			'show'     => ( isset( $s['jprm_curr_show'] ) && $s['jprm_curr_show'] === 'yes' ),
