@@ -755,15 +755,19 @@ $this->add_control('badges_color', [
 $this->add_responsive_control('badges_icon_size_style', [
     'label'      => __('Icon Size','jellopoint-restaurant-menu'),
     'type'       => \Elementor\Controls_Manager::SLIDER,
-    'size_units' => ['px', 'em', 'rem'],
+    'size_units' => ['px','em','rem'],
     'range'      => [ 'px' => [ 'min' => 8, 'max' => 64 ] ],
     'default'    => [ 'size' => 18, 'unit' => 'px' ],
     'selectors'  => [
-        '{{WRAPPER}} .jp-menu__badges .jp-badge__icon' => 'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};',
-        // for SVGs rendered without .jp-badge__icon (if any):
-        '{{WRAPPER}} .jp-menu__badges svg'             => 'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};',
+        // IMG-based icons (your badges renderer)
+        '{{WRAPPER}} .jp-menu__badges .jp-badge__icon' =>
+            'width: {{SIZE}}{{UNIT}} !important; height: {{SIZE}}{{UNIT}} !important; flex: 0 0 auto;',
+        // In case an SVG slips in without the class
+        '{{WRAPPER}} .jp-menu__badges svg, {{WRAPPER}} .jp-menu__badges .jp-badge svg' =>
+            'width: {{SIZE}}{{UNIT}} !important; height: {{SIZE}}{{UNIT}} !important;',
     ],
 ]);
+
 
 // Gap between the title and the badges (affects all 3 templates)
 $this->add_responsive_control('badges_title_gap', [
