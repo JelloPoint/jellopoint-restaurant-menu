@@ -405,46 +405,47 @@
 /* =========================
    Label Position (Inline + Inline-Below)
    Requires widget wrapper class: .jprm-labelpos-left|right (via prefix_class)
-   Atom order is controlled per chipline:
-   - LEFT:  chip(1) → price(2) → sep(3)
-   - RIGHT: price(1) → sep(2) → chip(3)
-   Scope only Inline + Inline-Below; Matrix untouched.
+   Inline-Below pairs use: .jp-menu__pricegroup--below .jp-chipline > (.jp-chip, .jp-price, .jp-sep)
+   Inline pairs use:        .jp-inline .jp-price-row        > (.jp-chip, .jp-price, .jp-sep)
    ========================= */
 
-/* Common: ensure chipline is a flex row in these layouts */
-.jprm-labelpos-left  .jp-inline .jp-chipline,
-.jprm-labelpos-right .jp-inline .jp-chipline,
+/* Ensure rows are flex so we can re-order children */
+.jprm-labelpos-left  .jp-inline .jp-price-row,
+.jprm-labelpos-right .jp-inline .jp-price-row {
+  display: inline-flex;
+  align-items: center;
+}
+
 .jprm-labelpos-left  .jp-menu__pricegroup--below .jp-chipline,
 .jprm-labelpos-right .jp-menu__pricegroup--below .jp-chipline {
   display: inline-flex;
   align-items: center;
 }
 
-/* LEFT */
-.jprm-labelpos-left  .jp-inline .jp-chipline .jp-chip,
+/* ---------- LEFT: chip(1) → price(2) → sep(3) ---------- */
+.jprm-labelpos-left  .jp-inline .jp-price-row .jp-chip,
 .jprm-labelpos-left  .jp-menu__pricegroup--below .jp-chipline .jp-chip  { order: 1; margin-left: 0; }
 
-.jprm-labelpos-left  .jp-inline .jp-chipline .jp-price,
+.jprm-labelpos-left  .jp-inline .jp-price-row .jp-price,
 .jprm-labelpos-left  .jp-menu__pricegroup--below .jp-chipline .jp-price { order: 2; margin-left: .45em; line-height: 1; }
 
-.jprm-labelpos-left  .jp-inline .jp-chipline .jp-sep,
+.jprm-labelpos-left  .jp-inline .jp-price-row .jp-sep,
 .jprm-labelpos-left  .jp-menu__pricegroup--below .jp-chipline .jp-sep   { order: 3; padding-left: .45em; padding-right: 0; line-height: 1; }
 
-/* RIGHT */
-.jprm-labelpos-right .jp-inline .jp-chipline .jp-price,
+/* ---------- RIGHT: price(1) → chip(2) → sep(3) ---------- */
+.jprm-labelpos-right .jp-inline .jp-price-row .jp-price,
 .jprm-labelpos-right .jp-menu__pricegroup--below .jp-chipline .jp-price { order: 1; margin-left: 0; line-height: 1; }
 
-.jprm-labelpos-right .jp-inline .jp-chipline .jp-sep,
-.jprm-labelpos-right .jp-menu__pricegroup--below .jp-chipline .jp-sep   { order: 2; padding-left: .45em; padding-right: 0; line-height: 1; }
+.jprm-labelpos-right .jp-inline .jp-price-row .jp-chip,
+.jprm-labelpos-right .jp-menu__pricegroup--below .jp-chipline .jp-chip  { order: 2; margin-left: .45em; }
 
-.jprm-labelpos-right .jp-inline .jp-chipline .jp-chip,
-.jprm-labelpos-right .jp-menu__pricegroup--below .jp-chipline .jp-chip  { order: 3; margin-left: .45em; }
+.jprm-labelpos-right .jp-inline .jp-price-row .jp-sep,
+.jprm-labelpos-right .jp-menu__pricegroup--below .jp-chipline .jp-sep   { order: 3; padding-left: .45em; padding-right: 0; line-height: 1; }
 
 /* Never show separator on no-price rows */
-.jprm-labelpos-left  .jp-inline .jp-chipline--noprice .jp-sep,
-.jprm-labelpos-right .jp-inline .jp-chipline--noprice .jp-sep,
+.jprm-labelpos-left  .jp-inline .jp-price-row.jp-chipline--noprice .jp-sep,
+.jprm-labelpos-right .jp-inline .jp-price-row.jp-chipline--noprice .jp-sep,
 .jprm-labelpos-left  .jp-menu__pricegroup--below .jp-chipline--noprice .jp-sep,
 .jprm-labelpos-right .jp-menu__pricegroup--below .jp-chipline--noprice .jp-sep {
   display: none !important;
 }
-
