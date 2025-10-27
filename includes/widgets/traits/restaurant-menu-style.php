@@ -448,22 +448,32 @@ $this->add_control(
     ]
 );
 
-// Column alignment (Inline-Below)
+// Column alignment (Inline-Below) — align the whole row of pairs
 $this->add_responsive_control(
     'jprm_price_align_inline_below',
     [
         'label'   => __( 'Price Column Alignment', 'jellopoint-restaurant-menu' ),
-        'type'    => Controls_Manager::CHOOSE,
+        'type'    => \Elementor\Controls_Manager::CHOOSE,
         'options' => [
             'start'  => [ 'title' => __( 'Left', 'jellopoint-restaurant-menu' ),   'icon' => 'eicon-text-align-left' ],
             'center' => [ 'title' => __( 'Center', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-center' ],
             'end'    => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-text-align-right' ],
         ],
-        'selectors' => [
-            '{{WRAPPER}} .jp-inline-below .jp-menu__pricegroup' => 'justify-self: {{VALUE}};',
+        'selectors_dictionary' => [
+            'start'  => 'flex-start',
+            'center' => 'center',
+            'end'    => 'flex-end',
         ],
+        'selectors' => [
+            // Preferred scope (if your wrapper is present)
+            '{{WRAPPER}} .jp-inline-below .jp-menu__pricegroup--below .jp-inline-below__line' => 'justify-content: {{VALUE}};',
+            // Defensive scope (works even if wrapper is missing)
+            '{{WRAPPER}} .jp-menu__pricegroup--below .jp-inline-below__line' => 'justify-content: {{VALUE}};',
+        ],
+        // (optional) default: 'start'
     ]
 );
+
 
 // Gap from price rows to chip/labels line (Inline-Below)
 $this->add_responsive_control(
