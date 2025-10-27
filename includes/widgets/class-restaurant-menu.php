@@ -102,10 +102,16 @@ private function jprm_normalize_section_overrides( $rows ) : array {
 		self::require_infoblocks_partial_once();
 		self::ensure_menu_meta_helper();
 
-		// DEBUG: confirm badges partial loaded correctly
-if ( ! function_exists( 'jprm_render_badges_inline_html' ) ) {
-	error_log( 'JPRM: badges function not loaded (check includes/render/partials/badges-block.php path/readability).' );
+		// DEBUG: verify badges partial + function
+$__badges_partial_path = dirname( __DIR__ ) . '/render/partials/badges-block.php';
+$__badges_readable     = is_readable( $__badges_partial_path ) ? '1' : '0';
+
+if ( function_exists( 'jprm_render_badges_inline_html' ) ) {
+    error_log( 'JPRM: OK → badges function loaded. path=' . $__badges_partial_path . ' readable=' . $__badges_readable );
+} else {
+    error_log( 'JPRM: ERROR → badges function NOT loaded. path=' . $__badges_partial_path . ' readable=' . $__badges_readable . ' (check file and path)' );
 }
+
 
 		static $css_done = false;
 		if ( ! $css_done ) { $css_done = true; }
