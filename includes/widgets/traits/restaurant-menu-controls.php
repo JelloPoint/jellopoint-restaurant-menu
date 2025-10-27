@@ -479,17 +479,6 @@ $this->add_control( 'badges_presentation', [
 ] );
 
 // Visual tweaks
-$this->add_responsive_control( 'badges_gap', [
-	'label'      => __( 'Gap between badges', 'jellopoint-restaurant-menu' ),
-	'type'       => Controls_Manager::SLIDER,
-	'size_units' => [ 'px', 'em', 'rem' ],
-	'range'      => [ 'px' => [ 'min' => 0, 'max' => 24 ] ],
-	'default'    => [ 'size' => 6, 'unit' => 'px' ],
-	'selectors'  => [
-		'{{WRAPPER}} .jp-menu__badges' => 'gap: {{SIZE}}{{UNIT}};',
-	],
-	'condition'  => [ 'show_badges' => 'yes', 'data_mode' => 'dynamic' ],
-] );
 
 $this->add_responsive_control( 'badges_icon_size', [
 	'label'      => __( 'Icon size', 'jellopoint-restaurant-menu' ),
