@@ -273,15 +273,18 @@ trait Restaurant_Menu_Controls {
 				'icon_text' => __( 'Icon + Text', 'jellopoint-restaurant-menu' ),
 			],
 		] );
-		$this->add_control( 'label_position', [
-			'label'   => __( 'Label Position', 'jellopoint-restaurant-menu' ),
-			'type'    => Controls_Manager::SELECT,
-			'default' => 'right',
-			'options' => [
-				'left'  => __( 'Left of price', 'jellopoint-restaurant-menu' ),
-				'right' => __( 'Right of price', 'jellopoint-restaurant-menu' ),
-			],
-		] );
+		// Label Position (affects Inline-Below chipline order)
+$this->add_control( 'label_position', [
+    'label'        => __( 'Label Position', 'jellopoint-restaurant-menu' ),
+    'type'         => \Elementor\Controls_Manager::SELECT,
+    'default'      => 'right',
+    'options'      => [
+        'left'  => __( 'Left of price', 'jellopoint-restaurant-menu' ),
+        'right' => __( 'Right of price', 'jellopoint-restaurant-menu' ),
+    ],
+    // This adds a class on the widget wrapper: jprm-labelpos-left|right
+    'prefix_class' => 'jprm-labelpos-',
+] );
 
 		$this->end_controls_section();
 
