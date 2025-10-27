@@ -727,48 +727,112 @@ $this->end_controls_section();
 
 
 
-		/* ===== Badges ===== */
-		$this->start_controls_section('jprm_style_badges',[
-			'label'=>__('Badges','jellopoint-restaurant-menu'),
-			'tab'=>\Elementor\Controls_Manager::TAB_STYLE,
-		]);
-		$this->add_group_control(\Elementor\Group_Control_Typography::get_type(),[
-			'name'=>'badges_typo',
-			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Typography::TYPOGRAPHY_TEXT],
-			'selector'=>'{{WRAPPER}} .jp-menu__titleline .jp-badge, {{WRAPPER}} .jp-menu__titleline [class*="badge"], {{WRAPPER}} .jp-menu__titleline .badge',
-		]);
-		$this->add_control('badges_color',[
-			'label'=>__('Text Color','jellopoint-restaurant-menu'),
-			'type'=>\Elementor\Controls_Manager::COLOR,
-			'global'=>['default'=>\Elementor\Core\Kits\Documents\Tabs\Global_Colors::COLOR_TEXT],
-			'selectors'=>[
-				'{{WRAPPER}} .jp-menu__titleline .jp-badge'=>'color: {{VALUE}};',
-				'{{WRAPPER}} .jp-menu__titleline [class*="badge"]'=>'color: {{VALUE}};',
-				'{{WRAPPER}} .jp-menu__titleline .badge'=>'color: {{VALUE}};',
-			],
-		]);
-		$this->add_responsive_control('badges_icon_size',[
-			'label'=>__('Icon Size','jellopoint-restaurant-menu'),
-			'type'=>\Elementor\Controls_Manager::SLIDER,
-			'size_units'=>['px'],
-			'range'=>['px'=>['min'=>8,'max'=>64]],
-			'default'=>['size'=>20],
-			'selectors'=>[
-				'{{WRAPPER}} .jp-menu__titleline img'=>'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};',
-				'{{WRAPPER}} .jp-menu__titleline svg'=>'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};',
-			],
-		]);
-		$this->add_responsive_control('badges_gap',[
-			'label'=>__('Gap around badges','jellopoint-restaurant-menu'),
-			'type'=>\Elementor\Controls_Manager::SLIDER,
-			'size_units'=>['px'],
-			'range'=>['px'=>['min'=>0,'max'=>24]],
-			'default'=>['size'=>0],
-			'selectors'=>[
-				'{{WRAPPER}} .jp-menu__titleline .jp-badge'=>'margin-inline: {{SIZE}}{{UNIT}};',
-			],
-		]);
-		$this->end_controls_section();
+		/* ===== Badges (Style) ===== */
+$this->start_controls_section('jprm_style_badges', [
+    'label' => __('Badges','jellopoint-restaurant-menu'),
+    'tab'   => \Elementor\Controls_Manager::TAB_STYLE,
+]);
+
+// Typography (affects the text label inside each badge)
+$this->add_group_control(\Elementor\Group_Control_Typography::get_type(), [
+    'name'     => 'badges_typo',
+    'global'   => [ 'default' => \Elementor\Core\Kits\Documents\Tabs\Global_Typography::TYPOGRAPHY_TEXT ],
+    'selector' => '{{WRAPPER}} .jp-menu__badges, {{WRAPPER}} .jp-menu__badges .jp-badge, {{WRAPPER}} .jp-menu__badges .jp-badge__label',
+]);
+
+// Text color
+$this->add_control('badges_color', [
+    'label'   => __('Text Color','jellopoint-restaurant-menu'),
+    'type'    => \Elementor\Controls_Manager::COLOR,
+    'global'  => [ 'default' => \Elementor\Core\Kits\Documents\Tabs\Global_Colors::COLOR_TEXT ],
+    'selectors' => [
+        '{{WRAPPER}} .jp-menu__badges'                        => 'color: {{VALUE}};',
+        '{{WRAPPER}} .jp-menu__badges .jp-badge__label'       => 'color: {{VALUE}};',
+    ],
+]);
+
+// Icon size
+$this->add_responsive_control('badges_icon_size_style', [
+    'label'      => __('Icon Size','jellopoint-restaurant-menu'),
+    'type'       => \Elementor\Controls_Manager::SLIDER,
+    'size_units' => ['px', 'em', 'rem'],
+    'range'      => [ 'px' => [ 'min' => 8, 'max' => 64 ] ],
+    'default'    => [ 'size' => 18, 'unit' => 'px' ],
+    'selectors'  => [
+        '{{WRAPPER}} .jp-menu__badges .jp-badge__icon' => 'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};',
+        // for SVGs rendered without .jp-badge__icon (if any):
+        '{{WRAPPER}} .jp-menu__badges svg'             => 'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};',
+    ],
+]);
+
+// Gap between the title and the badges (affects all 3 templates)
+$this->add_responsive_control('badges_title_gap', [
+    'label'      => __('Gap: Title ↔ Badges','jellopoint-restaurant-menu'),
+    'type'       => \Elementor\Controls_Manager::SLIDER,
+    'size_units' => ['px','em','rem'],
+    'range'      => [ 'px' => [ 'min' => 0, 'max' => 48 ] ],
+    'default'    => [ 'size' => 6, 'unit' => 'px' ],
+    'selectors'  => [
+        '{{WRAPPER}} .jp-menu__titlewrap' => 'gap: {{SIZE}}{{UNIT}};',
+    ],
+]);
+
+// Gap between individual badges
+$this->add_responsive_control('badges_gap_style', [
+    'label'      => __('Gap: Between badges','jellopoint-restaurant-menu'),
+    'type'       => \Elementor\Controls_Manager::SLIDER,
+    'size_units' => ['px','em','rem'],
+    'range'      => [ 'px' => [ 'min' => 0, 'max' => 24 ] ],
+    'default'    => [ 'size' => 6, 'unit' => 'px' ],
+    'selectors'  => [
+        '{{WRAPPER}} .jp-menu__badges' => 'gap: {{SIZE}}{{UNIT}};',
+    ],
+]);
+
+// Badge padding (around text/icon inside each capsule)
+$this->add_responsive_control('badges_padding', [
+    'label'      => __('Badge Padding','jellopoint-restaurant-menu'),
+    'type'       => \Elementor\Controls_Manager::DIMENSIONS,
+    'size_units' => ['px','em','rem'],
+    'default'    => [
+        'top' => '2', 'right' => '6', 'bottom' => '2', 'left' => '6', 'unit' => 'px', 'isLinked' => false,
+    ],
+    'selectors'  => [
+        '{{WRAPPER}} .jp-menu__badges .jp-badge' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+    ],
+]);
+
+// Background / Border / Radius / Shadow
+$this->add_control('badges_bg_color', [
+    'label'   => __('Badge Background','jellopoint-restaurant-menu'),
+    'type'    => \Elementor\Controls_Manager::COLOR,
+    'selectors' => [
+        '{{WRAPPER}} .jp-menu__badges .jp-badge' => 'background-color: {{VALUE}};',
+    ],
+]);
+
+$this->add_group_control(\Elementor\Group_Control_Border::get_type(), [
+    'name'     => 'badges_border',
+    'selector' => '{{WRAPPER}} .jp-menu__badges .jp-badge',
+]);
+
+$this->add_responsive_control('badges_radius', [
+    'label'      => __('Badge Radius','jellopoint-restaurant-menu'),
+    'type'       => \Elementor\Controls_Manager::DIMENSIONS,
+    'size_units' => ['px','%','em','rem'],
+    'default'    => [ 'top'=>'999', 'right'=>'999', 'bottom'=>'999', 'left'=>'999', 'unit'=>'px', 'isLinked'=>true ],
+    'selectors'  => [
+        '{{WRAPPER}} .jp-menu__badges .jp-badge' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+    ],
+]);
+
+$this->add_group_control(\Elementor\Group_Control_Box_Shadow::get_type(), [
+    'name'     => 'badges_shadow',
+    'selector' => '{{WRAPPER}} .jp-menu__badges .jp-badge',
+]);
+
+$this->end_controls_section();
+
 
 
 		/* ===== Info Blocks ===== */
