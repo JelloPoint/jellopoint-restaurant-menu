@@ -478,31 +478,6 @@ $this->add_control( 'badges_presentation', [
 	'condition' => [ 'show_badges' => 'yes', 'data_mode' => 'dynamic' ],
 ] );
 
-// Visual tweaks
-
-$this->add_responsive_control( 'badges_icon_size', [
-	'label'      => __( 'Icon size', 'jellopoint-restaurant-menu' ),
-	'type'       => Controls_Manager::SLIDER,
-	'size_units' => [ 'px', 'em', 'rem' ],
-	'range'      => [ 'px' => [ 'min' => 8, 'max' => 48 ] ],
-	'default'    => [ 'size' => 16, 'unit' => 'px' ],
-	'selectors'  => [
-		'{{WRAPPER}} .jp-badge__icon' => 'height: {{SIZE}}{{UNIT}}; width: auto;',
-	],
-	'condition'  => [ 'show_badges' => 'yes', 'data_mode' => 'dynamic' ],
-] );
-
-$this->add_responsive_control( 'badges_text_size', [
-	'label'      => __( 'Text size', 'jellopoint-restaurant-menu' ),
-	'type'       => Controls_Manager::SLIDER,
-	'size_units' => [ 'px', 'em', 'rem' ],
-	'range'      => [ 'px' => [ 'min' => 10, 'max' => 32 ] ],
-	'selectors'  => [
-		'{{WRAPPER}} .jp-badge__label' => 'font-size: {{SIZE}}{{UNIT}};',
-	],
-	'condition'  => [ 'show_badges' => 'yes', 'data_mode' => 'dynamic' ],
-] );
-
 $this->end_controls_section();
 
 
