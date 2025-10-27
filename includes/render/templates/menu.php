@@ -50,6 +50,12 @@ $global_matrix_placeholder = (string) ( $ctx['labels_matrix_placeholder'] ?? '' 
 $global_inline_separator   = (string) ( $ctx['inline_separator'] ?? '' );
 $global_placeholder_legacy = (string) ( $ctx['global_placeholder'] ?? '—' );
 
+// === BADGES (read from ctx) ============================================
+$show_badges         = ! empty( $ctx['show_badges'] );                       // boolean
+$badges_position     = (string) ( $ctx['badges_position'] ?? 'after' );      // 'before' | 'after'
+$badges_presentation = (string) ( $ctx['badges_presentation'] ?? 'icon_text' );
+
+
 /* -------- read your existing control names -------- */
 $columns                    = max( 1, min( 3, (int) ( $ctx['layout_columns'] ?? 1 ) ) );
 $split_mode                 = (string) ( $ctx['layout_split_mode'] ?? 'auto' );            // 'auto' | 'manual'
@@ -79,11 +85,14 @@ if ( ! empty( $ctx['inline_below_separator'] ) ) {
 
 /** Render a single section by term-id */
 $__render_section = function( int $tid ) use (
-	$sections_data, $show_section_name, $show_section_desc, $ib_map,
-	$global_labels_layout, $section_layouts,
-	$global_matrix_placeholder, $global_inline_separator, $global_placeholder_legacy,
-	$label_presentation, $label_position, $label_map, $currency_opts
+    $sections_data, $show_section_name, $show_section_desc, $ib_map,
+    $global_labels_layout, $section_layouts,
+    $global_matrix_placeholder, $global_inline_separator, $global_placeholder_legacy,
+    $label_presentation, $label_position, $label_map, $currency_opts,
+    // === BADGES =========================================================
+    $show_badges, $badges_position, $badges_presentation
 ) : void {
+
 
 	if ( empty( $sections_data[ $tid ] ) ) return;
 
@@ -129,6 +138,10 @@ $__render_section = function( int $tid ) use (
 		'label_position'     => $label_position,
 		'label_map'          => $label_map,
 		'currency_opts'      => $currency_opts,
+		    // === BADGES (pass to templates) ====================================
+    	'show_badges'         => $show_badges ? 'yes' : 'no',
+    	'badges_position'     => $badges_position,
+    	'badges_presentation' => $badges_presentation,
 		'matrix_placeholder' => $effective_matrix_placeholder,
 		'inline_separator'   => $effective_inline_separator,
 	];
