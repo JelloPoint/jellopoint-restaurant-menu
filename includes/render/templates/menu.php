@@ -89,7 +89,6 @@ $__render_section = function( int $tid ) use (
     $global_labels_layout, $section_layouts,
     $global_matrix_placeholder, $global_inline_separator, $global_placeholder_legacy,
     $label_presentation, $label_position, $label_map, $currency_opts,
-    // === BADGES =========================================================
     $show_badges, $badges_position, $badges_presentation
 ) : void {
 
@@ -156,6 +155,10 @@ $__render_section = function( int $tid ) use (
 	}
 	if ( file_exists( $file ) ) {
 		$_section_ctx = $sctx;
+		/*DEBUG BADGES */
+		echo "<!-- badges ctx @section tid={$tid} enabled=" . (($sctx['show_badges']==='yes')?'1':'0')
+   . " pos={$sctx['badges_position']} pres={$sctx['badges_presentation']} -->";
+
 		include $file;
 		unset( $_section_ctx );
 	} else {
