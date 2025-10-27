@@ -5,6 +5,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * Matrix (per-section)
  * Expects $_section_ctx = [
  *   'term','items','label_presentation','label_map','currency_opts','matrix_placeholder'
+ *   // BADGES
+ *   'show_badges','badges_position','badges_presentation'
  * ]
  */
 
@@ -14,6 +16,11 @@ $label_presentation = (string)($sctx['label_presentation'] ?? 'icon_text');
 $label_map  = is_array($sctx['label_map'] ?? null) ? $sctx['label_map'] : [];
 $currency_opts = is_array($sctx['currency_opts'] ?? null) ? $sctx['currency_opts'] : [];
 $matrix_placeholder = (string)($sctx['matrix_placeholder'] ?? '');
+
+// === BADGES: read from section ctx (with safe defaults)
+$badges_enabled      = ((string)($sctx['show_badges'] ?? 'yes') === 'yes');
+$badges_position     = (string)($sctx['badges_position'] ?? 'after');        // 'before'|'after'
+$badges_presentation = (string)($sctx['badges_presentation'] ?? 'icon_text');// 'icon'|'text'|'icon_text'
 
 if (empty($items)) return;
 
@@ -122,8 +129,27 @@ foreach ($items as $post) {
 	echo '<div class="jp-matrix__row" data-post-id="' . esc_attr((string)$pid) . '">';
 
 	echo '<div class="jp-matrix__cell jp-matrix__cell--item">';
-	if ($title !== '') echo '<div class="jp-menu__title">' . esc_html($title) . '</div>';
-	if (is_string($desc) && $desc !== '') echo '<div class="jp-menu__desc">' . esc_html($desc) . '</div>';
+
+		// === BADGES: pre-render per item
+		$badges_html = '';
+		if ( $badges_enabled && function_exists('jprm_render_badges_inline_html') ) {
+			$badges_html = jprm_render_badges_inline_html($pid, $badges_presentation);
+		}
+
+		// === BADGES: title + badges inline in the item cell
+		if ($title !== '') {
+			echo '<div class="jp-menu__titlewrap">';
+				if ($badges_position === 'before' && $badges_html !== '') {
+					echo $badges_html;
+				}
+				echo '<span class="jp-menu__title">' . esc_html($title) . '</span>';
+				if ($badges_position !== 'before' && $badges_html !== '') {
+					echo $badges_html;
+				}
+			echo '</div>';
+		}
+
+		if (is_string($desc) && $desc !== '') echo '<div class="jp-menu__desc">' . esc_html($desc) . '</div>';
 	echo '</div>';
 
 	foreach ($col_keys as $k) {

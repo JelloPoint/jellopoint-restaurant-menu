@@ -2,34 +2,22 @@
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
- * Inline-Below (per section): one horizontal line of label/price pairs
- * placed FULL-WIDTH directly under the title/description.
+ * Matrix (per-section)
  * Expects $_section_ctx = [
- *   'term','items','label_presentation','label_map','currency_opts','inline_separator'
+ *   'term','items','label_presentation','label_map','currency_opts','matrix_placeholder'
  * ]
  */
 
 $sctx = isset($_section_ctx) && is_array($_section_ctx) ? $_section_ctx : [];
 $items = is_array($sctx['items'] ?? null) ? $sctx['items'] : [];
 $label_presentation = (string)($sctx['label_presentation'] ?? 'icon_text');
-$label_map          = is_array($sctx['label_map'] ?? null) ? $sctx['label_map'] : [];
-$currency_opts      = is_array($sctx['currency_opts'] ?? null) ? $sctx['currency_opts'] : [];
-$sep                = (string)($sctx['inline_separator'] ?? '');
-
-// Ensure separator is visible in the Elementor editor even if not saved yet
-$is_editor = false;
-if ( class_exists('\Elementor\Plugin') ) {
-    try {
-        $is_editor = \Elementor\Plugin::$instance->editor->is_edit_mode();
-    } catch (\Throwable $e) {}
-}
-if ( $is_editor && $sep === '' ) {
-    $sep = '·'; // harmless default just for live preview
-}
+$label_map  = is_array($sctx['label_map'] ?? null) ? $sctx['label_map'] : [];
+$currency_opts = is_array($sctx['currency_opts'] ?? null) ? $sctx['currency_opts'] : [];
+$matrix_placeholder = (string)($sctx['matrix_placeholder'] ?? '');
 
 if (empty($items)) return;
 
-/* shared helpers (guarded) */
+/* helpers (guarded, because this file is included per section) */
 if (!function_exists('jprm_sanitize_single_icon')) {
 	function jprm_sanitize_single_icon(string $html): string {
 		$html = trim($html);
@@ -39,8 +27,8 @@ if (!function_exists('jprm_sanitize_single_icon')) {
 		return '';
 	}
 }
-if (!function_exists('jprm_label_chip_inline_below')) {
-	function jprm_label_chip_inline_below(array $meta, string $presentation): string {
+if (!function_exists('jprm_matrix_header_cell')) {
+	function jprm_matrix_header_cell(array $meta, string $presentation): string {
 		$text = trim((string)($meta['text'] ?? ''));
 		$ico  = '';
 		if (!empty($meta['icon_html'])) $ico = jprm_sanitize_single_icon((string)$meta['icon_html']);
@@ -48,87 +36,105 @@ if (!function_exists('jprm_label_chip_inline_below')) {
 		if ($ico === '' && !empty($meta['svg']))      $ico = jprm_sanitize_single_icon((string)$meta['svg']);
 		if ($ico === '' && !empty($meta['icon_url'])) $ico = '<img class="jp-label__icon" src="' . esc_url((string)$meta['icon_url']) . '" alt="" loading="lazy" decoding="async" />';
 		switch ($presentation) {
-			case 'icon':     return $ico !== '' ? $ico : esc_html($text);
-			case 'text':     return esc_html($text);
+			case 'icon':      return $ico !== '' ? $ico : esc_html($text);
+			case 'text':      return esc_html($text);
 			case 'icon_text':
 			default:
-				if ($ico !== '' && $text !== '') {
-					return '<span class="jp-menu__label">'.$ico.'<span>'.esc_html($text).'</span></span>';
-				}
+				if ($ico !== '' && $text !== '') return '<span class="jp-menu__label">'.$ico.'<span>'.esc_html($text).'</span></span>';
 				return $ico !== '' ? $ico : esc_html($text);
 		}
 	}
 }
+if (!function_exists('jprm_matrix_collect_columns')) {
+	function jprm_matrix_collect_columns(array $items, array $label_map, array $currency_opts): array {
+		$cols = [];
+		foreach ($label_map as $lid => $meta) {
+			$cols[(string)$lid] = ['text'=>(string)($meta['title'] ?? ($meta['text'] ?? '')), 'icon_html'=>(string)($meta['icon_html'] ?? ''), '_seed'=>true];
+		}
+		foreach ($items as $post) {
+			$pid = (int)$post->ID;
+			$rows = function_exists('jprm_get_pricegroup_data') ? jprm_get_pricegroup_data($pid, $label_map, $currency_opts) : [];
+			foreach ($rows as $r) {
+				$lid = isset($r['label_id']) ? (int)$r['label_id'] : 0;
+				$txt = (string)($r['label_text'] ?? '');
+				$key = $lid > 0 ? (string)$lid : ($txt !== '' ? 't:'.md5($txt) : '');
+				if ($key !== '' && !isset($cols[$key])) {
+					$cols[$key] = ['text'=>$txt, 'icon_html'=>(string)($r['icon_html'] ?? '')];
+				}
+			}
+		}
+		return $cols;
+	}
+}
+if (!function_exists('jprm_matrix_find_cell')) {
+	function jprm_matrix_find_cell(array $rows, string $col_key): ?string {
+		foreach ($rows as $r) {
+			$lid = isset($r['label_id']) ? (int)$r['label_id'] : 0;
+			$txt = (string)($r['label_text'] ?? '');
+			$key = $lid > 0 ? (string)$lid : ($txt !== '' ? 't:'.md5($txt) : '');
+			if ($key === $col_key) {
+				$fmt = (string)($r['formatted'] ?? '');
+				return $fmt !== '' ? $fmt : null;
+			}
+		}
+		return null;
+	}
+}
+if (!function_exists('jprm_matrix_filter_active_columns')) {
+	function jprm_matrix_filter_active_columns(array $items, array $col_keys, array $label_map, array $currency_opts): array {
+		$active = [];
+		foreach ($col_keys as $k) {
+			foreach ($items as $post) {
+				$pid  = (int)$post->ID;
+				$rows = function_exists('jprm_get_pricegroup_data') ? jprm_get_pricegroup_data($pid, $label_map, $currency_opts) : [];
+				if (jprm_matrix_find_cell($rows, $k) !== null) { $active[] = $k; break; }
+			}
+		}
+		return $active;
+	}
+}
 
-echo '<li class="jp-inline-below">';
+/* grid build */
+$cols      = jprm_matrix_collect_columns($items, $label_map, $currency_opts);
+$col_keys  = jprm_matrix_filter_active_columns($items, array_keys($cols), $label_map, $currency_opts);
+$col_count = max(1, count($col_keys));
 
+echo '<li class="jp-matrix" style="--jp-matrix-cols:' . esc_attr((string)$col_count) . '">';
+
+/* header row: first cell blank */
+echo '<div class="jp-matrix__row">';
+echo '<div class="jp-matrix__cell jp-matrix__cell--head jp-matrix__cell--item"></div>';
+foreach ($col_keys as $k) {
+	$meta = ['text'=> isset($cols[$k]['text']) ? (string)$cols[$k]['text'] : (string)$k, 'icon_html'=> (string)($cols[$k]['icon_html'] ?? '')];
+	echo '<div class="jp-matrix__cell jp-matrix__cell--head" data-label-key="' . esc_attr($k) . '">'
+		. jprm_matrix_header_cell($meta, $label_presentation)
+		. '</div>';
+}
+echo '</div>';
+
+/* rows */
 foreach ($items as $post) {
 	$pid   = (int)$post->ID;
 	$title = get_the_title($pid);
 	$desc  = get_post_meta($pid, 'jprm_desc', true);
 	$rows  = function_exists('jprm_get_pricegroup_data') ? jprm_get_pricegroup_data($pid, $label_map, $currency_opts) : [];
 
-/*DEBUG  START*/	
-if ( isset($_GET['jprm_dbg']) ) { echo "\n<!-- inline-below pid=$pid rows=" . (is_array($rows)?count($rows):0) . " sep='". esc_html($sep) ."' -->\n"; }
-/*DEBUG STOP*/
-	
-	echo '<div class="jp-menu__item"><div class="jp-menu__inner">';
+	echo '<div class="jp-matrix__row" data-post-id="' . esc_attr((string)$pid) . '">';
 
-	// LEFT / TOP: content
-	echo '<div class="jp-menu__content">';
-		if ($title !== '') echo '<div class="jp-menu__title">' . esc_html($title) . '</div>';
-		if (is_string($desc) && $desc !== '') echo '<div class="jp-menu__desc">' . esc_html($desc) . '</div>';
+	echo '<div class="jp-matrix__cell jp-matrix__cell--item">';
+	if ($title !== '') echo '<div class="jp-menu__title">' . esc_html($title) . '</div>';
+	if (is_string($desc) && $desc !== '') echo '<div class="jp-menu__desc">' . esc_html($desc) . '</div>';
 	echo '</div>';
 
-	// FULL-WIDTH row BELOW content (spans both columns when grid is used)
-	echo '<div class="jp-menu__pricegroup jp-menu__pricegroup--below">';
-		echo '<div class="jp-inline-below__line">';
+	foreach ($col_keys as $k) {
+		$val = $rows ? jprm_matrix_find_cell($rows, $k) : null;
+		if ($val === null || $val === '') {
+			$val = $matrix_placeholder !== '' ? '<span class="jp-matrix__placeholder">' . esc_html($matrix_placeholder) . '</span>' : '';
+		}
+		echo '<div class="jp-matrix__cell jp-matrix__cell--value" data-label-key="' . esc_attr($k) . '">' . $val . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	}
 
-			$pairs = [];
-
-// Count rows that actually have a price formatted
-$__priced_total = 0;
-foreach ($rows as $r) {
-    if (isset($r['formatted']) && (string)$r['formatted'] !== '') {
-        $__priced_total++;
-    }
-}
-
-$__priced_printed = 0;
-
-foreach ($rows as $r) {
-    $price = (string)($r['formatted'] ?? '');
-    $lbl   = [
-        'text'      => (string)($r['label_text'] ?? ''),
-        'icon_html' => (string)($r['icon_html'] ?? ''),
-        'icon'      => (string)($r['icon'] ?? ''),
-        'svg'       => (string)($r['svg'] ?? ''),
-        'icon_url'  => (string)($r['icon_url'] ?? ''),
-    ];
-
-    $chip = '<span class="jp-chip">'. jprm_label_chip_inline_below($lbl, $label_presentation) .'</span>';
-
-    if ($price !== '') {
-        $__priced_printed++;
-        $show_sep_here = ($sep !== '' && $__priced_printed < $__priced_total);
-
-        $pairs[] = '<span class="jp-chipline jp-chipline--priced">'
-            . $chip
-            . '<span class="jp-price">'. $price .'</span>'
-            . ( $show_sep_here ? '<span class="jp-sep">'. esc_html($sep) .'</span>' : '' )
-            . '</span>';
-    } else {
-        $pairs[] = '<span class="jp-chipline jp-chipline--noprice">'. $chip .'</span>';
-    }
-}
-
-echo implode('', $pairs);
-
-
-		echo '</div>'; // .jp-inline-below__line
-	echo '</div>'; // .jp-menu__pricegroup--below
-
-	echo '</div></div>'; // .jp-menu__inner / .jp-menu__item
+	echo '</div>';
 }
 
 echo '</li>';
