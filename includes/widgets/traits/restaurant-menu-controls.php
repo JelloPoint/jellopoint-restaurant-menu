@@ -441,39 +441,81 @@ $this->end_controls_section();
 
 
 		/* --- Badges ------------------------------------------------------------- */
-		$this->start_controls_section(
-			'jprm_section_badges',
-			[ 'label' => __( 'Badges', 'jellopoint-restaurant-menu' ) ]
-		);
-		$this->add_control( 'show_badges', [
-			'label'        => __( 'Show Badges', 'jellopoint-restaurant-menu' ),
-			'type'         => Controls_Manager::SWITCHER,
-			'return_value' => 'yes',
-			'default'      => 'yes',
-			'condition'    => [ 'data_mode' => 'dynamic' ],
-		] );
-		$this->add_control( 'badges_presentation', [
-			'label'   => __( 'Badge Presentation', 'jellopoint-restaurant-menu' ),
-			'type'    => Controls_Manager::SELECT,
-			'default' => 'icon_text',
-			'options' => [
-				'text'      => __( 'Text', 'jellopoint-restaurant-menu' ),
-				'icon'      => __( 'Icon', 'jellopoint-restaurant-menu' ),
-				'icon_text' => __( 'Text & Icon', 'jellopoint-restaurant-menu' ),
-			],
-			'condition' => [ 'data_mode' => 'dynamic', 'show_badges' => 'yes' ],
-		] );
-		$this->add_control( 'badges_position', [
-			'label'   => __( 'Badge Position', 'jellopoint-restaurant-menu' ),
-			'type'    => Controls_Manager::SELECT,
-			'default' => 'after_title',
-			'options' => [
-				'before_title' => __( 'Before Title', 'jellopoint-restaurant-menu' ),
-				'after_title'  => __( 'After Title', 'jellopoint-restaurant-menu' ),
-			],
-			'condition' => [ 'data_mode' => 'dynamic', 'show_badges' => 'yes' ],
-		] );
-		$this->end_controls_section();
+$this->start_controls_section(
+	'jprm_section_badges',
+	[ 'label' => __( 'Badges', 'jellopoint-restaurant-menu' ) ]
+);
+
+$this->add_control( 'show_badges', [
+	'label'        => __( 'Show Badges', 'jellopoint-restaurant-menu' ),
+	'type'         => Controls_Manager::SWITCHER,
+	'return_value' => 'yes',
+	'default'      => 'yes',
+	'condition'    => [ 'data_mode' => 'dynamic' ],
+] );
+
+$this->add_control( 'badges_position', [
+	'label'     => __( 'Position', 'jellopoint-restaurant-menu' ),
+	'type'      => Controls_Manager::CHOOSE,
+	'options'   => [
+		'before' => [ 'title' => __( 'Before Title', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-h-align-left' ],
+		'after'  => [ 'title' => __( 'After Title',  'jellopoint-restaurant-menu' ), 'icon' => 'eicon-h-align-right' ],
+	],
+	'default'   => 'after',
+	'toggle'    => false,
+	'condition' => [ 'show_badges' => 'yes', 'data_mode' => 'dynamic' ],
+] );
+
+$this->add_control( 'badges_presentation', [
+	'label'     => __( 'Presentation', 'jellopoint-restaurant-menu' ),
+	'type'      => Controls_Manager::SELECT,
+	'options'   => [
+		'icon'      => __( 'Icon', 'jellopoint-restaurant-menu' ),
+		'text'      => __( 'Text', 'jellopoint-restaurant-menu' ),
+		'icon_text' => __( 'Icon + Text', 'jellopoint-restaurant-menu' ),
+	],
+	'default'   => 'icon_text',
+	'condition' => [ 'show_badges' => 'yes', 'data_mode' => 'dynamic' ],
+] );
+
+// Visual tweaks
+$this->add_responsive_control( 'badges_gap', [
+	'label'      => __( 'Gap between badges', 'jellopoint-restaurant-menu' ),
+	'type'       => Controls_Manager::SLIDER,
+	'size_units' => [ 'px', 'em', 'rem' ],
+	'range'      => [ 'px' => [ 'min' => 0, 'max' => 24 ] ],
+	'default'    => [ 'size' => 6, 'unit' => 'px' ],
+	'selectors'  => [
+		'{{WRAPPER}} .jp-menu__badges' => 'gap: {{SIZE}}{{UNIT}};',
+	],
+	'condition'  => [ 'show_badges' => 'yes', 'data_mode' => 'dynamic' ],
+] );
+
+$this->add_responsive_control( 'badges_icon_size', [
+	'label'      => __( 'Icon size', 'jellopoint-restaurant-menu' ),
+	'type'       => Controls_Manager::SLIDER,
+	'size_units' => [ 'px', 'em', 'rem' ],
+	'range'      => [ 'px' => [ 'min' => 8, 'max' => 48 ] ],
+	'default'    => [ 'size' => 16, 'unit' => 'px' ],
+	'selectors'  => [
+		'{{WRAPPER}} .jp-badge__icon' => 'height: {{SIZE}}{{UNIT}}; width: auto;',
+	],
+	'condition'  => [ 'show_badges' => 'yes', 'data_mode' => 'dynamic' ],
+] );
+
+$this->add_responsive_control( 'badges_text_size', [
+	'label'      => __( 'Text size', 'jellopoint-restaurant-menu' ),
+	'type'       => Controls_Manager::SLIDER,
+	'size_units' => [ 'px', 'em', 'rem' ],
+	'range'      => [ 'px' => [ 'min' => 10, 'max' => 32 ] ],
+	'selectors'  => [
+		'{{WRAPPER}} .jp-badge__label' => 'font-size: {{SIZE}}{{UNIT}};',
+	],
+	'condition'  => [ 'show_badges' => 'yes', 'data_mode' => 'dynamic' ],
+] );
+
+$this->end_controls_section();
+
 
 		/* --- Info Blocks (HTML + Image; editor-only title) --------------------- */
 		$this->start_controls_section(

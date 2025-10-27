@@ -449,3 +449,9 @@
 .jprm-labelpos-right .jp-menu__pricegroup--below .jp-chipline--noprice .jp-sep {
   display: none !important;
 }
+/*BADGES FIX*/
+.jp-menu__titlewrap { display: inline-flex; align-items: baseline; gap: .35rem; }
+.jp-menu__badges    { display: inline-flex; align-items: center; gap: .35rem; }
+.jp-badge           { display: inline-flex; align-items: center; gap: .25rem; line-height: 1; }
+.jp-badge__icon     { display: inline-block; height: 1em; width: auto; }
+.jp-badge__label    { display: inline-block; }

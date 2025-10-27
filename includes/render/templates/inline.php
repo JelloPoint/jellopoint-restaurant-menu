@@ -5,6 +5,10 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * Inline (per-section)
  * Expects $_section_ctx = [
  *   'term','items','label_presentation','label_position','label_map','currency_opts'
+ *   // BADGES (from widget settings):
+ *   'show_badges' => 'yes'|'no',
+ *   'badges_position' => 'before'|'after',
+ *   'badges_presentation' => 'icon'|'text'|'icon_text',
  * ]
  */
 
@@ -14,6 +18,11 @@ $label_presentation = (string)($sctx['label_presentation'] ?? 'icon_text');
 $label_position     = (string)($sctx['label_position'] ?? 'right');
 $label_map          = is_array($sctx['label_map'] ?? null) ? $sctx['label_map'] : [];
 $currency_opts      = is_array($sctx['currency_opts'] ?? null) ? $sctx['currency_opts'] : [];
+
+// === BADGES: read from section context (with safe defaults)
+$badges_enabled      = (string)($sctx['show_badges'] ?? 'yes') === 'yes';
+$badges_position     = (string)($sctx['badges_position'] ?? 'after');        // 'before' | 'after'
+$badges_presentation = (string)($sctx['badges_presentation'] ?? 'icon_text'); // 'icon' | 'text' | 'icon_text'
 
 if (empty($items)) return;
 
@@ -54,10 +63,28 @@ foreach ($items as $post) {
 	$desc  = get_post_meta($pid, 'jprm_desc', true);
 	$rows  = function_exists('jprm_get_pricegroup_data') ? jprm_get_pricegroup_data($pid, $label_map, $currency_opts) : [];
 
+	// === BADGES: pre-render HTML once per item (safe if function missing)
+	$badges_html = '';
+	if ( $badges_enabled && function_exists('jprm_render_badges_inline_html') ) {
+		$badges_html = jprm_render_badges_inline_html($pid, $badges_presentation);
+	}
+
 	echo '<div class="jp-menu__item"><div class="jp-menu__inner">';
 
 	echo '<div class="jp-menu__content">';
-		if ($title !== '') echo '<div class="jp-menu__title">' . esc_html($title) . '</div>';
+		// === BADGES: wrap title + badges in .jp-menu__titlewrap and place before/after
+		if ($title !== '') {
+			echo '<div class="jp-menu__titlewrap">';
+				if ($badges_position === 'before' && $badges_html !== '') {
+					echo $badges_html;
+				}
+				echo '<span class="jp-menu__title">' . esc_html($title) . '</span>';
+				if ($badges_position !== 'before' && $badges_html !== '') {
+					echo $badges_html;
+				}
+			echo '</div>';
+		}
+		// (unchanged)
 		if (is_string($desc) && $desc !== '') echo '<div class="jp-menu__desc">' . esc_html($desc) . '</div>';
 	echo '</div>';
 

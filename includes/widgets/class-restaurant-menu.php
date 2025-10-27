@@ -33,12 +33,13 @@ final class Restaurant_Menu extends Widget_Base {
 		if ( is_readable( $path ) ) require_once $path;
 		$loaded = true;
 	}
-	private static function require_badges_partial_once() : void {
-		static $loaded = false; if ( $loaded ) return;
-		$path = dirname( __DIR__ ) . '/render/partials/badges-block.php';
-		if ( is_readable( $path ) ) require_once $path;
-		$loaded = true;
-	}
+	/* ===== Partials / helpers ===== */
+private static function require_badges_partial_once() : void {
+	static $loaded = false; if ( $loaded ) return;
+	$path = dirname( __DIR__ ) . '/render/partials/badges-block.php';
+	if ( is_readable( $path ) ) { require_once $path; }
+	$loaded = true;
+}
 	private static function require_infoblocks_partial_once() : void {
 		static $loaded = false; if ( $loaded ) return;
 		$path = dirname( __DIR__ ) . '/render/partials/info-blocks.php';
