@@ -125,6 +125,68 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 <?php endif; ?>
 
 			<?php endif; ?>
+            <?php
+// Aggregate unique "new terms" across rows.
+$new_menus    = [];
+$new_sections = [];
+
+foreach ( (array) $import_report['items'] as $row ) {
+	if ( empty( $row['new_terms_created'] ) || ! is_array( $row['new_terms_created'] ) ) {
+		continue;
+	}
+	if ( ! empty( $row['new_terms_created']['menus'] ) ) {
+		foreach ( (array) $row['new_terms_created']['menus'] as $nm ) {
+			$nm = trim( (string) $nm );
+			if ( $nm !== '' ) { $new_menus[ $nm ] = true; }
+		}
+	}
+	if ( ! empty( $row['new_terms_created']['sections'] ) ) {
+		foreach ( (array) $row['new_terms_created']['sections'] as $ns ) {
+			$ns = trim( (string) $ns );
+			if ( $ns !== '' ) { $new_sections[ $ns ] = true; }
+		}
+	}
+}
+
+$new_menus    = array_keys( $new_menus );
+$new_sections = array_keys( $new_sections );
+?>
+
+<?php if ( ! empty( $new_menus ) || ! empty( $new_sections ) ) : ?>
+	<hr style="margin:1rem 0" />
+	<h3 style="margin-top:0">
+		<?php
+		echo ! empty( $import_report['dry_run'] )
+			? esc_html__( 'Terms that would be created', 'jellopoint-restaurant-menu' )
+			: esc_html__( 'Terms created', 'jellopoint-restaurant-menu' );
+		?>
+	</h3>
+
+	<div style="display:flex;gap:2rem;flex-wrap:wrap">
+		<?php if ( ! empty( $new_menus ) ) : ?>
+			<div>
+				<strong><?php esc_html_e( 'Menus', 'jellopoint-restaurant-menu' ); ?></strong>
+				<ul style="margin:.5rem 0 0 1.1rem;list-style:disc">
+					<?php foreach ( $new_menus as $nm ) : ?>
+						<li><?php echo esc_html( $nm ); ?></li>
+					<?php endforeach; ?>
+				</ul>
+			</div>
+		<?php endif; ?>
+
+		<?php if ( ! empty( $new_sections ) ) : ?>
+			<div>
+				<strong><?php esc_html_e( 'Sections', 'jellopoint-restaurant-menu' ); ?></strong>
+				<ul style="margin:.5rem 0 0 1.1rem;list-style:disc">
+					<?php foreach ( $new_sections as $ns ) : ?>
+						<li><?php echo esc_html( $ns ); ?></li>
+					<?php endforeach; ?>
+				</ul>
+			</div>
+		<?php endif; ?>
+	</div>
+<?php endif; ?>
+
 		</section>
 		<!-- <<< END ADDED -->
 		<?php endif; ?>
