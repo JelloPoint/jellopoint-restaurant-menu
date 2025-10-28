@@ -275,18 +275,14 @@ final class JPRM_Importer {
 			$need_update = false;
 			$upd = [ 'ID' => $post_id ];
 
-			// Title: update only if provided and different
 			if ( $title_in !== null && $title_in !== '' && $changed['post_title'] ) {
 				$upd['post_title'] = $new['post_title'];
 				$need_update = true;
 			}
-
-			// Status: update only if provided and different
 			if ( $status_in !== null && $status_in !== '' && $changed['post_status'] ) {
 				$upd['post_status'] = $new['post_status'];
 				$need_update = true;
 			}
-
 			if ( $need_update ) {
 				wp_update_post( $upd );
 			}
@@ -342,7 +338,6 @@ final class JPRM_Importer {
 
 		return [
 			'post_id_old'       => $existing_id,
-			// In dry-run we never have a new numeric ID; show old when updating, 0 when creating.
 			'post_id_new'       => $dry ? ( $is_existing ? $existing_id : 0 ) : ( $post_id ?: 0 ),
 			'title'             => $new['post_title'],
 			'action'            => $action,
@@ -419,6 +414,9 @@ final class JPRM_Importer {
 
 	/**
 	 * Build prices payload for an existing post (same shape as exporter).
+	 * Handles meta being stored as:
+	 *  - jprm_prices: array OR JSON string of rows (with 'amount' or 'price'/'value')
+	 *  - jprm_price:  array OR JSON string with ['mode','rows'=>[]] (rows may use 'value')
 	 */
 	private static function build_prices_payload( int $post_id, string $mode ): array {
 		$mode = $mode ?: 'single';
@@ -438,15 +436,43 @@ final class JPRM_Importer {
 		}
 
 		$rows = [];
+
+		// jprm_prices can be array OR JSON string
 		$raw_prices = get_post_meta( $post_id, 'jprm_prices', true );
-		if ( is_array( $raw_prices ) ) {
+		if ( is_string( $raw_prices ) && $raw_prices !== '' ) {
+			$maybe = json_decode( $raw_prices, true );
+			if ( is_array( $maybe ) ) {
+				$raw_prices = $maybe;
+			}
+		}
+		if ( is_array( $raw_prices ) && ! empty( $raw_prices ) ) {
 			$rows = $raw_prices;
 		} else {
+			// Fall back to jprm_price (may be array OR JSON string like {"mode":"multi","rows":[...]} )
 			$raw_price = get_post_meta( $post_id, 'jprm_price', true );
+			if ( is_string( $raw_price ) && $raw_price !== '' ) {
+				$maybe = json_decode( $raw_price, true );
+				if ( is_array( $maybe ) ) {
+					$raw_price = $maybe;
+				}
+			}
 			if ( is_array( $raw_price ) && isset( $raw_price['rows'] ) && is_array( $raw_price['rows'] ) ) {
 				$rows = $raw_price['rows'];
 			}
 		}
+
+		// Normalize row keys: accept 'price' and 'value' as aliases of 'amount'.
+		$rows = array_map( function( $r ) {
+			if ( is_array( $r ) ) {
+				if ( isset( $r['value'] ) && ! isset( $r['amount'] ) ) {
+					$r['amount'] = $r['value'];
+				}
+				if ( isset( $r['price'] ) && ! isset( $r['amount'] ) ) {
+					$r['amount'] = $r['price'];
+				}
+			}
+			return $r;
+		}, is_array( $rows ) ? $rows : [] );
 
 		return [
 			'mode' => 'multi',
@@ -457,8 +483,8 @@ final class JPRM_Importer {
 	/**
 	 * Canonicalize multi rows but only keep a whitelist of meaningful keys.
 	 * Default whitelist: ['label_ref','amount'].
-	 * - Treats 'price' as an alias of 'amount'
-	 * - Normalizes numeric strings (EU/US) so "5,00" == "5.00" == 5
+	 * - Treats 'price' and 'value' as aliases of 'amount'
+	 * - Normalizes numeric strings (EU/US) so "5,00" == "5.00" == 5.00
 	 * Filter: 'jprm/import/row_compare_keys' to alter/extend.
 	 */
 	private static function canonicalize_rows_whitelisted( array $rows ): array {
@@ -468,10 +494,9 @@ final class JPRM_Importer {
 		foreach ( $rows as $r ) {
 			$a = is_array( $r ) ? $r : (array) $r;
 
-			// Map 'price' -> 'amount' if present, so either field name works.
-			if ( isset( $a['price'] ) && ! isset( $a['amount'] ) ) {
-				$a['amount'] = $a['price'];
-			}
+			// Map 'value' or 'price' -> 'amount' if present
+			if ( isset( $a['value'] ) && ! isset( $a['amount'] ) ) { $a['amount'] = $a['value']; }
+			if ( isset( $a['price'] ) && ! isset( $a['amount'] ) ) { $a['amount'] = $a['price']; }
 
 			$clean = [];
 			foreach ( $keys as $k ) {
