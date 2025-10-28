@@ -599,11 +599,17 @@ $this->add_group_control(
 $this->add_control(
     'jprm_label_text_color',
     [
-        'label'     => __( 'Text Color', 'jellopoint-restaurant-menu' ),
+        'label'     => __( 'Text & Icon Color', 'jellopoint-restaurant-menu' ),
         'type'      => Controls_Manager::COLOR,
         'selectors' => [
-            '{{WRAPPER}} .jp-menu__label'          => 'color: {{VALUE}};',
-            '{{WRAPPER}} .jp-matrix .jp-menu__label' => 'color: {{VALUE}};',
+            // Text (already works)
+            '{{WRAPPER}} .jp-menu__label' => 'color: {{VALUE}};',
+
+            // Masked SVG via background-color (if we render mask spans)
+            '{{WRAPPER}} .jp-menu__label .jp-label__icon--mask' => 'background-color: {{VALUE}};',
+
+            // Inline <svg> fallback (if icon comes from icon_html/svg field)
+            '{{WRAPPER}} .jp-menu__label svg' => 'fill: {{VALUE}} !important; stroke: {{VALUE}} !important;',
         ],
     ]
 );
