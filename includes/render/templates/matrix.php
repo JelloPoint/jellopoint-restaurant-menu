@@ -39,33 +39,32 @@ if (!function_exists('jprm_matrix_header_cell')) {
 		$text = trim((string)($meta['text'] ?? ''));
 		$ico  = '';
 
-		// --- ICON (single, canonical flow) ---
-		// Accept inline HTML first (img/svg), then normalize everything:
+		// Icon pick (single flow) + colorize
 		if (!empty($meta['icon_html'])) {
 			$ico = jprm_sanitize_single_icon((string)$meta['icon_html']);
 		}
 		$ico = jprm_colorize_icon(
 			$ico,
 			!empty($meta['icon_url']) ? (string)$meta['icon_url'] : null,
-			'label' // role = 'label' (sets jp-label__* classes)
+			'label'
 		);
 
-		switch ($presentation) {
-			case 'icon':
-				return $ico !== '' ? $ico : esc_html($text);
-
-			case 'text':
-				return esc_html($text);
-
-			case 'icon_text':
-			default:
-				if ($ico !== '' && $text !== '') {
-					return '<span class="jp-menu__label">'.$ico.'<span class="jp-badge__label">'.esc_html($text).'</span></span>';
-				}
-				return $ico !== '' ? $ico : esc_html($text);
+		// Always wrap so style control hits both text & icon
+		if ($presentation === 'icon') {
+			$content = ($ico !== '' ? $ico : esc_html($text));
+			return '<span class="jp-menu__label">'.$content.'</span>';
 		}
+		if ($presentation === 'text') {
+			return '<span class="jp-menu__label"><span class="jp-badge__label">'.esc_html($text).'</span></span>';
+		}
+		// icon_text
+		if ($ico !== '' && $text !== '') {
+			return '<span class="jp-menu__label">'.$ico.'<span class="jp-badge__label">'.esc_html($text).'</span></span>';
+		}
+		return '<span class="jp-menu__label">'.($ico !== '' ? $ico : esc_html($text)).'</span>';
 	}
 }
+
 
 if (!function_exists('jprm_matrix_collect_columns')) {
 	function jprm_matrix_collect_columns(array $items, array $label_map, array $currency_opts): array {
