@@ -137,10 +137,7 @@ foreach ( $slugs as $slug ) {
     }
 
     $out .= '<span class="jp-badge__label">' . esc_html( $name ) . '</span>';
-    $out .= '</span>';
-}
-
-
+    
 	$out .= '</span>';
 	return $out;
 }
