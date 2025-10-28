@@ -602,14 +602,17 @@ $this->add_control(
         'label'     => __( 'Text & Icon Color', 'jellopoint-restaurant-menu' ),
         'type'      => Controls_Manager::COLOR,
         'selectors' => [
-            // Text (already works)
+            // Text (and source of currentColor for masks)
             '{{WRAPPER}} .jp-menu__label' => 'color: {{VALUE}};',
 
-            // Masked SVG via background-color (if we render mask spans)
+            // Masked SVG (URL- or img→mask). These follow currentColor, but we also hard-set for safety:
             '{{WRAPPER}} .jp-menu__label .jp-label__icon--mask' => 'background-color: {{VALUE}};',
 
-            // Inline <svg> fallback (if icon comes from icon_html/svg field)
-            '{{WRAPPER}} .jp-menu__label svg' => 'fill: {{VALUE}} !important; stroke: {{VALUE}} !important;',
+            // Inline <svg> coming from icon_html / svg fields
+            '{{WRAPPER}} .jp-menu__label svg, {{WRAPPER}} .jp-menu__label .jp-label__svg' => 'fill: {{VALUE}} !important; stroke: {{VALUE}} !important;',
+
+            // Optional legacy fallback if you ever had this:
+            '{{WRAPPER}} .jp-menu__label .jp-menu__icon' => 'fill: {{VALUE}} !important; stroke: {{VALUE}} !important; background-color: {{VALUE}} !important;',
         ],
     ]
 );
