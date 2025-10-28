@@ -455,13 +455,22 @@
 .jp-badge           { display: inline-flex; align-items: center; gap: .25rem; line-height: 1; }
 .jp-badge__icon     { display: inline-block; height: 1em; width: auto; }
 .jp-badge__label    { display: inline-block; }
-/* Colorizable SVG masks for badges + labels */
+/* Masks (color via currentColor) */
+.jp-icon-mask,
 .jp-badge__icon--mask,
 .jp-label__icon--mask{
   display:inline-block;
-  width:1em; height:1em;           /* Icon size controls will override */
-  background-color: currentColor;   /* color comes from text color */
-  -webkit-mask-repeat:no-repeat;    mask-repeat:no-repeat;
-  -webkit-mask-size:contain;        mask-size:contain;
-  -webkit-mask-position:center;     mask-position:center;
+  width:1em; height:1em;
+  background-color: currentColor;
+  -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;
+  -webkit-mask-size:contain;     mask-size:contain;
+  -webkit-mask-position:center;  mask-position:center;
+}
+
+/* Inline SVGs: force to currentColor */
+.jp-badge__svg,
+.jp-label__svg,
+.jp-menu__label svg{
+  fill: currentColor !important;
+  stroke: currentColor !important;
 }
