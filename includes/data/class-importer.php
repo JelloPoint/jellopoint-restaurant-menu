@@ -7,8 +7,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * Exact-keys Importer for JPRM (JSON/CSV from our exporter).
  * - Dry-run validation & report
  * - Commit writes: create/update posts, terms, meta
- * - Accurate change detection (multi-row compares only whitelisted keys)
- * - Tracks newly created Menu/Section terms (and shows “would create” in dry-run)
+ * - Accurate change detection (multi-row compares whitelisted keys)
+ * - Tracks missing Menu/Section terms (reports in dry-run; creates on commit if requested)
  * - Price summary per row
  */
 final class JPRM_Importer {
@@ -137,12 +137,13 @@ final class JPRM_Importer {
 	/* --------------------------- Processing -------------------------- */
 
 	private static function process_item( array $it, bool $dry, bool $create_terms ): array {
-		$title   = (string) ( $it['post_title'] ?? '' );
-		$status  = (string) ( $it['post_status'] ?? 'draft' );
-		$desc    = (string) ( $it['description'] ?? '' );
-		$tax     = is_array( $it['tax'] ?? null ) ? $it['tax'] : [ 'jprm_menu'=>[], 'jprm_section'=>[] ];
-		$badges  = is_array( $it['badges'] ?? null ) ? $it['badges'] : [];
-		$prices  = is_array( $it['prices'] ?? null ) ? $it['prices'] : [];
+		// Raw inputs (may be missing in the file)
+		$title_in  = array_key_exists( 'post_title',  $it ) ? (string) $it['post_title']  : null;
+		$status_in = array_key_exists( 'post_status', $it ) ? (string) $it['post_status'] : null;
+		$desc_in   = array_key_exists( 'description', $it ) ? (string) $it['description'] : null;
+		$tax       = is_array( $it['tax'] ?? null ) ? $it['tax'] : [ 'jprm_menu'=>[], 'jprm_section'=>[] ];
+		$badges    = is_array( $it['badges'] ?? null ) ? $it['badges'] : [];
+		$prices    = is_array( $it['prices'] ?? null ) ? $it['prices'] : [];
 
 		// Treat missing/empty post_id as "new".
 		$existing_id = 0;
@@ -154,6 +155,7 @@ final class JPRM_Importer {
 		$action  = 'skipped';
 		$error   = '';
 
+		// Determine price mode
 		$price_mode = (string) ( $prices['mode'] ?? '' );
 		if ( $price_mode !== 'single' && $price_mode !== 'multi' ) {
 			$price_mode = isset( $prices['rows'] ) ? 'multi' : 'single';
@@ -170,7 +172,7 @@ final class JPRM_Importer {
 		// ---- Old state (normalize empties to '') ----
 		$old = [
 			'post_title'  => $is_existing ? (string) get_the_title( $post_id ) : '',
-					'post_status' => $is_existing ? (string) get_post_status( $post_id ) : 'draft',
+			'post_status' => $is_existing ? (string) get_post_status( $post_id ) : 'draft',
 			'desc'        => $is_existing ? (string) get_post_meta( $post_id, 'jprm_desc', true ) : '',
 			'menu_terms'  => $is_existing ? self::terms_as_names( $post_id, 'jprm_menu' ) : [],
 			'sect_terms'  => $is_existing ? self::terms_as_names( $post_id, 'jprm_section' ) : [],
@@ -178,15 +180,34 @@ final class JPRM_Importer {
 			'prices'      => $is_existing ? self::build_prices_payload( $post_id, (string) get_post_meta( $post_id, 'jprm_price_mode', true ) ) : [],
 		];
 
-		// ---- New state (normalized like exporter) ----
+		// For existing posts, inherit current DB values when the import omits a field.
+		// For new posts, keep sane defaults (draft when status missing).
+		$title_new  = $is_existing
+			? ( ($title_in  === null || $title_in  === '') ? (string) $old['post_title']  : $title_in )
+			: ( (string) ($title_in ?? '') );
+
+		$status_new = $is_existing
+			? ( ($status_in === null || $status_in === '') ? (string) $old['post_status'] : $status_in )
+			: ( (string) ($status_in ?? 'draft') );
+
+		$desc_new   = $is_existing
+			? ( ($desc_in   === null || $desc_in   === '') ? (string) $old['desc']        : $desc_in )
+			: ( (string) ($desc_in ?? '') );
+
+		// Normalize taxonomy/badges
+		$menus_new = array_values( array_filter( (array) ( $tax['jprm_menu']    ?? [] ) ) );
+		$sects_new = array_values( array_filter( (array) ( $tax['jprm_section'] ?? [] ) ) );
+		$badg_new  = array_values( array_map( 'sanitize_title', $badges ) );
+
+		// Build NEW normalized state
 		$new_rows = ( $price_mode === 'multi' ) ? (array) ( $prices['rows'] ?? [] ) : [];
 		$new = [
-			'post_title'  => $title,
-			'post_status' => $status ?: 'draft',
-			'desc'        => $desc,
-			'menu_terms'  => array_values( array_filter( (array) ( $tax['jprm_menu'] ?? [] ) ) ),
-			'sect_terms'  => array_values( array_filter( (array) ( $tax['jprm_section'] ?? [] ) ) ),
-			'badges'      => array_values( array_map( 'sanitize_title', $badges ) ),
+			'post_title'  => $title_new,
+			'post_status' => $status_new,
+			'desc'        => $desc_new,
+			'menu_terms'  => $menus_new,
+			'sect_terms'  => $sects_new,
+			'badges'      => $badg_new,
 			'prices'      => ( $price_mode === 'single' )
 				? [
 					'mode'          => 'single',
@@ -210,7 +231,7 @@ final class JPRM_Importer {
 		$missing_sections  = self::missing_term_names( 'jprm_section', $new['sect_terms'] );
 		$new_terms_created = [ 'menus' => $missing_menus, 'sections' => $missing_sections ];
 
-		// Diff (uses canonical & whitelist comparison)
+		// Diff
 		$changed = self::diff_any( $old, $new );
 
 		// Writes only if changed & not dry-run
@@ -225,7 +246,7 @@ final class JPRM_Importer {
 					return [
 						'post_id_old'       => $existing_id,
 						'post_id_new'       => 0,
-						'title'             => $title,
+						'title'             => $new['post_title'],
 						'action'            => 'skipped',
 						'mode'              => $price_mode,
 						'price_summary'     => $price_summary,
@@ -250,17 +271,28 @@ final class JPRM_Importer {
 			self::assign_terms_if_changed( $post_id, 'jprm_menu', $new['menu_terms'] );
 			self::assign_terms_if_changed( $post_id, 'jprm_section', $new['sect_terms'] );
 
-			// Update post props if changed
-			if ( $changed['post_title'] || $changed['post_status'] ) {
-				wp_update_post( [
-					'ID'          => $post_id,
-					'post_title'  => $new['post_title'],
-					'post_status' => $new['post_status'],
-				] );
+			// Update post props only if user provided a different value.
+			$need_update = false;
+			$upd = [ 'ID' => $post_id ];
+
+			// Title: update only if provided and different
+			if ( $title_in !== null && $title_in !== '' && $changed['post_title'] ) {
+				$upd['post_title'] = $new['post_title'];
+				$need_update = true;
+			}
+
+			// Status: update only if provided and different
+			if ( $status_in !== null && $status_in !== '' && $changed['post_status'] ) {
+				$upd['post_status'] = $new['post_status'];
+				$need_update = true;
+			}
+
+			if ( $need_update ) {
+				wp_update_post( $upd );
 			}
 
 			// Meta: desc, visible, badges
-			if ( $changed['desc'] ) {
+			if ( $desc_in !== null && $changed['desc'] ) {
 				update_post_meta( $post_id, 'jprm_desc', $new['desc'] );
 			}
 			if ( get_post_meta( $post_id, 'jprm_visible', true ) === '' ) {
@@ -312,7 +344,7 @@ final class JPRM_Importer {
 			'post_id_old'       => $existing_id,
 			// In dry-run we never have a new numeric ID; show old when updating, 0 when creating.
 			'post_id_new'       => $dry ? ( $is_existing ? $existing_id : 0 ) : ( $post_id ?: 0 ),
-			'title'             => $title,
+			'title'             => $new['post_title'],
 			'action'            => $action,
 			'mode'              => $price_mode,
 			'price_summary'     => $price_summary,
@@ -422,68 +454,55 @@ final class JPRM_Importer {
 		];
 	}
 
-/**
- * Canonicalize multi rows but only keep a whitelist of meaningful keys.
- * Default whitelist: ['label_ref','amount'].
- * - Treats 'price' as an alias of 'amount'
- * - Normalizes numeric strings (EU/US) so "5,00" == "5.00" == 5
- * Filter: 'jprm/import/row_compare_keys' to alter/extend.
- */
-private static function canonicalize_rows_whitelisted( array $rows ): array {
-	$keys = (array) apply_filters( 'jprm/import/row_compare_keys', [ 'label_ref', 'amount' ] );
+	/**
+	 * Canonicalize multi rows but only keep a whitelist of meaningful keys.
+	 * Default whitelist: ['label_ref','amount'].
+	 * - Treats 'price' as an alias of 'amount'
+	 * - Normalizes numeric strings (EU/US) so "5,00" == "5.00" == 5
+	 * Filter: 'jprm/import/row_compare_keys' to alter/extend.
+	 */
+	private static function canonicalize_rows_whitelisted( array $rows ): array {
+		$keys = (array) apply_filters( 'jprm/import/row_compare_keys', [ 'label_ref', 'amount' ] );
 
-	$norm = [];
-	foreach ( $rows as $r ) {
-		$a = is_array( $r ) ? $r : (array) $r;
+		$norm = [];
+		foreach ( $rows as $r ) {
+			$a = is_array( $r ) ? $r : (array) $r;
 
-		// Map 'price' -> 'amount' if present, so either field name works.
-		if ( isset( $a['price'] ) && ! isset( $a['amount'] ) ) {
-			$a['amount'] = $a['price'];
-		}
-
-		$clean = [];
-		foreach ( $keys as $k ) {
-			if ( $k === 'amount' ) {
-				// Normalize any EU/US numeric to a canonical string (e.g., "5.00")
-				$clean['amount'] = self::normalize_amount_string( $a['amount'] ?? '' );
-				continue;
+			// Map 'price' -> 'amount' if present, so either field name works.
+			if ( isset( $a['price'] ) && ! isset( $a['amount'] ) ) {
+				$a['amount'] = $a['price'];
 			}
-			// Generic normalized scalar (trimmed string)
-			$clean[$k] = self::norm_scalar( $a[$k] ?? '' );
+
+			$clean = [];
+			foreach ( $keys as $k ) {
+				if ( $k === 'amount' ) {
+					$clean['amount'] = self::normalize_amount_string( $a['amount'] ?? '' );
+				} else {
+					$clean[$k] = self::norm_scalar( $a[$k] ?? '' );
+				}
+			}
+
+			ksort( $clean );
+			$norm[] = $clean;
 		}
 
-		// Sort keys for stability
-		ksort( $clean );
+		usort( $norm, function( $x, $y ) {
+			$sx = json_encode( $x, JSON_UNESCAPED_UNICODE );
+			$sy = json_encode( $y, JSON_UNESCAPED_UNICODE );
+			return $sx <=> $sy;
+		} );
 
-		$norm[] = $clean;
+		return array_values( $norm );
 	}
 
-	// Stable sort rows by JSON signature
-	usort( $norm, function( $x, $y ) {
-		$sx = json_encode( $x, JSON_UNESCAPED_UNICODE );
-		$sy = json_encode( $y, JSON_UNESCAPED_UNICODE );
-		return $sx <=> $sy;
-	} );
-
-	return array_values( $norm );
-}
-
-/** Normalize number-like strings to a canonical dot-decimal with up to 3 decimals (no thousands), or '' if empty. */
-private static function normalize_amount_string( $v ): string {
-	$v = self::norm_scalar( $v );
-	if ( $v === '' ) return '';
-	$f = self::to_float_eu_us( $v );
-	if ( $f === null ) return $v; // leave as-is if not parseable; still stable
-	// format with 2 decimals, trim trailing zeros/decimal when not needed
-	$s = number_format( $f, 2, '.', '' );
-	// You may prefer fixed 2 decimals; if so, just return $s.
-	// For comparison we can safely trim trailing ".00"
-	if ( substr($s, -3) === '.00' ) {
-		return substr($s, 0, -3);
+	/** Normalize number-like strings to a canonical dot-decimal with 2 decimals (or '' if empty). */
+	private static function normalize_amount_string( $v ): string {
+		$v = self::norm_scalar( $v );
+		if ( $v === '' ) return '';
+		$f = self::to_float_eu_us( $v );
+		if ( $f === null ) return $v; // leave as-is if not parseable; still stable
+		return number_format( $f, 2, '.', '' );
 	}
-	return $s;
-}
-
 
 	private static function norm_scalar( $v ): string {
 		if ( is_null( $v ) ) return '';
@@ -505,7 +524,7 @@ private static function normalize_amount_string( $v ): string {
 			'badges'      => ( self::sorted($old['badges'])     !== self::sorted($new['badges']) ),
 			'prices'      => ( self::normalize_prices($old['prices']) !== self::normalize_prices($new['prices']) ),
 		];
-		$c['any'] = (bool) array_sum( array_map( fn($v) => $v ? 1 : 0, $c ) );
+		$c['any'] = (bool) array_sum( array_map( static fn($v) => $v ? 1 : 0, $c ) );
 		return $c;
 	}
 
