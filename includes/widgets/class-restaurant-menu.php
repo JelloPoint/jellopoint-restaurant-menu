@@ -290,6 +290,11 @@ $__jp_overrides = dirname( __DIR__ ) . '/helpers/overrides.php'; // path: includ
 if ( file_exists( $__jp_overrides ) ) {
     require_once $__jp_overrides;
 }
+// Load icon helpers so templates/badges can colorize SVGs consistently
+$__jp_icons = dirname( __DIR__ ) . '/helpers/icons.php';
+if ( file_exists( $__jp_icons ) ) {
+    require_once $__jp_icons;
+}
 
 		$template = dirname( __DIR__ ) . '/render/templates/menu.php';
 		if ( is_readable( $template ) ) {

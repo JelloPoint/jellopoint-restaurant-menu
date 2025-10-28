@@ -97,47 +97,27 @@ foreach ( $slugs as $slug ) {
 		$base = 'jp-badge';
 		$cls  = $base . ' ' . $base . '--' . sanitize_html_class( $slug );
 
+// inside rendering for each badge
 if ( $presentation === 'icon' ) {
     $out .= '<span class="' . esc_attr( $cls . ' jp-badge--icon' ) . '">';
-
     if ( $icon !== '' ) {
-        // SVG as colorable mask (uses currentColor)
-        if ( preg_match('~\.svg(\?.*)?$~i', $icon) || strpos($icon, 'data:image/svg+xml') === 0 ) {
-            $url = esc_url($icon);
-            $out .= '<span class="jp-badge__icon jp-badge__icon--mask" style="-webkit-mask-image:url(\''.$url.'\');mask-image:url(\''.$url.'\');" aria-hidden="true"></span>';
-            // Keep accessible text for icon-only
-            $out .= '<span class="screen-reader-text">' . esc_html( $name ) . '</span>';
-        } else {
-            // Raster fallback
-            $out .= '<img class="jp-badge__icon" src="' . esc_url( $icon ) . '" alt="' . esc_attr( $name ) . '">';
-            $out .= '<span class="screen-reader-text">' . esc_html( $name ) . '</span>';
-        }
+        // unified: mask or cleaned svg/img based on URL/html
+        $out .= jprm_colorize_icon('', $icon, 'badge');
+        $out .= '<span class="screen-reader-text">' . esc_html( $name ) . '</span>';
     } else {
-        // No icon available → graceful text fallback
         $out .= '<span class="jp-badge__label">' . esc_html( $name ) . '</span>';
     }
-
     $out .= '</span>';
 
 } elseif ( $presentation === 'text' ) {
-    $out .= '<span class="' . esc_attr( $cls . ' jp-badge--text' ) . '">';
-    $out .= '<span class="jp-badge__label">' . esc_html( $name ) . '</span>';
-    $out .= '</span>';
+    $out .= '<span class="' . esc_attr( $cls . ' jp-badge--text' ) . '"><span class="jp-badge__label">' . esc_html( $name ) . '</span></span>';
 
-} else { // 'icon_text'
+} else { // icon_text
     $out .= '<span class="' . esc_attr( $cls . ' jp-badge--icontext' ) . '">';
-
     if ( $icon !== '' ) {
-        if ( preg_match('~\.svg(\?.*)?$~i', $icon) || strpos($icon, 'data:image/svg+xml') === 0 ) {
-            $url = esc_url($icon);
-            $out .= '<span class="jp-badge__icon jp-badge__icon--mask" style="-webkit-mask-image:url(\''.$url.'\');mask-image:url(\''.$url.'\');" aria-hidden="true"></span>';
-        } else {
-            $out .= '<img class="jp-badge__icon" src="' . esc_url( $icon ) . '" alt="' . esc_attr( $name ) . '">';
-        }
+        $out .= jprm_colorize_icon('', $icon, 'badge');
     }
-
-    $out .= '<span class="jp-badge__label">' . esc_html( $name ) . '</span>';
-    $out .= '</span>';
+    $out .= '<span class="jp-badge__label">' . esc_html( $name ) . '</span></span>';
 }
 
 	}
