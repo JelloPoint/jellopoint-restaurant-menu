@@ -7,7 +7,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * Exact-keys Importer for JPRM (JSON/CSV from our exporter).
  * - Dry-run validation & report
  * - Commit writes: create/update posts, terms, meta
- * - Change detection (accurate “unchanged”, incl. multi rows)
+ * - Accurate change detection (multi-row compares only whitelisted keys)
  * - Tracks newly created Menu/Section terms (and shows “would create” in dry-run)
  * - Price summary per row
  */
@@ -58,10 +58,10 @@ final class JPRM_Importer {
 			$r = self::process_item( $row, $dry_run, $create_missing_terms );
 
 			if ( isset( $r['action'] ) ) {
-				if ( $r['action'] === 'created' )     { $report['created']++; }
-				elseif ( $r['action'] === 'updated' ) { $report['updated']++; }
-				elseif ( $r['action'] === 'unchanged' ){ $report['unchanged']++; }
-				elseif ( $r['action'] === 'skipped' ) { $report['skipped']++; }
+				if ( $r['action'] === 'created' )      { $report['created']++; }
+				elseif ( $r['action'] === 'updated' )  { $report['updated']++; }
+				elseif ( $r['action'] === 'unchanged') { $report['unchanged']++; }
+				elseif ( $r['action'] === 'skipped' )  { $report['skipped']++; }
 			}
 			if ( ! empty( $r['new_terms_created']['menus'] ) ) {
 				$report['new_terms']['menus'] += count( $r['new_terms_created']['menus'] );
@@ -117,7 +117,7 @@ final class JPRM_Importer {
 			$badges = array_filter( array_map( 'sanitize_title', explode( '|', (string) ( $row['badges'] ?? '' ) ) ) );
 
 			$items_row = [
-				'post_id'     => isset($row['post_id']) ? (int) $row['post_id'] : 0,
+				'post_id'     => isset($row['post_id']) && $row['post_id'] !== '' ? (int) $row['post_id'] : 0,
 				'post_title'  => (string) ( $row['post_title'] ?? '' ),
 				'post_status' => (string) ( $row['post_status'] ?? 'draft' ),
 				'description' => (string) ( $row['description'] ?? '' ),
@@ -144,10 +144,15 @@ final class JPRM_Importer {
 		$badges  = is_array( $it['badges'] ?? null ) ? $it['badges'] : [];
 		$prices  = is_array( $it['prices'] ?? null ) ? $it['prices'] : [];
 
-		$existing_id = (int) ( $it['post_id'] ?? 0 );
-		$post_id     = 0;
-		$action      = 'skipped';
-		$error       = '';
+		// Treat missing/empty post_id as "new".
+		$existing_id = 0;
+		if ( isset( $it['post_id'] ) && $it['post_id'] !== '' ) {
+			$existing_id = (int) $it['post_id'];
+		}
+
+		$post_id = 0;
+		$action  = 'skipped';
+		$error   = '';
 
 		$price_mode = (string) ( $prices['mode'] ?? '' );
 		if ( $price_mode !== 'single' && $price_mode !== 'multi' ) {
@@ -165,7 +170,7 @@ final class JPRM_Importer {
 		// ---- Old state (normalize empties to '') ----
 		$old = [
 			'post_title'  => $is_existing ? (string) get_the_title( $post_id ) : '',
-			'post_status' => $is_existing ? (string) get_post_status( $post_id ) : 'draft',
+					'post_status' => $is_existing ? (string) get_post_status( $post_id ) : 'draft',
 			'desc'        => $is_existing ? (string) get_post_meta( $post_id, 'jprm_desc', true ) : '',
 			'menu_terms'  => $is_existing ? self::terms_as_names( $post_id, 'jprm_menu' ) : [],
 			'sect_terms'  => $is_existing ? self::terms_as_names( $post_id, 'jprm_section' ) : [],
@@ -174,6 +179,7 @@ final class JPRM_Importer {
 		];
 
 		// ---- New state (normalized like exporter) ----
+		$new_rows = ( $price_mode === 'multi' ) ? (array) ( $prices['rows'] ?? [] ) : [];
 		$new = [
 			'post_title'  => $title,
 			'post_status' => $status ?: 'draft',
@@ -191,7 +197,7 @@ final class JPRM_Importer {
 				  ]
 				: [
 					'mode' => 'multi',
-					'rows' => self::canonicalize_rows( (array) ( $prices['rows'] ?? [] ) ),
+					'rows' => self::canonicalize_rows_whitelisted( $new_rows ),
 				  ],
 		];
 
@@ -204,7 +210,7 @@ final class JPRM_Importer {
 		$missing_sections  = self::missing_term_names( 'jprm_section', $new['sect_terms'] );
 		$new_terms_created = [ 'menus' => $missing_menus, 'sections' => $missing_sections ];
 
-		// Diff (uses canonical & lenient comparison)
+		// Diff (uses canonical & whitelist comparison)
 		$changed = self::diff_any( $old, $new );
 
 		// Writes only if changed & not dry-run
@@ -228,7 +234,6 @@ final class JPRM_Importer {
 						'badges'            => $new['badges'],
 						'new_terms_created' => $new_terms_created,
 						'error'             => 'Insert failed: ' . $post_id->get_error_message(),
-						'notes'             => '',
 					];
 				}
 			}
@@ -305,6 +310,7 @@ final class JPRM_Importer {
 
 		return [
 			'post_id_old'       => $existing_id,
+			// In dry-run we never have a new numeric ID; show old when updating, 0 when creating.
 			'post_id_new'       => $dry ? ( $is_existing ? $existing_id : 0 ) : ( $post_id ?: 0 ),
 			'title'             => $title,
 			'action'            => $action,
@@ -412,54 +418,49 @@ final class JPRM_Importer {
 
 		return [
 			'mode' => 'multi',
-			'rows' => self::canonicalize_rows( $rows ),
+			'rows' => self::canonicalize_rows_whitelisted( $rows ),
 		];
 	}
 
 	/**
-	 * Canonicalize multi rows so equality ignores order, key order, and empty vs missing:
-	 * - cast row to array
-	 * - remove keys whose normalized value is '' (treat empty/missing equal)
-	 * - ksort() keys
-	 * - cast every scalar to trimmed string
-	 * - build stable signature and sort rows by it
+	 * Canonicalize multi rows but only keep a whitelist of meaningful keys.
+	 * Default whitelist: ['label_ref','price'].
+	 * Filter: 'jprm/import/row_compare_keys' to alter/extend.
 	 */
-	private static function canonicalize_rows( array $rows ): array {
+	private static function canonicalize_rows_whitelisted( array $rows ): array {
+		$keys = (array) apply_filters( 'jprm/import/row_compare_keys', [ 'label_ref', 'price' ] );
+
 		$norm = [];
 		foreach ( $rows as $r ) {
 			$a = is_array( $r ) ? $r : (array) $r;
 
-			// normalize values and drop empties
 			$clean = [];
-			foreach ( $a as $k => $v ) {
-				$val = self::normalize_scalar_or_json( $v );
-				if ( $val === '' ) { continue; } // treat empty as missing
-				$clean[ (string) $k ] = $val;
+			foreach ( $keys as $k ) {
+				if ( array_key_exists( $k, $a ) ) {
+					$clean[$k] = self::norm_scalar( $a[$k] );
+				} else {
+					// treat missing as empty to avoid false diffs
+					$clean[$k] = '';
+				}
 			}
-
 			ksort( $clean );
-			// cast scalars to strings (already done), keep arrays/objects as JSON strings
-			foreach ( $clean as $k => $v ) {
-				$clean[$k] = (string) $v;
-			}
 			$norm[] = $clean;
 		}
+
 		usort( $norm, function( $x, $y ) {
 			$sx = json_encode( $x, JSON_UNESCAPED_UNICODE );
 			$sy = json_encode( $y, JSON_UNESCAPED_UNICODE );
 			return $sx <=> $sy;
 		} );
+
 		return array_values( $norm );
 	}
 
-	private static function normalize_scalar_or_json( $v ): string {
-		if ( is_array( $v ) || is_object( $v ) ) {
-			return json_encode( $v, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
-		}
-		if ( is_bool( $v ) ) return $v ? '1' : '0';
+	private static function norm_scalar( $v ): string {
 		if ( is_null( $v ) ) return '';
-		$s = is_scalar( $v ) ? (string) $v : '';
-		return trim( $s );
+		if ( is_bool( $v ) ) return $v ? '1' : '0';
+		if ( is_numeric( $v ) ) return (string) $v;
+		return trim( (string) $v );
 	}
 
 	/**
@@ -480,7 +481,6 @@ final class JPRM_Importer {
 	}
 
 	private static function eqs( $s ): string {
-		// empty/missing treated as empty string
 		return trim( is_string( $s ) ? $s : (string) $s );
 	}
 
@@ -502,7 +502,7 @@ final class JPRM_Importer {
 			];
 		}
 		$rows = isset( $p['rows'] ) && is_array( $p['rows'] ) ? $p['rows'] : [];
-		return [ 'mode' => 'multi', 'rows' => self::canonicalize_rows( $rows ) ];
+		return [ 'mode' => 'multi', 'rows' => self::canonicalize_rows_whitelisted( $rows ) ];
 	}
 
 	private static function to_float_eu_us( $v ): ?float {
