@@ -4,7 +4,7 @@ namespace JelloPoint\RestaurantMenu\Data;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
- * Exact-keys exporter for JPRM:
+ * Exact-keys exporter for JPRM (no featured_image in output).
  * - Prices:
  *   - mode: from 'jprm_price_mode' ('single'|'multi')
  *   - single: amount + label_mode + label_ref (raw + parsed numeric)
@@ -12,9 +12,6 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  *             from 'jprm_price' if it contains a 'rows' structure
  * - Badges: from 'jprm_item_badges' (unserialized array of slugs)
  * - Terms: names for jprm_menu and jprm_section
- * - Featured image: id + url
- *
- * NO heuristics beyond strict decoding (unserialize/JSON) and EU/US number parsing.
  */
 final class JPRM_Exporter {
 
@@ -35,7 +32,7 @@ final class JPRM_Exporter {
 	}
 
 	/**
-	 * Query and map all items to a canonical array.
+	 * Query and map all items to a canonical array (without featured_image).
 	 *
 	 * @return array
 	 */
@@ -56,10 +53,6 @@ final class JPRM_Exporter {
 			$status  = get_post_status( $post_id );
 			$desc    = (string) get_post_meta( $post_id, 'jprm_desc', true );
 
-			// Featured image
-			$thumb_id  = (int) get_post_thumbnail_id( $post_id );
-			$thumb_url = $thumb_id ? wp_get_attachment_url( $thumb_id ) : null;
-
 			// Terms
 			$menus   = self::terms_as_names( $post_id, 'jprm_menu' );
 			$sects   = self::terms_as_names( $post_id, 'jprm_section' );
@@ -78,7 +71,6 @@ final class JPRM_Exporter {
 				'post_title'     => (string) $title,
 				'post_status'    => (string) $status,
 				'description'    => $desc,
-				'featured_image' => $thumb_id ? [ 'id' => $thumb_id, 'url' => $thumb_url ] : null,
 				'tax'            => [
 					'jprm_menu'    => $menus,
 					'jprm_section' => $sects,
@@ -127,7 +119,6 @@ final class JPRM_Exporter {
 			}
 		}
 
-		// We do NOT guess inner keys. We export exactly what’s stored.
 		return [
 			'mode' => 'multi',
 			'rows' => $rows, // raw row objects/arrays as stored in meta
@@ -233,7 +224,8 @@ final class JPRM_Exporter {
 		// BOM
 		fwrite( $out, chr(0xEF) . chr(0xBB) . chr(0xBF) );
 
-		$headers = [ 'post_id', 'post_title', 'post_status', 'description', 'menus', 'sections', 'badges', 'prices_json', 'featured_image_id', 'featured_image_url' ];
+		// Note: removed featured_image_id and featured_image_url
+		$headers = [ 'post_id', 'post_title', 'post_status', 'description', 'menus', 'sections', 'badges', 'prices_json' ];
 		fputcsv( $out, $headers, ';', '"' );
 
 		foreach ( $items as $it ) {
@@ -241,13 +233,6 @@ final class JPRM_Exporter {
 			$sects   = implode( '|', (array) ( $it['tax']['jprm_section'] ?? [] ) );
 			$badges  = implode( '|', (array) ( $it['badges'] ?? [] ) );
 			$pricesJ = wp_json_encode( $it['prices'], JSON_UNESCAPED_SLASHES );
-
-			$fid = '';
-			$furl= '';
-			if ( ! empty( $it['featured_image']['id'] ) ) {
-				$fid  = (string) $it['featured_image']['id'];
-				$furl = (string) ( $it['featured_image']['url'] ?? '' );
-			}
 
 			$row = [
 				$it['post_id'],
@@ -258,8 +243,6 @@ final class JPRM_Exporter {
 				$sects,
 				$badges,
 				$pricesJ,
-				$fid,
-				$furl,
 			];
 			fputcsv( $out, $row, ';', '"' );
 		}
