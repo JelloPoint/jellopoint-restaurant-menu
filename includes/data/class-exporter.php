@@ -3,6 +3,19 @@ namespace JelloPoint\RestaurantMenu\Data;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * Exact-keys exporter for JPRM:
+ * - Prices:
+ *   - mode: from 'jprm_price_mode' ('single'|'multi')
+ *   - single: amount + label_mode + label_ref (raw + parsed numeric)
+ *   - multi:  rows taken directly from 'jprm_prices' (unserialized) or
+ *             from 'jprm_price' if it contains a 'rows' structure
+ * - Badges: from 'jprm_item_badges' (unserialized array of slugs)
+ * - Terms: names for jprm_menu and jprm_section
+ * - Featured image: id + url
+ *
+ * NO heuristics beyond strict decoding (unserialize/JSON) and EU/US number parsing.
+ */
 final class JPRM_Exporter {
 
 	/**
@@ -12,8 +25,7 @@ final class JPRM_Exporter {
 	 */
 	public static function stream( array $args ): void {
 		$format = ( isset( $args['format'] ) && $args['format'] === 'csv' ) ? 'csv' : 'json';
-
-		$items = self::collect_items();
+		$items  = self::collect_items();
 
 		if ( $format === 'json' ) {
 			self::stream_json( $items );
@@ -42,7 +54,7 @@ final class JPRM_Exporter {
 		foreach ( $q->posts as $post_id ) {
 			$title   = get_the_title( $post_id );
 			$status  = get_post_status( $post_id );
-			$desc    = get_post_meta( $post_id, 'jprm_desc', true );
+			$desc    = (string) get_post_meta( $post_id, 'jprm_desc', true );
 
 			// Featured image
 			$thumb_id  = (int) get_post_thumbnail_id( $post_id );
@@ -52,33 +64,26 @@ final class JPRM_Exporter {
 			$menus   = self::terms_as_names( $post_id, 'jprm_menu' );
 			$sects   = self::terms_as_names( $post_id, 'jprm_section' );
 
-			// Badges (array of slugs; fallback to empty array)
-			$badges = get_post_meta( $post_id, 'jprm_item_badges', true );
-			if ( ! is_array( $badges ) ) { $badges = []; }
+			// Badges (serialized array of slugs)
+			$badges_raw = get_post_meta( $post_id, 'jprm_item_badges', true );
+			$badges     = self::dec_any_to_array( $badges_raw );
+			$badges     = array_values( array_filter( array_map( 'sanitize_title', (array) $badges ) ) );
 
-			// Prices — do NOT guess schema; allow a filter to provide normalized rows.
-			//  - Return value should be an array of rows, e.g.:
-			//    [ [ 'label_id'=>12, 'label_text'=>'25cl', 'numeric'=>3.5, 'price'=>'€3.50' ], ... ]
-			$prices = apply_filters( 'jprm/export/prices', null, $post_id );
-			if ( $prices === null ) {
-				// Attempt a generic fallback: try common meta keys (read-only, best effort).
-				$prices = self::best_effort_prices( $post_id );
-			}
-			if ( ! is_array( $prices ) ) {
-				$prices = []; // never break the export
-			}
+			// Prices — exact keys
+			$mode   = (string) get_post_meta( $post_id, 'jprm_price_mode', true );
+			$prices = self::build_prices_payload( $post_id, $mode );
 
 			$out[] = [
 				'post_id'        => (int) $post_id,
 				'post_title'     => (string) $title,
 				'post_status'    => (string) $status,
-				'description'    => is_string( $desc ) ? $desc : '',
+				'description'    => $desc,
 				'featured_image' => $thumb_id ? [ 'id' => $thumb_id, 'url' => $thumb_url ] : null,
 				'tax'            => [
 					'jprm_menu'    => $menus,
 					'jprm_section' => $sects,
 				],
-				'badges'         => array_values( array_filter( array_map( 'sanitize_title', $badges ) ) ),
+				'badges'         => $badges,
 				'prices'         => $prices,
 			];
 		}
@@ -86,37 +91,112 @@ final class JPRM_Exporter {
 		return $out;
 	}
 
+	/**
+	 * Build the prices payload strictly from the known keys.
+	 */
+	private static function build_prices_payload( int $post_id, string $mode ): array {
+		$mode = $mode ?: 'single';
+
+		if ( $mode === 'single' ) {
+			$amount_raw  = (string) get_post_meta( $post_id, 'jprm_price_amount', true );          // e.g. "5,50"
+			$label_mode  = (string) get_post_meta( $post_id, 'jprm_price_label_mode', true );      // e.g. "ref"
+			$label_ref   = (string) get_post_meta( $post_id, 'jprm_price_label_ref', true );       // e.g. "pl-1"
+
+			return [
+				'mode'          => 'single',
+				'amount_raw'    => $amount_raw,
+				'amount_number' => self::to_float_eu_us( $amount_raw ),
+				'label_mode'    => $label_mode,
+				'label_ref'     => $label_ref,
+			];
+		}
+
+		// MULTI
+		$rows = [];
+
+		// Primary source: jprm_prices (serialized PHP array of rows)
+		$raw_prices = get_post_meta( $post_id, 'jprm_prices', true );
+		$rows       = self::dec_any_to_array( $raw_prices );
+
+		// If empty, try jprm_price (it may be a JSON/serialized struct with 'rows')
+		if ( empty( $rows ) ) {
+			$raw_price = get_post_meta( $post_id, 'jprm_price', true );
+			$dec       = self::dec_any( $raw_price );
+			if ( is_array( $dec ) && isset( $dec['rows'] ) && is_array( $dec['rows'] ) ) {
+				$rows = $dec['rows'];
+			}
+		}
+
+		// We do NOT guess inner keys. We export exactly what’s stored.
+		return [
+			'mode' => 'multi',
+			'rows' => $rows, // raw row objects/arrays as stored in meta
+		];
+	}
+
 	private static function terms_as_names( int $post_id, string $taxonomy ): array {
 		$terms = wp_get_object_terms( $post_id, $taxonomy, [ 'fields' => 'names' ] );
-		if ( is_wp_error( $terms ) || ! is_array( $terms ) ) {
-			return [];
-		}
-		return array_values( $terms );
+		return ( is_wp_error( $terms ) || ! is_array( $terms ) ) ? [] : array_values( $terms );
 	}
 
 	/**
-	 * Try a few non-destructive meta keys for prices if the filter is not implemented yet.
-	 * If none found, return an empty array.
+	 * Decode “anything” into a PHP value:
+	 * - Arrays pass through
+	 * - JSON strings -> array
+	 * - Serialized strings -> maybe_unserialize()
+	 * - Other scalars -> returned as-is
 	 */
-	private static function best_effort_prices( int $post_id ): array {
-		$candidates = [
-			'jprm_prices',
-			'jprm_price_rows',
-			'jprm_price_config',
-		];
-		foreach ( $candidates as $key ) {
-			$val = get_post_meta( $post_id, $key, true );
-			if ( is_array( $val ) && ! empty( $val ) ) {
-				return $val;
+	private static function dec_any( $v ) {
+		if ( is_array( $v ) || is_object( $v ) ) {
+			return (array) $v;
+		}
+		if ( is_string( $v ) && $v !== '' ) {
+			$s = trim( $v );
+
+			// serialized?
+			if ( function_exists( 'is_serialized' ) && is_serialized( $s ) ) {
+				$un = @maybe_unserialize( $s );
+				if ( is_array( $un ) ) return $un;
 			}
-			if ( is_string( $val ) && $val !== '' ) {
-				$maybe = json_decode( $val, true );
-				if ( is_array( $maybe ) ) {
-					return $maybe;
-				}
+
+			// JSON?
+			if ( ( $s[0] === '{' || $s[0] === '[' ) && substr( $s, -1 ) && ( substr( $s,-1 ) === '}' || substr( $s,-1 ) === ']' ) ) {
+				$dec = json_decode( $s, true );
+				if ( is_array( $dec ) ) return $dec;
 			}
 		}
-		return [];
+		return $v;
+	}
+
+	/** Ensure we always return an array (never null/false) */
+	private static function dec_any_to_array( $v ): array {
+		$dec = self::dec_any( $v );
+		return is_array( $dec ) ? $dec : [];
+	}
+
+	/** Parse EU/US decimal formats to float (e.g., "5,50" → 5.5 ; "1,234.56" → 1234.56). */
+	private static function to_float_eu_us( $v ): ?float {
+		if ( is_null( $v ) || $v === '' ) return null;
+		if ( is_numeric( $v ) ) return (float) $v;
+		if ( is_string( $v ) ) {
+			$s = preg_replace( '/[^\d\.,-]/u', '', $v );
+			if ( $s === '' ) return null;
+			if ( strpos( $s, ',' ) !== false && strpos( $s, '.' ) !== false ) {
+				// last separator is decimal
+				$last_comma = strrpos( $s, ',' );
+				$last_dot   = strrpos( $s, '.' );
+				if ( $last_comma > $last_dot ) {
+					$s = str_replace( '.', '', $s );
+					$s = str_replace( ',', '.', $s );
+				} else {
+					$s = str_replace( ',', '', $s );
+				}
+			} elseif ( strpos( $s, ',' ) !== false ) {
+				$s = str_replace( ',', '.', $s );
+			}
+			return is_numeric( $s ) ? (float) $s : null;
+		}
+		return null;
 	}
 
 	private static function stream_json( array $items ): void {
@@ -130,6 +210,11 @@ final class JPRM_Exporter {
 				'plugin'        => 'jellopoint-restaurant-menu',
 				'plugin_version'=> defined( 'JPRM_PLUGIN_VERSION' ) ? JPRM_PLUGIN_VERSION : '',
 				'format'        => 'json',
+				'price_keys'    => [
+					'mode'        => 'jprm_price_mode',
+					'single'      => [ 'amount' => 'jprm_price_amount', 'label_mode' => 'jprm_price_label_mode', 'label_ref' => 'jprm_price_label_ref' ],
+					'multi'       => [ 'rows'   => 'jprm_prices (or jprm_price.rows)' ],
+				],
 			],
 			'items' => $items,
 		];
