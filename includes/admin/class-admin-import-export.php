@@ -125,15 +125,21 @@ final class JPRM_Admin_Import_Export {
     }
 
     /** Export handler (stub). */
-    public static function handle_export(): void {
-        if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( 'Unauthorized' ); }
-        check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
+public static function handle_export(): void {
+	if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( 'Unauthorized' ); }
+	check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
 
-        // TODO: call Exporter::stream($args)
-        $back = wp_get_referer() ?: admin_url( 'admin.php?page=' . self::PAGE_SLUG );
-        wp_safe_redirect( add_query_arg( 'jprm_ie_msg', rawurlencode( 'Export not yet implemented (stub).'), $back ) );
-        exit;
-    }
+	$format = isset( $_POST['format'] ) && $_POST['format'] === 'csv' ? 'csv' : 'json';
+
+	// Include the exporter and stream the download.
+	if ( ! class_exists( '\\JelloPoint\\RestaurantMenu\\Data\\JPRM_Exporter' ) ) {
+		require_once dirname( __DIR__ ) . '/data/class-exporter.php';
+	}
+	\JelloPoint\RestaurantMenu\Data\JPRM_Exporter::stream( [
+		'format' => $format,
+	] );
+	exit;
+}
 
     /** Import handler (stub). */
     public static function handle_import(): void {

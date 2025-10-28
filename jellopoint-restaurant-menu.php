@@ -92,6 +92,9 @@ if ( is_admin() ) {
 	// includes/admin/class-admin-import-export.php
 	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-import-export.php';
 	\JelloPoint\RestaurantMenu\Admin\JPRM_Admin_Import_Export::bootstrap();
+
+	// Load the export price hook
+	require_once JPRM_PLUGIN_PATH . 'includes/helpers/prices-export-hook.php';
 }
 
 // Register routes for ALL contexts (front + admin).
