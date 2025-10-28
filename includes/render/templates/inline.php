@@ -41,9 +41,27 @@ if (!function_exists('jprm_label_chip_inline')) {
 		$text = trim((string)($meta['text'] ?? ''));
 		$ico  = '';
 		if (!empty($meta['icon_html'])) $ico = jprm_sanitize_single_icon((string)$meta['icon_html']);
-		if ($ico === '' && !empty($meta['icon']))     $ico = jprm_sanitize_single_icon((string)$meta['icon']);
-		if ($ico === '' && !empty($meta['svg']))      $ico = jprm_sanitize_single_icon((string)$meta['svg']);
-		if ($ico === '' && !empty($meta['icon_url'])) $ico = '<img class="jp-label__icon" src="' . esc_url((string)$meta['icon_url']) . '" alt="" loading="lazy" decoding="async" />';
+		// Prefer already-sanitized inline HTML icon (img/svg)
+if ($ico === '' && !empty($meta['icon'])) {
+    $ico = jprm_sanitize_single_icon((string)$meta['icon']);
+}
+if ($ico === '' && !empty($meta['svg'])) {
+    $ico = jprm_sanitize_single_icon((string)$meta['svg']);
+}
+
+/* URL-based icon: if it's an SVG, render as a colorable mask (uses currentColor).
+   Otherwise keep raster <img>.
+*/
+if ($ico === '' && !empty($meta['icon_url'])) {
+    $u = (string)$meta['icon_url'];
+    if (preg_match('~\.svg(\?.*)?$~i', $u) || strpos($u, 'data:image/svg+xml') === 0) {
+        $url = esc_url($u);
+        $ico = '<span class="jp-label__icon jp-label__icon--mask" style="-webkit-mask-image:url(\''.$url.'\');mask-image:url(\''.$url.'\');" aria-hidden="true"></span>';
+    } else {
+        $ico = '<img class="jp-label__icon" src="' . esc_url($u) . '" alt="" loading="lazy" decoding="async" />';
+    }
+}
+
 		switch ($presentation) {
 			case 'icon':      return $ico !== '' ? $ico : esc_html($text);
 			case 'text':      return esc_html($text);
