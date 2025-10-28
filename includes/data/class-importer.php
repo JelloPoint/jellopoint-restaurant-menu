@@ -422,39 +422,68 @@ final class JPRM_Importer {
 		];
 	}
 
-	/**
-	 * Canonicalize multi rows but only keep a whitelist of meaningful keys.
-	 * Default whitelist: ['label_ref','price'].
-	 * Filter: 'jprm/import/row_compare_keys' to alter/extend.
-	 */
-	private static function canonicalize_rows_whitelisted( array $rows ): array {
-		$keys = (array) apply_filters( 'jprm/import/row_compare_keys', [ 'label_ref', 'price' ] );
+/**
+ * Canonicalize multi rows but only keep a whitelist of meaningful keys.
+ * Default whitelist: ['label_ref','amount'].
+ * - Treats 'price' as an alias of 'amount'
+ * - Normalizes numeric strings (EU/US) so "5,00" == "5.00" == 5
+ * Filter: 'jprm/import/row_compare_keys' to alter/extend.
+ */
+private static function canonicalize_rows_whitelisted( array $rows ): array {
+	$keys = (array) apply_filters( 'jprm/import/row_compare_keys', [ 'label_ref', 'amount' ] );
 
-		$norm = [];
-		foreach ( $rows as $r ) {
-			$a = is_array( $r ) ? $r : (array) $r;
+	$norm = [];
+	foreach ( $rows as $r ) {
+		$a = is_array( $r ) ? $r : (array) $r;
 
-			$clean = [];
-			foreach ( $keys as $k ) {
-				if ( array_key_exists( $k, $a ) ) {
-					$clean[$k] = self::norm_scalar( $a[$k] );
-				} else {
-					// treat missing as empty to avoid false diffs
-					$clean[$k] = '';
-				}
-			}
-			ksort( $clean );
-			$norm[] = $clean;
+		// Map 'price' -> 'amount' if present, so either field name works.
+		if ( isset( $a['price'] ) && ! isset( $a['amount'] ) ) {
+			$a['amount'] = $a['price'];
 		}
 
-		usort( $norm, function( $x, $y ) {
-			$sx = json_encode( $x, JSON_UNESCAPED_UNICODE );
-			$sy = json_encode( $y, JSON_UNESCAPED_UNICODE );
-			return $sx <=> $sy;
-		} );
+		$clean = [];
+		foreach ( $keys as $k ) {
+			if ( $k === 'amount' ) {
+				// Normalize any EU/US numeric to a canonical string (e.g., "5.00")
+				$clean['amount'] = self::normalize_amount_string( $a['amount'] ?? '' );
+				continue;
+			}
+			// Generic normalized scalar (trimmed string)
+			$clean[$k] = self::norm_scalar( $a[$k] ?? '' );
+		}
 
-		return array_values( $norm );
+		// Sort keys for stability
+		ksort( $clean );
+
+		$norm[] = $clean;
 	}
+
+	// Stable sort rows by JSON signature
+	usort( $norm, function( $x, $y ) {
+		$sx = json_encode( $x, JSON_UNESCAPED_UNICODE );
+		$sy = json_encode( $y, JSON_UNESCAPED_UNICODE );
+		return $sx <=> $sy;
+	} );
+
+	return array_values( $norm );
+}
+
+/** Normalize number-like strings to a canonical dot-decimal with up to 3 decimals (no thousands), or '' if empty. */
+private static function normalize_amount_string( $v ): string {
+	$v = self::norm_scalar( $v );
+	if ( $v === '' ) return '';
+	$f = self::to_float_eu_us( $v );
+	if ( $f === null ) return $v; // leave as-is if not parseable; still stable
+	// format with 2 decimals, trim trailing zeros/decimal when not needed
+	$s = number_format( $f, 2, '.', '' );
+	// You may prefer fixed 2 decimals; if so, just return $s.
+	// For comparison we can safely trim trailing ".00"
+	if ( substr($s, -3) === '.00' ) {
+		return substr($s, 0, -3);
+	}
+	return $s;
+}
+
 
 	private static function norm_scalar( $v ): string {
 		if ( is_null( $v ) ) return '';
