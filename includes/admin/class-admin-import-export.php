@@ -3,173 +3,146 @@ namespace JelloPoint\RestaurantMenu\Admin;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * JPRM Import/Export — strictly attached under the JelloPoint parent menu.
+ * No fallbacks, no scanning, no Tools menu.
+ */
 final class JPRM_Admin_Import_Export {
 
-	/** Default expected parent slug (will auto-detect if different). */
-	private const DEFAULT_PARENT = 'jprm';
+    /** Submenu slug for this page. */
+    private const PAGE_SLUG    = 'jprm-import-export';
 
-	/** Submenu slug for this page. */
-	private const PAGE_SLUG = 'jprm-import-export';
+    /** Nonce. */
+    private const NONCE_ACTION = 'jprm_import_export';
+    private const NONCE_FIELD  = '_jprm_ie_nonce';
 
-	/** Nonce. */
-	private const NONCE_ACTION = 'jprm_import_export';
-	private const NONCE_FIELD  = '_jprm_ie_nonce';
+    /** Capability — must match the parent menu to ensure visibility. */
+    private const CAPABILITY   = 'edit_posts';
 
-	/** Resolved parent slug at runtime. */
-	private static $resolved_parent = null;
+    /** Bootstrap hooks — call once from your plugin loader (admin only). */
+    public static function bootstrap(): void {
+        if ( ! is_admin() ) { return; }
 
-	public static function bootstrap(): void {
-		if ( ! is_admin() ) { return; }
+        // Register late enough that the parent menu is definitely present.
+        add_action( 'admin_menu', [ __CLASS__, 'register_menu' ], 99 );
 
-		// Register very late so parent menus are already in place.
-		add_action( 'admin_menu', [ __CLASS__, 'register_menu' ], 99 );
+        // Handlers.
+        add_action( 'admin_post_jprm_export', [ __CLASS__, 'handle_export' ] );
+        add_action( 'admin_post_jprm_import', [ __CLASS__, 'handle_import' ] );
 
-		// Post handlers.
-		add_action( 'admin_post_jprm_export', [ __CLASS__, 'handle_export' ] );
-		add_action( 'admin_post_jprm_import', [ __CLASS__, 'handle_import' ] );
+        // Assets only on our screen.
+        add_action( 'admin_enqueue_scripts', [ __CLASS__, 'enqueue_assets' ] );
+    }
 
-		// Assets only on our screen.
-		add_action( 'admin_enqueue_scripts', [ __CLASS__, 'enqueue_assets' ] );
-	}
+    /** Add the submenu strictly under the known parent slug (Admin_Menu::PARENT_SLUG). */
+    public static function register_menu(): void {
+        if ( ! class_exists( '\\JelloPoint\\RestaurantMenu\\Admin\\Admin_Menu' ) ) {
+            return; // parent class must be loaded first
+        }
+        $parent_slug_const = '\\JelloPoint\\RestaurantMenu\\Admin\\Admin_Menu::PARENT_SLUG';
+        $parent_slug       = @constant( $parent_slug_const );
+        if ( ! is_string( $parent_slug ) || $parent_slug === '' ) {
+            return;
+        }
 
-	private static function detect_parent_slug(): ?string {
-		global $admin_page_hooks;
+        add_submenu_page(
+            $parent_slug,
+            __( 'Import/Export', 'jellopoint-restaurant-menu' ),
+            __( 'Import/Export', 'jellopoint-restaurant-menu' ),
+            self::CAPABILITY, // match parent capability
+            self::PAGE_SLUG,
+            [ __CLASS__, 'render_page' ],
+            20
+        );
+    }
 
-		// Exact match OK?
-		if ( isset( $admin_page_hooks[ self::DEFAULT_PARENT ] ) ) {
-			return self::DEFAULT_PARENT;
-		}
+    /** Render admin page. */
+    public static function render_page(): void {
+        if ( ! current_user_can( self::CAPABILITY ) ) {
+            wp_die( esc_html__( 'You do not have permission to access this page.', 'jellopoint-restaurant-menu' ) );
+        }
 
-		// Try to find any parent that starts with 'jprm'.
-		if ( is_array( $admin_page_hooks ) ) {
-			foreach ( array_keys( $admin_page_hooks ) as $slug ) {
-				if ( strpos( $slug, 'jprm' ) === 0 ) {
-					return $slug; // first match wins
-				}
-			}
-		}
+        $export_url  = admin_url( 'admin-post.php?action=jprm_export' );
+        $import_url  = admin_url( 'admin-post.php?action=jprm_import' );
+        $nonce_field = wp_nonce_field( self::NONCE_ACTION, self::NONCE_FIELD, true, false );
 
-		return null; // not found
-	}
+        $messages = [];
+        if ( isset( $_GET['jprm_ie_msg'] ) ) {
+            $messages[] = sanitize_text_field( wp_unslash( $_GET['jprm_ie_msg'] ) );
+        }
 
-	public static function register_menu(): void {
-		self::$resolved_parent = self::detect_parent_slug();
+        $view = plugin_dir_path( __FILE__ ) . 'views/import-export-page.php';
+        if ( file_exists( $view ) ) {
+            /** @var string $export_url */
+            /** @var string $import_url */
+            /** @var string $nonce_field */
+            /** @var array  $messages */
+            include $view;
+        } else {
+            echo '<div class="wrap"><h1>JPRM Import/Export</h1><p>View file missing.</p></div>';
+        }
+    }
 
-		if ( self::$resolved_parent ) {
-			add_submenu_page(
-				self::$resolved_parent,
-				__( 'Import/Export', 'jellopoint-restaurant-menu' ),
-				__( 'Import/Export', 'jellopoint-restaurant-menu' ),
-				'manage_options',
-				self::PAGE_SLUG,
-				[ __CLASS__, 'render_page' ],
-				20
-			);
-			return;
-		}
+    /** Enqueue assets only on our exact screen. */
+    public static function enqueue_assets( $hook ): void {
+        if ( ! self::is_current_screen() ) { return; }
 
-		// Fallback under Tools so you can still access the screen safely.
-		add_submenu_page(
-			'tools.php',
-			__( 'JPRM Import/Export (temp)', 'jellopoint-restaurant-menu' ),
-			__( 'JPRM Import/Export (temp)', 'jellopoint-restaurant-menu' ),
-			'manage_options',
-			self::PAGE_SLUG,
-			[ __CLASS__, 'render_page' ],
-			99
-		);
+        $base = plugins_url( '/', dirname( __FILE__, 2 ) ); // points to /includes/
+        $base = trailingslashit( dirname( $base ) );        // plugin root URL
 
-		// Tiny notice explaining the fallback (non-intrusive).
-		add_action( 'admin_notices', function () {
-			if ( ! self::is_current_screen() ) { return; }
-			echo '<div class="notice notice-warning is-dismissible"><p>'
-				. esc_html__( 'JPRM parent menu not found. Showing Import/Export under Tools temporarily. Once your JPRM parent menu registers, this page will attach there automatically.', 'jellopoint-restaurant-menu' )
-				. '</p></div>';
-		} );
-	}
+        wp_enqueue_style(
+            'jprm-import-export',
+            $base . 'assets/admin/import-export.css',
+            [],
+            defined( 'JPRM_PLUGIN_VERSION' ) ? JPRM_PLUGIN_VERSION : '1.0.0'
+        );
 
-	public static function render_page(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You do not have permission to access this page.', 'jellopoint-restaurant-menu' ) );
-		}
+        wp_enqueue_script(
+            'jprm-import-export',
+            $base . 'assets/admin/import-export.js',
+            [ 'jquery' ],
+            defined( 'JPRM_PLUGIN_VERSION' ) ? JPRM_PLUGIN_VERSION : '1.0.0',
+            true
+        );
+    }
 
-		$export_url  = admin_url( 'admin-post.php?action=jprm_export' );
-		$import_url  = admin_url( 'admin-post.php?action=jprm_import' );
-		$nonce_field = wp_nonce_field( self::NONCE_ACTION, self::NONCE_FIELD, true, false );
+    /** True only when viewing the submenu under the known parent. */
+    private static function is_current_screen(): bool {
+        if ( ! function_exists( 'get_current_screen' ) ) { return false; }
+        if ( ! class_exists( '\\JelloPoint\\RestaurantMenu\\Admin\\Admin_Menu' ) ) { return false; }
 
-		$messages = [];
-		if ( isset( $_GET['jprm_ie_msg'] ) ) {
-			$messages[] = sanitize_text_field( wp_unslash( $_GET['jprm_ie_msg'] ) );
-		}
+        $parent_slug_const = '\\JelloPoint\\RestaurantMenu\\Admin\\Admin_Menu::PARENT_SLUG';
+        $parent_slug       = @constant( $parent_slug_const );
+        if ( ! is_string( $parent_slug ) || $parent_slug === '' ) {
+            return false;
+        }
 
-		$view = plugin_dir_path( __FILE__ ) . 'views/import-export-page.php';
-		if ( file_exists( $view ) ) {
-			// Make vars available in scope for the view.
-			/** @var string $export_url */
-			/** @var string $import_url */
-			/** @var string $nonce_field */
-			/** @var array  $messages */
-			include $view;
-		} else {
-			echo '<div class="wrap"><h1>JPRM Import/Export</h1><p>View file missing.</p></div>';
-		}
-	}
+        $screen = get_current_screen();
+        if ( ! $screen ) { return false; }
 
-	public static function enqueue_assets( $hook ): void {
-		if ( ! self::is_current_screen() ) { return; }
+        // Admin base for submenu pages is "{$parent}_page_{$slug}"
+        return ( $screen->base === $parent_slug . '_page_' . self::PAGE_SLUG );
+    }
 
-		$base = plugins_url( '/', dirname( __FILE__, 2 ) ); // points to /includes/
-		$base = trailingslashit( dirname( $base ) );        // plugin root URL
+    /** Export handler (stub). */
+    public static function handle_export(): void {
+        if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( 'Unauthorized' ); }
+        check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
 
-		wp_enqueue_style(
-			'jprm-import-export',
-			$base . 'assets/admin/import-export.css',
-			[],
-			defined( 'JPRM_PLUGIN_VERSION' ) ? JPRM_PLUGIN_VERSION : '1.0.0'
-		);
+        // TODO: call Exporter::stream($args)
+        $back = wp_get_referer() ?: admin_url( 'admin.php?page=' . self::PAGE_SLUG );
+        wp_safe_redirect( add_query_arg( 'jprm_ie_msg', rawurlencode( 'Export not yet implemented (stub).'), $back ) );
+        exit;
+    }
 
-		wp_enqueue_script(
-			'jprm-import-export',
-			$base . 'assets/admin/import-export.js',
-			[ 'jquery' ],
-			defined( 'JPRM_PLUGIN_VERSION' ) ? JPRM_PLUGIN_VERSION : '1.0.0',
-			true
-		);
-	}
+    /** Import handler (stub). */
+    public static function handle_import(): void {
+        if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( 'Unauthorized' ); }
+        check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
 
-	private static function is_current_screen(): bool {
-		if ( ! function_exists( 'get_current_screen' ) ) { return false; }
-		$screen = get_current_screen();
-		if ( ! $screen ) { return false; }
-
-		// When attached under parent: base becomes "{$parent}_page_{$slug}".
-		$targets = [];
-		if ( self::$resolved_parent ) {
-			$targets[] = self::$resolved_parent . '_page_' . self::PAGE_SLUG;
-		}
-		// Fallback under Tools.
-		$targets[] = 'tools_page_' . self::PAGE_SLUG;
-
-		return in_array( $screen->base, $targets, true );
-	}
-
-	/** Export handler (stub). */
-	public static function handle_export(): void {
-		if ( ! current_user_can( 'manage_options' ) ) { wp_die( 'Unauthorized' ); }
-		check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
-
-		$back = wp_get_referer() ?: admin_url( 'admin.php?page=' . self::PAGE_SLUG );
-		wp_safe_redirect( add_query_arg( 'jprm_ie_msg', rawurlencode( 'Export not yet implemented (safe stub).' ), $back ) );
-		exit;
-	}
-
-	/** Import handler (stub). */
-	public static function handle_import(): void {
-		if ( ! current_user_can( 'manage_options' ) ) { wp_die( 'Unauthorized' ); }
-		check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
-
-		$back = wp_get_referer() ?: admin_url( 'admin.php?page=' . self::PAGE_SLUG );
-		wp_safe_redirect( add_query_arg( 'jprm_ie_msg', rawurlencode( 'Import dry-run not yet implemented (safe stub).' ), $back ) );
-		exit;
-	}
+        // TODO: parse + dry-run then commit
+        $back = wp_get_referer() ?: admin_url( 'admin.php?page=' . self::PAGE_SLUG );
+        wp_safe_redirect( add_query_arg( 'jprm_ie_msg', rawurlencode( 'Import dry-run not yet implemented (stub).'), $back ) );
+        exit;
+    }
 }
