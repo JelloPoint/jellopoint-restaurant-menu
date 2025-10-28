@@ -58,30 +58,35 @@ final class JPRM_Admin_Import_Export {
 
     /** Render admin page. */
     public static function render_page(): void {
-        if ( ! current_user_can( self::CAPABILITY ) ) {
-            wp_die( esc_html__( 'You do not have permission to access this page.', 'jellopoint-restaurant-menu' ) );
-        }
+	if ( ! current_user_can( self::CAPABILITY ) ) {
+		wp_die( esc_html__( 'You do not have permission to access this page.', 'jellopoint-restaurant-menu' ) );
+	}
 
-        $export_url  = admin_url( 'admin-post.php?action=jprm_export' );
-        $import_url  = admin_url( 'admin-post.php?action=jprm_import' );
-        $nonce_field = wp_nonce_field( self::NONCE_ACTION, self::NONCE_FIELD, true, false );
+	$export_url  = admin_url( 'admin-post.php?action=jprm_export' );
+	$import_url  = admin_url( 'admin-post.php?action=jprm_import' );
+	$nonce_field = wp_nonce_field( self::NONCE_ACTION, self::NONCE_FIELD, true, false );
 
-        $messages = [];
-        if ( isset( $_GET['jprm_ie_msg'] ) ) {
-            $messages[] = sanitize_text_field( wp_unslash( $_GET['jprm_ie_msg'] ) );
-        }
+	$messages = [];
+	if ( isset( $_GET['jprm_ie_msg'] ) ) {
+		$messages[] = sanitize_text_field( wp_unslash( $_GET['jprm_ie_msg'] ) );
+	}
 
-        $view = plugin_dir_path( __FILE__ ) . 'views/import-export-page.php';
-        if ( file_exists( $view ) ) {
-            /** @var string $export_url */
-            /** @var string $import_url */
-            /** @var string $nonce_field */
-            /** @var array  $messages */
-            include $view;
-        } else {
-            echo '<div class="wrap"><h1>JPRM Import/Export</h1><p>View file missing.</p></div>';
-        }
-    }
+	// >>> ADD: load transient report if provided
+	$import_report = null;
+	if ( isset( $_GET['jprm_ie_report'] ) ) {
+		$key = sanitize_text_field( wp_unslash( $_GET['jprm_ie_report'] ) );
+		$import_report = get_transient( $key );
+	}
+
+	$view = plugin_dir_path( __FILE__ ) . 'views/import-export-page.php';
+	if ( file_exists( $view ) ) {
+		/** @var array|null $import_report */
+		include $view;
+	} else {
+		echo '<div class="wrap"><h1>JPRM Import/Export</h1><p>View file missing.</p></div>';
+	}
+}
+
 
     /** Enqueue assets only on our exact screen. */
     public static function enqueue_assets( $hook ): void {
@@ -142,13 +147,38 @@ public static function handle_export(): void {
 }
 
     /** Import handler (stub). */
-    public static function handle_import(): void {
-        if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( 'Unauthorized' ); }
-        check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
+   public static function handle_import(): void {
+	if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( 'Unauthorized' ); }
+	check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
 
-        // TODO: parse + dry-run then commit
-        $back = wp_get_referer() ?: admin_url( 'admin.php?page=' . self::PAGE_SLUG );
-        wp_safe_redirect( add_query_arg( 'jprm_ie_msg', rawurlencode( 'Import dry-run not yet implemented (stub).'), $back ) );
-        exit;
-    }
+	$dry_run               = ! empty( $_POST['dry_run'] );
+	$create_missing_terms  = ! empty( $_POST['create_missing_terms'] );
+
+	if ( empty( $_FILES['jprm_import_file'] ) ) {
+		$back = wp_get_referer() ?: admin_url( 'admin.php?page=' . self::PAGE_SLUG );
+		wp_safe_redirect( add_query_arg( 'jprm_ie_msg', rawurlencode( 'No file uploaded.' ), $back ) );
+		exit;
+	}
+
+	// Importer
+	if ( ! class_exists( '\\JelloPoint\\RestaurantMenu\\Data\\JPRM_Importer' ) ) {
+		require_once dirname( __DIR__ ) . '/data/class-importer.php';
+	}
+	$report = \JelloPoint\RestaurantMenu\Data\JPRM_Importer::run(
+		$_FILES['jprm_import_file'],
+		[
+			'dry_run'              => $dry_run,
+			'create_missing_terms' => $create_missing_terms,
+		]
+	);
+
+	// Store a short-lived transient for the page to render.
+	$key = 'jprm_ie_report_' . wp_generate_password( 8, false, false );
+	set_transient( $key, $report, 10 * MINUTE_IN_SECONDS );
+
+	$back = wp_get_referer() ?: admin_url( 'admin.php?page=' . self::PAGE_SLUG );
+	wp_safe_redirect( add_query_arg( [ 'jprm_ie_report' => $key ], $back ) );
+	exit;
+}
+
 }
