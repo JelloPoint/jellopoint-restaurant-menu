@@ -100,7 +100,6 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 			<th><?php esc_html_e( 'Menus', 'jellopoint-restaurant-menu' ); ?></th>
 			<th><?php esc_html_e( 'Sections', 'jellopoint-restaurant-menu' ); ?></th>
 			<th><?php esc_html_e( 'Badges', 'jellopoint-restaurant-menu' ); ?></th>
-			<th><?php esc_html_e( 'Notes', 'jellopoint-restaurant-menu' ); ?></th>
 			<th><?php esc_html_e( 'Error', 'jellopoint-restaurant-menu' ); ?></th>
 		</tr>
 	</thead>
@@ -116,15 +115,15 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 				<td><?php echo esc_html( implode( ', ', (array) ( $row['menus'] ?? [] ) ) ); ?></td>
 				<td><?php echo esc_html( implode( ', ', (array) ( $row['sections'] ?? [] ) ) ); ?></td>
 				<td><?php echo esc_html( implode( ', ', (array) ( $row['badges'] ?? [] ) ) ); ?></td>
-				<td><?php echo esc_html( (string) ( $row['notes'] ?? '' ) ); ?></td>
 				<td><?php echo esc_html( (string) ( $row['error'] ?? '' ) ); ?></td>
 			</tr>
 		<?php endforeach; ?>
 	</tbody>
 </table>
-				<?php if ( count( (array) $import_report['items'] ) > 50 ) : ?>
-					<p class="description"><?php echo esc_html__( 'Showing first 50 rows.', 'jellopoint-restaurant-menu' ); ?></p>
-				<?php endif; ?>
+<?php if ( count( (array) $import_report['items'] ) > 50 ) : ?>
+	<p class="description"><?php echo esc_html__( 'Showing first 50 rows.', 'jellopoint-restaurant-menu' ); ?></p>
+<?php endif; ?>
+
 			<?php endif; ?>
 		</section>
 		<!-- <<< END ADDED -->
