@@ -99,6 +99,11 @@ $__render_section = function( int $tid ) use (
 	$term  = $blk['term']  ?? null;
 	$items = $blk['items'] ?? [];
 
+// ABOVE info blocks
+	if ( ! empty( $ib_map[$tid]['above'] ) ) {
+		echo '<li class="jp-menu__infoblock-li">'. jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ) .'</li>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	}
+
 	// Section header
 	if ( $term && $show_section_name ) {
 		echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
@@ -108,10 +113,6 @@ $__render_section = function( int $tid ) use (
 		echo '</li>';
 	}
 
-	// ABOVE info blocks
-	if ( ! empty( $ib_map[$tid]['above'] ) ) {
-		echo '<li class="jp-menu__infoblock-li">'. jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ) .'</li>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-	}
 
 	// Effective layout (per-section override → global)
 	$layout = $global_labels_layout;
