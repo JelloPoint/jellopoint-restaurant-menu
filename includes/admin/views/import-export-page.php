@@ -89,35 +89,39 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 			<?php if ( ! empty( $import_report['items'] ) ) : ?>
 				<table class="widefat striped">
-					<thead>
-						<tr>
-							<th><?php esc_html_e( 'Action', 'jellopoint-restaurant-menu' ); ?></th>
-							<th><?php esc_html_e( 'Old ID', 'jellopoint-restaurant-menu' ); ?></th>
-							<th><?php esc_html_e( 'New ID', 'jellopoint-restaurant-menu' ); ?></th>
-							<th><?php esc_html_e( 'Title', 'jellopoint-restaurant-menu' ); ?></th>
-							<th><?php esc_html_e( 'Mode', 'jellopoint-restaurant-menu' ); ?></th>
-							<th><?php esc_html_e( 'Menus', 'jellopoint-restaurant-menu' ); ?></th>
-							<th><?php esc_html_e( 'Sections', 'jellopoint-restaurant-menu' ); ?></th>
-							<th><?php esc_html_e( 'Badges', 'jellopoint-restaurant-menu' ); ?></th>
-							<th><?php esc_html_e( 'Error', 'jellopoint-restaurant-menu' ); ?></th>
-						</tr>
-					</thead>
-					<tbody>
-						<?php foreach ( array_slice( (array) $import_report['items'], 0, 50 ) as $row ) : ?>
-							<tr>
-								<td><?php echo esc_html( (string) ( $row['action'] ?? '' ) ); ?></td>
-								<td><?php echo (int) ( $row['post_id_old'] ?? 0 ); ?></td>
-								<td><?php echo (int) ( $row['post_id_new'] ?? 0 ); ?></td>
-								<td><?php echo esc_html( (string) ( $row['title'] ?? '' ) ); ?></td>
-								<td><?php echo esc_html( (string) ( $row['mode'] ?? '' ) ); ?></td>
-								<td><?php echo esc_html( implode( ', ', (array) ( $row['menus'] ?? [] ) ) ); ?></td>
-								<td><?php echo esc_html( implode( ', ', (array) ( $row['sections'] ?? [] ) ) ); ?></td>
-								<td><?php echo esc_html( implode( ', ', (array) ( $row['badges'] ?? [] ) ) ); ?></td>
-								<td><?php echo esc_html( (string) ( $row['error'] ?? '' ) ); ?></td>
-							</tr>
-						<?php endforeach; ?>
-					</tbody>
-				</table>
+	<thead>
+		<tr>
+			<th><?php esc_html_e( 'Action', 'jellopoint-restaurant-menu' ); ?></th>
+			<th><?php esc_html_e( 'Old ID', 'jellopoint-restaurant-menu' ); ?></th>
+			<th><?php esc_html_e( 'New ID', 'jellopoint-restaurant-menu' ); ?></th>
+			<th><?php esc_html_e( 'Title', 'jellopoint-restaurant-menu' ); ?></th>
+			<th><?php esc_html_e( 'Mode', 'jellopoint-restaurant-menu' ); ?></th>
+			<th><?php esc_html_e( 'Price', 'jellopoint-restaurant-menu' ); ?></th>
+			<th><?php esc_html_e( 'Menus', 'jellopoint-restaurant-menu' ); ?></th>
+			<th><?php esc_html_e( 'Sections', 'jellopoint-restaurant-menu' ); ?></th>
+			<th><?php esc_html_e( 'Badges', 'jellopoint-restaurant-menu' ); ?></th>
+			<th><?php esc_html_e( 'Notes', 'jellopoint-restaurant-menu' ); ?></th>
+			<th><?php esc_html_e( 'Error', 'jellopoint-restaurant-menu' ); ?></th>
+		</tr>
+	</thead>
+	<tbody>
+		<?php foreach ( array_slice( (array) $import_report['items'], 0, 50 ) as $row ) : ?>
+			<tr>
+				<td><?php echo esc_html( (string) ( $row['action'] ?? '' ) ); ?></td>
+				<td><?php echo (int) ( $row['post_id_old'] ?? 0 ); ?></td>
+				<td><?php echo (int) ( $row['post_id_new'] ?? 0 ); ?></td>
+				<td><?php echo esc_html( (string) ( $row['title'] ?? '' ) ); ?></td>
+				<td><?php echo esc_html( (string) ( $row['mode'] ?? '' ) ); ?></td>
+				<td><?php echo esc_html( (string) ( $row['price_summary'] ?? '' ) ); ?></td>
+				<td><?php echo esc_html( implode( ', ', (array) ( $row['menus'] ?? [] ) ) ); ?></td>
+				<td><?php echo esc_html( implode( ', ', (array) ( $row['sections'] ?? [] ) ) ); ?></td>
+				<td><?php echo esc_html( implode( ', ', (array) ( $row['badges'] ?? [] ) ) ); ?></td>
+				<td><?php echo esc_html( (string) ( $row['notes'] ?? '' ) ); ?></td>
+				<td><?php echo esc_html( (string) ( $row['error'] ?? '' ) ); ?></td>
+			</tr>
+		<?php endforeach; ?>
+	</tbody>
+</table>
 				<?php if ( count( (array) $import_report['items'] ) > 50 ) : ?>
 					<p class="description"><?php echo esc_html__( 'Showing first 50 rows.', 'jellopoint-restaurant-menu' ); ?></p>
 				<?php endif; ?>
