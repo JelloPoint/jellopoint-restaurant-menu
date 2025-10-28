@@ -48,9 +48,28 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 					<label><input type="checkbox" name="attach_images" value="1" /> <?php esc_html_e( 'Re-attach images (if present)', 'jellopoint-restaurant-menu' ); ?></label>
 				</p>
 				<p>
-					<?php submit_button( __( 'Validate (Dry Run)', 'jellopoint-restaurant-menu' ), 'secondary', 'submit', false ); ?>
-					<span class="description"><?php esc_html_e( 'No data will be changed in dry-run.', 'jellopoint-restaurant-menu' ); ?></span>
-				</p>
+    <?php
+    // Primary import button (real commit)
+    submit_button(
+        __( 'Import (Commit Changes)', 'jellopoint-restaurant-menu' ),
+        'primary',
+        'do_import',
+        false
+    );
+
+    // Secondary dry-run button
+    submit_button(
+        __( 'Validate (Dry Run)', 'jellopoint-restaurant-menu' ),
+        'secondary',
+        'submit',
+        false
+    );
+    ?>
+    <span class="description">
+        <?php esc_html_e( 'Dry-run checks only simulate changes — use Import to commit.', 'jellopoint-restaurant-menu' ); ?>
+    </span>
+</p>
+
 			</form>
 		</section>
 
