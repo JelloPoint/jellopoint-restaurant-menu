@@ -88,6 +88,10 @@ if ( is_admin() ) {
 	if ( file_exists( JPRM_PLUGIN_PATH . 'includes/debug/inspector-badges.php' ) ) {
 		require_once JPRM_PLUGIN_PATH . 'includes/debug/inspector-badges.php';
 	}
+
+	// includes/admin/class-admin-import-export.php
+	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-import-export.php';
+	\JelloPoint\RestaurantMenu\Admin\JPRM_Admin_Import_Export::bootstrap();
 }
 
 // Register routes for ALL contexts (front + admin).
