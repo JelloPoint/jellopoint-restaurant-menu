@@ -8,7 +8,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * - Rename Category/Categories -> Menu/Menus (list/add/edit)
  * - Hide Slug & Parent (list/add/edit)
  * - Remove Slug column (list)
- * - Enforce no parent on save (menus never hierarchical)
+ * - Ensure no invalid columns are added to wp_terms on insert/update
+ *   (parent belongs to wp_term_taxonomy, never to wp_terms)
  */
 class Menus_Admin {
 
@@ -22,8 +23,13 @@ class Menus_Admin {
 		add_action( 'admin_head-edit-tags.php', [ __CLASS__, 'inject_css_js' ] );
 		add_action( 'admin_head-term.php',      [ __CLASS__, 'inject_css_js' ] );
 
-		// Enforce: no parent stored for this taxonomy
-		add_filter( 'wp_insert_term_data', [ __CLASS__, 'force_no_parent' ], 10, 3 );
+		/**
+		 * IMPORTANT:
+		 * - Never allow non-wp_terms columns (e.g. 'parent') into the $data array that inserts into wp_terms.
+		 * - If parent needs normalizing, do it via wp_insert_term_args; core uses args for wp_term_taxonomy.
+		 */
+		add_filter( 'wp_insert_term_data', [ __CLASS__, 'sanitize_terms_table_data' ], 10, 3 );
+		add_filter( 'wp_insert_term_args', [ __CLASS__, 'sanitize_parent_arg' ], 10, 2 );
 	}
 
 	/** Drop the "slug" column in the list table */
@@ -32,10 +38,54 @@ class Menus_Admin {
 		return $cols;
 	}
 
-	/** Force parent=0 on insert/update for this taxonomy (defensive). */
-	public static function force_no_parent( $data, $taxonomy, $args ) {
-		if ( $taxonomy === self::TAX ) $data['parent'] = 0;
-		return $data;
+	/**
+	 * Keep only valid wp_terms columns: name, slug, term_group.
+	 * DO NOT pass 'parent' here — that belongs in wp_term_taxonomy and is handled from $args.
+	 *
+	 * @param array  $data     Data for wp_terms insert/update.
+	 * @param string $taxonomy Current taxonomy.
+	 * @param array  $args     Arguments including parent for wp_term_taxonomy.
+	 * @return array
+	 */
+	public static function sanitize_terms_table_data( $data, $taxonomy, $args ) {
+		// Only affect our taxonomy (extend array if you want the same behavior for others)
+		if ( $taxonomy !== self::TAX ) {
+			return $data;
+		}
+
+		$allowed = [ 'name', 'slug', 'term_group' ];
+		$clean   = array_intersect_key( (array) $data, array_flip( $allowed ) );
+
+		// Ensure required keys exist (WordPress will set defaults but we keep it tidy)
+		if ( ! isset( $clean['term_group'] ) ) {
+			$clean['term_group'] = 0;
+		}
+
+		return $clean;
+	}
+
+	/**
+	 * Ensure 'parent' (used for wp_term_taxonomy) is numeric and sane.
+	 * Core reads parent from $args, not from $data.
+	 *
+	 * @param array  $args     Insert/update args for wp_term_taxonomy.
+	 * @param string $taxonomy Current taxonomy.
+	 * @return array
+	 */
+	public static function sanitize_parent_arg( $args, $taxonomy ) {
+		if ( $taxonomy !== self::TAX ) {
+			return $args;
+		}
+		// If parent is missing or invalid, normalize to 0 (menus are effectively non-hierarchical in your UI)
+		if ( ! isset( $args['parent'] ) || ! is_numeric( $args['parent'] ) ) {
+			$args['parent'] = 0;
+		} else {
+			$args['parent'] = (int) $args['parent'];
+			if ( $args['parent'] < 0 ) {
+				$args['parent'] = 0;
+			}
+		}
+		return $args;
 	}
 
 	/** CSS/JS polish – runs on edit-tags.php and term.php; no GET reliance */
@@ -70,7 +120,6 @@ class Menus_Admin {
 				}
 
 				// Search label + placeholder (top right)
-				// WP usually uses label[for="tag-search-input"]; add broader fallbacks.
 				var searchLbl = document.querySelector('label[for="tag-search-input"]') ||
 				                document.querySelector('.search-form label') ||
 				                document.querySelector('.search-box label');
