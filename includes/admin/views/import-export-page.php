@@ -134,7 +134,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 			</table>
 
 			<?php
-			// Overview of *new* terms
+			// Overview (commit mode): actually created terms (if your controller populates these lists)
 			$new_m = array_filter( array_map( 'strval', (array) ( $import_report['new_terms']['menus_list'] ?? [] ) ) );
 			$new_s = array_filter( array_map( 'strval', (array) ( $import_report['new_terms']['sections_list'] ?? [] ) ) );
 			if ( $new_m || $new_s ) :
@@ -151,6 +151,61 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 					</div>
 				</div>
 			<?php endif; ?>
+
+			<?php
+			// === NEW: Below-report overview for DRY RUN ===
+			if ( ! empty( $import_report['dry_run'] ) ) :
+				$wc = $import_report['would_create'] ?? null;
+				if ( is_array( $wc ) && ( ! empty( $wc['menus'] ) || ! empty( $wc['sections'] ) ) ) :
+			?>
+				<div class="jprm-card" style="margin-top:24px;">
+					<h2><?php esc_html_e( 'Would create (dry run)', 'jellopoint-restaurant-menu' ); ?></h2>
+
+					<?php if ( ! empty( $wc['menus'] ) ) : ?>
+						<h3 style="margin-top:0.5em;"><?php esc_html_e( 'Menus', 'jellopoint-restaurant-menu' ); ?></h3>
+						<table class="widefat striped">
+							<thead>
+							<tr>
+								<th style="width:60px;">#</th>
+								<th><?php esc_html_e( 'Menu name', 'jellopoint-restaurant-menu' ); ?></th>
+							</tr>
+							</thead>
+							<tbody>
+							<?php $i = 1; foreach ( (array) $wc['menus'] as $name ) : ?>
+								<tr>
+									<td><?php echo (int) $i++; ?></td>
+									<td><?php echo esc_html( (string) $name ); ?></td>
+								</tr>
+							<?php endforeach; ?>
+							</tbody>
+						</table>
+					<?php endif; ?>
+
+					<?php if ( ! empty( $wc['sections'] ) ) : ?>
+						<h3 style="margin-top:1.25em;"><?php esc_html_e( 'Sections', 'jellopoint-restaurant-menu' ); ?></h3>
+						<table class="widefat striped">
+							<thead>
+							<tr>
+								<th style="width:60px;">#</th>
+								<th><?php esc_html_e( 'Section name', 'jellopoint-restaurant-menu' ); ?></th>
+							</tr>
+							</thead>
+							<tbody>
+							<?php $j = 1; foreach ( (array) $wc['sections'] as $name ) : ?>
+								<tr>
+									<td><?php echo (int) $j++; ?></td>
+									<td><?php echo esc_html( (string) $name ); ?></td>
+								</tr>
+							<?php endforeach; ?>
+							</tbody>
+						</table>
+					<?php endif; ?>
+				</div>
+			<?php
+				endif;
+			endif; // end dry-run overview
+			?>
+
 		<?php else : ?>
 			<p><?php esc_html_e( 'No items in report.', 'jellopoint-restaurant-menu' ); ?></p>
 		<?php endif; ?>
