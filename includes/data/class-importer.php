@@ -3,6 +3,15 @@ namespace JelloPoint\RestaurantMenu\Data;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * Exact-keys Importer for JPRM (JSON/CSV from our exporter).
+ * - Dry-run validation & report
+ * - Commit writes: create/update posts, terms, meta
+ * - Accurate change detection (multi-row compares only whitelisted keys)
+ * - Tracks newly created Menu/Section terms (and shows “would create” in dry-run)
+ * - Price summary per row
+ * - Triggers save-cycle + cache cleans so admin list reflects changes immediately
+ */
 final class JPRM_Importer {
 
 	public static function run( array $file, array $opts = [] ): array {
@@ -18,8 +27,7 @@ final class JPRM_Importer {
 			'errors'       => [],
 			'new_terms'    => [ 'menus' => 0, 'sections' => 0 ],
 			'items'        => [],
-			// NEW: aggregate preview for dry-run
-			'would_create' => null,
+			'would_create' => null, // aggregate preview in dry-run
 		];
 
 		if ( empty( $file['tmp_name'] ) || ! is_readable( $file['tmp_name'] ) ) {
@@ -48,51 +56,32 @@ final class JPRM_Importer {
 			return $report;
 		}
 
-		/**
-		 * NEW: Aggregate “would create” preview for DRY RUNS
-		 */
+		// Aggregate “would create” (dry-run only)
 		if ( $dry_run ) {
 			$all_menus = [];
 			$all_sects = [];
 			foreach ( $items as $row ) {
 				$tax = is_array( $row['tax'] ?? null ) ? $row['tax'] : [];
-				foreach ( (array) ( $tax['jprm_menu'] ?? [] ) as $name ) {
-					$name = trim( (string) $name );
-					if ( $name !== '' ) { $all_menus[$name] = true; }
-				}
-				foreach ( (array) ( $tax['jprm_section'] ?? [] ) as $name ) {
-					$name = trim( (string) $name );
-					if ( $name !== '' ) { $all_sects[$name] = true; }
-				}
+				foreach ( (array) ( $tax['jprm_menu'] ?? [] ) as $name )    { $name = trim((string)$name); if ($name!=='') $all_menus[$name]=1; }
+				foreach ( (array) ( $tax['jprm_section'] ?? [] ) as $name ) { $name = trim((string)$name); if ($name!=='') $all_sects[$name]=1; }
 			}
-			$missing_m = self::missing_term_names( 'jprm_menu', array_keys( $all_menus ) );
-			$missing_s = self::missing_term_names( 'jprm_section', array_keys( $all_sects ) );
-
 			$report['would_create'] = [
-				'menus'    => array_values( $missing_m ),
-				'sections' => array_values( $missing_s ),
+				'menus'    => self::missing_term_names( 'jprm_menu', array_keys($all_menus) ),
+				'sections' => self::missing_term_names( 'jprm_section', array_keys($all_sects) ),
 			];
 		}
 
-		/**
-		 * Commit: pre-create all missing terms (guarantees assignments)
-		 */
+		// Commit: pre-create all missing terms (ensures assignments succeed)
 		if ( ! $dry_run && $create_missing_terms ) {
 			$all_menus = [];
 			$all_sects = [];
 			foreach ( $items as $row ) {
 				$tax = is_array( $row['tax'] ?? null ) ? $row['tax'] : [];
-				foreach ( (array) ( $tax['jprm_menu'] ?? [] ) as $name ) {
-					$name = trim( (string) $name );
-					if ( $name !== '' ) $all_menus[$name] = true;
-				}
-				foreach ( (array) ( $tax['jprm_section'] ?? [] ) as $name ) {
-					$name = trim( (string) $name );
-					if ( $name !== '' ) $all_sects[$name] = true;
-				}
+				foreach ( (array) ( $tax['jprm_menu'] ?? [] ) as $name )    { $name = trim((string)$name); if ($name!=='') $all_menus[$name]=1; }
+				foreach ( (array) ( $tax['jprm_section'] ?? [] ) as $name ) { $name = trim((string)$name); if ($name!=='') $all_sects[$name]=1; }
 			}
-			$missing_m = self::missing_term_names( 'jprm_menu', array_keys( $all_menus ) );
-			$missing_s = self::missing_term_names( 'jprm_section', array_keys( $all_sects ) );
+			$missing_m = self::missing_term_names( 'jprm_menu', array_keys($all_menus) );
+			$missing_s = self::missing_term_names( 'jprm_section', array_keys($all_sects) );
 
 			$created_m = self::ensure_terms_exist( 'jprm_menu',    $missing_m );
 			$created_s = self::ensure_terms_exist( 'jprm_section', $missing_s );
@@ -101,7 +90,7 @@ final class JPRM_Importer {
 			$report['new_terms']['sections'] += count( $created_s );
 		}
 
-		// Process items
+		// Process each item
 		foreach ( $items as $row ) {
 			$r = self::process_item( $row, $dry_run, $create_missing_terms );
 
@@ -117,7 +106,9 @@ final class JPRM_Importer {
 			if ( ! empty( $r['new_terms_created']['sections'] ) ) {
 				$report['new_terms']['sections'] += count( $r['new_terms_created']['sections'] );
 			}
-			if ( ! empty( $r['error'] ) ) { $report['errors'][] = $r['error']; }
+			if ( ! empty( $r['error'] ) ) {
+				$report['errors'][] = $r['error'];
+			}
 
 			$report['items'][] = $r;
 		}
@@ -178,7 +169,6 @@ final class JPRM_Importer {
 			];
 			$rows[] = $items_row;
 		}
-
 		return $rows;
 	}
 
@@ -214,7 +204,7 @@ final class JPRM_Importer {
 			$action  = 'created';
 		}
 
-		// Old state
+		// ---- Old state (normalize empties to '') ----
 		$old = [
 			'post_title'  => $is_existing ? (string) get_the_title( $post_id ) : '',
 			'post_status' => $is_existing ? (string) get_post_status( $post_id ) : 'draft',
@@ -225,7 +215,7 @@ final class JPRM_Importer {
 			'prices'      => $is_existing ? self::build_prices_payload( $post_id, (string) get_post_meta( $post_id, 'jprm_price_mode', true ) ) : [],
 		];
 
-		// New state
+		// ---- New state (normalized like exporter) ----
 		$new_rows = ( $price_mode === 'multi' ) ? (array) ( $prices['rows'] ?? [] ) : [];
 		$new = [
 			'post_title'  => $title,
@@ -252,15 +242,15 @@ final class JPRM_Importer {
 			? (string) ( $new['prices']['amount_raw'] ?? '' )
 			: (string) ( count( (array) $new['prices']['rows'] ) . ' rows' );
 
-		// Missing terms for this row (for per-row notes + report accumulation)
+		// Compute missing terms now (for notes + report accumulation)
 		$missing_menus     = self::missing_term_names( 'jprm_menu',    $new['menu_terms'] );
 		$missing_sections  = self::missing_term_names( 'jprm_section', $new['sect_terms'] );
 		$new_terms_created = [ 'menus' => $missing_menus, 'sections' => $missing_sections ];
 
-		// Diff
+		// Diff (uses canonical & whitelist comparison)
 		$changed = self::diff_any( $old, $new );
 
-		// Writes
+		// Writes only if changed & not dry-run
 		if ( ! $dry ) {
 			if ( ! $is_existing ) {
 				$post_id = wp_insert_post( [
@@ -285,12 +275,15 @@ final class JPRM_Importer {
 				}
 			}
 
+			// Create missing terms if asked (per-row safety, in addition to the pre-create pass)
 			$created_m = $create_terms ? self::ensure_terms_exist( 'jprm_menu',    $missing_menus )    : [];
 			$created_s = $create_terms ? self::ensure_terms_exist( 'jprm_section', $missing_sections ) : [];
 
+			// Assign terms (robust: can pass names when creation allowed and IDs unresolved)
 			self::assign_terms_if_changed( $post_id, 'jprm_menu',    $new['menu_terms'], $create_terms );
 			self::assign_terms_if_changed( $post_id, 'jprm_section', $new['sect_terms'], $create_terms );
 
+			// Update post props if changed
 			if ( $changed['post_title'] || $changed['post_status'] ) {
 				wp_update_post( [
 					'ID'          => $post_id,
@@ -299,6 +292,7 @@ final class JPRM_Importer {
 				] );
 			}
 
+			// Meta: desc, visible, badges
 			if ( $changed['desc'] ) {
 				update_post_meta( $post_id, 'jprm_desc', $new['desc'] );
 			}
@@ -309,10 +303,11 @@ final class JPRM_Importer {
 				update_post_meta( $post_id, 'jprm_item_badges', $new['badges'] );
 			}
 
+			// Meta: prices
 			if ( $changed['prices'] ) {
 				update_post_meta( $post_id, 'jprm_price_mode', $price_mode );
 				if ( $price_mode === 'single' ) {
-					update_post_meta( $post_id, 'jprm_price_amount', $new['prices']['amount_raw'] );
+					update_post_meta( $post_id, 'jprm_price_amount',     $new['prices']['amount_raw'] );
 					update_post_meta( $post_id, 'jprm_price_label_mode', $new['prices']['label_mode'] );
 					update_post_meta( $post_id, 'jprm_price_label_ref',  $new['prices']['label_ref'] );
 
@@ -334,26 +329,38 @@ final class JPRM_Importer {
 				}
 			}
 
+			// Reflect actually created names in commit mode
 			if ( $create_terms ) {
 				$new_terms_created['menus']    = array_values( $created_m );
 				$new_terms_created['sections'] = array_values( $created_s );
 			}
+
+			/**
+			 * Ensure admin list reflects changes immediately:
+			 * - clear caches
+			 * - run a no-op update to trigger save_post hooks your list table may rely on
+			 */
+			if ( function_exists('clean_object_term_cache') ) {
+				clean_object_term_cache( [ $post_id ], 'jprm_menu_item' );
+			}
+			if ( function_exists('clean_post_cache') ) {
+				clean_post_cache( $post_id );
+			}
+			// Fire the usual save/update cycle so any existing hooks recompute columns.
+			wp_update_post( [ 'ID' => $post_id ] );
 		}
 
+		// Final action
 		if ( $is_existing && ! $changed['any'] ) {
 			$action = 'unchanged';
 		}
 
-		// NEW: concise per-row notes (dry-run only)
+		// Per-row notes (dry-run only)
 		$notes = '';
 		if ( $dry ) {
 			$parts = [];
-			if ( ! empty( $new_terms_created['menus'] ) ) {
-				$parts[] = 'Would create menus: ' . implode( ', ', $new_terms_created['menus'] );
-			}
-			if ( ! empty( $new_terms_created['sections'] ) ) {
-				$parts[] = 'Would create sections: ' . implode( ', ', $new_terms_created['sections'] );
-			}
+			if ( ! empty( $new_terms_created['menus'] ) )    $parts[] = 'Would create menus: '    . implode(', ', $new_terms_created['menus']);
+			if ( ! empty( $new_terms_created['sections'] ) ) $parts[] = 'Would create sections: ' . implode(', ', $new_terms_created['sections']);
 			$notes = implode( ' — ', $parts );
 		}
 
@@ -368,7 +375,7 @@ final class JPRM_Importer {
 			'sections'          => $new['sect_terms'],
 			'badges'            => $new['badges'],
 			'new_terms_created' => $new_terms_created,
-			'notes'             => $notes, // NEW
+			'notes'             => $notes,
 			'error'             => $error,
 		];
 	}
@@ -390,6 +397,7 @@ final class JPRM_Importer {
 		return [];
 	}
 
+	/** Which names from $names do NOT exist in $taxonomy yet? */
 	private static function missing_term_names( string $tax, array $names ): array {
 		$missing = [];
 		foreach ( $names as $name ) {
@@ -403,6 +411,7 @@ final class JPRM_Importer {
 		return array_values( array_unique( $missing ) );
 	}
 
+	/** Create terms by name (returns list of successfully created names). */
 	private static function ensure_terms_exist( string $tax, array $names ): array {
 		$created = [];
 		foreach ( $names as $name ) {
@@ -418,19 +427,37 @@ final class JPRM_Importer {
 		return $created;
 	}
 
+	/**
+	 * Assign terms if the set has changed.
+	 * Robust path: if we can’t resolve IDs but we are allowed to create missing,
+	 * pass names directly to wp_set_object_terms() so WP creates & assigns in one go.
+	 */
 	private static function assign_terms_if_changed( int $post_id, string $tax, array $target_names, bool $create_if_missing = false ): void {
 		$current = self::terms_as_names( $post_id, $tax );
-		$cn = $current; sort( $cn );
-		$tn = $target_names; sort( $tn );
-		if ( $cn === $tn ) { return; }
+		$cn = $current; sort( $cn, SORT_NATURAL | SORT_FLAG_CASE );
+		$tn = array_values( array_filter( array_map( fn($s)=>trim((string)$s), (array)$target_names ) ) );
+		sort( $tn, SORT_NATURAL | SORT_FLAG_CASE );
 
-		$ids = self::resolve_term_ids_by_names( $tax, $target_names );
+		// No work if identical
+		if ( $cn === $tn ) return;
 
-		if ( $create_if_missing && ! empty( $target_names ) && empty( $ids ) ) {
-			self::ensure_terms_exist( $tax, $target_names );
-			$ids = self::resolve_term_ids_by_names( $tax, $target_names );
+		// Try resolve by names → IDs first
+		$ids = self::resolve_term_ids_by_names( $tax, $tn );
+
+		// If unresolved and creation allowed, pass NAMES to WP (creates + assigns)
+		if ( empty( $ids ) && $create_if_missing && ! empty( $tn ) ) {
+			$result = wp_set_object_terms( $post_id, $tn, $tax, false );
+			if ( is_wp_error( $result ) ) {
+				// Best-effort fallback: try again by IDs if any suddenly resolvable
+				$ids = self::resolve_term_ids_by_names( $tax, $tn );
+				if ( ! empty( $ids ) ) {
+					wp_set_object_terms( $post_id, $ids, $tax, false );
+				}
+			}
+			return;
 		}
 
+		// Normal path: assign by IDs if we have them
 		if ( ! empty( $ids ) ) {
 			wp_set_object_terms( $post_id, $ids, $tax, false );
 		}
@@ -449,6 +476,9 @@ final class JPRM_Importer {
 		return $ids;
 	}
 
+	/**
+	 * Build prices payload for an existing post (same shape as exporter).
+	 */
 	private static function build_prices_payload( int $post_id, string $mode ): array {
 		$mode = $mode ?: 'single';
 
@@ -483,15 +513,25 @@ final class JPRM_Importer {
 		];
 	}
 
+	/**
+	 * Canonicalize multi rows but only keep a whitelist of meaningful keys.
+	 * Default whitelist: ['label_ref','amount'].
+	 * - Treats 'price' as an alias of 'amount'
+	 * - Normalizes numeric strings (EU/US) so "5,00" == "5.00" == 5
+	 * Filter: 'jprm/import/row_compare_keys' to alter/extend.
+	 */
 	private static function canonicalize_rows_whitelisted( array $rows ): array {
 		$keys = (array) apply_filters( 'jprm/import/row_compare_keys', [ 'label_ref', 'amount' ] );
 
 		$norm = [];
 		foreach ( $rows as $r ) {
 			$a = is_array( $r ) ? $r : (array) $r;
+
+			// Map 'price' -> 'amount' if present
 			if ( isset( $a['price'] ) && ! isset( $a['amount'] ) ) {
 				$a['amount'] = $a['price'];
 			}
+
 			$clean = [];
 			foreach ( $keys as $k ) {
 				if ( $k === 'amount' ) {
@@ -500,6 +540,7 @@ final class JPRM_Importer {
 				}
 				$clean[$k] = self::norm_scalar( $a[$k] ?? '' );
 			}
+
 			ksort( $clean );
 			$norm[] = $clean;
 		}
@@ -513,11 +554,12 @@ final class JPRM_Importer {
 		return array_values( $norm );
 	}
 
+	/** Normalize number-like strings to canonical dot-decimal. */
 	private static function normalize_amount_string( $v ): string {
 		$v = self::norm_scalar( $v );
 		if ( $v === '' ) return '';
 		$f = self::to_float_eu_us( $v );
-		if ( $f === null ) return $v;
+		if ( $f === null ) return $v; // leave as-is if not parseable; still stable
 		$s = number_format( $f, 2, '.', '' );
 		if ( substr($s, -3) === '.00' ) {
 			return substr($s, 0, -3);
@@ -532,6 +574,9 @@ final class JPRM_Importer {
 		return trim( (string) $v );
 	}
 
+	/**
+	 * Compare two normalized item states.
+	 */
 	private static function diff_any( array $old, array $new ): array {
 		$c = [
 			'post_title'  => ( self::eqs($old['post_title'])  !== self::eqs($new['post_title']) ),
