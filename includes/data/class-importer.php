@@ -3,18 +3,6 @@ namespace JelloPoint\RestaurantMenu\Data;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-/**
- * Exact-keys Importer for JPRM (JSON/CSV from our exporter).
- * - Dry-run validation & report
- * - Commit writes: create/update posts, terms, meta
- * - Accurate change detection (multi-row compares only whitelisted keys)
- * - Tracks newly created Menu/Section terms (and shows “would create” in dry-run)
- * - Price summary per row
- * - **CRITICAL**: writes jprm_price in the exact shape the list expects:
- *      single => {"mode":"single","price":"..."}
- *      multi  => {"mode":"multi","rows":[{"label_ref":"...","value":"..."}]}
- * - **CRITICAL**: ensures new Sections get _jprm_menu_term_id set to owning Menu (if exactly one menu is supplied)
- */
 final class JPRM_Importer {
 
 	public static function run( array $file, array $opts = [] ): array {
@@ -46,12 +34,12 @@ final class JPRM_Importer {
 		if ( $ext === 'json' ) {
 			$items = self::parse_json_export( $raw, $report );
 		} elseif ( $ext === 'csv' ) {
-			$items = self::parse_csv_export( $raw, $report );
+			$items = self::parse_csv_import_simple( $raw, $report ); // << NEW simple CSV
 		} else {
 			$t = ltrim( $raw );
 			$items = ( $t !== '' && ($t[0] === '{' || $t[0] === '[') )
 				? self::parse_json_export( $raw, $report )
-				: self::parse_csv_export( $raw, $report );
+				: self::parse_csv_import_simple( $raw, $report );
 		}
 
 		if ( empty( $items ) ) {
@@ -59,7 +47,6 @@ final class JPRM_Importer {
 			return $report;
 		}
 
-		// Pre-collect all “would create” terms for the dry-run overview
 		$wc_menus    = [];
 		$wc_sections = [];
 
@@ -87,7 +74,6 @@ final class JPRM_Importer {
 			$report['items'][] = $r;
 		}
 
-		// Dry-run overview card
 		if ( $dry_run ) {
 			$report['would_create']['menus']    = array_values( array_unique( $wc_menus ) );
 			$report['would_create']['sections'] = array_values( array_unique( $wc_sections ) );
@@ -96,7 +82,7 @@ final class JPRM_Importer {
 		return $report;
 	}
 
-	/* ---------------------------- Parsers ---------------------------- */
+	/* ---------- Parsers ---------- */
 
 	private static function parse_json_export( string $raw, array &$report ): array {
 		$dec = json_decode( $raw, true );
@@ -107,7 +93,13 @@ final class JPRM_Importer {
 		return [];
 	}
 
-	private static function parse_csv_export( string $raw, array &$report ): array {
+	/**
+	 * CSV “simple” import:
+	 * Headers: post_id, post_title, post_status, description, menus, sections, Price_Single, Price_Multiple
+	 * - menus/sections: pipe-separated names
+	 * - Price_Multiple: values separated by "*" (max 4)
+	 */
+	private static function parse_csv_import_simple( string $raw, array &$report ): array {
 		$lines = preg_split( '/\r\n|\n|\r/', $raw );
 		if ( ! $lines ) { $report['errors'][] = 'Empty CSV.'; return []; }
 
@@ -116,7 +108,7 @@ final class JPRM_Importer {
 		}
 
 		$first     = $lines[0] ?? '';
-		$delimiter = ( substr_count( $first, ';' ) >= substr_count( $first, ',' ) ) ? ';' : ','; // EU first
+		$delimiter = ( substr_count( $first, ';' ) >= substr_count( $first, ',' ) ) ? ';' : ','; // EU-first
 
 		$headers = str_getcsv( $first, $delimiter );
 		$map     = array_flip( $headers );
@@ -125,29 +117,56 @@ final class JPRM_Importer {
 		for ( $i = 1; $i < count( $lines ); $i++ ) {
 			if ( trim( $lines[$i] ) === '' ) continue;
 			$vals = str_getcsv( $lines[$i], $delimiter );
-			$row  = array_fill_keys( $headers, '' );
+
+			$row = array_fill_keys( $headers, '' );
 			foreach ( $headers as $h ) {
 				$idx = $map[$h] ?? null;
 				if ( $idx !== null && isset( $vals[$idx] ) ) { $row[$h] = $vals[$idx]; }
 			}
-			$items_prices = json_decode( (string) ($row['prices_json'] ?? ''), true );
-			if ( ! is_array( $items_prices ) ) { $items_prices = []; }
 
-			$badges = array_filter( array_map( 'sanitize_title', explode( '|', (string) ( $row['badges'] ?? '' ) ) ) );
+			$menus    = array_filter( array_map( 'trim', explode( '|', (string) ( $row['menus']    ?? '' ) ) ) );
+			$sections = array_filter( array_map( 'trim', explode( '|', (string) ( $row['sections'] ?? '' ) ) ) );
 
-			$items_row = [
+			$single   = trim( (string) ( $row['Price_Single']    ?? '' ) );
+			$multi_in = trim( (string) ( $row['Price_Multiple']  ?? '' ) );
+
+			// Build prices structure (exporter-like)
+			$prices = [];
+			if ( $multi_in !== '' ) {
+				$parts = array_filter( array_map( 'trim', explode( '*', $multi_in ) ) );
+				$parts = array_slice( $parts, 0, 4 ); // max 4
+				$canon_rows = [];
+				foreach ( $parts as $p ) {
+					$canon_rows[] = [
+						'label_ref' => '',          // labels ignored for now
+						'amount'    => (string) $p, // canonical field for internal compare
+					];
+				}
+				$prices = [ 'mode' => 'multi', 'rows' => $canon_rows ];
+			} elseif ( $single !== '' ) {
+				$prices = [
+					'mode'          => 'single',
+					'amount_raw'    => (string) $single,
+					'amount_number' => null,
+					'label_mode'    => '',
+					'label_ref'     => '',
+				];
+			} else {
+				$prices = [ 'mode' => 'single', 'amount_raw' => '' ];
+			}
+
+			$rows[] = [
 				'post_id'     => isset($row['post_id']) && $row['post_id'] !== '' ? (int) $row['post_id'] : 0,
-				'post_title'  => (string) ( $row['post_title'] ?? '' ),
+				'post_title'  => (string) ( $row['post_title']  ?? '' ),
 				'post_status' => (string) ( $row['post_status'] ?? 'draft' ),
 				'description' => (string) ( $row['description'] ?? '' ),
 				'tax'         => [
-					'jprm_menu'    => array_filter( array_map( 'trim', explode( '|', (string) ( $row['menus'] ?? '' ) ) ) ),
-					'jprm_section' => array_filter( array_map( 'trim', explode( '|', (string) ( $row['sections'] ?? '' ) ) ) ),
+					'jprm_menu'    => $menus,
+					'jprm_section' => $sections,
 				],
-				'badges'      => array_values( $badges ),
-				'prices'      => $items_prices,
+				'badges'      => [],        // ignored for the simple template
+				'prices'      => $prices,
 			];
-			$rows[] = $items_row;
 		}
 
 		return $rows;

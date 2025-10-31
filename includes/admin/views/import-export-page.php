@@ -5,6 +5,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 /** @var string      $nonce_field */
 /** @var array       $messages */
 /** @var array|null  $import_report */
+/** @var string      $tpl_url */
+/** @var string      $delimiter_hint */
 ?>
 <div class="wrap jprm-ie-wrap">
 	<h1 class="wp-heading-inline"><?php esc_html_e( 'JPRM Import/Export', 'jellopoint-restaurant-menu' ); ?></h1>
@@ -19,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 		<section class="jprm-card">
 			<h2><?php esc_html_e( 'Export', 'jellopoint-restaurant-menu' ); ?></h2>
 			<form method="post" action="<?php echo esc_url( $export_url ); ?>">
-				<?php echo $nonce_field; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+				<?php echo $nonce_field; // phpcs:ignore ?>
 				<p>
 					<label>
 						<?php esc_html_e( 'Format', 'jellopoint-restaurant-menu' ); ?><br/>
@@ -39,7 +41,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 			<h2><?php esc_html_e( 'Import', 'jellopoint-restaurant-menu' ); ?></h2>
 
 			<form method="post" action="<?php echo esc_url( $import_url ); ?>" enctype="multipart/form-data">
-				<?php echo $nonce_field; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+				<?php echo $nonce_field; // phpcs:ignore ?>
 
 				<p>
 					<input type="file" name="jprm_import_file" accept=".json,.csv" required />
@@ -50,14 +52,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 						<input type="checkbox" name="create_missing_terms" value="1" />
 						<?php esc_html_e( 'Create missing Menus/Sections', 'jellopoint-restaurant-menu' ); ?>
 					</label>
-					<br/>
-					<label>
-						<input type="checkbox" name="attach_images" value="1" />
-						<?php esc_html_e( 'Re-attach images (if present)', 'jellopoint-restaurant-menu' ); ?>
-					</label>
 				</p>
 
-				<!-- Explicit action selector: import vs dry_run -->
 				<input type="hidden" name="action_type" id="jprm_action_type" value="dry_run" />
 
 				<p style="display:flex; gap:8px; align-items:center;">
@@ -77,6 +73,25 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 						<?php esc_html_e( 'Dry-run simulates changes only — use Import to commit.', 'jellopoint-restaurant-menu' ); ?>
 					</span>
 				</p>
+			</form>
+		</section>
+
+		<section class="jprm-card">
+			<h2><?php esc_html_e( 'Download CSV Template', 'jellopoint-restaurant-menu' ); ?></h2>
+			<p class="description">
+				<?php
+				printf(
+					/* translators: 1: delimiter character */
+					esc_html__( 'Template uses columns: Price_Single and Price_Multiple. Separate multiple prices with "%s" (max 4). Labels are ignored.', 'jellopoint-restaurant-menu' ),
+					esc_html( $delimiter_hint )
+				);
+				?>
+				<br/>
+				<?php esc_html_e( 'Tip: create 1 example with a Single price and 1 example with the maximum number of Multiple prices before importing.', 'jellopoint-restaurant-menu' ); ?>
+			</p>
+			<form method="post" action="<?php echo esc_url( $tpl_url ); ?>">
+				<?php echo $nonce_field; // phpcs:ignore ?>
+				<?php submit_button( __( 'Download CSV Template', 'jellopoint-restaurant-menu' ), 'secondary', 'submit', false ); ?>
 			</form>
 		</section>
 	</div>
@@ -134,78 +149,31 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 			</table>
 
 			<?php
-			// Overview (commit mode): actually created terms (if your controller populates these lists)
+			// Overview of *new* terms (dry-run will also include would_create)
 			$new_m = array_filter( array_map( 'strval', (array) ( $import_report['new_terms']['menus_list'] ?? [] ) ) );
 			$new_s = array_filter( array_map( 'strval', (array) ( $import_report['new_terms']['sections_list'] ?? [] ) ) );
-			if ( $new_m || $new_s ) :
+			$wc_m  = array_filter( array_map( 'strval', (array) ( $import_report['would_create']['menus'] ?? [] ) ) );
+			$wc_s  = array_filter( array_map( 'strval', (array) ( $import_report['would_create']['sections'] ?? [] ) ) );
+			if ( $new_m || $new_s || $wc_m || $wc_s ) :
 			?>
 				<h3 style="margin-top:1.25rem;"><?php esc_html_e( 'New Menus/Sections', 'jellopoint-restaurant-menu' ); ?></h3>
 				<div class="jprm-two-col">
 					<div>
 						<strong><?php esc_html_e( 'Menus', 'jellopoint-restaurant-menu' ); ?></strong>
-						<ul><?php foreach ( $new_m as $nm ) echo '<li>' . esc_html( $nm ) . '</li>'; ?></ul>
+						<ul>
+							<?php foreach ( $new_m as $nm ) echo '<li>' . esc_html( $nm . ' (created)' ) . '</li>'; ?>
+							<?php foreach ( $wc_m as $nm )  echo '<li>' . esc_html( $nm . ' (would create)' ) . '</li>'; ?>
+						</ul>
 					</div>
 					<div>
 						<strong><?php esc_html_e( 'Sections', 'jellopoint-restaurant-menu' ); ?></strong>
-						<ul><?php foreach ( $new_s as $ns ) echo '<li>' . esc_html( $ns ) . '</li>'; ?></ul>
+						<ul>
+							<?php foreach ( $new_s as $ns ) echo '<li>' . esc_html( $ns . ' (created)' ) . '</li>'; ?>
+							<?php foreach ( $wc_s as $ns )  echo '<li>' . esc_html( $ns . ' (would create)' ) . '</li>'; ?>
+						</ul>
 					</div>
 				</div>
 			<?php endif; ?>
-
-			<?php
-			// === NEW: Below-report overview for DRY RUN ===
-			if ( ! empty( $import_report['dry_run'] ) ) :
-				$wc = $import_report['would_create'] ?? null;
-				if ( is_array( $wc ) && ( ! empty( $wc['menus'] ) || ! empty( $wc['sections'] ) ) ) :
-			?>
-				<div class="jprm-card" style="margin-top:24px;">
-					<h2><?php esc_html_e( 'Would create (dry run)', 'jellopoint-restaurant-menu' ); ?></h2>
-
-					<?php if ( ! empty( $wc['menus'] ) ) : ?>
-						<h3 style="margin-top:0.5em;"><?php esc_html_e( 'Menus', 'jellopoint-restaurant-menu' ); ?></h3>
-						<table class="widefat striped">
-							<thead>
-							<tr>
-								<th style="width:60px;">#</th>
-								<th><?php esc_html_e( 'Menu name', 'jellopoint-restaurant-menu' ); ?></th>
-							</tr>
-							</thead>
-							<tbody>
-							<?php $i = 1; foreach ( (array) $wc['menus'] as $name ) : ?>
-								<tr>
-									<td><?php echo (int) $i++; ?></td>
-									<td><?php echo esc_html( (string) $name ); ?></td>
-								</tr>
-							<?php endforeach; ?>
-							</tbody>
-						</table>
-					<?php endif; ?>
-
-					<?php if ( ! empty( $wc['sections'] ) ) : ?>
-						<h3 style="margin-top:1.25em;"><?php esc_html_e( 'Sections', 'jellopoint-restaurant-menu' ); ?></h3>
-						<table class="widefat striped">
-							<thead>
-							<tr>
-								<th style="width:60px;">#</th>
-								<th><?php esc_html_e( 'Section name', 'jellopoint-restaurant-menu' ); ?></th>
-							</tr>
-							</thead>
-							<tbody>
-							<?php $j = 1; foreach ( (array) $wc['sections'] as $name ) : ?>
-								<tr>
-									<td><?php echo (int) $j++; ?></td>
-									<td><?php echo esc_html( (string) $name ); ?></td>
-								</tr>
-							<?php endforeach; ?>
-							</tbody>
-						</table>
-					<?php endif; ?>
-				</div>
-			<?php
-				endif;
-			endif; // end dry-run overview
-			?>
-
 		<?php else : ?>
 			<p><?php esc_html_e( 'No items in report.', 'jellopoint-restaurant-menu' ); ?></p>
 		<?php endif; ?>
