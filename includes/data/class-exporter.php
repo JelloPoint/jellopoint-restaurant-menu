@@ -4,125 +4,160 @@ namespace JelloPoint\RestaurantMenu\Data;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
- * Exact-keys exporter for JPRM (no featured_image in output).
- * - Prices:
- *   - mode: from 'jprm_price_mode' ('single'|'multi')
- *   - single: amount + label_mode + label_ref (raw + parsed numeric)
- *   - multi:  rows taken directly from 'jprm_prices' (unserialized) or
- *             from 'jprm_price' if it contains a 'rows' structure
- * - Badges: from 'jprm_item_badges' (unserialized array of slugs)
- * - Terms: names for jprm_menu and jprm_section
+ * JPRM Exporter
+ * - Streams JSON or CSV
+ * - Includes site_uid in meta
+ * - Includes per-item jprm_uid (generated & saved if missing)
+ * - Excludes featured image fields as requested previously
  */
 final class JPRM_Exporter {
 
-	/**
-	 * Stream an export download for all jprm_menu_item posts.
-	 *
-	 * @param array $args { @type string $format 'json'|'csv' }
-	 */
-	public static function stream( array $args ): void {
-		$format = ( isset( $args['format'] ) && $args['format'] === 'csv' ) ? 'csv' : 'json';
-		$items  = self::collect_items();
+	public static function stream( array $opts = [] ) : void {
+		$format = isset( $opts['format'] ) && $opts['format'] === 'csv' ? 'csv' : 'json';
 
-		if ( $format === 'json' ) {
-			self::stream_json( $items );
-			return;
+		$items = self::collect_items();
+		$payload = [
+			'meta' => [
+				'generated_at' => gmdate( 'c' ),
+				'post_type'    => 'jprm_menu_item',
+				'site_uid'     => self::get_site_uid(),
+			],
+			'items' => $items,
+		];
+
+		if ( $format === 'csv' ) {
+			self::stream_csv( $payload );
+		} else {
+			self::stream_json( $payload );
 		}
-		self::stream_csv( $items );
 	}
 
-	/**
-	 * Query and map all items to a canonical array (without featured_image).
-	 *
-	 * @return array
-	 */
+	/** Collect items in normalized shape (matching importer). */
 	private static function collect_items(): array {
 		$q = new \WP_Query( [
 			'post_type'      => 'jprm_menu_item',
-			'post_status'    => [ 'publish', 'draft', 'pending', 'private' ],
+			'post_status'    => 'any',
 			'posts_per_page' => -1,
-			'orderby'        => 'title',
-			'order'          => 'ASC',
-			'no_found_rows'  => true,
 			'fields'         => 'ids',
+			'no_found_rows'  => true,
 		] );
 
 		$out = [];
-		foreach ( $q->posts as $post_id ) {
-			$title   = get_the_title( $post_id );
-			$status  = get_post_status( $post_id );
-			$desc    = (string) get_post_meta( $post_id, 'jprm_desc', true );
+		foreach ( (array) $q->posts as $post_id ) {
+			$uid = self::ensure_item_uid( $post_id ); // generate if missing
 
-			// Terms
-			$menus   = self::terms_as_names( $post_id, 'jprm_menu' );
-			$sects   = self::terms_as_names( $post_id, 'jprm_section' );
-
-			// Badges (serialized array of slugs)
-			$badges_raw = get_post_meta( $post_id, 'jprm_item_badges', true );
-			$badges     = self::dec_any_to_array( $badges_raw );
-			$badges     = array_values( array_filter( array_map( 'sanitize_title', (array) $badges ) ) );
-
-			// Prices — exact keys
-			$mode   = (string) get_post_meta( $post_id, 'jprm_price_mode', true );
-			$prices = self::build_prices_payload( $post_id, $mode );
+			$mode = (string) get_post_meta( $post_id, 'jprm_price_mode', true );
+			$prices = [];
+			if ( $mode === 'single' || $mode === '' ) {
+				$amount  = (string) get_post_meta( $post_id, 'jprm_price_amount', true );
+				$lmode   = (string) get_post_meta( $post_id, 'jprm_price_label_mode', true );
+				$lref    = (string) get_post_meta( $post_id, 'jprm_price_label_ref', true );
+				$prices = [
+					'mode'          => 'single',
+					'amount_raw'    => $amount,
+					'amount_number' => self::to_float_eu_us( $amount ),
+					'label_mode'    => $lmode,
+					'label_ref'     => $lref,
+				];
+			} else {
+				$rows = [];
+				$mp = get_post_meta( $post_id, 'jprm_prices', true );
+				if ( is_array( $mp ) ) $rows = $mp;
+				else {
+					$p = get_post_meta( $post_id, 'jprm_price', true );
+					if ( is_array( $p ) && isset($p['rows']) && is_array($p['rows']) ) $rows = $p['rows'];
+				}
+				$prices = [
+					'mode' => 'multi',
+					'rows' => self::canonicalize_rows( $rows ),
+				];
+			}
 
 			$out[] = [
-				'post_id'        => (int) $post_id,
-				'post_title'     => (string) $title,
-				'post_status'    => (string) $status,
-				'description'    => $desc,
-				'tax'            => [
-					'jprm_menu'    => $menus,
-					'jprm_section' => $sects,
+				'post_id'     => (int) $post_id,
+				'uid'         => $uid,
+				'post_title'  => get_the_title( $post_id ),
+				'post_status' => get_post_status( $post_id ) ?: 'draft',
+				'description' => (string) get_post_meta( $post_id, 'jprm_desc', true ),
+				'tax'         => [
+					'jprm_menu'    => self::terms_as_names( $post_id, 'jprm_menu' ),
+					'jprm_section' => self::terms_as_names( $post_id, 'jprm_section' ),
 				],
-				'badges'         => $badges,
-				'prices'         => $prices,
+				'badges'      => self::badges( $post_id ),
+				'prices'      => $prices,
 			];
 		}
-
 		return $out;
 	}
 
-	/**
-	 * Build the prices payload strictly from the known keys.
-	 */
-	private static function build_prices_payload( int $post_id, string $mode ): array {
-		$mode = $mode ?: 'single';
+	private static function stream_json( array $payload ): void {
+		nocache_headers();
+		header( 'Content-Type: application/json; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="jprm-export-' . gmdate('Ymd-His') . '.json"' );
+		echo wp_json_encode( $payload, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT );
+	}
 
-		if ( $mode === 'single' ) {
-			$amount_raw  = (string) get_post_meta( $post_id, 'jprm_price_amount', true );          // e.g. "5,50"
-			$label_mode  = (string) get_post_meta( $post_id, 'jprm_price_label_mode', true );      // e.g. "ref"
-			$label_ref   = (string) get_post_meta( $post_id, 'jprm_price_label_ref', true );       // e.g. "pl-1"
+	private static function stream_csv( array $payload ): void {
+		nocache_headers();
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="jprm-export-' . gmdate('Ymd-His') . '.csv"' );
 
-			return [
-				'mode'          => 'single',
-				'amount_raw'    => $amount_raw,
-				'amount_number' => self::to_float_eu_us( $amount_raw ),
-				'label_mode'    => $label_mode,
-				'label_ref'     => $label_ref,
-			];
-		}
+		$fp = fopen( 'php://output', 'w' );
 
-		// MULTI
-		$rows = [];
+		// Delimiter: semicolon for EU Excel friendliness
+		$del = ';';
 
-		// Primary source: jprm_prices (serialized PHP array of rows)
-		$raw_prices = get_post_meta( $post_id, 'jprm_prices', true );
-		$rows       = self::dec_any_to_array( $raw_prices );
-
-		// If empty, try jprm_price (it may be a JSON/serialized struct with 'rows')
-		if ( empty( $rows ) ) {
-			$raw_price = get_post_meta( $post_id, 'jprm_price', true );
-			$dec       = self::dec_any( $raw_price );
-			if ( is_array( $dec ) && isset( $dec['rows'] ) && is_array( $dec['rows'] ) ) {
-				$rows = $dec['rows'];
-			}
-		}
-
-		return [
-			'mode' => 'multi',
-			'rows' => $rows, // raw row objects/arrays as stored in meta
+		$headers = [
+			'post_id','jprm_uid','post_title','post_status','description','menus','sections','badges','prices_json'
 		];
+		fputcsv( $fp, $headers, $del );
+
+		foreach ( (array) $payload['items'] as $it ) {
+			$menus    = implode( '|', (array) ($it['tax']['jprm_menu'] ?? []) );
+			$sections = implode( '|', (array) ($it['tax']['jprm_section'] ?? []) );
+			$badges   = implode( '|', (array) ($it['badges'] ?? []) );
+			$pricesj  = wp_json_encode( $it['prices'], JSON_UNESCAPED_UNICODE );
+
+			$row = [
+				(int) ($it['post_id'] ?? 0),
+				(string) ($it['uid'] ?? ''),
+				(string) ($it['post_title'] ?? ''),
+				(string) ($it['post_status'] ?? 'draft'),
+				(string) ($it['description'] ?? ''),
+				$menus,
+				$sections,
+				$badges,
+				$pricesj,
+			];
+
+			// Escape any delimiter collisions by fputcsv automatically
+			fputcsv( $fp, $row, $del );
+		}
+
+		fclose( $fp );
+	}
+
+	/* ---------------- helpers ---------------- */
+
+	private static function ensure_item_uid( int $post_id ): string {
+		$uid = (string) get_post_meta( $post_id, 'jprm_uid', true );
+		if ( $uid !== '' ) return $uid;
+		if ( function_exists( 'wp_generate_uuid4' ) ) {
+			$uid = wp_generate_uuid4();
+		} else {
+			$uid = uniqid( 'jprm_', true );
+		}
+		update_post_meta( $post_id, 'jprm_uid', $uid );
+		return $uid;
+	}
+
+	private static function get_site_uid(): string {
+		$uid = get_option( 'jprm_site_uid', '' );
+		if ( ! is_string( $uid ) || $uid === '' ) {
+			$uid = function_exists( 'wp_generate_uuid4' ) ? wp_generate_uuid4() : uniqid( 'site_', true );
+			update_option( 'jprm_site_uid', $uid, true );
+		}
+		return $uid;
 	}
 
 	private static function terms_as_names( int $post_id, string $taxonomy ): array {
@@ -130,42 +165,34 @@ final class JPRM_Exporter {
 		return ( is_wp_error( $terms ) || ! is_array( $terms ) ) ? [] : array_values( $terms );
 	}
 
-	/**
-	 * Decode “anything” into a PHP value:
-	 * - Arrays pass through
-	 * - JSON strings -> array
-	 * - Serialized strings -> maybe_unserialize()
-	 * - Other scalars -> returned as-is
-	 */
-	private static function dec_any( $v ) {
-		if ( is_array( $v ) || is_object( $v ) ) {
-			return (array) $v;
+	private static function badges( int $post_id ): array {
+		$raw = get_post_meta( $post_id, 'jprm_item_badges', true );
+		if ( is_array( $raw ) ) return array_values( $raw );
+		if ( is_string( $raw ) && $raw !== '' && function_exists( 'is_serialized' ) && is_serialized( $raw ) ) {
+			$un = @maybe_unserialize( $raw );
+			return is_array( $un ) ? array_values( $un ) : [];
 		}
-		if ( is_string( $v ) && $v !== '' ) {
-			$s = trim( $v );
-
-			// serialized?
-			if ( function_exists( 'is_serialized' ) && is_serialized( $s ) ) {
-				$un = @maybe_unserialize( $s );
-				if ( is_array( $un ) ) return $un;
-			}
-
-			// JSON?
-			if ( ( $s[0] === '{' || $s[0] === '[' ) && substr( $s, -1 ) && ( substr( $s,-1 ) === '}' || substr( $s,-1 ) === ']' ) ) {
-				$dec = json_decode( $s, true );
-				if ( is_array( $dec ) ) return $dec;
-			}
-		}
-		return $v;
+		return [];
 	}
 
-	/** Ensure we always return an array (never null/false) */
-	private static function dec_any_to_array( $v ): array {
-		$dec = self::dec_any( $v );
-		return is_array( $dec ) ? $dec : [];
+	private static function canonicalize_rows( array $rows ): array {
+		$out = [];
+		foreach ( $rows as $r ) {
+			$a = is_array( $r ) ? $r : (array) $r;
+			// Keep the keys you use most; exporter can be tolerant
+			$out[] = [
+				'enabled'     => isset($a['enabled']) ? (bool)$a['enabled'] : true,
+				'label_mode'  => (string)($a['label_mode'] ?? 'ref'),
+				'label_ref'   => (string)($a['label_ref'] ?? ''),
+				'label_custom'=> (string)($a['label_custom'] ?? ''),
+				'icon_id'     => (int)($a['icon_id'] ?? 0),
+				'amount'      => (string)($a['amount'] ?? ( $a['value'] ?? ( $a['price'] ?? '' ) ) ),
+				'hide_icon'   => isset($a['hide_icon']) ? (bool)$a['hide_icon'] : false,
+			];
+		}
+		return $out;
 	}
 
-	/** Parse EU/US decimal formats to float (e.g., "5,50" → 5.5 ; "1,234.56" → 1234.56). */
 	private static function to_float_eu_us( $v ): ?float {
 		if ( is_null( $v ) || $v === '' ) return null;
 		if ( is_numeric( $v ) ) return (float) $v;
@@ -173,86 +200,15 @@ final class JPRM_Exporter {
 			$s = preg_replace( '/[^\d\.,-]/u', '', $v );
 			if ( $s === '' ) return null;
 			if ( strpos( $s, ',' ) !== false && strpos( $s, '.' ) !== false ) {
-				// last separator is decimal
 				$last_comma = strrpos( $s, ',' );
 				$last_dot   = strrpos( $s, '.' );
-				if ( $last_comma > $last_dot ) {
-					$s = str_replace( '.', '', $s );
-					$s = str_replace( ',', '.', $s );
-				} else {
-					$s = str_replace( ',', '', $s );
-				}
+				if ( $last_comma > $last_dot ) { $s = str_replace( '.', '', $s ); $s = str_replace( ',', '.', $s ); }
+				else { $s = str_replace( ',', '', $s ); }
 			} elseif ( strpos( $s, ',' ) !== false ) {
 				$s = str_replace( ',', '.', $s );
 			}
 			return is_numeric( $s ) ? (float) $s : null;
 		}
 		return null;
-	}
-
-	private static function stream_json( array $items ): void {
-		nocache_headers();
-		header( 'Content-Type: application/json; charset=utf-8' );
-		header( 'Content-Disposition: attachment; filename="jprm-export.json"' );
-
-		$payload = [
-			'meta'  => [
-				'exported_at'   => gmdate( 'c' ),
-				'plugin'        => 'jellopoint-restaurant-menu',
-				'plugin_version'=> defined( 'JPRM_PLUGIN_VERSION' ) ? JPRM_PLUGIN_VERSION : '',
-				'format'        => 'json',
-				'price_keys'    => [
-					'mode'        => 'jprm_price_mode',
-					'single'      => [ 'amount' => 'jprm_price_amount', 'label_mode' => 'jprm_price_label_mode', 'label_ref' => 'jprm_price_label_ref' ],
-					'multi'       => [ 'rows'   => 'jprm_prices (or jprm_price.rows)' ],
-				],
-			],
-			'items' => $items,
-		];
-
-		echo wp_json_encode( $payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
-		exit;
-	}
-
-	private static function stream_csv( array $items ): void {
-		// Excel-friendly: UTF-8 BOM + semicolon delimiter
-		nocache_headers();
-		header( 'Content-Type: text/csv; charset=utf-8' );
-		header( 'Content-Disposition: attachment; filename="jprm-export.csv"' );
-
-		$out = fopen( 'php://output', 'w' );
-		// BOM
-		fwrite( $out, chr(0xEF) . chr(0xBB) . chr(0xBF) );
-
-		// Note: removed featured_image_id and featured_image_url
-		$headers = [ 'post_id', 'post_title', 'post_status', 'description', 'menus', 'sections', 'badges', 'prices_json' ];
-		fputcsv( $out, $headers, ';', '"' );
-
-		foreach ( $items as $it ) {
-			$menus   = implode( '|', (array) ( $it['tax']['jprm_menu'] ?? [] ) );
-			$sects   = implode( '|', (array) ( $it['tax']['jprm_section'] ?? [] ) );
-			$badges  = implode( '|', (array) ( $it['badges'] ?? [] ) );
-			$pricesJ = wp_json_encode( $it['prices'], JSON_UNESCAPED_SLASHES );
-
-			$row = [
-				$it['post_id'],
-				self::esc_csv( $it['post_title'] ),
-				$it['post_status'],
-				self::esc_csv( $it['description'] ),
-				$menus,
-				$sects,
-				$badges,
-				$pricesJ,
-			];
-			fputcsv( $out, $row, ';', '"' );
-		}
-		fclose( $out );
-		exit;
-	}
-
-	private static function esc_csv( $val ): string {
-		$val = is_scalar( $val ) ? (string) $val : '';
-		// Keep it simple; fputcsv will quote. Strip CR/LF to keep rows tidy.
-		return str_replace( [ "\r\n", "\n", "\r" ], ' ', $val );
 	}
 }
