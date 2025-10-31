@@ -308,9 +308,9 @@ final class JPRM_Importer {
 			// Create missing terms if asked
 			$created_m = [];
 			$created_s = [];
-			if ( $create_missing_terms ) {
-				$created_m = self::ensure_terms_exist( 'jprm_menu',    $missing_menus );
-				$created_s = self::ensure_terms_exist( 'jprm_section', $missing_sections );
+			if ( $create_terms ) {
+    		$created_m = self::ensure_terms_exist( 'jprm_menu', $missing_menus );
+    		$created_s = self::ensure_terms_exist( 'jprm_section', $missing_sections );			
 			}
 
 			// Assign terms
@@ -408,9 +408,9 @@ final class JPRM_Importer {
 			}
 
 			// Reflect actually created terms in commit mode
-			if ( $create_missing_terms ) {
-				$new_terms_created['menus']    = $created_m;
-				$new_terms_created['sections'] = $created_s;
+			if ( $create_terms ) {
+    		$new_terms_created['menus']    = $created_m;
+    		$new_terms_created['sections'] = $created_s;
 			}
 		}
 
