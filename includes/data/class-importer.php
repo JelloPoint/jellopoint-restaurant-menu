@@ -10,14 +10,14 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * - Accurate change detection (multi-row compares only whitelisted keys)
  * - Tracks newly created Menu/Section terms (and shows “would create” in dry-run)
  * - Ensures new Sections get their owner Menu via term meta _jprm_menu_term_id
- * - Always writes canonical jprm_price (and jprm_prices) meta for list-table rendering
+ * - Always writes canonical jprm_price (and jprm_prices) meta
  */
 final class JPRM_Importer {
 
 	public static function run( array $file, array $opts = [] ): array {
 		$dry_run              = ! empty( $opts['dry_run'] );
 		$create_missing_terms = ! empty( $opts['create_missing_terms'] );
-		$ignore_ids           = ! empty( $opts['ignore_ids'] ); // NEW: always create new items if set
+		$ignore_ids           = ! empty( $opts['ignore_ids'] ); // if true, always create new items
 
 		$report = [
 			'dry_run'   => $dry_run,
@@ -125,8 +125,8 @@ final class JPRM_Importer {
 
 			$badges = array_filter( array_map( 'sanitize_title', explode( '|', (string) ( $row['badges'] ?? '' ) ) ) );
 
-			// Prices from the “template” shape
-			$price_mode = (string) ( $row['price_mode'] ?? '' );
+			// Template fields
+			$price_mode   = (string) ( $row['price_mode'] ?? '' );
 			$price_single = [
 				'amount_raw'    => (string) ( $row['price_single_amount'] ?? '' ),
 				'amount_number' => self::to_float_eu_us( (string) ( $row['price_single_amount'] ?? '' ) ),
@@ -139,13 +139,13 @@ final class JPRM_Importer {
 				$ref = (string) ( $row["price_m{$k}_label_ref"] ?? '' );
 				if ( $amt === '' && $ref === '' ) continue;
 				$m_rows[] = [
-					'enabled'     => true,
-					'label_mode'  => 'ref',
-					'label_ref'   => $ref,
-					'label_custom'=> '',
-					'icon_id'     => 0,
-					'amount'      => $amt,
-					'hide_icon'   => false,
+					'enabled'      => true,
+					'label_mode'   => 'ref',
+					'label_ref'    => $ref,
+					'label_custom' => '',
+					'icon_id'      => 0,
+					'amount'       => $amt,
+					'hide_icon'    => false,
 				];
 			}
 
@@ -180,7 +180,6 @@ final class JPRM_Importer {
 		$badges  = is_array( $it['badges'] ?? null ) ? $it['badges'] : [];
 		$prices  = is_array( $it['prices'] ?? null ) ? $it['prices'] : [];
 
-		// Treat missing/empty post_id as "new", and also "new" if ignore_ids
 		$existing_id = 0;
 		if ( ! $ignore_ids && isset( $it['post_id'] ) && $it['post_id'] !== '' ) {
 			$existing_id = (int) $it['post_id'];
@@ -203,7 +202,6 @@ final class JPRM_Importer {
 			$action  = 'created';
 		}
 
-		// ---- Old state ----
 		$old = [
 			'post_title'  => $is_existing ? (string) get_the_title( $post_id ) : '',
 			'post_status' => $is_existing ? (string) get_post_status( $post_id ) : 'draft',
@@ -214,7 +212,6 @@ final class JPRM_Importer {
 			'prices'      => $is_existing ? self::build_prices_payload( $post_id, (string) get_post_meta( $post_id, 'jprm_price_mode', true ) ) : [],
 		];
 
-		// ---- New state (normalized like exporter) ----
 		$new_rows = ( $price_mode === 'multi' ) ? (array) ( $prices['rows'] ?? [] ) : [];
 		$new = [
 			'post_title'  => $title,
@@ -241,17 +238,13 @@ final class JPRM_Importer {
 			? (string) ( $new['prices']['amount_raw'] ?? '' )
 			: (string) ( count( (array) $new['prices']['rows'] ) . ' rows' );
 
-		// Compute missing terms now (so dry-run reports “would create”)
 		$missing_menus     = self::missing_term_names( 'jprm_menu', $new['menu_terms'] );
 		$missing_sections  = self::missing_term_names( 'jprm_section', $new['sect_terms'] );
 		$new_terms_created = [ 'menus' => $missing_menus, 'sections' => $missing_sections ];
 
-		// Diff
 		$changed = self::diff_any( $old, $new );
 
-		/* -------------------- Writes -------------------- */
 		if ( ! $dry ) {
-			// Create post if needed
 			if ( ! $is_existing ) {
 				$post_id = wp_insert_post( [
 					'post_type'   => 'jprm_menu_item',
@@ -263,21 +256,15 @@ final class JPRM_Importer {
 				}
 			}
 
-			// Create missing terms (and capture their IDs) if asked
-			$created_m = $missing_menus;
-			$created_s = $missing_sections;
-			$menu_ids  = [];
-			$sect_ids  = [];
-
+			// Create missing terms (return IDs)
 			if ( $create_terms ) {
 				$menu_ids = self::ensure_terms_return_ids( 'jprm_menu', $new['menu_terms'] );
 				$sect_ids = self::ensure_terms_return_ids( 'jprm_section', $new['sect_terms'] );
 
-				// Link each NEW section to the first available menu via _jprm_menu_term_id
+				// Link each NEW section to the first available menu
 				$owner_menu_id = $menu_ids ? (int) reset( $menu_ids ) : 0;
 				if ( $owner_menu_id ) {
 					foreach ( $sect_ids as $sid ) {
-						// Only set if missing to avoid overriding existing structure
 						if ( ! get_term_meta( $sid, '_jprm_menu_term_id', true ) ) {
 							update_term_meta( $sid, '_jprm_menu_term_id', $owner_menu_id );
 						}
@@ -285,11 +272,11 @@ final class JPRM_Importer {
 				}
 			}
 
-			// Assign tax terms (names → IDs mapping done inside)
+			// Assign terms
 			self::assign_terms_if_changed( $post_id, 'jprm_menu',    $new['menu_terms'] );
 			self::assign_terms_if_changed( $post_id, 'jprm_section', $new['sect_terms'] );
 
-			// Update post props if changed
+			// Post props
 			if ( $changed['post_title'] || $changed['post_status'] ) {
 				wp_update_post( [
 					'ID'          => $post_id,
@@ -298,7 +285,7 @@ final class JPRM_Importer {
 				] );
 			}
 
-			// Meta: desc, visible, badges
+			// Meta: desc/visible/badges
 			if ( $changed['desc'] ) {
 				update_post_meta( $post_id, 'jprm_desc', $new['desc'] );
 			}
@@ -309,53 +296,80 @@ final class JPRM_Importer {
 				update_post_meta( $post_id, 'jprm_item_badges', $new['badges'] );
 			}
 
-			// Meta: prices — ALWAYS write canonical jprm_price for list-table visibility
+			// Meta: prices — ALWAYS write both shapes:
+			// - jprm_price_mode
+			// - jprm_price (compact shape for list-table)
+			// - jprm_prices (full editor shape for UI)
 			update_post_meta( $post_id, 'jprm_price_mode', $price_mode );
+
 			if ( $price_mode === 'single' ) {
-				update_post_meta( $post_id, 'jprm_price_amount', $new['prices']['amount_raw'] );
-				update_post_meta( $post_id, 'jprm_price_label_mode', $new['prices']['label_mode'] );
-				update_post_meta( $post_id, 'jprm_price_label_ref',  $new['prices']['label_ref'] );
+				$amount_raw = (string) $new['prices']['amount_raw'];
+				$label_ref  = (string) $new['prices']['label_ref'];
+
+				update_post_meta( $post_id, 'jprm_price_amount', $amount_raw );
+				update_post_meta( $post_id, 'jprm_price_label_mode', 'ref' );
+				update_post_meta( $post_id, 'jprm_price_label_ref',  $label_ref );
 
 				update_post_meta( $post_id, 'jprm_price', [
 					'mode'      => 'single',
-					'price'     => (string) $new['prices']['amount_raw'],
-					'label_ref' => (string) $new['prices']['label_ref'],
+					'price'     => $amount_raw,
+					'label_ref' => $label_ref,
 				] );
 
 				delete_post_meta( $post_id, 'jprm_prices' );
+
 			} else {
-				$rows = (array) $new['prices']['rows'];
-				// Normalize to the UI’s expected shape: label_ref + value
-				$normalized = [];
-				foreach ( $rows as $r ) {
-					$normalized[] = [
-						'label_ref' => isset( $r['label_ref'] ) ? (string) $r['label_ref'] : '',
-						'value'     => isset( $r['amount'] ) ? (string) $r['amount'] : (string) ( $r['value'] ?? '' ),
-						'hide_icon' => (bool) ( $r['hide_icon'] ?? false ),
+				// Build BOTH shapes from input rows
+				$in_rows = is_array( $prices['rows'] ?? null ) ? (array) $prices['rows'] : [];
+				$rows_for_editor = [];
+				$rows_for_price  = [];
+
+				foreach ( $in_rows as $r ) {
+					// Accept either 'amount' or 'value' from source; prefer 'amount'
+					$amount    = (string) ( $r['amount'] ?? $r['value'] ?? '' );
+					$label_ref = (string) ( $r['label_ref'] ?? '' );
+					$hide_icon = (bool)   ( $r['hide_icon'] ?? false );
+					$icon_id   = isset( $r['icon_id'] ) ? (int) $r['icon_id'] : 0;
+
+					// Full editor row (what the meta-box expects)
+					$rows_for_editor[] = [
+						'enabled'      => true,
+						'label_mode'   => 'ref',
+						'label_ref'    => $label_ref,
+						'label_custom' => '',
+						'icon_id'      => $icon_id,
+						'amount'       => $amount,
+						'hide_icon'    => $hide_icon,
+					];
+
+					// Compact row for list-table renderer
+					$rows_for_price[] = [
+						'label_ref' => $label_ref,
+						'value'     => $amount,
+						'hide_icon' => $hide_icon,
 					];
 				}
-				update_post_meta( $post_id, 'jprm_prices', $normalized );
-				update_post_meta( $post_id, 'jprm_price', [ 'mode' => 'multi', 'rows' => $normalized ] );
 
+				// Write both metas
+				update_post_meta( $post_id, 'jprm_prices', $rows_for_editor );
+				update_post_meta( $post_id, 'jprm_price', [ 'mode' => 'multi', 'rows' => $rows_for_price ] );
+
+				// Clean single-only metas
 				delete_post_meta( $post_id, 'jprm_price_amount' );
 				delete_post_meta( $post_id, 'jprm_price_label_mode' );
 				delete_post_meta( $post_id, 'jprm_price_label_ref' );
 			}
-
-			// Reflect actually created names (commit mode)
-			if ( $create_terms ) {
-				$new_terms_created['menus']    = $created_m;
-				$new_terms_created['sections'] = $created_s;
-			}
 		}
 
-		// Final action
 		if ( $is_existing && ! $changed['any'] ) {
 			$action = 'unchanged';
 		}
 
-		return self::result_row( $existing_id, $dry ? ( $is_existing ? $existing_id : 0 ) : ( $post_id ?: 0 ),
-			$title, $action, $price_mode, $price_summary, $new, $new_terms_created, $error );
+		return self::result_row(
+			$existing_id,
+			$dry ? ( $is_existing ? $existing_id : 0 ) : ( $post_id ?: 0 ),
+			$title, $action, $price_mode, $price_summary, $new, $new_terms_created, $error
+		);
 	}
 
 	private static function result_row( $old_id, $new_id, $title, $action, $mode, $price_summary, $new, $new_terms_created, $error ) : array {
@@ -403,7 +417,6 @@ final class JPRM_Importer {
 		return $missing;
 	}
 
-	/** Create terms if missing and return their IDs (existing ones included). */
 	private static function ensure_terms_return_ids( string $tax, array $names ): array {
 		$ids = [];
 		foreach ( $names as $name ) {
@@ -421,7 +434,6 @@ final class JPRM_Importer {
 		return array_values( array_unique( $ids ) );
 	}
 
-	/** Assign terms if the set has changed. */
 	private static function assign_terms_if_changed( int $post_id, string $tax, array $target_names ): void {
 		$current = self::terms_as_names( $post_id, $tax );
 		$cn = $current; sort( $cn );
@@ -472,11 +484,6 @@ final class JPRM_Importer {
 		];
 	}
 
-	/**
-	 * Canonicalize multi rows keeping only whitelisted keys (defaults: label_ref, amount).
-	 * - Maps 'price' -> 'amount'
-	 * - Normalizes numbers so "5,00" == "5.00"
-	 */
 	private static function canonicalize_rows_whitelisted( array $rows ): array {
 		$keys = (array) apply_filters( 'jprm/import/row_compare_keys', [ 'label_ref', 'amount' ] );
 
