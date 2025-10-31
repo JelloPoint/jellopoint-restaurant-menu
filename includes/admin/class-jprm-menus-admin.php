@@ -28,8 +28,8 @@ class Menus_Admin {
 		 * - Never allow non-wp_terms columns (e.g. 'parent') into the $data array that inserts into wp_terms.
 		 * - If parent needs normalizing, do it via wp_insert_term_args; core uses args for wp_term_taxonomy.
 		 */
-		add_filter( 'wp_insert_term_data', [ __CLASS__, 'sanitize_terms_table_data' ], 10, 3 );
-		add_filter( 'wp_insert_term_args', [ __CLASS__, 'sanitize_parent_arg' ], 10, 2 );
+	add_filter( 'wp_insert_term_data', [ __CLASS__, 'sanitize_terms_table_data' ], 999, 3 );
+	add_filter( 'wp_insert_term_args', [ __CLASS__, 'sanitize_parent_arg' ], 999, 2 );
 	}
 
 	/** Drop the "slug" column in the list table */
