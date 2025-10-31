@@ -5,172 +5,184 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class JPRM_Importer {
 
-	public static function run( array $file, array $opts = [] ): array {
-		$dry_run              = ! empty( $opts['dry_run'] );
-		$create_missing_terms = ! empty( $opts['create_missing_terms'] );
+    public static function run( array $file, array $opts = [] ): array {
+        $dry_run              = ! empty( $opts['dry_run'] );
+        $create_missing_terms = ! empty( $opts['create_missing_terms'] );
 
-		$report = [
-			'dry_run'     => $dry_run,
-			'created'     => 0,
-			'updated'     => 0,
-			'unchanged'   => 0,
-			'skipped'     => 0,
-			'errors'      => [],
-			'new_terms'   => [ 'menus' => 0, 'sections' => 0, 'menus_list' => [], 'sections_list' => [] ],
-			'would_create'=> [ 'menus' => [], 'sections' => [] ],
-			'items'       => [],
-		];
+        $report = [
+            'dry_run'      => $dry_run,
+            'created'      => 0,
+            'updated'      => 0,
+            'unchanged'    => 0,
+            'skipped'      => 0,
+            'errors'       => [],
+            'new_terms'    => [ 'menus' => 0, 'sections' => 0, 'menus_list' => [], 'sections_list' => [] ],
+            'would_create' => [ 'menus' => [], 'sections' => [] ],
+            'items'        => [],
+        ];
 
-		if ( empty( $file['tmp_name'] ) || ! is_readable( $file['tmp_name'] ) ) {
-			$report['errors'][] = 'Upload failed or file unreadable.';
-			return $report;
-		}
+        if ( empty( $file['tmp_name'] ) || ! is_readable( $file['tmp_name'] ) ) {
+            $report['errors'][] = 'Upload failed or file unreadable.';
+            return $report;
+        }
 
-		$raw  = file_get_contents( $file['tmp_name'] );
-		$name = isset( $file['name'] ) ? (string) $file['name'] : '';
-		$ext  = strtolower( pathinfo( $name, PATHINFO_EXTENSION ) );
+        $raw  = file_get_contents( $file['tmp_name'] );
+        $name = isset( $file['name'] ) ? (string) $file['name'] : '';
+        $ext  = strtolower( pathinfo( $name, PATHINFO_EXTENSION ) );
 
-		$items = [];
-		if ( $ext === 'json' ) {
-			$items = self::parse_json_export( $raw, $report );
-		} elseif ( $ext === 'csv' ) {
-			$items = self::parse_csv_import_simple( $raw, $report ); // << NEW simple CSV
-		} else {
-			$t = ltrim( $raw );
-			$items = ( $t !== '' && ($t[0] === '{' || $t[0] === '[') )
-				? self::parse_json_export( $raw, $report )
-				: self::parse_csv_import_simple( $raw, $report );
-		}
+        $items = [];
+        if ( $ext === 'json' ) {
+            $items = self::parse_json_export( $raw, $report );
+        } elseif ( $ext === 'csv' ) {
+            $items = self::parse_csv_import_simple( $raw, $report );
+        } else {
+            $t = ltrim( $raw );
+            $items = ( $t !== '' && ($t[0] === '{' || $t[0] === '[') )
+                ? self::parse_json_export( $raw, $report )
+                : self::parse_csv_import_simple( $raw, $report );
+        }
 
-		if ( empty( $items ) ) {
-			$report['errors'][] = 'No items found in file.';
-			return $report;
-		}
+        if ( empty( $items ) ) {
+            $report['errors'][] = 'No items found in file.';
+            return $report;
+        }
 
-		$wc_menus    = [];
-		$wc_sections = [];
+        $wc_menus    = [];
+        $wc_sections = [];
 
-		foreach ( $items as $row ) {
-			$r = self::process_item( $row, $dry_run, $create_missing_terms, $wc_menus, $wc_sections );
+        foreach ( $items as $row ) {
+            $r = self::process_item( $row, $dry_run, $create_missing_terms, $wc_menus, $wc_sections );
 
-			if ( isset( $r['action'] ) ) {
-				if ( $r['action'] === 'created' )      { $report['created']++; }
-				elseif ( $r['action'] === 'updated' )  { $report['updated']++; }
-				elseif ( $r['action'] === 'unchanged') { $report['unchanged']++; }
-				elseif ( $r['action'] === 'skipped' )  { $report['skipped']++; }
-			}
-			if ( ! empty( $r['new_terms_created']['menus'] ) ) {
-				$names = (array) $r['new_terms_created']['menus'];
-				$report['new_terms']['menus']      += count( $names );
-				$report['new_terms']['menus_list']  = array_values( array_unique( array_merge( $report['new_terms']['menus_list'], $names ) ) );
-			}
-			if ( ! empty( $r['new_terms_created']['sections'] ) ) {
-				$names = (array) $r['new_terms_created']['sections'];
-				$report['new_terms']['sections']      += count( $names );
-				$report['new_terms']['sections_list']  = array_values( array_unique( array_merge( $report['new_terms']['sections_list'], $names ) ) );
-			}
-			if ( ! empty( $r['error'] ) ) { $report['errors'][] = $r['error']; }
+            if ( isset( $r['action'] ) ) {
+                if ( $r['action'] === 'created' )      { $report['created']++; }
+                elseif ( $r['action'] === 'updated' )  { $report['updated']++; }
+                elseif ( $r['action'] === 'unchanged') { $report['unchanged']++; }
+                elseif ( $r['action'] === 'skipped' )  { $report['skipped']++; }
+            }
+            if ( ! empty( $r['new_terms_created']['menus'] ) ) {
+                $names = (array) $r['new_terms_created']['menus'];
+                $report['new_terms']['menus']      += count( $names );
+                $report['new_terms']['menus_list']  = array_values( array_unique( array_merge( $report['new_terms']['menus_list'], $names ) ) );
+            }
+            if ( ! empty( $r['new_terms_created']['sections'] ) ) {
+                $names = (array) $r['new_terms_created']['sections'];
+                $report['new_terms']['sections']      += count( $names );
+                $report['new_terms']['sections_list']  = array_values( array_unique( array_merge( $report['new_terms']['sections_list'], $names ) ) );
+            }
+            if ( ! empty( $r['error'] ) ) { $report['errors'][] = $r['error']; }
 
-			$report['items'][] = $r;
-		}
+            $report['items'][] = $r;
+        }
 
-		if ( $dry_run ) {
-			$report['would_create']['menus']    = array_values( array_unique( $wc_menus ) );
-			$report['would_create']['sections'] = array_values( array_unique( $wc_sections ) );
-		}
+        if ( $dry_run ) {
+            $report['would_create']['menus']    = array_values( array_unique( $wc_menus ) );
+            $report['would_create']['sections'] = array_values( array_unique( $wc_sections ) );
+        }
 
-		return $report;
-	}
+        return $report;
+    }
 
-	/* ---------- Parsers ---------- */
+    /* -------------------- Parsers -------------------- */
 
-	private static function parse_json_export( string $raw, array &$report ): array {
-		$dec = json_decode( $raw, true );
-		if ( ! is_array( $dec ) ) { $report['errors'][] = 'Invalid JSON.'; return []; }
-		if ( isset( $dec['items'] ) && is_array( $dec['items'] ) ) { return $dec['items']; }
-		if ( isset( $dec[0] ) && is_array( $dec[0] ) ) { return $dec; }
-		$report['errors'][] = 'JSON did not contain an items array.';
-		return [];
-	}
+    private static function parse_json_export( string $raw, array &$report ): array {
+        $dec = json_decode( $raw, true );
+        if ( ! is_array( $dec ) ) { $report['errors'][] = 'Invalid JSON.'; return []; }
+        if ( isset( $dec['items'] ) && is_array( $dec['items'] ) ) { return $dec['items']; }
+        if ( isset( $dec[0] ) && is_array( $dec[0] ) ) { return $dec; }
+        $report['errors'][] = 'JSON did not contain an items array.';
+        return [];
+    }
 
-	/**
-	 * CSV “simple” import:
-	 * Headers: post_id, post_title, post_status, description, menus, sections, Price_Single, Price_Multiple
-	 * - menus/sections: pipe-separated names
-	 * - Price_Multiple: values separated by "*" (max 4)
-	 */
-	private static function parse_csv_import_simple( string $raw, array &$report ): array {
-		$lines = preg_split( '/\r\n|\n|\r/', $raw );
-		if ( ! $lines ) { $report['errors'][] = 'Empty CSV.'; return []; }
+    /**
+     * CSV “simple” import:
+     * Supports an optional first line: "sep=;" or "sep=," (Excel hint)
+     * Headers: post_id, post_title, post_status, description, menus, sections, Price_Single, Price_Multiple
+     * - menus/sections: pipe-separated names
+     * - Price_Multiple: values separated by "*"
+     */
+    private static function parse_csv_import_simple( string $raw, array &$report ): array {
+        $lines = preg_split( '/\r\n|\n|\r/', $raw );
+        if ( ! $lines ) { $report['errors'][] = 'Empty CSV.'; return []; }
 
-		if ( isset( $lines[0] ) ) {
-			$lines[0] = preg_replace('/^\xEF\xBB\xBF/', '', $lines[0]); // BOM
-		}
+        // Strip BOM from first line if present
+        if ( isset( $lines[0] ) ) {
+            $lines[0] = preg_replace('/^\xEF\xBB\xBF/', '', $lines[0]);
+        }
 
-		$first     = $lines[0] ?? '';
-		$delimiter = ( substr_count( $first, ';' ) >= substr_count( $first, ',' ) ) ? ';' : ','; // EU-first
+        // Excel delimiter hint "sep=;"
+        $delimiter = null;
+        if ( isset( $lines[0] ) && preg_match( '/^\s*sep\s*=\s*([;,])\s*$/i', $lines[0], $m ) ) {
+            $delimiter = $m[1];
+            array_shift( $lines ); // remove the sep= line
+        }
 
-		$headers = str_getcsv( $first, $delimiter );
-		$map     = array_flip( $headers );
-		$rows    = [];
+        // Fallback auto-detect if no sep= found
+        $first = $lines[0] ?? '';
+        if ( $delimiter === null ) {
+            $delimiter = ( substr_count( $first, ';' ) >= substr_count( $first, ',' ) ) ? ';' : ',';
+        }
 
-		for ( $i = 1; $i < count( $lines ); $i++ ) {
-			if ( trim( $lines[$i] ) === '' ) continue;
-			$vals = str_getcsv( $lines[$i], $delimiter );
+        $headers = str_getcsv( $first, $delimiter );
+        $map     = array_flip( $headers );
+        $rows    = [];
 
-			$row = array_fill_keys( $headers, '' );
-			foreach ( $headers as $h ) {
-				$idx = $map[$h] ?? null;
-				if ( $idx !== null && isset( $vals[$idx] ) ) { $row[$h] = $vals[$idx]; }
-			}
+        for ( $i = 1; $i < count( $lines ); $i++ ) {
+            if ( trim( $lines[$i] ) === '' ) continue;
+            $vals = str_getcsv( $lines[$i], $delimiter );
 
-			$menus    = array_filter( array_map( 'trim', explode( '|', (string) ( $row['menus']    ?? '' ) ) ) );
-			$sections = array_filter( array_map( 'trim', explode( '|', (string) ( $row['sections'] ?? '' ) ) ) );
+            $row = array_fill_keys( $headers, '' );
+            foreach ( $headers as $h ) {
+                $idx = $map[$h] ?? null;
+                if ( $idx !== null && isset( $vals[$idx] ) ) { $row[$h] = $vals[$idx]; }
+            }
 
-			$single   = trim( (string) ( $row['Price_Single']    ?? '' ) );
-			$multi_in = trim( (string) ( $row['Price_Multiple']  ?? '' ) );
+            $menus    = array_filter( array_map( 'trim', explode( '|', (string) ( $row['menus']    ?? '' ) ) ) );
+            $sections = array_filter( array_map( 'trim', explode( '|', (string) ( $row['sections'] ?? '' ) ) ) );
 
-			// Build prices structure (exporter-like)
-			$prices = [];
-			if ( $multi_in !== '' ) {
-				$parts = array_filter( array_map( 'trim', explode( '*', $multi_in ) ) );
-				$parts = array_slice( $parts, 0, 4 ); // max 4
-				$canon_rows = [];
-				foreach ( $parts as $p ) {
-					$canon_rows[] = [
-						'label_ref' => '',          // labels ignored for now
-						'amount'    => (string) $p, // canonical field for internal compare
-					];
-				}
-				$prices = [ 'mode' => 'multi', 'rows' => $canon_rows ];
-			} elseif ( $single !== '' ) {
-				$prices = [
-					'mode'          => 'single',
-					'amount_raw'    => (string) $single,
-					'amount_number' => null,
-					'label_mode'    => '',
-					'label_ref'     => '',
-				];
-			} else {
-				$prices = [ 'mode' => 'single', 'amount_raw' => '' ];
-			}
+            $single   = trim( (string) ( $row['Price_Single']   ?? '' ) );
+            $multi_in = trim( (string) ( $row['Price_Multiple'] ?? '' ) );
 
-			$rows[] = [
-				'post_id'     => isset($row['post_id']) && $row['post_id'] !== '' ? (int) $row['post_id'] : 0,
-				'post_title'  => (string) ( $row['post_title']  ?? '' ),
-				'post_status' => (string) ( $row['post_status'] ?? 'draft' ),
-				'description' => (string) ( $row['description'] ?? '' ),
-				'tax'         => [
-					'jprm_menu'    => $menus,
-					'jprm_section' => $sections,
-				],
-				'badges'      => [],        // ignored for the simple template
-				'prices'      => $prices,
-			];
-		}
+            // Build prices structure (labels intentionally ignored for simplicity)
+            $prices = [];
+            if ( $multi_in !== '' ) {
+                $parts = array_filter( array_map( 'trim', explode( '*', $multi_in ) ) );
+                $parts = array_slice( $parts, 0, 4 ); // max 4
+                $canon_rows = [];
+                foreach ( $parts as $p ) {
+                    $canon_rows[] = [
+                        'label_ref' => '',
+                        'amount'    => (string) $p,
+                    ];
+                }
+                $prices = [ 'mode' => 'multi', 'rows' => $canon_rows ];
+            } elseif ( $single !== '' ) {
+                $prices = [
+                    'mode'          => 'single',
+                    'amount_raw'    => (string) $single,
+                    'amount_number' => null,
+                    'label_mode'    => '',
+                    'label_ref'     => '',
+                ];
+            } else {
+                $prices = [ 'mode' => 'single', 'amount_raw' => '' ];
+            }
 
-		return $rows;
-	}
+            $rows[] = [
+                'post_id'     => isset($row['post_id']) && $row['post_id'] !== '' ? (int) $row['post_id'] : 0,
+                'post_title'  => (string) ( $row['post_title']  ?? '' ),
+                'post_status' => (string) ( $row['post_status'] ?? 'draft' ),
+                'description' => (string) ( $row['description'] ?? '' ),
+                'tax'         => [
+                    'jprm_menu'    => $menus,
+                    'jprm_section' => $sections,
+                ],
+                'badges'      => [],
+                'prices'      => $prices,
+            ];
+        }
+
+        return $rows;
+    }
 
 	/* --------------------------- Processing -------------------------- */
 

@@ -14,17 +14,19 @@ final class JPRM_Admin_Import_Export {
     private const CAPABILITY   = 'edit_posts';
 
     /** CSV template specifics */
-    private const CSV_DELIM_MULTI = '*'; // delimiter for Price_Multiple column
+    private const CSV_DELIM_MULTI = '*';       // delimiter inside Price_Multiple column
     private const CSV_FILENAME    = 'jprm-import-template.csv';
+    private const CSV_DELIM_FILE  = ';';       // file delimiter for columns (Excel-friendly with sep=;)
+    private const CSV_BOM         = "\xEF\xBB\xBF"; // UTF-8 BOM for Excel
 
     public static function bootstrap(): void {
         if ( ! is_admin() ) { return; }
 
         add_action( 'admin_menu', [ __CLASS__, 'register_menu' ], 99 );
 
-        add_action( 'admin_post_jprm_export',          [ __CLASS__, 'handle_export' ] );
-        add_action( 'admin_post_jprm_import',          [ __CLASS__, 'handle_import' ] );
-        add_action( 'admin_post_jprm_download_tpl',    [ __CLASS__, 'handle_download_template' ] );
+        add_action( 'admin_post_jprm_export',       [ __CLASS__, 'handle_export' ] );
+        add_action( 'admin_post_jprm_import',       [ __CLASS__, 'handle_import' ] );
+        add_action( 'admin_post_jprm_download_tpl', [ __CLASS__, 'handle_download_template' ] );
 
         add_action( 'admin_enqueue_scripts', [ __CLASS__, 'enqueue_assets' ] );
     }
@@ -127,7 +129,6 @@ final class JPRM_Admin_Import_Export {
         if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( 'Unauthorized' ); }
         check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
 
-        // Action selector (buttons set this)
         $action_type = isset( $_POST['action_type'] ) ? sanitize_key( $_POST['action_type'] ) : 'dry_run';
         $dry_run     = ( $action_type !== 'import' );
 
@@ -159,45 +160,68 @@ final class JPRM_Admin_Import_Export {
     }
 
     /**
-     * Stream a tailored CSV template for import.
-     * Columns:
-     *  - post_id, post_title, post_status, description, menus, sections,
-     *  - Price_Single,
-     *  - Price_Multiple  (values separated by self::CSV_DELIM_MULTI, max 4)
-     *
-     * Users should create one example item (single) and one with MAX multiple prices before use.
+     * Stream a tailored CSV template that opens cleanly in Excel.
+     * - UTF-8 BOM
+     * - First line "sep=;" to enforce semicolon columns
+     * - Includes two demo rows (Single + Multiple)
      */
     public static function handle_download_template(): void {
         if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( 'Unauthorized' ); }
         check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
 
-        $delim = self::CSV_DELIM_MULTI;
-
-        // Build CSV in memory
-        $fh = fopen( 'php://output', 'w' );
-        if ( ! $fh ) { wp_die( 'Cannot open output stream' ); }
+        $delim_file  = self::CSV_DELIM_FILE;   // column delimiter for the CSV file
+        $delim_multi = self::CSV_DELIM_MULTI;  // within Price_Multiple
 
         nocache_headers();
         header( 'Content-Type: text/csv; charset=utf-8' );
         header( 'Content-Disposition: attachment; filename=' . self::CSV_FILENAME );
 
-        // Header
+        // 1) UTF-8 BOM (helps Excel)
+        echo self::CSV_BOM;
+
+        // 2) Excel delimiter hint
+        echo 'sep=' . $delim_file . "\r\n";
+
+        $fh = fopen( 'php://output', 'w' );
+        if ( ! $fh ) { exit; }
+
+        // 3) Header row
         fputcsv( $fh, [
             'post_id',
             'post_title',
             'post_status',
             'description',
-            'menus',      // pipe-separated names
-            'sections',   // pipe-separated names
+            'menus',           // pipe-separated names
+            'sections',        // pipe-separated names
             'Price_Single',
-            'Price_Multiple', // values separated by "*"
-        ] );
+            'Price_Multiple',  // values separated by "*"
+        ], $delim_file );
 
-        // Empty starter row
-        fputcsv( $fh, [ '', '', 'publish', '', '', '', '', '' ] );
+        // 4) DEMO rows
 
-        // A short note row to remind about delimiter (kept harmless with blank post_title)
-        fputcsv( $fh, [ '', '(Leave post_id empty for NEW items)', '', '', '', '', '', "Use '{$delim}' between values (max 4)" ] );
+        // Demo A: Single price
+        fputcsv( $fh, [
+            '',                                     // post_id -> empty creates new
+            'DEMO – Single price example',
+            'publish',
+            'Example description (single price)',
+            'Menu A',                               // menus
+            'Section A1',                           // sections
+            '5,50',                                 // Price_Single
+            '',                                     // Price_Multiple
+        ], $delim_file );
+
+        // Demo B: Multiple prices (max 4)
+        fputcsv( $fh, [
+            '',
+            'DEMO – Multiple prices example',
+            'publish',
+            'Example description (multiple prices)',
+            'Menu A',
+            'Section A1',
+            '',                                     // Price_Single
+            '2,50' . $delim_multi . '5,00' . $delim_multi . '7,50' . $delim_multi . '9,00', // Price_Multiple
+        ], $delim_file );
 
         fclose( $fh );
         exit;
