@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 		<section class="jprm-card">
 			<h2><?php esc_html_e( 'Export', 'jellopoint-restaurant-menu' ); ?></h2>
 			<form method="post" action="<?php echo esc_url( $export_url ); ?>">
-				<?php echo $nonce_field; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+				<?php echo $nonce_field; // phpcs:ignore ?>
 				<p>
 					<label>
 						<?php esc_html_e( 'Format', 'jellopoint-restaurant-menu' ); ?><br/>
@@ -29,58 +29,31 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 						</select>
 					</label>
 				</p>
-				<p>
-					<?php submit_button( __( 'Export', 'jellopoint-restaurant-menu' ), 'primary', 'submit', false ); ?>
-				</p>
+				<p><?php submit_button( __( 'Export', 'jellopoint-restaurant-menu' ), 'primary', 'submit', false ); ?></p>
 			</form>
 		</section>
 
 		<section class="jprm-card">
 			<h2><?php esc_html_e( 'Import', 'jellopoint-restaurant-menu' ); ?></h2>
-
 			<form method="post" action="<?php echo esc_url( $import_url ); ?>" enctype="multipart/form-data">
-				<?php echo $nonce_field; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+				<?php echo $nonce_field; // phpcs:ignore ?>
+				<p><input type="file" name="jprm_import_file" accept=".json,.csv" required /></p>
 
 				<p>
-					<input type="file" name="jprm_import_file" accept=".json,.csv" required />
+					<label><input type="checkbox" name="create_missing_terms" value="1" /> <?php esc_html_e( 'Create missing Menus/Sections', 'jellopoint-restaurant-menu' ); ?></label><br/>
+					<label><input type="checkbox" name="attach_images" value="1" /> <?php esc_html_e( 'Re-attach images (if present)', 'jellopoint-restaurant-menu' ); ?></label><br/>
+					<label><input type="checkbox" name="ignore_ids" value="1" checked /> <?php esc_html_e( 'Ignore incoming IDs (always create new items)', 'jellopoint-restaurant-menu' ); ?></label>
 				</p>
 
-				<p>
-					<label>
-						<input type="checkbox" name="create_missing_terms" value="1" />
-						<?php esc_html_e( 'Create missing Menus/Sections', 'jellopoint-restaurant-menu' ); ?>
-					</label>
-					<br/>
-					<label>
-						<input type="checkbox" name="attach_images" value="1" />
-						<?php esc_html_e( 'Re-attach images (if present)', 'jellopoint-restaurant-menu' ); ?>
-					</label>
-					<br/>
-					<label>
-						<input type="checkbox" name="ignore_ids" value="1" checked />
-						<?php esc_html_e( 'Ignore incoming IDs (always create new items)', 'jellopoint-restaurant-menu' ); ?>
-					</label>
-				</p>
-
-				<!-- Explicit action selector: import vs dry_run -->
 				<input type="hidden" name="action_type" id="jprm_action_type" value="dry_run" />
-
 				<p style="display:flex; gap:8px; align-items:center;">
-					<button type="submit"
-					        class="button button-primary"
-					        onclick="document.getElementById('jprm_action_type').value='import';">
+					<button type="submit" class="button button-primary" onclick="document.getElementById('jprm_action_type').value='import';">
 						<?php esc_html_e( 'Import (Commit Changes)', 'jellopoint-restaurant-menu' ); ?>
 					</button>
-
-					<button type="submit"
-					        class="button"
-					        onclick="document.getElementById('jprm_action_type').value='dry_run';">
+					<button type="submit" class="button" onclick="document.getElementById('jprm_action_type').value='dry_run';">
 						<?php esc_html_e( 'Validate (Dry Run)', 'jellopoint-restaurant-menu' ); ?>
 					</button>
-
-					<span class="description">
-						<?php esc_html_e( 'Dry-run simulates changes only — use Import to commit.', 'jellopoint-restaurant-menu' ); ?>
-					</span>
+					<span class="description"><?php esc_html_e( 'Dry-run simulates changes only — use Import to commit.', 'jellopoint-restaurant-menu' ); ?></span>
 				</p>
 			</form>
 		</section>
@@ -93,13 +66,13 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 		<p>
 			<strong><?php esc_html_e( 'Mode:', 'jellopoint-restaurant-menu' ); ?></strong>
 			<?php echo ! empty( $import_report['dry_run'] ) ? esc_html__( 'Dry Run', 'jellopoint-restaurant-menu' ) : esc_html__( 'Committed', 'jellopoint-restaurant-menu' ); ?>
-			&nbsp;&nbsp;|&nbsp;&nbsp;
+			&nbsp;|&nbsp;
 			<strong><?php esc_html_e( 'Created', 'jellopoint-restaurant-menu' ); ?>:</strong> <?php echo (int) ($import_report['created'] ?? 0); ?>
-			&nbsp;&nbsp;|&nbsp;&nbsp;
+			&nbsp;|&nbsp;
 			<strong><?php esc_html_e( 'Updated', 'jellopoint-restaurant-menu' ); ?>:</strong> <?php echo (int) ($import_report['updated'] ?? 0); ?>
-			&nbsp;&nbsp;|&nbsp;&nbsp;
+			&nbsp;|&nbsp;
 			<strong><?php esc_html_e( 'Unchanged', 'jellopoint-restaurant-menu' ); ?>:</strong> <?php echo (int) ($import_report['unchanged'] ?? 0); ?>
-			&nbsp;&nbsp;|&nbsp;&nbsp;
+			&nbsp;|&nbsp;
 			<strong><?php esc_html_e( 'Skipped', 'jellopoint-restaurant-menu' ); ?>:</strong> <?php echo (int) ($import_report['skipped'] ?? 0); ?>
 		</p>
 
@@ -139,7 +112,6 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 			</table>
 
 			<?php
-			// Overview of *new* terms
 			$new_m = array_filter( array_map( 'strval', (array) ( $import_report['new_terms']['menus_list'] ?? [] ) ) );
 			$new_s = array_filter( array_map( 'strval', (array) ( $import_report['new_terms']['sections_list'] ?? [] ) ) );
 			if ( $new_m || $new_s ) :
