@@ -296,69 +296,48 @@ final class JPRM_Importer {
 				update_post_meta( $post_id, 'jprm_item_badges', $new['badges'] );
 			}
 
-			// Meta: prices — ALWAYS write both shapes:
-			// - jprm_price_mode
-			// - jprm_price (compact shape for list-table)
-			// - jprm_prices (full editor shape for UI)
+			// -------- Meta: prices (write exact shapes expected by UI + list table) --------
 			update_post_meta( $post_id, 'jprm_price_mode', $price_mode );
 
 			if ( $price_mode === 'single' ) {
-				$amount_raw = (string) $new['prices']['amount_raw'];
-				$label_ref  = (string) $new['prices']['label_ref'];
+				$amount_raw = (string) ( $new['prices']['amount_raw'] ?? '' );
+				$label_ref  = (string) ( $new['prices']['label_ref']  ?? '' );
 
-				update_post_meta( $post_id, 'jprm_price_amount', $amount_raw );
+				// Single helpers
+				update_post_meta( $post_id, 'jprm_price_amount',     $amount_raw );
 				update_post_meta( $post_id, 'jprm_price_label_mode', 'ref' );
 				update_post_meta( $post_id, 'jprm_price_label_ref',  $label_ref );
 
+				// List-table payload
 				update_post_meta( $post_id, 'jprm_price', [
 					'mode'      => 'single',
-					'price'     => $amount_raw,
+					'price'     => $amount_raw, // keep EU comma as typed
 					'label_ref' => $label_ref,
 				] );
 
+				// Clean multi holder
 				delete_post_meta( $post_id, 'jprm_prices' );
 
 			} else {
-				// Build BOTH shapes from input rows
+				// Multi: accept incoming rows and normalize to both metas
 				$in_rows = is_array( $prices['rows'] ?? null ) ? (array) $prices['rows'] : [];
-				$rows_for_editor = [];
-				$rows_for_price  = [];
+				$in_rows = self::filter_nonempty_rows( $in_rows );
 
-				foreach ( $in_rows as $r ) {
-					// Accept either 'amount' or 'value' from source; prefer 'amount'
-					$amount    = (string) ( $r['amount'] ?? $r['value'] ?? '' );
-					$label_ref = (string) ( $r['label_ref'] ?? '' );
-					$hide_icon = (bool)   ( $r['hide_icon'] ?? false );
-					$icon_id   = isset( $r['icon_id'] ) ? (int) $r['icon_id'] : 0;
+				$editor_rows = self::build_editor_rows( $in_rows ); // for editor UI
+				$list_rows   = self::build_list_rows(   $in_rows ); // for list table
 
-					// Full editor row (what the meta-box expects)
-					$rows_for_editor[] = [
-						'enabled'      => true,
-						'label_mode'   => 'ref',
-						'label_ref'    => $label_ref,
-						'label_custom' => '',
-						'icon_id'      => $icon_id,
-						'amount'       => $amount,
-						'hide_icon'    => $hide_icon,
-					];
-
-					// Compact row for list-table renderer
-					$rows_for_price[] = [
-						'label_ref' => $label_ref,
-						'value'     => $amount,
-						'hide_icon' => $hide_icon,
-					];
-				}
-
-				// Write both metas
-				update_post_meta( $post_id, 'jprm_prices', $rows_for_editor );
-				update_post_meta( $post_id, 'jprm_price', [ 'mode' => 'multi', 'rows' => $rows_for_price ] );
+				update_post_meta( $post_id, 'jprm_prices', $editor_rows );
+				update_post_meta( $post_id, 'jprm_price',  [
+					'mode' => 'multi',
+					'rows' => $list_rows,
+				] );
 
 				// Clean single-only metas
 				delete_post_meta( $post_id, 'jprm_price_amount' );
 				delete_post_meta( $post_id, 'jprm_price_label_mode' );
 				delete_post_meta( $post_id, 'jprm_price_label_ref' );
 			}
+			// -------- end Meta: prices --------
 		}
 
 		if ( $is_existing && ! $changed['any'] ) {
@@ -484,6 +463,10 @@ final class JPRM_Importer {
 		];
 	}
 
+	/**
+	 * Keep only a whitelist of keys for comparing multi rows; normalize amounts.
+	 * Default whitelist: ['label_ref','amount'].
+	 */
 	private static function canonicalize_rows_whitelisted( array $rows ): array {
 		$keys = (array) apply_filters( 'jprm/import/row_compare_keys', [ 'label_ref', 'amount' ] );
 
@@ -491,8 +474,13 @@ final class JPRM_Importer {
 		foreach ( $rows as $r ) {
 			$a = is_array( $r ) ? $r : (array) $r;
 
+			// Allow 'price' alias of 'amount'
 			if ( isset( $a['price'] ) && ! isset( $a['amount'] ) ) {
 				$a['amount'] = $a['price'];
+			}
+			// Allow list-table 'value' as alias of 'amount'
+			if ( isset( $a['value'] ) && ! isset( $a['amount'] ) ) {
+				$a['amount'] = $a['value'];
 			}
 
 			$clean = [];
@@ -514,6 +502,56 @@ final class JPRM_Importer {
 		} );
 
 		return array_values( $norm );
+	}
+
+	/** Drop rows where BOTH label_ref and amount/value are empty. */
+	private static function filter_nonempty_rows( array $rows ): array {
+		$out = [];
+		foreach ( $rows as $r ) {
+			$a = is_array($r) ? $r : (array) $r;
+			$label = trim( (string) ($a['label_ref'] ?? '') );
+			$amt   = trim( (string) ($a['amount'] ?? ($a['value'] ?? '') ) );
+			if ( $label === '' && $amt === '' ) {
+				continue;
+			}
+			$out[] = [
+				'label_ref' => $label,
+				'amount'    => $amt,
+				'hide_icon' => (bool) ($a['hide_icon'] ?? false),
+				'icon_id'   => isset($a['icon_id']) ? (int) $a['icon_id'] : 0,
+			];
+		}
+		return array_values($out);
+	}
+
+	/** Build editor-facing rows for meta 'jprm_prices'. */
+	private static function build_editor_rows( array $rows_in ): array {
+		$rows_out = [];
+		foreach ( $rows_in as $r ) {
+			$rows_out[] = [
+				'enabled'      => true,
+				'label_mode'   => 'ref',
+				'label_ref'    => (string) $r['label_ref'],
+				'label_custom' => '',
+				'icon_id'      => (int) ($r['icon_id'] ?? 0),
+				'amount'       => (string) $r['amount'], // keep EU comma as typed
+				'hide_icon'    => (bool) ($r['hide_icon'] ?? false),
+			];
+		}
+		return $rows_out;
+	}
+
+	/** Build list-table rows for meta 'jprm_price' (mode=multi). */
+	private static function build_list_rows( array $rows_in ): array {
+		$rows_out = [];
+		foreach ( $rows_in as $r ) {
+			$rows_out[] = [
+				'label_ref' => (string) $r['label_ref'],
+				'value'     => (string) $r['amount'], // list uses 'value'
+				'hide_icon' => (bool) ($r['hide_icon'] ?? false),
+			];
+		}
+		return $rows_out;
 	}
 
 	private static function normalize_amount_string( $v ): string {
