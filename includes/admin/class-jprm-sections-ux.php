@@ -30,15 +30,16 @@ final class Sections_UX {
 		add_action( 'elementor/editor/after_enqueue_scripts', [ __CLASS__, 'enqueue_editor_assets' ] );
 	}
 
-	public static function enqueue_editor_assets() : void {
-	$handle = 'jprm-elementor-sections-dep';
-	$src = plugins_url( '../../assets/admin/elementor-sections-dep.js', __FILE__ );
-	$ver = defined('JPRM_PLUGIN_VERSION') ? JPRM_PLUGIN_VERSION : time();
-	wp_enqueue_script( $handle, $src, [ 'jquery' ], $ver, true );
-	wp_localize_script( $handle, 'JPRMSectionsUX', [
-		'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-		'nonce'   => wp_create_nonce( 'jprm_sections_ux' ),
-	]);
+public static function enqueue_editor_assets() : void {
+    $handle = 'jprm-elementor-sections-dep';
+    $src    = plugins_url( '../../assets/admin/elementor-sections-dep.js', __FILE__ );
+    $ver    = defined('JPRM_PLUGIN_VERSION') ? JPRM_PLUGIN_VERSION : time();
+
+    wp_enqueue_script( $handle, $src, [ 'jquery' ], $ver, true );
+    wp_localize_script( $handle, 'JPRMSectionsUX', [
+        'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+        'nonce'   => wp_create_nonce( 'jprm_sections_ux' ),
+    ]);
 }
 
 
