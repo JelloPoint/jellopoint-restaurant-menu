@@ -8,10 +8,11 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * - Per-section layout override still applied for each section
  * - Passes effective values to selected layout (Matrix placeholder / Inline-Below separator)
  *
- * Enhanced:
- * - Grouping: main (level 0) section renders its own children directly beneath it
- * - Column split now uses ONLY top-level sections, preserving grouping
- * - Main heading visibility considers "has children" as well as "has items"
+ * Enhanced (robust):
+ * - Grouping: main (level 0) section renders its children beneath it
+ * - Orphan fallback: subsections whose parent isn't in sections_order are promoted to top-level
+ * - Rendered-tracking: any section not rendered by grouping is appended at the end (safety net)
+ * - Main heading visibility considers "has items" OR "has children" OR "Show even if empty"
  */
 
 if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
@@ -42,7 +43,7 @@ $sections_data     = is_array( $ctx['sections_data'] ?? null )  ? $ctx['sections
 $show_section_name = ! empty( $ctx['show_section_name'] );
 $show_section_desc = ! empty( $ctx['show_section_desc'] );
 
-/** NEW: main section visibility controls (from Elementor "Sections and Menus") */
+/** Elementor "Sections and Menus" controls */
 $show_main_sections       = ! empty( $ctx['show_main_sections'] ) && $ctx['show_main_sections'] === 'yes';
 $show_main_even_if_empty  = ! empty( $ctx['show_main_even_if_empty'] ) && $ctx['show_main_even_if_empty'] === 'yes';
 
@@ -60,15 +61,15 @@ $global_inline_separator   = (string) ( $ctx['inline_separator'] ?? '' );
 $global_placeholder_legacy = (string) ( $ctx['global_placeholder'] ?? '—' );
 
 // === BADGES (read from ctx) ============================================
-$show_badges         = ! empty( $ctx['show_badges'] );                       // boolean
-$badges_position     = (string) ( $ctx['badges_position'] ?? 'after' );      // 'before' | 'after'
+$show_badges         = ! empty( $ctx['show_badges'] );
+$badges_position     = (string) ( $ctx['badges_position'] ?? 'after' );
 $badges_presentation = (string) ( $ctx['badges_presentation'] ?? 'icon_text' );
 
-/* -------- read your existing control names -------- */
+/* -------- grid controls -------- */
 $columns                    = max( 1, min( 3, (int) ( $ctx['layout_columns'] ?? 1 ) ) );
 $split_mode                 = (string) ( $ctx['layout_split_mode'] ?? 'auto' );            // 'auto' | 'manual'
-$split_after_section_id_1   = (int) ( $ctx['layout_split_after_section']  ?? 0 );          // term_id (or 0)
-$split_after_section_id_2   = (int) ( $ctx['layout_split_after_section2'] ?? 0 );          // term_id (or 0)
+$split_after_section_id_1   = (int) ( $ctx['layout_split_after_section']  ?? 0 );
+$split_after_section_id_2   = (int) ( $ctx['layout_split_after_section2'] ?? 0 );
 
 /* -------- helpers -------- */
 
@@ -86,7 +87,6 @@ if ( ! empty( $ctx['inline_below_separator'] ) ) {
 } elseif ( ! empty( $ctx['inline_separator'] ) ) {
 	$global_inline_separator = (string) $ctx['inline_separator'];
 } elseif ( $is_editor && $toggle_on ) {
-	// Only show preview dot if toggle is ON but content not set yet
 	$global_inline_separator = '·';
 }
 
@@ -110,14 +110,12 @@ $__resolve_section_level = function( $section_term ) : int {
 		$term = get_term( $parent, 'jprm_section' );
 		if ( ! $term || is_wp_error( $term ) ) break;
 		$parent = (int) $term->parent;
-		if ( $level > 6 ) break; // sanity guard
+		if ( $level > 6 ) break; // safety
 	}
 	return $level;
 };
 
-/**
- * Get a term_id from a $term (object/array).
- */
+/** Get term_id from a $term (object/array). */
 $__term_id_of = function( $term ) : int {
 	if ( ! $term ) return 0;
 	if ( is_object( $term ) ) return (int) ( $term->term_id ?? 0 );
@@ -125,16 +123,23 @@ $__term_id_of = function( $term ) : int {
 	return 0;
 };
 
-/**
- * Build children map (parent_id => [child_ids in order])
- * and a top-level (level 0) ordered list.
- */
-$children_map = [];
-$top_level_order = [];
+/* -------- build children map + top-level order (with orphan fallback) -------- */
+$in_order = [];
+foreach ( $sections_order as $tid ) {
+	$in_order[(int)$tid] = true;
+}
+
+$children_map   = [];            // parent_id => [child_ids ordered]
+$top_level_order = [];           // [top-level ids ordered]
+$all_ids_linear  = [];           // original order (ints), used for leftovers pass
 
 foreach ( $sections_order as $tid ) {
 	$tid = (int) $tid;
-	if ( empty( $sections_data[ $tid ] ) ) continue;
+	$all_ids_linear[] = $tid;
+	if ( empty( $sections_data[ $tid ] ) ) {
+		// Keep going; safety net later will skip unknowns.
+		continue;
+	}
 
 	$term   = $sections_data[ $tid ]['term'] ?? null;
 	$parent = 0;
@@ -147,13 +152,78 @@ foreach ( $sections_order as $tid ) {
 	if ( $parent === 0 ) {
 		$top_level_order[] = $tid;
 	} else {
-		if ( ! isset( $children_map[ $parent ] ) ) $children_map[ $parent ] = [];
-		$children_map[ $parent ][] = $tid;
+		// If parent not present in "order", promote this child to top-level (orphan fallback).
+		if ( empty( $in_order[ $parent ] ) ) {
+			$top_level_order[] = $tid;
+		} else {
+			if ( ! isset( $children_map[ $parent ] ) ) $children_map[ $parent ] = [];
+			$children_map[ $parent ][] = $tid;
+		}
 	}
 }
 
+/** Find index of a term id within order, or -1 if not present */
+$__index_of_term = function( array $order, int $term_id ) : int {
+	if ( $term_id <= 0 ) return -1;
+	foreach ( $order as $i => $tid ) {
+		if ( (int)$tid === $term_id ) return (int)$i;
+	}
+	return -1;
+};
+
+/** Split top-level sections into 1/2/3 columns. */
+$__split_sections = function( array $order, int $cols, string $mode, int $id1, int $id2 ) use ($__index_of_term) : array {
+	$order = array_values( $order );
+	$n = count( $order );
+	if ( $cols <= 1 || $n === 0 ) return [ $order ];
+
+	if ( $mode === 'manual' ) {
+		$idx1 = $__index_of_term( $order, $id1 );
+		$idx2 = $__index_of_term( $order, $id2 );
+
+		if ( $cols === 2 ) {
+			if ( $idx1 >= 0 ) {
+				$cut = $idx1 + 1;
+				return [ array_slice( $order, 0, $cut ), array_slice( $order, $cut ) ];
+			}
+			$cut = (int) ceil( $n / 2 );
+			return [ array_slice( $order, 0, $cut ), array_slice( $order, $cut ) ];
+		}
+
+		if ( $idx1 >= 0 && $idx2 >= 0 && $idx2 > $idx1 ) {
+			$cut1 = $idx1 + 1;
+			$cut2 = $idx2 + 1;
+			return [
+				array_slice( $order, 0, $cut1 ),
+				array_slice( $order, $cut1, $cut2 - $cut1 ),
+				array_slice( $order, $cut2 ),
+			];
+		}
+		$cut1 = (int) ceil( $n / 3 );
+		$cut2 = (int) ceil( 2 * $n / 3 );
+		return [
+			array_slice( $order, 0, $cut1 ),
+			array_slice( $order, $cut1, $cut2 - $cut1 ),
+			array_slice( $order, $cut2 ),
+		];
+	}
+
+	// Auto
+	if ( $cols === 2 ) {
+		$cut = (int) ceil( $n / 2 );
+		return [ array_slice( $order, 0, $cut ), array_slice( $order, $cut ) ];
+	}
+	$cut1 = (int) ceil( $n / 3 );
+	$cut2 = (int) ceil( 2 * $n / 3 );
+	return [
+		array_slice( $order, 0, $cut1 ),
+		array_slice( $order, $cut1, $cut2 - $cut1 ),
+		array_slice( $order, $cut2 ),
+	];
+};
+
 /** Render a single section (and recursively its children) */
-$__render_section = function( int $tid ) use (
+$__render_section = function( int $tid, array &$rendered ) use (
 	$sections_data, $show_section_name, $show_section_desc, $ib_map,
 	$global_labels_layout, $section_layouts,
 	$global_matrix_placeholder, $global_inline_separator, $global_placeholder_legacy,
@@ -163,11 +233,14 @@ $__render_section = function( int $tid ) use (
 ) : void {
 
 	if ( empty( $sections_data[ $tid ] ) ) return;
+	if ( ! empty( $rendered[ $tid ] ) ) return;
+	$rendered[ $tid ] = true;
 
 	$blk    = $sections_data[ $tid ];
 	$term   = $blk['term']  ?? null;
 	$items  = $blk['items'] ?? [];
 	$level  = $__resolve_section_level( $term );
+
 	$has_items    = ! empty( $items );
 	$has_children = ! empty( $children_map[ $tid ] );
 
@@ -182,7 +255,7 @@ $__render_section = function( int $tid ) use (
 		$data_id = ' data-section-id="' . (int) $tid . '"';
 
 		if ( $level === 0 ) {
-			// MAIN section → obey widget switches; also show if it has children
+			// MAIN section → obey widget switches; show if has items or children or explicit "even if empty"
 			if ( $show_main_sections && ( $show_main_even_if_empty || $has_items || $has_children ) ) {
 				echo '<li class="' . esc_attr( $classes ) . '"' . $data_id . '>';
 				echo '<h3 class="jp-section__title">' . esc_html( is_object( $term ) ? ( $term->name ?? '' ) : ( $term['name'] ?? '' ) ) . '</h3>';
@@ -228,7 +301,7 @@ $__render_section = function( int $tid ) use (
 		'label_position'     => $label_position,
 		'label_map'          => $label_map,
 		'currency_opts'      => $currency_opts,
-		// === BADGES (pass to templates)
+		// === BADGES
 		'show_badges'         => $show_badges ? 'yes' : 'no',
 		'badges_position'     => $badges_position,
 		'badges_presentation' => $badges_presentation,
@@ -247,6 +320,8 @@ $__render_section = function( int $tid ) use (
 		case 'inline':
 		default:             $file = $base . '/inline.php';       break;
 	}
+
+	// Render items (if any)
 	if ( file_exists( $file ) && ! empty( $items ) ) {
 		$_section_ctx = $sctx;
 		echo "<!-- badges ctx @section tid={$tid} enabled=" . ( ($sctx['show_badges']==='yes') ? '1' : '0' )
@@ -258,10 +333,10 @@ $__render_section = function( int $tid ) use (
 	}
 
 	// Render children directly below this section, in original order
-	if ( $has_children ) {
+	if ( ! empty( $children_map[ $tid ] ) ) {
 		foreach ( $children_map[ $tid ] as $child_tid ) {
 			$child_tid = (int) $child_tid;
-			$__render_section( $child_tid );
+			$__render_section( $child_tid, $rendered );
 		}
 	}
 
@@ -271,101 +346,43 @@ $__render_section = function( int $tid ) use (
 	}
 };
 
-/** Find index of a term id within order, or -1 if not present */
-$__index_of_term = function( array $order, int $term_id ) : int {
-	if ( $term_id <= 0 ) return -1;
-	foreach ( $order as $i => $tid ) {
-		if ( (int)$tid === $term_id ) return (int)$i;
-	}
-	return -1;
-};
-
-/** Split top-level sections into 1/2/3 columns.
- * Auto: even by count.
- * Manual: split after the provided top-level term IDs (if not found → fallback auto).
- */
-$__split_sections = function( array $order, int $cols, string $mode, int $id1, int $id2 ) use ($__index_of_term) : array {
-	$order = array_values( $order );
-	$n = count( $order );
-	if ( $cols <= 1 || $n === 0 ) return [ $order ];
-
-	if ( $mode === 'manual' ) {
-		$idx1 = $__index_of_term( $order, $id1 ); // index of split point 1
-		$idx2 = $__index_of_term( $order, $id2 ); // index of split point 2 (for 3 cols)
-
-		if ( $cols === 2 ) {
-			if ( $idx1 >= 0 ) {
-				$cut = $idx1 + 1; // after the chosen section
-				return [
-					array_slice( $order, 0, $cut ),
-					array_slice( $order, $cut ),
-				];
-			}
-			// fallback to auto if not found
-			$cut = (int) ceil( $n / 2 );
-			return [ array_slice( $order, 0, $cut ), array_slice( $order, $cut ) ];
-		} else {
-			// 3 columns
-			if ( $idx1 >= 0 && $idx2 >= 0 && $idx2 > $idx1 ) {
-				$cut1 = $idx1 + 1;
-				$cut2 = $idx2 + 1;
-				return [
-					array_slice( $order, 0, $cut1 ),
-					array_slice( $order, $cut1, $cut2 - $cut1 ),
-					array_slice( $order, $cut2 ),
-				];
-			}
-			// partial or invalid manual → fallback auto
-			$cut1 = (int) ceil( $n / 3 );
-			$cut2 = (int) ceil( 2 * $n / 3 );
-			return [
-				array_slice( $order, 0, $cut1 ),
-				array_slice( $order, $cut1, $cut2 - $cut1 ),
-				array_slice( $order, $cut2 ),
-			];
-		}
-	}
-
-	// Auto: split evenly by count
-	if ( $cols === 2 ) {
-		$cut = (int) ceil( $n / 2 );
-		return [ array_slice( $order, 0, $cut ), array_slice( $order, $cut ) ];
-	} else {
-		$cut1 = (int) ceil( $n / 3 );
-		$cut2 = (int) ceil( 2 * $n / 3 );
-		return [
-			array_slice( $order, 0, $cut1 ),
-			array_slice( $order, $cut1, $cut2 - $cut1 ),
-			array_slice( $order, $cut2 ),
-		];
-	}
-};
-
 /* -------- top meta (above) -------- */
 if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
 	echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
 }
 
-/* -------- render columns --------
- * IMPORTANT: we split *top-level* sections only.
- */
-$columns_sets = $__split_sections(
-	$top_level_order,
-	$columns,
-	$split_mode,
-	$split_after_section_id_1,
-	$split_after_section_id_2
-);
+/* -------- render columns (top-level split only) -------- */
+$columns_sets = (function() use ($top_level_order, $columns, $split_mode, $split_after_section_id_1, $split_after_section_id_2, $__split_sections) {
+	return $__split_sections( $top_level_order, $columns, $split_mode, $split_after_section_id_1, $split_after_section_id_2 );
+})();
+
+$rendered = []; // tid => true
 
 echo '<div class="jp-menu-grid jp-menu-grid--cols-' . (int)$columns . '" style="--jp-cols:' . (int)$columns . ';">';
 foreach ( $columns_sets as $col_idx => $col_top_level_ids ) {
 	echo '<ul class="jp-menu jp-menu--col" data-col="' . (int)$col_idx . '">';
 	foreach ( $col_top_level_ids as $tid ) {
-		$__render_section( (int) $tid ); // renders its children internally
+		$tid = (int) $tid;
+		$__render_section( $tid, $rendered ); // renders children and marks all as rendered
 	}
 	echo '</ul>';
 }
 echo '</div>';
+
+/* -------- leftover safety net: render any section not rendered yet (in original order) -------- */
+$leftovers = [];
+foreach ( $all_ids_linear as $tid ) {
+	$tid = (int)$tid;
+	if ( empty( $sections_data[ $tid ] ) ) continue;
+	if ( empty( $rendered[ $tid ] ) ) $leftovers[] = $tid;
+}
+if ( ! empty( $leftovers ) ) {
+	echo '<ul class="jp-menu jp-menu--col jp-menu--leftovers" data-col="leftovers">';
+	foreach ( $leftovers as $tid ) {
+		$__render_section( (int)$tid, $rendered );
+	}
+	echo '</ul>';
+}
 
 /* -------- bottom meta (below) -------- */
 if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'below_menu' ) {
