@@ -193,7 +193,7 @@ trait Restaurant_Menu_Style {
 					'right'  => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-text-align-right' ],
 				],
 				'selectors' => [
-					'{{WRAPPER}} .jp-menu__section--level-0 > .jp-section__title' => 'text-align: {{VALUE}};',
+					'{{WRAPPER}} .jp-menu__section--level-0' => 'text-align: {{VALUE}};',
 				],
 			]
 		);
