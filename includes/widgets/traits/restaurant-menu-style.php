@@ -182,7 +182,21 @@ trait Restaurant_Menu_Style {
 				'{{WRAPPER}} .jp-menu__section--level-0 > .jp-section__title' => 'color: {{VALUE}};',
 			],
 		] );
-
+		$this->add_responsive_control(
+			'jprm_menu_main_section_align',
+			[
+				'label'   => __( 'Alignment', 'jellopoint-restaurant-menu' ),
+				'type'    => Controls_Manager::CHOOSE,
+				'options' => [
+					'left'   => [ 'title' => __( 'Left', 'jellopoint-restaurant-menu' ),   'icon' => 'eicon-text-align-left' ],
+					'center' => [ 'title' => __( 'Center', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-center' ],
+					'right'  => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-text-align-right' ],
+				],
+				'selectors' => [
+					'{{WRAPPER}} .jp-menu__section--level-0 > .jp-section__title' => 'text-align: {{VALUE}};',
+				],
+			]
+		);
 		$this->add_responsive_control( 'jprm_main_section_spacing', [
 			'label'      => __( 'Bottom Spacing', 'jellopoint-restaurant-menu' ),
 			'type'       => Controls_Manager::SLIDER,
