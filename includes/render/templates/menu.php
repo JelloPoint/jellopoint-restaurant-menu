@@ -160,7 +160,6 @@ foreach ( array_keys( $registry ) as $tid ) {
 				break;
 			}
 		}
-		// Walk up
 		$pid = $__parent_id_of( $registry[ $pid ]['term'] ?? null );
 	}
 }
@@ -256,8 +255,13 @@ $__split_sections = function( array $order, int $cols, string $mode, int $id1, i
 	];
 };
 
-/** Render one section (and its children) */
+/** -----------------------------------------------------------------------
+ * Render one section (and its children) — recursive closure
+ * IMPORTANT: capture itself by reference in `use (&$__render_section, ...)`
+ * --------------------------------------------------------------------- */
+$__render_section = null;
 $__render_section = function( int $tid ) use (
+	&$__render_section,
 	$registry, $children_map,
 	$show_section_name, $show_section_desc,
 	$global_labels_layout, $section_layouts,
@@ -364,7 +368,7 @@ $__render_section = function( int $tid ) use (
 	if ( ! empty( $children_map[ $tid ] ) ) {
 		foreach ( $children_map[ $tid ] as $child_tid ) {
 			$child_tid = (int) $child_tid;
-			$__render_section( $child_tid );
+			$__render_section( $child_tid ); // recursive
 		}
 	}
 
@@ -380,36 +384,9 @@ if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'abo
 }
 
 /* -------- columns: split by ROOTS (top-level) only -------- */
-$__index_of_term = function( array $order, int $term_id ) : int {
-	if ( $term_id <= 0 ) return -1;
-	foreach ( $order as $i => $tid ) { if ( (int)$tid === $term_id ) return (int)$i; }
-	return -1;
-};
-$__split_sections = function( array $order, int $cols, string $mode, int $id1, int $id2 ) use ($__index_of_term) : array {
-	$order = array_values( $order );
-	$n = count( $order );
-	if ( $cols <= 1 || $n === 0 ) return [ $order ];
-	if ( $mode === 'manual' ) {
-		$idx1 = $__index_of_term( $order, $id1 );
-		$idx2 = $__index_of_term( $order, $id2 );
-		if ( $cols === 2 ) {
-			if ( $idx1 >= 0 ) { $cut = $idx1 + 1; return [ array_slice($order,0,$cut), array_slice($order,$cut) ]; }
-			$cut = (int)ceil($n/2); return [ array_slice($order,0,$cut), array_slice($order,$cut) ];
-		}
-		if ( $idx1 >= 0 && $idx2 >= 0 && $idx2 > $idx1 ) {
-			$cut1 = $idx1 + 1; $cut2 = $idx2 + 1;
-			return [ array_slice($order,0,$cut1), array_slice($order,$cut1,$cut2-$cut1), array_slice($order,$cut2) ];
-		}
-		$cut1 = (int)ceil($n/3); $cut2 = (int)ceil(2*$n/3);
-		return [ array_slice($order,0,$cut1), array_slice($order,$cut1,$cut2-$cut1), array_slice($order,$cut2) ];
-	}
-	// auto
-	if ( $cols === 2 ) { $cut = (int)ceil($n/2); return [ array_slice($order,0,$cut), array_slice($order,$cut) ]; }
-	$cut1 = (int)ceil($n/3); $cut2 = (int)ceil(2*$n/3);
-	return [ array_slice($order,0,$cut1), array_slice($order,$cut1,$cut2-$cut1), array_slice($order,$cut2) ];
-};
-
-$columns_sets = $__split_sections( $top_level_order, $columns, $split_mode, $split_after_section_id_1, $split_after_section_id_2 );
+$columns_sets = (function() use ($top_level_order, $columns, $split_mode, $split_after_section_id_1, $split_after_section_id_2, $__split_sections) {
+	return $__split_sections( $top_level_order, $columns, $split_mode, $split_after_section_id_1, $split_after_section_id_2 );
+})();
 
 echo '<div class="jp-menu-grid jp-menu-grid--cols-' . (int)$columns . '" style="--jp-cols:' . (int)$columns . ';">';
 foreach ( $columns_sets as $col_idx => $roots ) {
