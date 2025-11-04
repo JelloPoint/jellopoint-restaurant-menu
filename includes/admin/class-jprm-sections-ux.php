@@ -10,10 +10,21 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  *
  * Mapping Menu → Sections is provided by the host via:
  *   apply_filters( 'jprm_get_sections_for_menu', [], $menu_id );
- * and is already wired in Sections_Admin (filter at file bottom).
+ * (wired in Sections_Admin via add_filter at file bottom there).
  */
 final class Sections_UX {
 
+	/**
+	 * Back-compat with existing loader:
+	 * Your plugin calls Sections_UX::init(), so keep this method.
+	 */
+	public static function init() : void {
+		self::bootstrap();
+	}
+
+	/**
+	 * Canonical bootstrap (can be called directly too).
+	 */
 	public static function bootstrap() : void {
 		add_action( 'wp_ajax_jprm_sections_for_menu', [ __CLASS__, 'ajax_sections_for_menu' ] );
 		add_action( 'elementor/editor/after_enqueue_scripts', [ __CLASS__, 'enqueue_editor_assets' ] );
@@ -21,10 +32,14 @@ final class Sections_UX {
 
 	public static function enqueue_editor_assets() : void {
 		$handle = 'jprm-elementor-sections-ux';
-		// file lives at: assets/admin/elementor-sections-ux.js
-		$src    = plugins_url( '../../assets/admin/elementor-sections-ux.js', __FILE__ );
-		$ver    = defined( 'JPRM_PLUGIN_VERSION' ) ? JPRM_PLUGIN_VERSION : time();
+
+		// JS lives at: assets/admin/elementor-sections-ux.js (relative to plugin root)
+		// Using plugins_url with __FILE__ two dirs up to reach /assets/admin/...
+		$src = plugins_url( '../../assets/admin/elementor-sections-ux.js', __FILE__ );
+
+		$ver = defined( 'JPRM_PLUGIN_VERSION' ) ? JPRM_PLUGIN_VERSION : time();
 		wp_enqueue_script( $handle, $src, [ 'jquery' ], $ver, true );
+
 		wp_localize_script( $handle, 'JPRMSectionsUX', [
 			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 			'nonce'   => wp_create_nonce( 'jprm_sections_ux' ),
@@ -92,6 +107,3 @@ final class Sections_UX {
 		wp_send_json_success([ 'sections' => $out ]);
 	}
 }
-
-// Boot the helpers
-Sections_UX::bootstrap();
