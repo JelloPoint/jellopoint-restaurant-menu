@@ -275,7 +275,7 @@ class Sections_Admin {
 				wrap.innerHTML =
 					'<label class="screen-reader-text" for="jprm_filter_menu"><?php echo esc_js( __( 'Filter by Menu', 'jprm' ) ); ?></label>' +
 					'<select name="jprm_filter_menu" id="jprm_filter_menu" class="postform"><?php echo $options; ?></select>' +
-					'<input type="submit" name="filter_action" class="button" value="<?php echo esc_js( __( 'Filter', 'jprm' ) ); ?>">';
+					'<input type="submit" name="filter_action" class="button" value="<?php echo esc_js( __( 'Filter', 'jprm' ) ); ?>">' ;
 
 				topActions.prepend(wrap);
 			}
@@ -340,4 +340,80 @@ class Sections_Admin {
 		</script>
 		<?php
 	}
+
+	/* ================= Canonical: sections for a given Menu (tree-ordered) ================= */
+
+	/**
+	 * Return jprm_section terms owned by a Menu (via META_MENU_OWNER),
+	 * in a stable tree order (roots first, then depth-first children).
+	 *
+	 * @param int $menu_id
+	 * @return array<\WP_Term>
+	 */
+	public static function get_sections_for_menu( int $menu_id ) : array {
+		if ( $menu_id <= 0 ) return [];
+
+		$terms = get_terms( [
+			'taxonomy'   => self::TAX_SECTION,
+			'hide_empty' => false,
+			'meta_query' => [
+				[
+					'key'     => self::META_MENU_OWNER,
+					'value'   => (string) $menu_id,
+					'compare' => '=',
+				],
+			],
+			// order by name as a deterministic fallback (you may switch to custom meta if you have manual ordering)
+			'orderby'    => 'name',
+			'order'      => 'ASC',
+		] );
+
+		if ( is_wp_error( $terms ) || empty( $terms ) ) return [];
+
+		// Build parent → children map for a depth-first tree order
+		$by_id     = [];
+		$children  = [];
+		foreach ( $terms as $t ) {
+			$by_id[ (int) $t->term_id ] = $t;
+		}
+		foreach ( $terms as $t ) {
+			$pid = (int) $t->parent;
+			if ( $pid && ! isset( $by_id[ $pid ] ) ) {
+				// parent not owned by the same menu; treat as root to avoid losing it in UI
+				$pid = 0;
+			}
+			if ( ! isset( $children[ $pid ] ) ) $children[ $pid ] = [];
+			$children[ $pid ][] = (int) $t->term_id;
+		}
+
+		$out  = [];
+		$walk = function( int $tid ) use ( &$walk, &$out, $children, $by_id ) {
+			if ( ! isset( $by_id[ $tid ] ) ) return;
+			$out[] = $by_id[ $tid ];
+			if ( ! empty( $children[ $tid ] ) ) {
+				foreach ( $children[ $tid ] as $cid ) {
+					$walk( (int) $cid );
+				}
+			}
+		};
+
+		$roots = isset( $children[0] ) ? $children[0] : [];
+		foreach ( $roots as $rid ) {
+			$walk( (int) $rid );
+		}
+
+		return $out;
+	}
 }
+
+/* ================= Global wiring for the editor UX (EXACT LINE YOU REQUESTED) ================= */
+
+// Wire the endpoint filter used by the Elementor-controls AJAX helper.
+// It delegates to the canonical source above, so there is no guessing here.
+add_filter( 'jprm_get_sections_for_menu', function( $sections, $menu_id ) {
+	if ( method_exists( '\JelloPoint\RestaurantMenu\Admin\Sections_Admin', 'get_sections_for_menu' ) ) {
+		$list = \JelloPoint\RestaurantMenu\Admin\Sections_Admin::get_sections_for_menu( (int) $menu_id );
+		return is_array( $list ) ? $list : [];
+	}
+	return is_array( $sections ) ? $sections : [];
+}, 10, 2 );

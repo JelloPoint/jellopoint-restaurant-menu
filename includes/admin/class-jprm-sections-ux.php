@@ -1,89 +1,108 @@
 <?php
 namespace JelloPoint\RestaurantMenu\Admin;
 
-if ( ! defined( 'ABSPATH' ) ) exit;
+if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
- * Lightweight UI tweaks for the jprm_section taxonomy:
- * - List page: "Add Section" button text
- * - Edit page: hide Slug, "Edit Section" heading, "Parent Section" label
+ * Admin/editor UX helpers for Sections pickers in Elementor controls.
+ *
+ * Provides:
+ * - AJAX: jprm_sections_for_menu ?menu_id=<id>
+ *   Returns a JSON payload with a tree of sections (id, text, level, parent).
+ *
+ * HOW WE GET SECTIONS:
+ * - We DO NOT guess the data model.
+ * - We call the filter 'jprm_get_sections_for_menu' and expect back an array of WP_Term (jprm_section)
+ *   or array-like objects with at least term_id, name, parent.
+ *
+ * You implement the filter where you already know the mapping Menu → Sections (e.g., your admin/service layer).
+ *
+ * Example filter stub (put elsewhere in your plugin):
+ *
+ *   add_filter('jprm_get_sections_for_menu', function($sections, $menu_id) {
+ *       // Return array of WP_Term for taxonomy 'jprm_section' that belong to $menu_id, in your desired order
+ *       return $sections;
+ *   }, 10, 2);
  */
-class Sections_UX {
+final class JPRM_Sections_UX {
 
-	const TAX = 'jprm_section';
-
-	public static function init() : void {
-		add_action( 'admin_head-edit-tags.php', [ __CLASS__, 'inject_css_js' ] );
-		add_action( 'admin_head-term.php',      [ __CLASS__, 'inject_css_js' ] );
+	public static function bootstrap() : void {
+		add_action( 'wp_ajax_jprm_sections_for_menu', [ __CLASS__, 'ajax_sections_for_menu' ] );
+		add_action( 'elementor/editor/after_enqueue_scripts', [ __CLASS__, 'enqueue_editor_assets' ] );
 	}
 
-	public static function inject_css_js() : void {
-		?>
-		<style>
-			/* Hide Slug on add + edit for jprm_section */
-			body.taxonomy-<?php echo esc_attr( self::TAX ); ?> .form-field.term-slug-wrap,
-			body.taxonomy-<?php echo esc_attr( self::TAX ); ?> .term-slug-wrap {
-				display: none !important;
+	public static function enqueue_editor_assets() : void {
+		$handle = 'jprm-elementor-sections-ux';
+		$src    = plugins_url( '../../assets/admin/elementor-sections-ux.js', __FILE__ );
+		wp_enqueue_script( $handle, $src, [ 'jquery' ], JPRM_PLUGIN_VERSION ?? time(), true );
+		wp_localize_script( $handle, 'JPRMSectionsUX', [
+			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+			'nonce'   => wp_create_nonce( 'jprm_sections_ux' ),
+		] );
+	}
+
+	public static function ajax_sections_for_menu() : void {
+		check_ajax_referer( 'jprm_sections_ux', 'nonce' );
+
+		$menu_id = isset($_GET['menu_id']) ? (int) $_GET['menu_id'] : 0;
+		if ( $menu_id <= 0 ) {
+			wp_send_json_success([ 'sections' => [] ]);
+		}
+
+		// Ask the host plugin/app for the correct sections list (no guessing here).
+		$sections = apply_filters( 'jprm_get_sections_for_menu', [], $menu_id );
+
+		// Normalize to a flat array of nodes [tid,name,parent]
+		$nodes = [];
+		foreach ( (array) $sections as $t ) {
+			if ( is_object($t) ) {
+				$tid    = (int)($t->term_id ?? 0);
+				$name   = (string)($t->name ?? '');
+				$parent = (int)($t->parent ?? 0);
+			} else {
+				$tid    = (int)($t['term_id'] ?? 0);
+				$name   = (string)($t['name'] ?? '');
+				$parent = (int)($t['parent'] ?? 0);
 			}
-		</style>
-		<script>
-		(function(){
-			function ready(fn){ if(document.readyState!=='loading'){fn();} else {document.addEventListener('DOMContentLoaded',fn);} }
-			function isSectionScreen(){ return document.body.classList.contains('taxonomy-<?php echo esc_js(self::TAX); ?>'); }
+			if ( $tid > 0 && $name !== '' ) {
+				$nodes[$tid] = [ 'id'=>$tid, 'text'=>$name, 'parent'=>$parent ];
+			}
+		}
 
-			function tweakListPage(){
-				if (!isSectionScreen()) return;
-				// Left add box submit button -> "Add Section"
-				var addSubmit = document.querySelector('#addtag input#submit, #addtag button#submit, .tag-add-form input[type="submit"], .tag-add-form button[type="submit"]');
-				if (addSubmit) {
-					if (addSubmit.tagName === 'INPUT') addSubmit.value = 'Add Section';
-					else addSubmit.textContent = 'Add Section';
-					addSubmit.setAttribute('aria-label', 'Add Section');
+		// Build a tree order: roots first, then children (stable)
+		$children = [];
+		foreach ( $nodes as $n ) {
+			$pid = (int)$n['parent'];
+			if ( ! isset($children[$pid]) ) $children[$pid] = [];
+			$children[$pid][] = $n['id'];
+		}
+
+		$out = [];
+		$walk = function( int $tid, int $level ) use ( &$walk, &$out, $nodes, $children ) {
+			if ( ! isset($nodes[$tid]) ) return;
+			$n = $nodes[$tid];
+			$out[] = [
+				'id'    => $n['id'],
+				'text'  => $n['text'],
+				'level' => $level,
+				'parent'=> (int)$n['parent'],
+			];
+			if ( ! empty($children[$tid]) ) {
+				foreach ( $children[$tid] as $cid ) {
+					$walk( (int)$cid, $level+1 );
 				}
 			}
+		};
 
-			function tweakEditPage(){
-				if (!isSectionScreen()) return;
+		$roots = isset($children[0]) ? $children[0] : [];
+		foreach ( $roots as $rtid ) {
+			$walk( (int)$rtid, 0 );
+		}
 
-				// H1: "Edit Category" -> "Edit Section" (best-effort; if not present, leave as-is)
-				var h1 = document.querySelector('.wrap > h1');
-				if (h1 && /Category/i.test(h1.textContent)) {
-					h1.textContent = h1.textContent.replace(/Category/gi, 'Section');
-				}
-
-				// Robustly rename Parent label to "Parent Section" on term.php.
-				// Different WP versions / themes render the label in different places.
-				var candidates = [
-					// Classic table layout
-					'.edit-tag-form .form-field.term-parent-wrap th label',
-					// Sometimes the label is a div/label combo
-					'.edit-tag-form .form-field.term-parent-wrap label',
-					// Fallback: any label inside the parent wrap
-					'.term-parent-wrap label'
-				];
-				var renamed = false;
-				for (var i=0; i<candidates.length; i++) {
-					var el = document.querySelector(candidates[i]);
-					if (el) {
-						el.textContent = 'Parent Section';
-						renamed = true;
-					}
-				}
-
-				// Also adjust any ARIA / title attributes that might show tooltips/help
-				var parentSelect = document.querySelector('.term-parent-wrap select');
-				if (parentSelect) {
-					parentSelect.setAttribute('aria-label', 'Parent Section');
-					parentSelect.setAttribute('title', 'Parent Section');
-				}
-			}
-
-			ready(function(){
-				tweakListPage();
-				tweakEditPage();
-			});
-		})();
-		</script>
-		<?php
+		wp_send_json_success([
+			'sections' => $out, // [{id,text,level,parent},...]
+		]);
 	}
 }
+
+JPRM_Sections_UX::bootstrap();
