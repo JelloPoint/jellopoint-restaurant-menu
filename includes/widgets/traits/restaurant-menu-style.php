@@ -203,9 +203,9 @@ trait Restaurant_Menu_Style {
 				'label'      => __( 'Margin', 'jellopoint-restaurant-menu' ),
 				'type'       => Controls_Manager::DIMENSIONS,
 				'size_units' => [ 'px', 'em', '%' ],
-				'selectors' => [
-					'{{WRAPPER}} .jp-menu__section--level-0' => 'text-align: {{VALUE}};',
-				],
+				'selectors'  => [
+				'{{WRAPPER}} .jp-menu__section--level-0 > .jp-section__title, {{WRAPPER}} .jp-menu__section--level-2 > .jp-section__title, {{WRAPPER}} .jp-menu__section--level-3 > .jp-section__title' => 'margin-bottom: {{SIZE}}{{UNIT}};',
+			],
 			]
 		);
 
