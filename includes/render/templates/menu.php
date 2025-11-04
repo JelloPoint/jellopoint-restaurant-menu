@@ -241,29 +241,36 @@ $__render_section = function( int $tid ) use (
 		$data_id = ' data-section-id="' . (int) $tid . '"';
 
 		if ( $level === 0 ) {
-			// STRICT: only the two switches decide
-			if ( $show_main_sections === 'yes' && ( $show_main_even_if_empty === 'yes' || $has_items || $has_children ) ) {
+			// Main (level 0): ONLY these two switches decide
+			$allow_main = ( $show_main_sections === 'yes' )
+				&& ( $show_main_even_if_empty === 'yes' || $has_items || $has_children );
+
+			// debug: inspect flags in page source
+			echo "<!-- MAIN hdr tid={$tid} sms={$show_main_sections} even={$show_main_even_if_empty} items=" . ($has_items?'1':'0') . " kids=" . ($has_children?'1':'0') . " allow=" . ($allow_main?'1':'0') . " -->";
+
+			if ( $allow_main ) {
 				echo '<li class="' . esc_attr( $classes ) . '"' . $data_id . '>';
-				echo '<h3 class="jp-section__title">' . esc_html( is_object( $term ) ? ( $term->name ?? '' ) : ( $term['name'] ?? '' ) ) . '</h3>';
-				if ( $show_section_desc ) {
-					$desc = is_object( $term ) ? (string) ( $term->description ?? '' ) : (string) ( $term['description'] ?? '' );
-					if ( $desc !== '' ) echo '<div class="jp-section__desc">' . esc_html( $desc ) . '</div>';
-				}
+					echo '<h3 class="jp-section__title">' . esc_html( is_object( $term ) ? ( $term->name ?? '' ) : ( $term['name'] ?? '' ) ) . '</h3>';
+					if ( $show_section_desc ) {
+						$desc = is_object( $term ) ? (string) ( $term->description ?? '' ) : (string) ( $term['description'] ?? '' );
+						if ( $desc !== '' ) echo '<div class="jp-section__desc">' . esc_html( $desc ) . '</div>';
+					}
 				echo '</li>';
 			}
 		} else {
-			// subsections obey the general show_section_name flag
+			// Subsections: obey the generic show_section_name switch
 			if ( $show_section_name ) {
 				echo '<li class="' . esc_attr( $classes ) . '"' . $data_id . '>';
-				echo '<h4 class="jp-section__title">' . esc_html( is_object( $term ) ? ( $term->name ?? '' ) : ( $term['name'] ?? '' ) ) . '</h4>';
-				if ( $show_section_desc ) {
-					$desc = is_object( $term ) ? (string) ( $term->description ?? '' ) : (string) ( $term['description'] ?? '' );
-					if ( $desc !== '' ) echo '<div class="jp-section__desc">' . esc_html( $desc ) . '</div>';
-				}
+					echo '<h4 class="jp-section__title">' . esc_html( is_object( $term ) ? ( $term->name ?? '' ) : ( $term['name'] ?? '' ) ) . '</h4>';
+					if ( $show_section_desc ) {
+						$desc = is_object( $term ) ? (string) ( $term->description ?? '' ) : (string) ( $term['description'] ?? '' );
+						if ( $desc !== '' ) echo '<div class="jp-section__desc">' . esc_html( $desc ) . '</div>';
+					}
 				echo '</li>';
 			}
 		}
 	}
+
 
 	// Effective layout (per-section override → global)
 	$layout = $global_labels_layout;
