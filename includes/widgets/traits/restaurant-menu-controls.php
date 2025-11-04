@@ -218,7 +218,7 @@ trait Restaurant_Menu_Controls {
 			'type'         => Controls_Manager::SWITCHER,
 			'return_value' => 'yes',
 			'default'      => 'no',
-			'description'  => __( 'When enabled, top-level (level 0) section titles like "Drinks" are rendered.', 'jellopoint-restaurant-menu' ),
+			'description'  => __( 'Render level-0 (top-level) section titles like "Drinks".', 'jellopoint-restaurant-menu' ),
 		] );
 
 		$this->add_control( 'show_main_even_if_empty', [
@@ -227,8 +227,9 @@ trait Restaurant_Menu_Controls {
 			'return_value' => 'yes',
 			'default'      => 'no',
 			'condition'    => [ 'show_main_sections' => 'yes' ],
-			'description'  => __( 'If disabled, main section titles are only shown when that section (or its own items) are non-empty.', 'jellopoint-restaurant-menu' ),
+			'description'  => __( 'If off, main titles show only when the section has items or child sections.', 'jellopoint-restaurant-menu' ),
 		] );
+
 		$this->end_controls_section();
 
 		/* --- Prices and Labels -------------------------------------------------- */
