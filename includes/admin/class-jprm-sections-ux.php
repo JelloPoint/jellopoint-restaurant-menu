@@ -4,14 +4,13 @@ namespace JelloPoint\RestaurantMenu\Admin;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
- * Elementor editor UX helpers for section pickers.
+ * Elementor editor UX helpers for section pickers:
+ *  - AJAX: jprm_sections_for_menu?menu_id=<id>
+ *  - Editor JS to repopulate section dropdowns when Menu changes.
  *
- * - AJAX action: jprm_sections_for_menu?menu_id=<id>
- *   Returns a flat, tree-ordered list [{id,text,level,parent}, ...]
- * - Enqueues editor JS that repopulates section selects when Menu changes.
- *
- * The actual “which sections belong to this menu” mapping is provided by the host
- * via filter: `jprm_get_sections_for_menu` and is already wired in Sections_Admin.
+ * Mapping Menu → Sections is provided by the host via:
+ *   apply_filters( 'jprm_get_sections_for_menu', [], $menu_id );
+ * and is already wired in Sections_Admin (filter at file bottom).
  */
 final class Sections_UX {
 
@@ -22,9 +21,9 @@ final class Sections_UX {
 
 	public static function enqueue_editor_assets() : void {
 		$handle = 'jprm-elementor-sections-ux';
-		$src    = plugins_url( '../assets/admin/elementor-sections-ux.js', dirname( __FILE__ ) );
-		// If you have a constant, use it; otherwise fall back to time() for cache-busting in dev
-		$ver    = defined('JPRM_PLUGIN_VERSION') ? JPRM_PLUGIN_VERSION : time();
+		// file lives at: assets/admin/elementor-sections-ux.js
+		$src    = plugins_url( '../../assets/admin/elementor-sections-ux.js', __FILE__ );
+		$ver    = defined( 'JPRM_PLUGIN_VERSION' ) ? JPRM_PLUGIN_VERSION : time();
 		wp_enqueue_script( $handle, $src, [ 'jquery' ], $ver, true );
 		wp_localize_script( $handle, 'JPRMSectionsUX', [
 			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
@@ -94,5 +93,5 @@ final class Sections_UX {
 	}
 }
 
-// Boot
+// Boot the helpers
 Sections_UX::bootstrap();
