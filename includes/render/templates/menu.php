@@ -2,17 +2,16 @@
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
- * Menu dispatcher with multi-column support (ID-based manual split).
+ * Menu dispatcher with multi-column support.
  * - Columns: 1, 2, 3 via layout_columns
- * - Split mode: auto | manual (by section IDs)
+ * - Split mode: auto | manual (by top-level section IDs)
  * - Per-section layout override still applied for each section
  * - Passes effective values to selected layout (Matrix placeholder / Inline-Below separator)
  *
  * Enhanced:
- * - Level-aware classes for section headers: jp-menu__section--level-{N}
- * - Controls for main-section (level 0) visibility:
- *     - show_main_sections (yes/no)
- *     - show_main_even_if_empty (yes/no)
+ * - Grouping: main (level 0) section renders its own children directly beneath it
+ * - Column split now uses ONLY top-level sections, preserving grouping
+ * - Main heading visibility considers "has children" as well as "has items"
  */
 
 if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
@@ -65,7 +64,6 @@ $show_badges         = ! empty( $ctx['show_badges'] );                       // 
 $badges_position     = (string) ( $ctx['badges_position'] ?? 'after' );      // 'before' | 'after'
 $badges_presentation = (string) ( $ctx['badges_presentation'] ?? 'icon_text' );
 
-
 /* -------- read your existing control names -------- */
 $columns                    = max( 1, min( 3, (int) ( $ctx['layout_columns'] ?? 1 ) ) );
 $split_mode                 = (string) ( $ctx['layout_split_mode'] ?? 'auto' );            // 'auto' | 'manual'
@@ -77,19 +75,19 @@ $split_after_section_id_2   = (int) ( $ctx['layout_split_after_section2'] ?? 0 )
 // === Inline-Below separator from widget settings (supports both keys) ===
 $is_editor = false;
 if ( class_exists('\Elementor\Plugin') ) {
-    try { $is_editor = \Elementor\Plugin::$instance->editor->is_edit_mode(); } catch (\Throwable $e) {}
+	try { $is_editor = \Elementor\Plugin::$instance->editor->is_edit_mode(); } catch (\Throwable $e) {}
 }
 
 $toggle_on = ! empty( $ctx['inline_below_sep_enable'] ) && $ctx['inline_below_sep_enable'] === 'on';
 
 $global_inline_separator = '';
 if ( ! empty( $ctx['inline_below_separator'] ) ) {
-    $global_inline_separator = (string) $ctx['inline_below_separator'];
+	$global_inline_separator = (string) $ctx['inline_below_separator'];
 } elseif ( ! empty( $ctx['inline_separator'] ) ) {
-    $global_inline_separator = (string) $ctx['inline_separator'];
+	$global_inline_separator = (string) $ctx['inline_separator'];
 } elseif ( $is_editor && $toggle_on ) {
-    // Only show preview dot if toggle is ON but content not set yet
-    $global_inline_separator = '·';
+	// Only show preview dot if toggle is ON but content not set yet
+	$global_inline_separator = '·';
 }
 
 /**
@@ -100,7 +98,6 @@ if ( ! empty( $ctx['inline_below_separator'] ) ) {
  */
 $__resolve_section_level = function( $section_term ) : int {
 	if ( ! $section_term ) return 0;
-	// Handle object or array shape.
 	$parent = 0;
 	if ( is_object( $section_term ) ) {
 		$parent = (int) ( $section_term->parent ?? 0 );
@@ -118,38 +115,75 @@ $__resolve_section_level = function( $section_term ) : int {
 	return $level;
 };
 
-/** Render a single section by term-id */
+/**
+ * Get a term_id from a $term (object/array).
+ */
+$__term_id_of = function( $term ) : int {
+	if ( ! $term ) return 0;
+	if ( is_object( $term ) ) return (int) ( $term->term_id ?? 0 );
+	if ( is_array( $term ) )  return (int) ( $term['term_id'] ?? 0 );
+	return 0;
+};
+
+/**
+ * Build children map (parent_id => [child_ids in order])
+ * and a top-level (level 0) ordered list.
+ */
+$children_map = [];
+$top_level_order = [];
+
+foreach ( $sections_order as $tid ) {
+	$tid = (int) $tid;
+	if ( empty( $sections_data[ $tid ] ) ) continue;
+
+	$term   = $sections_data[ $tid ]['term'] ?? null;
+	$parent = 0;
+	if ( is_object( $term ) ) {
+		$parent = (int) ( $term->parent ?? 0 );
+	} elseif ( is_array( $term ) ) {
+		$parent = (int) ( $term['parent'] ?? 0 );
+	}
+
+	if ( $parent === 0 ) {
+		$top_level_order[] = $tid;
+	} else {
+		if ( ! isset( $children_map[ $parent ] ) ) $children_map[ $parent ] = [];
+		$children_map[ $parent ][] = $tid;
+	}
+}
+
+/** Render a single section (and recursively its children) */
 $__render_section = function( int $tid ) use (
-    $sections_data, $show_section_name, $show_section_desc, $ib_map,
-    $global_labels_layout, $section_layouts,
-    $global_matrix_placeholder, $global_inline_separator, $global_placeholder_legacy,
-    $label_presentation, $label_position, $label_map, $currency_opts,
-    $show_badges, $badges_position, $badges_presentation,
-    $show_main_sections, $show_main_even_if_empty, $__resolve_section_level
+	$sections_data, $show_section_name, $show_section_desc, $ib_map,
+	$global_labels_layout, $section_layouts,
+	$global_matrix_placeholder, $global_inline_separator, $global_placeholder_legacy,
+	$label_presentation, $label_position, $label_map, $currency_opts,
+	$show_badges, $badges_position, $badges_presentation,
+	$show_main_sections, $show_main_even_if_empty, $__resolve_section_level, $__term_id_of, $children_map
 ) : void {
 
 	if ( empty( $sections_data[ $tid ] ) ) return;
 
-	$blk   = $sections_data[ $tid ];
-	$term  = $blk['term']  ?? null;
-	$items = $blk['items'] ?? [];
-
-	$level     = $__resolve_section_level( $term );
-	$has_items = ! empty( $items );
+	$blk    = $sections_data[ $tid ];
+	$term   = $blk['term']  ?? null;
+	$items  = $blk['items'] ?? [];
+	$level  = $__resolve_section_level( $term );
+	$has_items    = ! empty( $items );
+	$has_children = ! empty( $children_map[ $tid ] );
 
 	// ABOVE info blocks
-	if ( ! empty( $ib_map[$tid]['above'] ) ) {
-		echo '<li class="jp-menu__infoblock-li">'. jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ) .'</li>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	if ( ! empty( $ib_map[ $tid ]['above'] ) ) {
+		echo '<li class="jp-menu__infoblock-li">'. jprm_infoblocks_render_group( $ib_map[ $tid ]['above'], 'above' ) .'</li>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
-	// Section header (conditional for main sections)
+	// Section header
 	if ( $term && $show_section_name ) {
 		$classes = 'jp-menu__section-header jp-menu__section--level-' . (int) $level;
 		$data_id = ' data-section-id="' . (int) $tid . '"';
 
 		if ( $level === 0 ) {
-			// MAIN section → controlled by widget switches
-			if ( $show_main_sections && ( $show_main_even_if_empty || $has_items ) ) {
+			// MAIN section → obey widget switches; also show if it has children
+			if ( $show_main_sections && ( $show_main_even_if_empty || $has_items || $has_children ) ) {
 				echo '<li class="' . esc_attr( $classes ) . '"' . $data_id . '>';
 				echo '<h3 class="jp-section__title">' . esc_html( is_object( $term ) ? ( $term->name ?? '' ) : ( $term['name'] ?? '' ) ) . '</h3>';
 				if ( $show_section_desc ) {
@@ -194,13 +228,13 @@ $__render_section = function( int $tid ) use (
 		'label_position'     => $label_position,
 		'label_map'          => $label_map,
 		'currency_opts'      => $currency_opts,
-		// === BADGES (pass to templates) ====================================
+		// === BADGES (pass to templates)
 		'show_badges'         => $show_badges ? 'yes' : 'no',
 		'badges_position'     => $badges_position,
 		'badges_presentation' => $badges_presentation,
 		'matrix_placeholder'  => $effective_matrix_placeholder,
 		'inline_separator'    => $effective_inline_separator,
-		// expose level for layouts if they want to use it (non-breaking)
+		// Useful to layouts
 		'section_level'       => $level,
 		'section_id'          => $tid,
 	];
@@ -213,20 +247,27 @@ $__render_section = function( int $tid ) use (
 		case 'inline':
 		default:             $file = $base . '/inline.php';       break;
 	}
-	if ( file_exists( $file ) ) {
+	if ( file_exists( $file ) && ! empty( $items ) ) {
 		$_section_ctx = $sctx;
-		/*DEBUG BADGES */
-		echo "<!-- badges ctx @section tid={$tid} enabled=" . (($sctx['show_badges']==='yes')?'1':'0')
+		echo "<!-- badges ctx @section tid={$tid} enabled=" . ( ($sctx['show_badges']==='yes') ? '1' : '0' )
 		   . " pos={$sctx['badges_position']} pres={$sctx['badges_presentation']} level={$level} -->";
 		include $file;
 		unset( $_section_ctx );
-	} else {
+	} elseif ( ! file_exists( $file ) ) {
 		echo '<li class="jp-menu__error">Missing layout template: ' . esc_html( basename( $file ) ) . '</li>';
 	}
 
+	// Render children directly below this section, in original order
+	if ( $has_children ) {
+		foreach ( $children_map[ $tid ] as $child_tid ) {
+			$child_tid = (int) $child_tid;
+			$__render_section( $child_tid );
+		}
+	}
+
 	// BELOW info blocks
-	if ( ! empty( $ib_map[$tid]['below'] ) ) {
-		echo '<li class="jp-menu__infoblock-li">'. jprm_infoblocks_render_group( $ib_map[$tid]['below'], 'below' ) .'</li>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	if ( ! empty( $ib_map[ $tid ]['below'] ) ) {
+		echo '<li class="jp-menu__infoblock-li">'. jprm_infoblocks_render_group( $ib_map[ $tid ]['below'], 'below' ) .'</li>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 };
 
@@ -239,9 +280,9 @@ $__index_of_term = function( array $order, int $term_id ) : int {
 	return -1;
 };
 
-/** Split sections into 1/2/3 columns.
+/** Split top-level sections into 1/2/3 columns.
  * Auto: even by count.
- * Manual: split after the provided term IDs (if not found → fallback auto).
+ * Manual: split after the provided top-level term IDs (if not found → fallback auto).
  */
 $__split_sections = function( array $order, int $cols, string $mode, int $id1, int $id2 ) use ($__index_of_term) : array {
 	$order = array_values( $order );
@@ -305,9 +346,11 @@ if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'abo
 	echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
 }
 
-/* -------- render columns -------- */
+/* -------- render columns --------
+ * IMPORTANT: we split *top-level* sections only.
+ */
 $columns_sets = $__split_sections(
-	$sections_order,
+	$top_level_order,
 	$columns,
 	$split_mode,
 	$split_after_section_id_1,
@@ -315,10 +358,10 @@ $columns_sets = $__split_sections(
 );
 
 echo '<div class="jp-menu-grid jp-menu-grid--cols-' . (int)$columns . '" style="--jp-cols:' . (int)$columns . ';">';
-foreach ( $columns_sets as $col_idx => $col_section_ids ) {
+foreach ( $columns_sets as $col_idx => $col_top_level_ids ) {
 	echo '<ul class="jp-menu jp-menu--col" data-col="' . (int)$col_idx . '">';
-	foreach ( $col_section_ids as $tid ) {
-		$__render_section( (int)$tid );
+	foreach ( $col_top_level_ids as $tid ) {
+		$__render_section( (int) $tid ); // renders its children internally
 	}
 	echo '</ul>';
 }
