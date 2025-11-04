@@ -1,8 +1,9 @@
 (function ($) {
   'use strict';
 
-  /* -------------------- CONFIG -------------------- */
-  // Menu controls (use your two keys)
+  // ===== DEBUG BANNER =====
+  console.log('%c[JPRM] sections-dep.js active', 'background:#222;color:#0f0;padding:2px 6px;border-radius:3px');
+
   const MENU_SELECTORS = [
     '[data-setting="data_menu"]',
     '[data-setting="menus"]',
@@ -16,14 +17,9 @@
     '[data-setting="layout_split_after_section"]',
     '[data-setting="layout_split_after_section2"]',
     'select[name*="section_layouts"][name$="[section_id]"]',
-    // Generic: any select whose name/data-setting contains "section"
     'select[name*="section"]',
     'select[data-setting*="section"]',
   ];
-
-  /* -------------------- UTIL -------------------- */
-  const LOG = '[JPRM calm]';
-  function log(){ /* uncomment to debug: console.log.apply(console,[LOG].concat([].slice.call(arguments))); */ }
 
   function ajaxUrl() {
     if (window.JPRMSectionsUX && JPRMSectionsUX.ajaxUrl) return JPRMSectionsUX.ajaxUrl;
@@ -32,24 +28,22 @@
   }
   function ajaxNonce(){ return (window.JPRMSectionsUX && JPRMSectionsUX.nonce) ? JPRMSectionsUX.nonce : ''; }
 
-  function getPanelRoot(){
+  function panelRoot(){
     const $p = $('.elementor-panel');
     return $p.length ? $p : $(document.body);
   }
 
-  function getCurrentMenuId($root) {
+  function currentMenuId($root) {
     for (const sel of MENU_SELECTORS) {
       const $el = $root.find(sel).first();
-      if ($el.length) {
-        const v = Array.isArray($el.val()) ? $el.val()[0] : $el.val();
-        if (v && /^\d+$/.test(String(v))) return parseInt(v, 10);
-      }
+      if (!$el.length) continue;
+      const v = Array.isArray($el.val()) ? $el.val()[0] : $el.val();
+      if (v && /^\d+$/.test(String(v))) return parseInt(v, 10);
     }
     return 0;
   }
 
-  /* -------------------- FETCH + CACHE -------------------- */
-  const cache = new Map(); // menuId -> nodes[{id,text,level,parent}]
+  const cache = new Map(); // menuId -> nodes[]
 
   async function fetchNodes(menuId) {
     const params = new URLSearchParams();
@@ -71,152 +65,91 @@
     return nodes;
   }
 
-  function toOptions(nodes) {
-    const opts = [{ value:'', label:'' }];
+  function makeOptions(nodes) {
+    const out = [{ value:'', label:'' }];
     nodes.forEach(n => {
       const lvl = Number(n.level || 0);
       const ind = lvl > 0 ? Array(lvl + 1).join('— ') : '';
-      opts.push({ value: String(n.id), label: ind + n.text });
+      out.push({ value:String(n.id), label: ind + n.text });
     });
-    return opts;
+    return out;
   }
 
-  // Compare current <option> list with new one to avoid unnecessary churn
   function optionsEqual($select, opts) {
-    const $opts = $select.find('option');
-    if ($opts.length !== opts.length) return false;
+    const $o = $select.find('option');
+    if ($o.length !== opts.length) return false;
     for (let i=0;i<opts.length;i++) {
-      const o = opts[i];
-      const $o = $opts.eq(i);
-      if (String($o.attr('value')||'') !== String(o.value||'')) return false;
-      if (String($o.text()||'') !== String(o.label||'')) return false;
+      if (String($o.eq(i).attr('value')||'') !== String(opts[i].value||'')) return false;
+      if (String($o.eq(i).text()||'')       !== String(opts[i].label||'')) return false;
     }
     return true;
   }
 
-  // Apply options without triggering preview refreshes:
-  // - do NOT touch Elementor model
-  // - do NOT trigger 'change' unless previous selection is invalid
-  function applyOptionsToSelect($select, opts) {
+  function applyOptions($select, opts) {
+    if (optionsEqual($select, opts)) return;
     const prev = $select.val();
-
-    if (optionsEqual($select, opts)) {
-      // No change needed
-      return;
-    }
-
     $select.find('option').remove();
     opts.forEach(o => $select.append(new Option(o.label, o.value, false, false)));
-
+    // keep previous silently if still valid
     if (prev && (Array.isArray(prev) ? prev.length : prev)) {
-      // Keep previous if still valid
       if (opts.some(o => (Array.isArray(prev) ? prev.includes(o.value) : o.value === prev))) {
-        $select.val(prev); // do NOT trigger change
+        $select.val(prev);
       } else {
-        $select.val('');   // do NOT trigger change
+        $select.val('');
       }
     } else {
-      $select.val('');     // do NOT trigger change
+      $select.val('');
     }
   }
 
-  /* -------------------- CORE UPDATE -------------------- */
-  let debounceTimer = null;
-  let isUpdating    = false;
-
-  function scheduleUpdate(reason) {
-    if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      updateAll(reason);
-    }, 120);
+  let queued = null;
+  function schedule(reason){
+    if (queued) cancelAnimationFrame(queued);
+    queued = requestAnimationFrame(() => updateAll(reason));
   }
 
-  async function updateAll(reason) {
-    if (isUpdating) return; // prevent overlap
-    isUpdating = true;
-    const $panel = getPanelRoot();
-    const menuId = getCurrentMenuId($panel);
+  async function updateAll(reason){
+    const $root = panelRoot();
+    const mid   = currentMenuId($root);
+    if (!mid) return;
 
-    log('update', reason, 'menu', menuId);
-    if (!menuId) { isUpdating = false; return; }
+    const nodes   = await getNodes(mid);
+    const options = makeOptions(nodes);
 
-    const nodes   = await getNodes(menuId);
-    const options = toOptions(nodes);
-
-    // Fill every matching select under the panel
-    // Each select updates only if options actually differ
-    const $targets = $panel.find(TARGET_SELECTORS.join(',')).filter(function(){
-      // Skip Select2 hidden duplicates; update only the original select
-      return !$(this).hasClass('select2-hidden-accessible');
+    const $targets = $root.find(TARGET_SELECTORS.join(',')).filter(function(){
+      return !$(this).hasClass('select2-hidden-accessible'); // skip select2 clones
     });
 
     $targets.each(function(){
-      const $sel = $(this);
-      applyOptionsToSelect($sel, options);
+      applyOptions($(this), options);
     });
 
-    isUpdating = false;
+    console.log('[JPRM] updated', reason, 'menu=', mid, 'targets=', $targets.length, 'nodes=', nodes.length);
   }
 
-  /* -------------------- BINDINGS -------------------- */
-  function bindOnce($panel) {
-    if ($panel.data('jprm-bound')) return;
-    $panel.data('jprm-bound', 1);
-
-    // Menu changes: clear cache and update
-    MENU_SELECTORS.forEach(sel => {
-      $panel.on('change', sel, function(){
-        cache.clear();
-        scheduleUpdate('menu-change');
-      });
-    });
-
-    // When a target select is inserted into DOM, update once
-    const mo = new MutationObserver((muts) => {
-      let found = false;
-      for (const m of muts) {
-        if (m.type !== 'childList' || !m.addedNodes || !m.addedNodes.length) continue;
-        $(m.addedNodes).each(function(){
-          const $n = $(this);
-          if ($n.is('select') && matchesAny($n, TARGET_SELECTORS)) { found = true; return false; }
-          if ($n.find && $n.find('select').filter((i, el) => matchesAny($(el), TARGET_SELECTORS)).length) { found = true; return false; }
-        });
-        if (found) break;
-      }
-      if (found) scheduleUpdate('targets-added');
-    });
-    mo.observe($panel.get(0), { childList: true, subtree: true });
-
-    // Also refresh when a target select receives focus (if options were not yet applied)
-    $panel.on('focus', TARGET_SELECTORS.join(','), function(){
-      scheduleUpdate('focus');
-    });
+  function boot(){
+    const $root = panelRoot();
 
     // Initial fill
-    scheduleUpdate('boot');
-  }
+    schedule('boot');
 
-  function matchesAny($el, selectors) {
-    for (const s of selectors) if ($el.is(s)) return true;
-    return false;
-  }
+    // Menu change
+    MENU_SELECTORS.forEach(sel => {
+      $root.on('change', sel, function(){ cache.clear(); schedule('menu-change'); });
+    });
 
-  function boot() {
-    const $panel = getPanelRoot();
-    if (!$panel.length) {
-      setTimeout(boot, 200);
-      return;
-    }
+    // New controls injected
+    const mo = new MutationObserver(() => schedule('mutation'));
+    const el = $root.get(0);
+    if (el) mo.observe(el, { childList: true, subtree: true });
 
-    // Elementor event when a widget editor opens
-    if (window.elementor && elementor.hooks && elementor.hooks.addAction) {
-      elementor.hooks.addAction('panel/open_editor/widget', function(){
-        bindOnce(getPanelRoot());
-      });
-    }
+    // Focus/open of any target select
+    $root.on('focus select2:opening', TARGET_SELECTORS.join(','), function(){ schedule('open/focus'); });
 
-    // If panel already present, bind now
-    bindOnce($panel);
+    // Repeater add/remove
+    $root.on('click', '.elementor-repeater-add, .elementor-repeater-remove', function(){
+      setTimeout(() => schedule('repeater'), 50);
+    });
   }
 
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
