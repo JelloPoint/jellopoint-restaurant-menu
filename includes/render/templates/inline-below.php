@@ -7,10 +7,14 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * Expects $_section_ctx = [
  *   'term','items','label_presentation','label_map','currency_opts','inline_separator'
  *   'show_badges','badges_position','badges_presentation'
+ *   // Extras from menu.php:
+ *   'section_level' => int (0 = main, 1+ = sub),
+ *   'section_id'    => int (term_id)
  * ]
  */
 
 $sctx = isset($_section_ctx) && is_array($_section_ctx) ? $_section_ctx : [];
+
 $items = is_array($sctx['items'] ?? null) ? $sctx['items'] : [];
 $label_presentation = (string)($sctx['label_presentation'] ?? 'icon_text');
 $label_map          = is_array($sctx['label_map'] ?? null) ? $sctx['label_map'] : [];
@@ -21,6 +25,10 @@ $sep                = (string)($sctx['inline_separator'] ?? '');
 $badges_enabled      = ((string)($sctx['show_badges'] ?? 'yes') === 'yes');
 $badges_position     = (string)($sctx['badges_position'] ?? 'after');        // 'before'|'after'
 $badges_presentation = (string)($sctx['badges_presentation'] ?? 'icon_text');// 'icon'|'text'|'icon_text'
+
+// Level / ID (for styling hooks)
+$section_level = (int)($sctx['section_level'] ?? 0);
+$section_id    = (int)($sctx['section_id'] ?? 0);
 
 // Elementor editor preview: show a dot if separator empty
 $is_editor = false;
@@ -73,7 +81,7 @@ if (!function_exists('jprm_label_chip_inline_below')) {
 	}
 }
 
-echo '<li class="jp-inline-below">';
+echo '<li class="jp-inline-below jp-menu__section jp-menu__section--level-' . (int)$section_level . '" data-section-id="' . (int)$section_id . '">';
 
 foreach ($items as $post) {
 	$pid   = (int)$post->ID;
@@ -93,9 +101,9 @@ foreach ($items as $post) {
 	echo '<div class="jp-menu__content">';
 		if ($title !== '') {
 			echo '<div class="jp-menu__titlewrap">';
-				if ($badges_position === 'before' && $badges_html !== '') echo $badges_html;
+				if ($badges_position === 'before' && $badges_html !== '') echo $badges_html; // phpcs:ignore
 				echo '<span class="jp-menu__title">' . esc_html($title) . '</span>';
-				if ($badges_position !== 'before' && $badges_html !== '') echo $badges_html;
+				if ($badges_position !== 'before' && $badges_html !== '') echo $badges_html; // phpcs:ignore
 			echo '</div>';
 		}
 		if (is_string($desc) && $desc !== '') echo '<div class="jp-menu__desc">' . esc_html($desc) . '</div>';

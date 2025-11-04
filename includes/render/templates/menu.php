@@ -199,9 +199,6 @@ $__render_section = function( int $tid ) use (
 			$allow_main = ( $show_main_sections === 'yes' )
 				&& ( $show_main_even_if_empty === 'yes' || $has_items || $has_children );
 
-			// tiny debug to verify flags
-			echo "<!-- MAIN tid={$tid} sms={$show_main_sections} even={$show_main_even_if_empty} items=" . ($has_items?'1':'0') . " kids=" . ($has_children?'1':'0') . " allow=" . ($allow_main?'1':'0') . " -->";
-
 			if ( $allow_main ) {
 				echo '<li class="' . esc_attr($classes) . '"' . $data_id . '>';
 					echo '<h3 class="jp-section__title">' . esc_html( is_object($term)?($term->name??''):($term['name']??'') ) . '</h3>';
