@@ -212,6 +212,23 @@ trait Restaurant_Menu_Controls {
 				'show_menu_title!'  => '',
 			],
 		] );
+		// === Main Section Visibility (inside "Sections and Menus") ===
+		$this->add_control( 'show_main_sections', [
+			'label'        => __( 'Show Main Section Headings', 'jellopoint-restaurant-menu' ),
+			'type'         => Controls_Manager::SWITCHER,
+			'return_value' => 'yes',
+			'default'      => 'no',
+			'description'  => __( 'When enabled, top-level (level 0) section titles like "Drinks" are rendered.', 'jellopoint-restaurant-menu' ),
+		] );
+
+		$this->add_control( 'show_main_even_if_empty', [
+			'label'        => __( 'Show Even If Empty (No Items)', 'jellopoint-restaurant-menu' ),
+			'type'         => Controls_Manager::SWITCHER,
+			'return_value' => 'yes',
+			'default'      => 'no',
+			'condition'    => [ 'show_main_sections' => 'yes' ],
+			'description'  => __( 'If disabled, main section titles are only shown when that section (or its own items) are non-empty.', 'jellopoint-restaurant-menu' ),
+		] );
 		$this->end_controls_section();
 
 		/* --- Prices and Labels -------------------------------------------------- */

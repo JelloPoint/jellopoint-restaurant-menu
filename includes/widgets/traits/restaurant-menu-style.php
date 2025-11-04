@@ -163,6 +163,72 @@ trait Restaurant_Menu_Style {
 		);
 
 		$this->end_controls_section();
+		// === Main Section Heading (Style Tab) ===
+		$this->start_controls_section( 'jprm_section_style_main_section', [
+			'label' => __( 'Main Section Heading', 'jellopoint-restaurant-menu' ),
+			'tab'   => Controls_Manager::TAB_STYLE,
+		] );
+
+		$this->add_group_control( \Elementor\Group_Control_Typography::get_type(), [
+			'name'     => 'jprm_main_section_typo',
+			'label'    => __( 'Typography', 'jellopoint-restaurant-menu' ),
+			'selector' => '{{WRAPPER}} .jp-menu__section--level-0 > .jp-section__title',
+		] );
+
+		$this->add_control( 'jprm_main_section_color', [
+			'label'     => __( 'Text Color', 'jellopoint-restaurant-menu' ),
+			'type'      => Controls_Manager::COLOR,
+			'selectors' => [
+				'{{WRAPPER}} .jp-menu__section--level-0 > .jp-section__title' => 'color: {{VALUE}};',
+			],
+		] );
+
+		$this->add_responsive_control( 'jprm_main_section_spacing', [
+			'label'      => __( 'Bottom Spacing', 'jellopoint-restaurant-menu' ),
+			'type'       => Controls_Manager::SLIDER,
+			'size_units' => [ 'px', 'em', 'rem' ],
+			'range'      => [ 'px' => [ 'min' => 0, 'max' => 100 ] ],
+			'selectors'  => [
+				'{{WRAPPER}} .jp-menu__section--level-0 > .jp-section__title' => 'margin-bottom: {{SIZE}}{{UNIT}};',
+			],
+		] );
+
+		$this->end_controls_section();
+
+
+		// === Subsection Heading (Style Tab) ===
+		$this->start_controls_section( 'jprm_section_style_sub_section', [
+			'label' => __( 'Subsection Heading', 'jellopoint-restaurant-menu' ),
+			'tab'   => Controls_Manager::TAB_STYLE,
+		] );
+
+		$this->add_group_control( \Elementor\Group_Control_Typography::get_type(), [
+			'name'     => 'jprm_sub_section_typo',
+			'label'    => __( 'Typography', 'jellopoint-restaurant-menu' ),
+			'selector' => '{{WRAPPER}} .jp-menu__section--level-1 > .jp-section__title, {{WRAPPER}} .jp-menu__section--level-2 > .jp-section__title, {{WRAPPER}} .jp-menu__section--level-3 > .jp-section__title',
+		] );
+
+		$this->add_control( 'jprm_sub_section_color', [
+			'label'     => __( 'Text Color', 'jellopoint-restaurant-menu' ),
+			'type'      => Controls_Manager::COLOR,
+			'selectors' => [
+				'{{WRAPPER}} .jp-menu__section--level-1 > .jp-section__title' => 'color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu__section--level-2 > .jp-section__title' => 'color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu__section--level-3 > .jp-section__title' => 'color: {{VALUE}};',
+			],
+		] );
+
+		$this->add_responsive_control( 'jprm_sub_section_spacing', [
+			'label'      => __( 'Bottom Spacing', 'jellopoint-restaurant-menu' ),
+			'type'       => Controls_Manager::SLIDER,
+			'size_units' => [ 'px', 'em', 'rem' ],
+			'range'      => [ 'px' => [ 'min' => 0, 'max' => 100 ] ],
+			'selectors'  => [
+				'{{WRAPPER}} .jp-menu__section--level-1 > .jp-section__title, {{WRAPPER}} .jp-menu__section--level-2 > .jp-section__title, {{WRAPPER}} .jp-menu__section--level-3 > .jp-section__title' => 'margin-bottom: {{SIZE}}{{UNIT}};',
+			],
+		] );
+
+		$this->end_controls_section();
 
 		/* ===== Item Title & Description (items only, incl. Matrix) ===== */
 		$this->start_controls_section(
