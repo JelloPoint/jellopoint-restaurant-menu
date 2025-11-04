@@ -2,12 +2,17 @@
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
- * Menu dispatcher (strict, no fallbacks for main headings).
- * - Groups subsections under taxonomy parent (ancestors synthesized if missing).
- * - Columns split on top-level roots only.
- * - Main headings decided ONLY by:
- *     $ctx['show_main_sections']      = 'yes'|'no'
- *     $ctx['show_main_even_if_empty'] = 'yes'|'no'
+ * Menu dispatcher (strict main heading switches + hierarchical template inheritance).
+ *
+ * Inheritance rules for per-section template overrides:
+ *   Effective values (layout, placeholder, separator) are resolved as:
+ *     section override  →  inherited from parent  →  global defaults
+ *
+ * This means:
+ *   - Setting an override on a MAIN section applies to all its subsections,
+ *     unless a subsection explicitly sets its own override.
+ *   - Setting an override on a subsection applies to that subsection (and its own children),
+ *     but not to siblings.
  */
 
 if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
@@ -26,7 +31,7 @@ if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
 	}
 }
 
-/* ---------------- unpack ctx (STRICT for main) ---------------- */
+/* ---------------- unpack ctx (STRICT for main headings) ---------------- */
 $menu_term         = $ctx['menu_term'] ?? null;
 $show_menu_title   = ! empty( $ctx['show_menu_title'] );
 $show_menu_desc    = ! empty( $ctx['show_menu_desc'] );
@@ -69,13 +74,13 @@ if ( class_exists('\Elementor\Plugin') ) {
 	try { $is_editor = \Elementor\Plugin::$instance->editor->is_edit_mode(); } catch (\Throwable $e) {}
 }
 $toggle_on = ! empty( $ctx['inline_below_sep_enable'] ) && $ctx['inline_below_sep_enable'] === 'on';
-$global_inline_separator = '';
+$computed_global_inline_separator = '';
 if ( ! empty( $ctx['inline_below_separator'] ) ) {
-	$global_inline_separator = (string)$ctx['inline_below_separator'];
+	$computed_global_inline_separator = (string)$ctx['inline_below_separator'];
 } elseif ( ! empty( $ctx['inline_separator'] ) ) {
-	$global_inline_separator = (string)$ctx['inline_separator'];
+	$computed_global_inline_separator = (string)$ctx['inline_separator'];
 } elseif ( $is_editor && $toggle_on ) {
-	$global_inline_separator = '·';
+	$computed_global_inline_separator = '·';
 }
 
 $__resolve_section_level = function( $section_term ) : int {
@@ -162,14 +167,14 @@ $__split_sections = function( array $order, int $cols, string $mode, int $id1, i
 	$c1=(int)ceil($n/3); $c2=(int)ceil(2*$n/3); return [array_slice($order,0,$c1), array_slice($order,$c1,$c2-$c1), array_slice($order,$c2)];
 };
 
-/* ---------------- renderer (recursive) ---------------- */
+/* ---------------- renderer (recursive with inheritance) ---------------- */
 $__render_section = null;
-$__render_section = function( int $tid ) use (
+$__render_section = function( int $tid, ?array $inherit = null ) use (
 	&$__render_section,
 	$registry, $children_map,
 	$show_section_name, $show_section_desc,
 	$global_labels_layout, $section_layouts,
-	$global_matrix_placeholder, $global_inline_separator, $global_placeholder_legacy,
+	$global_matrix_placeholder, $computed_global_inline_separator, $global_placeholder_legacy,
 	$label_presentation, $label_position, $label_map, $currency_opts,
 	$show_badges, $badges_position, $badges_presentation,
 	$show_main_sections, $show_main_even_if_empty,
@@ -185,12 +190,29 @@ $__render_section = function( int $tid ) use (
 	$has_items    = ! empty($items);
 	$has_children = ! empty($children_map[$tid]);
 
-	// ABOVE info blocks
+	// ------- Resolve effective layout/values with inheritance -------
+	$sec = $section_layouts[$tid] ?? [];
+	$own_layout       = isset($sec['layout'])      && $sec['layout'] !== ''      ? (string)$sec['layout']      : null;
+	$own_placeholder  = array_key_exists('placeholder', $sec) && $sec['placeholder'] !== '' ? (string)$sec['placeholder'] : null;
+	$own_separator    = array_key_exists('separator',   $sec) && $sec['separator']   !== '' ? (string)$sec['separator']   : null;
+
+	$eff_layout      = $own_layout      ?? ($inherit['layout']      ?? $global_labels_layout);
+	$eff_placeholder = $own_placeholder ?? ($inherit['placeholder'] ?? ($global_matrix_placeholder !== '' ? $global_matrix_placeholder : $global_placeholder_legacy));
+	$eff_separator   = $own_separator   ?? ($inherit['separator']   ?? $computed_global_inline_separator);
+
+	// Bundle to pass to children
+	$child_inherit = [
+		'layout'      => $eff_layout,
+		'placeholder' => $eff_placeholder,
+		'separator'   => $eff_separator,
+	];
+
+	// ------- ABOVE info blocks -------
 	if ( ! empty($ib_map[$tid]['above']) ) {
 		echo '<li class="jp-menu__infoblock-li">'. jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ) .'</li>';
 	}
 
-	// --- Section header (STRICT main rules) ---
+	// ------- Section header (strict main rules) -------
 	if ( $term ) {
 		$classes = 'jp-menu__section-header jp-menu__section--level-' . (int)$level;
 		$data_id = ' data-section-id="' . (int)$tid . '"';
@@ -198,6 +220,9 @@ $__render_section = function( int $tid ) use (
 		if ( $level === 0 ) {
 			$allow_main = ( $show_main_sections === 'yes' )
 				&& ( $show_main_even_if_empty === 'yes' || $has_items || $has_children );
+
+			// Debug: echo effective layout info too
+			echo "<!-- MAIN tid={$tid} sms={$show_main_sections} even={$show_main_even_if_empty} items=" . ($has_items?'1':'0') . " kids=" . ($has_children?'1':'0') . " allow=" . ($allow_main?'1':'0') . " eff_layout={$eff_layout} -->";
 
 			if ( $allow_main ) {
 				echo '<li class="' . esc_attr($classes) . '"' . $data_id . '>';
@@ -221,58 +246,49 @@ $__render_section = function( int $tid ) use (
 		}
 	}
 
-	// Effective layout for items
-	$layout = ! empty($section_layouts[$tid]['layout']) ? (string)$section_layouts[$tid]['layout'] : $global_labels_layout;
-	$effective_matrix_placeholder = ($global_matrix_placeholder !== '') ? $global_matrix_placeholder : $global_placeholder_legacy;
-	if ( isset($section_layouts[$tid]['placeholder']) && $section_layouts[$tid]['placeholder'] !== '' ) {
-		$effective_matrix_placeholder = (string)$section_layouts[$tid]['placeholder'];
-	}
-	$effective_inline_separator = (string)$global_inline_separator;
-	if ( isset($section_layouts[$tid]['separator']) && $section_layouts[$tid]['separator'] !== '' ) {
-		$effective_inline_separator = (string)$section_layouts[$tid]['separator'];
-	}
-
-	$sctx = [
-		'term'               => $term,
-		'items'              => $items,
-		'label_presentation' => $label_presentation,
-		'label_position'     => $label_position,
-		'label_map'          => $label_map,
-		'currency_opts'      => $currency_opts,
-		// badges
-		'show_badges'         => $show_badges ? 'yes' : 'no',
-		'badges_position'     => $badges_position,
-		'badges_presentation' => $badges_presentation,
-		'matrix_placeholder'  => $effective_matrix_placeholder,
-		'inline_separator'    => $effective_inline_separator,
-		// extras
-		'section_level'       => $level,
-		'section_id'          => $tid,
-	];
-
-	// include layout only if there are items
+	// ------- Include layout if there are items -------
 	$base = __DIR__;
-	switch ( $layout ) {
+	switch ( $eff_layout ) {
 		case 'matrix':       $file = $base . '/matrix.php';       break;
 		case 'inline_below': $file = $base . '/inline-below.php'; break;
+		case 'inline':
 		default:             $file = $base . '/inline.php';
 	}
 	if ( file_exists($file) && ! empty($items) ) {
-		$_section_ctx = $sctx;
+		$_section_ctx = [
+			'term'               => $term,
+			'items'              => $items,
+			'label_presentation' => $label_presentation,
+			'label_position'     => $label_position,
+			'label_map'          => $label_map,
+			'currency_opts'      => $currency_opts,
+			// badges
+			'show_badges'         => $show_badges ? 'yes' : 'no',
+			'badges_position'     => $badges_position,
+			'badges_presentation' => $badges_presentation,
+			// effective per-layout extras
+			'matrix_placeholder'  => $eff_placeholder,
+			'inline_separator'    => $eff_separator,
+			// extras
+			'section_level'       => $level,
+			'section_id'          => $tid,
+		];
+		// debug note for dev tools
+		echo "<!-- layout={$eff_layout} placeholder=" . htmlspecialchars((string)$eff_placeholder) . " sep=" . htmlspecialchars((string)$eff_separator) . " -->";
 		include $file;
 		unset($_section_ctx);
 	} elseif ( ! file_exists($file) ) {
 		echo '<li class="jp-menu__error">Missing layout template: ' . esc_html( basename($file) ) . '</li>';
 	}
 
-	// children below this section
+	// ------- Render children (inherit effective layout) -------
 	if ( ! empty($children_map[$tid]) ) {
 		foreach ( $children_map[$tid] as $child_tid ) {
-			$__render_section( (int)$child_tid );
+			$__render_section( (int)$child_tid, $child_inherit );
 		}
 	}
 
-	// BELOW info blocks
+	// ------- BELOW info blocks -------
 	if ( ! empty($ib_map[$tid]['below']) ) {
 		echo '<li class="jp-menu__infoblock-li">'. jprm_infoblocks_render_group( $ib_map[$tid]['below'], 'below' ) .'</li>';
 	}
@@ -292,7 +308,7 @@ echo '<div class="jp-menu-grid jp-menu-grid--cols-' . (int)$columns . '" style="
 foreach ( $columns_sets as $col_idx => $roots ) {
 	echo '<ul class="jp-menu jp-menu--col" data-col="' . (int)$col_idx . '">';
 	foreach ( $roots as $root_tid ) {
-		$__render_section( (int)$root_tid );
+		$__render_section( (int)$root_tid, null ); // root: no inheritance yet
 	}
 	echo '</ul>';
 }
