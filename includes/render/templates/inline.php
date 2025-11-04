@@ -9,10 +9,14 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  *   'show_badges' => 'yes'|'no',
  *   'badges_position' => 'before'|'after',
  *   'badges_presentation' => 'icon'|'text'|'icon_text',
+ *   // From menu.php (non-breaking extras):
+ *   'section_level' => int (0 = main, 1+ = sub),
+ *   'section_id'    => int (term_id)
  * ]
  */
 
-$sctx = isset($_section_ctx) && is_array($_section_ctx) ? $_section_ctx : [];
+$sctx = ( isset($_section_ctx) && is_array($_section_ctx) ) ? $_section_ctx : [];
+
 $items = is_array($sctx['items'] ?? null) ? $sctx['items'] : [];
 $label_presentation = (string)($sctx['label_presentation'] ?? 'icon_text');
 $label_position     = (string)($sctx['label_position'] ?? 'right');
@@ -21,8 +25,12 @@ $currency_opts      = is_array($sctx['currency_opts'] ?? null) ? $sctx['currency
 
 // === BADGES: read from section context (with safe defaults)
 $badges_enabled      = (string)($sctx['show_badges'] ?? 'yes') === 'yes';
-$badges_position     = (string)($sctx['badges_position'] ?? 'after');        // 'before' | 'after'
+$badges_position     = (string)($sctx['badges_position'] ?? 'after');         // 'before' | 'after'
 $badges_presentation = (string)($sctx['badges_presentation'] ?? 'icon_text'); // 'icon' | 'text' | 'icon_text'
+
+// === Level / ID (non-breaking; defaults safe)
+$section_level = (int)($sctx['section_level'] ?? 0);
+$section_id    = (int)($sctx['section_id'] ?? 0);
 
 if (empty($items)) return;
 
@@ -45,11 +53,7 @@ if (!function_exists('jprm_label_chip_inline')) {
 		if (!empty($meta['icon_html'])) {
 			$ico = jprm_sanitize_single_icon((string)$meta['icon_html']); // accepts <img> or <svg>
 		}
-		// Funnel everything through the centralized colorizer:
-		// - inline <svg>  → cleaned + classed (.jp-label__svg) so CSS can set currentColor
-		// - <img ...svg>  → converted to mask span (.jp-label__icon--mask)
-		// - icon_url .svg → mask span
-		// - raster        → <img>
+		// Funnel through centralized colorizer:
 		$ico = jprm_colorize_icon(
 			$ico,
 			!empty($meta['icon_url']) ? (string)$meta['icon_url'] : null,
@@ -73,7 +77,8 @@ if (!function_exists('jprm_label_chip_inline')) {
 	}
 }
 
-echo '<li class="jp-inline">';
+// === Wrapper with level-aware classes for per-level styling
+echo '<li class="jp-inline jp-menu__section jp-menu__section--level-' . (int)$section_level . '" data-section-id="' . (int)$section_id . '">';
 
 foreach ($items as $post) {
 	$pid   = (int)$post->ID;
@@ -94,16 +99,17 @@ foreach ($items as $post) {
 		if ($title !== '') {
 			echo '<div class="jp-menu__titlewrap">';
 				if ($badges_position === 'before' && $badges_html !== '') {
-					echo $badges_html;
+					echo $badges_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				}
 				echo '<span class="jp-menu__title">' . esc_html($title) . '</span>';
 				if ($badges_position !== 'before' && $badges_html !== '') {
-					echo $badges_html;
+					echo $badges_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				}
 			echo '</div>';
 		}
-		// (unchanged)
-		if (is_string($desc) && $desc !== '') echo '<div class="jp-menu__desc">' . esc_html($desc) . '</div>';
+		if (is_string($desc) && $desc !== '') {
+			echo '<div class="jp-menu__desc">' . esc_html($desc) . '</div>';
+		}
 	echo '</div>';
 
 	echo '<div class="jp-menu__pricegroup">';

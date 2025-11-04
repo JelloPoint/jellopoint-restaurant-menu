@@ -7,6 +7,12 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * - Split mode: auto | manual (by section IDs)
  * - Per-section layout override still applied for each section
  * - Passes effective values to selected layout (Matrix placeholder / Inline-Below separator)
+ *
+ * Enhanced:
+ * - Level-aware classes for section headers: jp-menu__section--level-{N}
+ * - Controls for main-section (level 0) visibility:
+ *     - show_main_sections (yes/no)
+ *     - show_main_even_if_empty (yes/no)
  */
 
 if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
@@ -36,6 +42,10 @@ $sections_data     = is_array( $ctx['sections_data'] ?? null )  ? $ctx['sections
 
 $show_section_name = ! empty( $ctx['show_section_name'] );
 $show_section_desc = ! empty( $ctx['show_section_desc'] );
+
+/** NEW: main section visibility controls (from Elementor "Sections and Menus") */
+$show_main_sections       = ! empty( $ctx['show_main_sections'] ) && $ctx['show_main_sections'] === 'yes';
+$show_main_even_if_empty  = ! empty( $ctx['show_main_even_if_empty'] ) && $ctx['show_main_even_if_empty'] === 'yes';
 
 $label_presentation = (string) ( $ctx['label_presentation'] ?? 'icon_text' );
 $label_position     = (string) ( $ctx['label_position'] ?? 'right' );
@@ -82,6 +92,31 @@ if ( ! empty( $ctx['inline_below_separator'] ) ) {
     $global_inline_separator = '·';
 }
 
+/**
+ * Compute the section depth (0 = main). Supports deep hierarchies safely.
+ *
+ * @param WP_Term|array|null $section_term
+ * @return int
+ */
+$__resolve_section_level = function( $section_term ) : int {
+	if ( ! $section_term ) return 0;
+	// Handle object or array shape.
+	$parent = 0;
+	if ( is_object( $section_term ) ) {
+		$parent = (int) ( $section_term->parent ?? 0 );
+	} elseif ( is_array( $section_term ) ) {
+		$parent = (int) ( $section_term['parent'] ?? 0 );
+	}
+	$level = 0;
+	while ( $parent ) {
+		$level++;
+		$term = get_term( $parent, 'jprm_section' );
+		if ( ! $term || is_wp_error( $term ) ) break;
+		$parent = (int) $term->parent;
+		if ( $level > 6 ) break; // sanity guard
+	}
+	return $level;
+};
 
 /** Render a single section by term-id */
 $__render_section = function( int $tid ) use (
@@ -89,9 +124,9 @@ $__render_section = function( int $tid ) use (
     $global_labels_layout, $section_layouts,
     $global_matrix_placeholder, $global_inline_separator, $global_placeholder_legacy,
     $label_presentation, $label_position, $label_map, $currency_opts,
-    $show_badges, $badges_position, $badges_presentation
+    $show_badges, $badges_position, $badges_presentation,
+    $show_main_sections, $show_main_even_if_empty, $__resolve_section_level
 ) : void {
-
 
 	if ( empty( $sections_data[ $tid ] ) ) return;
 
@@ -99,20 +134,41 @@ $__render_section = function( int $tid ) use (
 	$term  = $blk['term']  ?? null;
 	$items = $blk['items'] ?? [];
 
-// ABOVE info blocks
+	$level     = $__resolve_section_level( $term );
+	$has_items = ! empty( $items );
+
+	// ABOVE info blocks
 	if ( ! empty( $ib_map[$tid]['above'] ) ) {
 		echo '<li class="jp-menu__infoblock-li">'. jprm_infoblocks_render_group( $ib_map[$tid]['above'], 'above' ) .'</li>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
-	// Section header
+	// Section header (conditional for main sections)
 	if ( $term && $show_section_name ) {
-		echo '<li class="jp-menu__section-header"><h3 class="jp-section__title">' . esc_html( $term->name ) . '</h3>';
-		if ( $show_section_desc && ! empty( $term->description ) ) {
-			echo '<div class="jp-section__desc">' . esc_html( $term->description ) . '</div>';
-		}
-		echo '</li>';
-	}
+		$classes = 'jp-menu__section-header jp-menu__section--level-' . (int) $level;
+		$data_id = ' data-section-id="' . (int) $tid . '"';
 
+		if ( $level === 0 ) {
+			// MAIN section → controlled by widget switches
+			if ( $show_main_sections && ( $show_main_even_if_empty || $has_items ) ) {
+				echo '<li class="' . esc_attr( $classes ) . '"' . $data_id . '>';
+				echo '<h3 class="jp-section__title">' . esc_html( is_object( $term ) ? ( $term->name ?? '' ) : ( $term['name'] ?? '' ) ) . '</h3>';
+				if ( $show_section_desc ) {
+					$desc = is_object( $term ) ? (string) ( $term->description ?? '' ) : (string) ( $term['description'] ?? '' );
+					if ( $desc !== '' ) echo '<div class="jp-section__desc">' . esc_html( $desc ) . '</div>';
+				}
+				echo '</li>';
+			}
+		} else {
+			// SUB section → always show
+			echo '<li class="' . esc_attr( $classes ) . '"' . $data_id . '>';
+			echo '<h4 class="jp-section__title">' . esc_html( is_object( $term ) ? ( $term->name ?? '' ) : ( $term['name'] ?? '' ) ) . '</h4>';
+			if ( $show_section_desc ) {
+				$desc = is_object( $term ) ? (string) ( $term->description ?? '' ) : (string) ( $term['description'] ?? '' );
+				if ( $desc !== '' ) echo '<div class="jp-section__desc">' . esc_html( $desc ) . '</div>';
+			}
+			echo '</li>';
+		}
+	}
 
 	// Effective layout (per-section override → global)
 	$layout = $global_labels_layout;
@@ -138,12 +194,15 @@ $__render_section = function( int $tid ) use (
 		'label_position'     => $label_position,
 		'label_map'          => $label_map,
 		'currency_opts'      => $currency_opts,
-		    // === BADGES (pass to templates) ====================================
-    	'show_badges'         => $show_badges ? 'yes' : 'no',
-    	'badges_position'     => $badges_position,
-    	'badges_presentation' => $badges_presentation,
-		'matrix_placeholder' => $effective_matrix_placeholder,
-		'inline_separator'   => $effective_inline_separator,
+		// === BADGES (pass to templates) ====================================
+		'show_badges'         => $show_badges ? 'yes' : 'no',
+		'badges_position'     => $badges_position,
+		'badges_presentation' => $badges_presentation,
+		'matrix_placeholder'  => $effective_matrix_placeholder,
+		'inline_separator'    => $effective_inline_separator,
+		// expose level for layouts if they want to use it (non-breaking)
+		'section_level'       => $level,
+		'section_id'          => $tid,
 	];
 
 	// Choose and include layout
@@ -158,8 +217,7 @@ $__render_section = function( int $tid ) use (
 		$_section_ctx = $sctx;
 		/*DEBUG BADGES */
 		echo "<!-- badges ctx @section tid={$tid} enabled=" . (($sctx['show_badges']==='yes')?'1':'0')
-   . " pos={$sctx['badges_position']} pres={$sctx['badges_presentation']} -->";
-
+		   . " pos={$sctx['badges_position']} pres={$sctx['badges_presentation']} level={$level} -->";
 		include $file;
 		unset( $_section_ctx );
 	} else {
