@@ -33,10 +33,6 @@ final class Sections_UX {
 	public static function enqueue_editor_assets() : void {
 		$handle = 'jprm-elementor-sections-ux';
 
-		// JS lives at: assets/admin/elementor-sections-ux.js (relative to plugin root)
-		// Using plugins_url with __FILE__ two dirs up to reach /assets/admin/...
-		$src = plugins_url( '../../assets/admin/elementor-sections-ux.js', __FILE__ );
-
 		$ver = defined( 'JPRM_PLUGIN_VERSION' ) ? JPRM_PLUGIN_VERSION : time();
 		wp_enqueue_script( $handle, $src, [ 'jquery' ], $ver, true );
 
