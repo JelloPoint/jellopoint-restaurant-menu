@@ -204,7 +204,7 @@ trait Restaurant_Menu_Style {
 				'type'       => Controls_Manager::DIMENSIONS,
 				'size_units' => [ 'px', 'em', '%' ],
 				'selectors' => [
-					'{{WRAPPER}} .jp-menu__section--level-0 > .jp-section__title' => 'text-align: {{VALUE}};',
+					'{{WRAPPER}} .jp-menu__section--level-0' => 'text-align: {{VALUE}};',
 				],
 			]
 		);
