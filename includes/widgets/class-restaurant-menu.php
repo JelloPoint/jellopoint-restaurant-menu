@@ -47,20 +47,22 @@ private static function require_badges_partial_once() : void {
 		$loaded = true;
 	}
 	private static function ensure_menu_meta_helper() : void {
-		if ( function_exists( 'jprm_render_menu_meta' ) ) return;
-		function jprm_render_menu_meta( $term, bool $show_title, bool $show_desc, string $scope ) : string {
-			if ( ! $term || ( ! $show_title && ! $show_desc ) ) return '';
-			$title = $show_title ? trim( (string) $term->name ) : '';
-			$desc  = $show_desc  ? trim( (string) $term->description ) : '';
-			if ( $title === '' && $desc === '' ) return '';
-			$cls = 'jp-menu__meta ' . ( $scope === 'global' ? 'jp-menu__meta--global' : 'jp-menu__meta--col' );
-			$out  = '<div class="' . esc_attr( $cls ) . '">';
-			if ( $title !== '' ) $out .= '<h2 class="jp-menu__meta-title">' . esc_html( $title ) . '</h2>';
-			if ( $desc  !== '' ) $out .= '<div class="jp-menu__meta-desc">' . esc_html( $desc ) . '</div>';
-			$out .= '</div>';
-			return $out;
+if ( ! function_exists( __NAMESPACE__ . '\\jprm_render_menu_meta' ) ) {
+	function jprm_render_menu_meta( $menu_term, bool $show_title, bool $show_desc, string $scope = 'global' ) : string {
+		if ( ! $menu_term ) return '';
+		$out   = '';
+		$title = is_object( $menu_term ) && isset( $menu_term->name ) ? (string) $menu_term->name : '';
+		$desc  = is_object( $menu_term ) && isset( $menu_term->description ) ? (string) $menu_term->description : '';
+
+		if ( $show_title || ( $show_desc && $desc !== '' ) ) {
+			$out .= '<li class="jp-menu__meta jp-menu__meta--' . esc_attr( $scope ) . '">';
+			if ( $show_title && $title !== '' ) $out .= '<h2 class="jp-menu__title">' . esc_html( $title ) . '</h2>';
+			if ( $show_desc  && $desc  !== '' ) $out .= '<div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
+			$out .= '</li>';
 		}
+		return $out;
 	}
+}
 	/**
  * Normalize 'labels_layout_overrides' repeater into a lookup:
  * $map[SECTION_ID]['matrix']['placeholder']
