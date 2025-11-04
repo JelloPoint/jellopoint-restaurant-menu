@@ -2,21 +2,21 @@
 	'use strict';
 
 	/* -------------------- CONFIG -------------------- */
-	const MENU_KEYS = ['data_menu', 'menus']; // widget setting names for menu selection
-	const TARGET_KEYS = [
-		'sections',
-		'layout_split_after_section',
-		'layout_split_after_section2',
-		// repeater inner control name (ends with [section_id] in DOM; in model it's just 'section_id')
-		'section_id'
-	];
-
-	// DOM fallbacks (for safety)
+	// Menu control names/selectors
+	const MENU_KEYS = ['data_menu', 'menus'];
 	const MENU_SELECTORS = [
 		'[data-setting="data_menu"]',
 		'[data-setting="menus"]',
 		'select[name$="[data_menu]"]',
 		'select[name$="[menus]"]',
+	];
+
+	// Target section selects (names and DOM selectors)
+	const TARGET_KEYS = [
+		'sections',
+		'layout_split_after_section',
+		'layout_split_after_section2',
+		'section_id', // repeater inner control
 	];
 	const TARGET_SELECTORS = [
 		'[data-setting="sections"]',
@@ -26,43 +26,40 @@
 	];
 
 	/* -------------------- UTIL -------------------- */
-	const LOG = '[JPRM Sections UX]';
-	function log(){ try{ console.log.apply(console, [LOG].concat([].slice.call(arguments))); }catch(e){} }
+	const LOG = '[JPRM Sections]';
+	function log(){ /* console.log.apply(console, [LOG].concat([].slice.call(arguments))); */ }
 
 	function ajaxUrl() {
 		if (window.JPRMSectionsUX && JPRMSectionsUX.ajaxUrl) return JPRMSectionsUX.ajaxUrl;
 		if (typeof ajaxurl !== 'undefined') return ajaxurl;
 		return '/wp-admin/admin-ajax.php';
 	}
-	function newNonce(){ return (window.JPRMSectionsUX && JPRMSectionsUX.nonce) ? JPRMSectionsUX.nonce : ''; }
-	function legacyNonce(){ return (window.JPRMAjax && JPRMAjax.nonce) ? JPRMAjax.nonce : ''; }
+	function ajaxNonce(){ return (window.JPRMSectionsUX && JPRMSectionsUX.nonce) ? JPRMSectionsUX.nonce : ''; }
 
 	function getPanelView() {
 		try { return elementor.getPanelView().getCurrentPanelView(); } catch(e) { return null; }
 	}
 
-	function getSetting(model, keyList) {
-		for (const k of keyList) {
-			const v = model.getSetting ? model.getSetting(k) : model.get(k);
+	function getSetting(model, keys) {
+		for (const k of keys) {
+			const v = (model.getSetting ? model.getSetting(k) : model.get(k));
 			if (v !== undefined && v !== null && String(v).length) return v;
 		}
 		return null;
 	}
 
-	function getCurrentMenuIdFromModel(model) {
+	function currentMenuIdFromModel(model) {
 		const v = getSetting(model, MENU_KEYS);
-		if (!v) return 0;
-		const val = Array.isArray(v) ? (v[0] || '') : v;
-		return /^\d+$/.test(String(val)) ? parseInt(val, 10) : 0;
+		const first = Array.isArray(v) ? (v[0] || '') : v;
+		return /^\d+$/.test(String(first)) ? parseInt(first, 10) : 0;
 	}
 
 	function toOptions(nodes) {
-		// nodes: [{id,text,level,parent}, ...]
-		const opts = [{ value: '', label: '' }];
+		const opts = [{ value:'', label:'' }];
 		nodes.forEach(n => {
-			const level = Number(n.level || 0);
-			const indent = level > 0 ? Array(level + 1).join('— ') : '';
-			opts.push({ value: String(n.id), label: indent + n.text });
+			const lvl = Number(n.level || 0);
+			const ind = lvl > 0 ? Array(lvl + 1).join('— ') : '';
+			opts.push({ value: String(n.id), label: ind + n.text });
 		});
 		return opts;
 	}
@@ -80,108 +77,71 @@
 	/* -------------------- AJAX + CACHE -------------------- */
 	const cache = new Map(); // menuId -> nodes[]
 
-	async function fetchNew(menuId) {
+	async function fetchNodes(menuId) {
+		const url = ajaxUrl();
 		const params = new URLSearchParams();
 		params.set('action', 'jprm_sections_for_menu');
-		params.set('nonce', newNonce());
+		params.set('nonce', ajaxNonce());
 		params.set('menu_id', String(menuId));
-		const res = await fetch(ajaxUrl() + '?' + params.toString(), { method: 'GET', credentials: 'include' });
-		const json = await res.json();
-		if (!json || !json.success || !json.data || !Array.isArray(json.data.sections)) return null;
+		const res = await fetch(url + '?' + params.toString(), { method: 'GET', credentials: 'include' });
+		const json = await res.json().catch(() => null);
+		if (!json || !json.success || !json.data || !Array.isArray(json.data.sections)) return [];
 		return json.data.sections;
-	}
-
-	async function fetchLegacy(menuId) {
-		const params = new URLSearchParams();
-		params.set('action', 'jprm_sections_by_menu');
-		params.set('menu', String(menuId));
-		const ln = legacyNonce();
-		if (ln) params.set('_ajax_nonce', ln);
-
-		const res = await fetch(ajaxUrl(), {
-			method: 'POST',
-			credentials: 'include',
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-			body: params.toString()
-		});
-		const txt = await res.text();
-		let json = null;
-		try { json = JSON.parse(txt); } catch(e){ return null; }
-		if (!json || !json.success || !json.data) return null;
-
-		// Convert { id: "Label" } map to nodes[]
-		const nodes = [];
-		Object.keys(json.data).forEach(id => {
-			nodes.push({ id: parseInt(id,10), text: String(json.data[id]||''), level: 0, parent: 0 });
-		});
-		return nodes;
 	}
 
 	async function getNodes(menuId) {
 		if (!menuId) return [];
 		if (cache.has(menuId)) return cache.get(menuId);
-		let nodes = null;
-		try { nodes = await fetchNew(menuId); } catch(e) { nodes = null; }
-		if (!nodes) {
-			try { nodes = await fetchLegacy(menuId); } catch(e) { nodes = null; }
-		}
-		if (!Array.isArray(nodes)) nodes = [];
+		const nodes = await fetchNodes(menuId);
 		cache.set(menuId, nodes);
 		return nodes;
 	}
 
 	/* -------------------- CORE APPLY -------------------- */
-
-	// Apply to a single control view (top-level control)
-	function applyToControlView(controlView, optionsMap) {
-		if (!controlView || !controlView.model) return false;
-		const name = controlView.model.get('name');
+	function applyToControlView(view, optionsMap) {
+		if (!view || !view.model) return false;
+		const name = view.model.get('name');
 		if (!name) return false;
 
-		const isTarget =
-			TARGET_KEYS.includes(name) ||
-			// repeater inner control often just called 'section_id'
-			(name === 'section_id');
+		// Is it one of our target controls?
+		if (!(TARGET_KEYS.includes(name) || name === 'section_id')) return false;
 
-		if (!isTarget) return false;
-
-		// Build options as {value:label} for Elementor control model
+		// Convert options array -> object for model
 		const optsObj = {};
 		optionsMap.forEach(o => { if (o.value !== undefined) optsObj[o.value] = o.label; });
 
-		// Keep previous selection if possible
+		// Keep previous value if possible
 		let prev = null;
 		try {
-			const $sel = controlView.$el.find('select,[data-setting="'+name+'"]').first();
-			prev = $sel.length ? $sel.val() : controlView.getControlValue();
+			const $sel = view.$el.find('select,[data-setting="'+name+'"]').first();
+			prev = $sel.length ? $sel.val() : view.getControlValue();
 		} catch(e){}
 
-		controlView.model.set('options', optsObj);
-		if (typeof controlView.render === 'function') controlView.render();
+		view.model.set('options', optsObj);
+		if (typeof view.render === 'function') view.render();
 
-		// DOM safety update for select element (Select2)
+		// Ensure DOM select also has the right options (Select2-safe)
 		try {
-			const $select = controlView.$el.find('select,[data-setting="'+name+'"]');
+			const $select = view.$el.find('select,[data-setting="'+name+'"]');
 			if ($select.length) applyOptionsToSelect($select, optionsMap, prev);
 		} catch(e){}
 
 		return true;
 	}
 
-	// Apply to every control in the current panel, including repeater rows
-	function applyToAllControls(pv, optionsMap) {
+	function applyEverywhere(optionsMap) {
+		const pv = getPanelView();
 		if (!pv || !pv.collection) return;
 
 		// Top-level controls
 		pv.collection.each(function (controlModel) {
 			const name = controlModel.get('name');
-			// Direct view
 			try {
 				const view = pv.getControlView(name);
 				applyToControlView(view, optionsMap);
 			} catch(e){}
 
-			// Repeater controls
+			// Repeater rows
 			if (controlModel.get('type') === 'repeater') {
 				const rows = controlModel.get('rows');
 				if (rows && rows.each) {
@@ -198,7 +158,7 @@
 			}
 		});
 
-		// DOM fallback for anything missed (e.g., freshly injected fields)
+		// DOM last-resort: any raw selects injected later
 		const $panel = $('.elementor-panel');
 		TARGET_SELECTORS.forEach(sel => {
 			$panel.find(sel).each(function(){
@@ -216,19 +176,17 @@
 		debTimer = setTimeout(async function(){
 			const pv = getPanelView();
 			if (!pv || !pv.model) return;
-			const menuId = getCurrentMenuIdFromModel(pv.model);
 
+			const menuId = currentMenuIdFromModel(pv.model);
 			if (!menuId) {
-				// Clear targets if no menu
-				const emptyOpts = [{ value:'', label:'' }];
-				applyToAllControls(pv, emptyOpts);
+				applyEverywhere([{ value:'', label:'' }]);
 				return;
 			}
 
 			const nodes = await getNodes(menuId);
 			const options = toOptions(nodes);
-			applyToAllControls(pv, options);
-		}, 60);
+			applyEverywhere(options);
+		}, 40);
 	}
 
 	/* -------------------- BINDINGS -------------------- */
@@ -236,12 +194,16 @@
 		const pv = getPanelView();
 		if (!pv || !pv.model) return;
 
-		// Any change on the widget model can cause re-render → re-apply
-		pv.model.on('change', function(){ scheduleUpdate('model-change'); });
+		// Any model change can re-render controls
+		pv.model.on('change', () => scheduleUpdate('model'));
 
-		// Explicitly watch menu-related keys
+		// Explicitly watch menu keys
 		MENU_KEYS.forEach(k => {
-			pv.model.on('change:' + k, function(){ scheduleUpdate('menu-change'); });
+			pv.model.on('change:' + k, () => {
+				// clear cache when menu changes (fresh fetch)
+				cache.clear();
+				scheduleUpdate('menu-change');
+			});
 		});
 	}
 
@@ -249,69 +211,64 @@
 		const $panel = $('.elementor-panel');
 		if (!$panel.length) return;
 
-		// Repeater add/remove
-		$panel.on('click', '.elementor-repeater-add, .elementor-repeater-remove', function(){
-			setTimeout(function(){ scheduleUpdate('repeater-change'); }, 50);
+		// Reapply when a target select is about to open (Select2 hook)
+		$panel.on('select2:opening', TARGET_SELECTORS.join(','), function(){
+			scheduleUpdate('select2-opening');
 		});
 
-		// When a target select gets focus (Select2 opens), ensure options are current
+		// Repeater add/remove
+		$panel.on('click', '.elementor-repeater-add, .elementor-repeater-remove', function(){
+			setTimeout(() => scheduleUpdate('repeater'), 50);
+		});
+
+		// MutationObserver: whenever Elementor injects nodes, re-run
+		const mo = new MutationObserver(() => scheduleUpdate('mutation'));
+		mo.observe($panel.get(0), { childList: true, subtree: true });
+
+		// Fallback: focus
 		$panel.on('focus', TARGET_SELECTORS.join(','), function(){
 			scheduleUpdate('focus');
 		});
+	}
 
-		// MutationObserver as last resort
-		const mo = new MutationObserver(function(muts){
-			let hit = false;
-			for (const m of muts) {
-				if (m.type !== 'childList') continue;
-				$(m.addedNodes).each(function(){
-					const $n = $(this);
-					if ($n.find('select').filter((i, el) => {
-						const $el = $(el);
-						return TARGET_SELECTORS.some(s => $el.is(s)) || MENU_SELECTORS.some(s => $el.is(s));
-					}).length) {
-						hit = true;
-					}
-				});
-			}
-			if (hit) scheduleUpdate('mutation');
-		});
-		mo.observe($panel.get(0), { childList: true, subtree: true });
-
-		// Also bind direct menu selects in DOM (fallback)
+	function bindMenuChangeDOM() {
+		const $panel = $('.elementor-panel');
 		MENU_SELECTORS.forEach(sel => {
-			$panel.on('change', sel, function(){ scheduleUpdate('menu-dom-change'); });
+			$panel.on('change', sel, function(){
+				cache.clear();
+				scheduleUpdate('menu-dom-change');
+			});
 		});
 	}
 
 	function boot() {
-		if (!window.elementor || !elementor.getPanelView) {
-			// Editor not ready yet
-			setTimeout(boot, 150);
-			return;
-		}
-
 		// Run when a widget panel opens
-		elementor.hooks.addAction('panel/open_editor/widget', function(panel, model, view){
+		elementor.hooks.addAction('panel/open_editor/widget', function(){
 			setTimeout(function(){
 				bindModelObservers();
 				bindDomObservers();
-				scheduleUpdate('panel-open');
+				bindMenuChangeDOM();
+				scheduleUpdate('open');
 			}, 0);
 		});
 
-		// If already open (hot reload)
+		// If panel is already open (hot-reload)
 		setTimeout(function(){
 			bindModelObservers();
 			bindDomObservers();
+			bindMenuChangeDOM();
 			scheduleUpdate('boot');
 		}, 0);
 	}
 
-	// Start
+	// Start when Elementor editor is ready
 	if (document.readyState === 'complete' || document.readyState === 'interactive') {
-		boot();
+		if (window.elementor && elementor.getPanelView) boot();
+		else $(boot);
 	} else {
-		$(boot);
+		$(function(){
+			if (window.elementor && elementor.getPanelView) boot();
+			else setTimeout(boot, 200);
+		});
 	}
 })(jQuery);
