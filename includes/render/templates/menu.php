@@ -15,6 +15,22 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  *     but not to siblings.
  */
 
+if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
+	function jprm_render_menu_meta( $menu_term, bool $show_title, bool $show_desc, string $scope = 'global' ) : string {
+		if ( ! $menu_term ) return '';
+		$out = '';
+		$title = is_object( $menu_term ) ? (string)($menu_term->name ?? '') : (string)($menu_term['name'] ?? '');
+		$desc  = is_object( $menu_term ) ? (string)($menu_term->description ?? '') : (string)($menu_term['description'] ?? '');
+		if ( $show_title || ( $show_desc && $desc !== '' ) ) {
+			$out .= '<li class="jp-menu__meta jp-menu__meta--' . esc_attr( $scope ) . '">';
+			if ( $show_title && $title !== '' ) $out .= '<h2 class="jp-menu__title">' . esc_html( $title ) . '</h2>';
+			if ( $show_desc  && $desc  !== '' ) $out .= '<div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
+			$out .= '</li>';
+		}
+		return $out;
+	}
+}
+
 /* ---------------- unpack ctx (STRICT for main headings) ---------------- */
 $menu_term         = $ctx['menu_term'] ?? null;
 $show_menu_title   = ! empty( $ctx['show_menu_title'] );
@@ -280,8 +296,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 
 /* -------------- top meta (above) -------------- */
 if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
-	echo \JelloPoint\RestaurantMenu\Widgets\jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
-
+	echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
 }
 
 /* -------------- render columns (roots only) -------------- */
@@ -301,6 +316,5 @@ echo '</div>';
 
 /* -------------- bottom meta (below) -------------- */
 if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'below_menu' ) {
-	echo \JelloPoint\RestaurantMenu\Widgets\jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
-
+	echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
 }

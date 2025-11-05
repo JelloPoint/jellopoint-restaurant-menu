@@ -1,124 +1,89 @@
 <?php
 namespace JelloPoint\RestaurantMenu\Admin;
 
-if ( ! defined( 'ABSPATH' ) ) { exit; }
+if ( ! defined( 'ABSPATH' ) ) exit;
 
-final class Sections_UX {
+/**
+ * Lightweight UI tweaks for the jprm_section taxonomy:
+ * - List page: "Add Section" button text
+ * - Edit page: hide Slug, "Edit Section" heading, "Parent Section" label
+ */
+class Sections_UX {
+
+	const TAX = 'jprm_section';
 
 	public static function init() : void {
-		// AJAX
-		add_action( 'wp_ajax_jprm_sections_for_menu', [ __CLASS__, 'ajax_sections_for_menu' ] );
-
-		// Try both Elementor hooks (some builds only fire one)
-		add_action( 'elementor/editor/before_enqueue_scripts', [ __CLASS__, 'enqueue_editor_assets' ] );
-		add_action( 'elementor/editor/after_enqueue_scripts',  [ __CLASS__, 'enqueue_editor_assets' ] );
-
-		// Final fallback if Elementor hook is missed for some reason
-		add_action( 'admin_enqueue_scripts', [ __CLASS__, 'maybe_enqueue_on_elementor_screen' ] );
+		add_action( 'admin_head-edit-tags.php', [ __CLASS__, 'inject_css_js' ] );
+		add_action( 'admin_head-term.php',      [ __CLASS__, 'inject_css_js' ] );
 	}
 
-	private static function plugin_file_path() : string {
-		// Most JelloPoint plugins define this; fallback to guessing.
-		if ( defined('JPRM_PLUGIN_FILE') && JPRM_PLUGIN_FILE ) return JPRM_PLUGIN_FILE;
-		// Go up two levels from this file to reach the main plugin dir.
-		$root = dirname( dirname( __FILE__ ) );
-		// Try to find the first main file in that dir
-		$candidates = glob( $root . '/*.php' );
-		return $candidates && is_array($candidates) ? $candidates[0] : __FILE__;
-	}
-
-	private static function script_url( string $rel ) : string {
-		// Prefer a constant if available (most of your plugins have it)
-		if ( defined('JPRM_PLUGIN_URL') && JPRM_PLUGIN_URL ) {
-			return rtrim( JPRM_PLUGIN_URL, '/\\' ) . '/' . ltrim( $rel, '/\\' );
-		}
-		// Safe fallback: plugins_url relative to the main plugin file
-		return plugins_url( $rel, self::plugin_file_path() );
-	}
-
-	public static function enqueue_editor_assets() : void {
-		self::enqueue_once();
-	}
-
-	public static function maybe_enqueue_on_elementor_screen( $hook ) : void {
-		// Only load in the Elementor editor
-		if ( isset($_GET['action']) && $_GET['action'] === 'elementor' ) { // phpcs:ignore
-			self::enqueue_once();
-		}
-	}
-
-	private static $enqueued = false;
-	private static function enqueue_once() : void {
-		if ( self::$enqueued ) return;
-		self::$enqueued = true;
-
-		$handle = 'jprm-elementor-sections-dep';
-		$src    = self::script_url( 'assets/admin/elementor-sections-dep.js' );
-		$ver    = defined('JPRM_PLUGIN_VERSION') ? JPRM_PLUGIN_VERSION : time();
-
-		wp_enqueue_script( $handle, $src, [ 'jquery' ], $ver, true );
-		wp_localize_script( $handle, 'JPRMSectionsUX', [
-			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-			'nonce'   => wp_create_nonce( 'jprm_sections_ux' ),
-		] );
-
-		// (Optional but helpful) add a console ping so we *know* it loaded.
-		wp_add_inline_script( $handle, 'console.log("[JPRM] sections dep script enqueued:", ' . json_encode( $src ) . ');' );
-	}
-
-	public static function ajax_sections_for_menu() : void {
-		check_ajax_referer( 'jprm_sections_ux', 'nonce' );
-		$menu_id = isset($_GET['menu_id']) ? (int) $_GET['menu_id'] : 0;
-
-		if ( $menu_id <= 0 ) {
-			wp_send_json_success( [ 'sections' => [] ] );
-		}
-
-		// Ask the host for authoritative list (your Sections_Admin wires the filter)
-		$terms = apply_filters( 'jprm_get_sections_for_menu', [], $menu_id );
-		$nodes = [];
-
-		foreach ( (array) $terms as $t ) {
-			if ( is_object( $t ) ) {
-				$tid = (int) ($t->term_id ?? 0);
-				$txt = (string) ($t->name ?? '');
-				$par = (int) ($t->parent ?? 0);
-			} else {
-				$tid = (int) ($t['term_id'] ?? 0);
-				$txt = (string) ($t['name'] ?? '');
-				$par = (int) ($t['parent'] ?? 0);
+	public static function inject_css_js() : void {
+		?>
+		<style>
+			/* Hide Slug on add + edit for jprm_section */
+			body.taxonomy-<?php echo esc_attr( self::TAX ); ?> .form-field.term-slug-wrap,
+			body.taxonomy-<?php echo esc_attr( self::TAX ); ?> .term-slug-wrap {
+				display: none !important;
 			}
-			if ( $tid > 0 && $txt !== '' ) {
-				$nodes[ $tid ] = [ 'id' => $tid, 'text' => $txt, 'parent' => $par ];
+		</style>
+		<script>
+		(function(){
+			function ready(fn){ if(document.readyState!=='loading'){fn();} else {document.addEventListener('DOMContentLoaded',fn);} }
+			function isSectionScreen(){ return document.body.classList.contains('taxonomy-<?php echo esc_js(self::TAX); ?>'); }
+
+			function tweakListPage(){
+				if (!isSectionScreen()) return;
+				// Left add box submit button -> "Add Section"
+				var addSubmit = document.querySelector('#addtag input#submit, #addtag button#submit, .tag-add-form input[type="submit"], .tag-add-form button[type="submit"]');
+				if (addSubmit) {
+					if (addSubmit.tagName === 'INPUT') addSubmit.value = 'Add Section';
+					else addSubmit.textContent = 'Add Section';
+					addSubmit.setAttribute('aria-label', 'Add Section');
+				}
 			}
-		}
 
-		// Tree order with level
-		$children = [];
-		foreach ( $nodes as $n ) {
-			$pid = (int) $n['parent'];
-			if ( ! isset( $children[ $pid ] ) ) $children[ $pid ] = [];
-			$children[ $pid ][] = $n['id'];
-		}
+			function tweakEditPage(){
+				if (!isSectionScreen()) return;
 
-		$out  = [];
-		$walk = function( int $tid, int $level ) use ( &$walk, &$out, $nodes, $children ) {
-			if ( ! isset( $nodes[ $tid ] ) ) return;
-			$n = $nodes[ $tid ];
-			$out[] = [
-				'id'     => $n['id'],
-				'text'   => $n['text'],
-				'level'  => $level,
-				'parent' => (int) $n['parent'],
-			];
-			if ( ! empty( $children[ $tid ] ) ) {
-				foreach ( $children[ $tid ] as $cid ) $walk( (int) $cid, $level + 1 );
+				// H1: "Edit Category" -> "Edit Section" (best-effort; if not present, leave as-is)
+				var h1 = document.querySelector('.wrap > h1');
+				if (h1 && /Category/i.test(h1.textContent)) {
+					h1.textContent = h1.textContent.replace(/Category/gi, 'Section');
+				}
+
+				// Robustly rename Parent label to "Parent Section" on term.php.
+				// Different WP versions / themes render the label in different places.
+				var candidates = [
+					// Classic table layout
+					'.edit-tag-form .form-field.term-parent-wrap th label',
+					// Sometimes the label is a div/label combo
+					'.edit-tag-form .form-field.term-parent-wrap label',
+					// Fallback: any label inside the parent wrap
+					'.term-parent-wrap label'
+				];
+				var renamed = false;
+				for (var i=0; i<candidates.length; i++) {
+					var el = document.querySelector(candidates[i]);
+					if (el) {
+						el.textContent = 'Parent Section';
+						renamed = true;
+					}
+				}
+
+				// Also adjust any ARIA / title attributes that might show tooltips/help
+				var parentSelect = document.querySelector('.term-parent-wrap select');
+				if (parentSelect) {
+					parentSelect.setAttribute('aria-label', 'Parent Section');
+					parentSelect.setAttribute('title', 'Parent Section');
+				}
 			}
-		};
 
-		$roots = isset( $children[0] ) ? $children[0] : [];
-		foreach ( $roots as $rid ) $walk( (int) $rid, 0 );
-
-		wp_send_json_success( [ 'sections' => $out ] );
+			ready(function(){
+				tweakListPage();
+				tweakEditPage();
+			});
+		})();
+		</script>
+		<?php
 	}
 }
