@@ -29,6 +29,9 @@ class Sections_Admin {
 		// UI polish + force toolbar filter + AJAX swap
 		add_action( 'admin_head-edit-tags.php',   [ __CLASS__, 'inject_admin_css_js' ] );
 		add_action( 'admin_footer-edit-tags.php', [ __CLASS__, 'force_toolbar_filter' ] );
+
+		// Section Filter Registration
+		add_filter( 'jprm_get_sections_for_menu', [ __CLASS__, 'get_sections_for_menu' ], 10, 2 );
 	}
 
 	/* ================= Columns ================= */
@@ -238,6 +241,50 @@ class Sections_Admin {
 		</script>
 		<?php
 	}
+	//Get Sections For Menu	
+	public static function get_sections_for_menu( $out, $menu_id ) {
+	$menu_id = (int) $menu_id;
+	if ( $menu_id <= 0 ) return [];
+
+	$args = [
+		'taxonomy'   => self::TAX_SECTION,
+		'hide_empty' => false,
+		'meta_query' => [
+			[
+				'key'   => self::META_MENU_OWNER,
+				'value' => (string) $menu_id,
+			],
+		],
+	];
+
+	$terms = get_terms( $args );
+	if ( is_wp_error( $terms ) || empty( $terms ) ) return [];
+
+	// Index + children map for a depth-first “tree order”
+	$nodes    = [];
+	$children = [];
+	foreach ( $terms as $t ) {
+		$tid = (int) $t->term_id;
+		$par = (int) $t->parent;
+		$nodes[ $tid ] = $t;
+		if ( ! isset( $children[ $par ] ) ) $children[ $par ] = [];
+		$children[ $par ][] = $tid;
+	}
+
+	$ordered = [];
+	$walk = function( int $tid ) use ( &$walk, &$ordered, $nodes, $children ) {
+		if ( ! isset( $nodes[ $tid ] ) ) return;
+		$ordered[] = $nodes[ $tid ];
+		if ( ! empty( $children[ $tid ] ) ) {
+			foreach ( $children[ $tid ] as $cid ) $walk( (int) $cid );
+		}
+	};
+
+	$roots = $children[0] ?? [];
+	foreach ( $roots as $rid ) $walk( (int) $rid );
+
+	return $ordered;
+}
 
 	/**
 	 * Force a populated filter control into the TOP toolbar + AJAX swap.
