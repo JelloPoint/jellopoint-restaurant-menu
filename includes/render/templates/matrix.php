@@ -40,9 +40,13 @@ if (!function_exists('jprm_sanitize_single_icon')) {
 		return '';
 	}
 }
+
+/**
+ * Header cell renderer. For unlabeled "position" columns, prints a NBSP.
+ */
 if (!function_exists('jprm_matrix_header_cell')) {
 	function jprm_matrix_header_cell(array $meta, string $presentation): string {
-		$text = trim((string)($meta['text'] ?? ''));
+		$text = isset($meta['text']) ? trim((string)$meta['text']) : '';
 		$ico  = '';
 
 		// Icon pick + colorize
@@ -54,6 +58,11 @@ if (!function_exists('jprm_matrix_header_cell')) {
 			!empty($meta['icon_url']) ? (string)$meta['icon_url'] : null,
 			'label'
 		);
+
+		// If truly no label (unlabeled position column), show non-breaking space
+		if ($text === '' && $ico === '') {
+			return '<span class="jp-menu__label">&nbsp;</span>';
+		}
 
 		// Always wrap so style control hits both text & icon
 		if ($presentation === 'icon') {
@@ -71,38 +80,114 @@ if (!function_exists('jprm_matrix_header_cell')) {
 	}
 }
 
+/**
+ * Collect columns from:
+ *  - Known labels in $label_map
+ *  - Labels discovered in items (label_id or label_text)
+ *  - PLUS position-based columns for unlabeled prices: p:0, p:1, ...
+ * Returns ['cols'=>map, 'order'=>keys in order].
+ */
 if (!function_exists('jprm_matrix_collect_columns')) {
 	function jprm_matrix_collect_columns(array $items, array $label_map, array $currency_opts): array {
 		$cols = [];
+
+		// Seed with configured labels
 		foreach ($label_map as $lid => $meta) {
 			$cols[(string)$lid] = [
 				'text'      => (string)($meta['title'] ?? ($meta['text'] ?? '')),
 				'icon_html' => (string)($meta['icon_html'] ?? ''),
-				'_seed'     => true
+				'icon_url'  => (string)($meta['icon_url']  ?? ''),
+				'_seed'     => true,
 			];
 		}
+
+		// Track max count of unlabeled rows found across items
+		$max_unlabeled = 0;
+
+		// Discover from content
 		foreach ($items as $post) {
 			$pid  = (int)$post->ID;
 			$rows = function_exists('jprm_get_pricegroup_data') ? jprm_get_pricegroup_data($pid, $label_map, $currency_opts) : [];
+
+			$unlabeled_count_for_item = 0;
+
 			foreach ($rows as $r) {
 				$lid = isset($r['label_id']) ? (int)$r['label_id'] : 0;
-				$txt = (string)($r['label_text'] ?? '');
-				$key = $lid > 0 ? (string)$lid : ($txt !== '' ? 't:'.md5($txt) : '');
-				if ($key !== '' && !isset($cols[$key])) {
-					$cols[$key] = ['text'=>$txt, 'icon_html'=>(string)($r['icon_html'] ?? '')];
+				$txt = isset($r['label_text']) ? trim((string)$r['label_text']) : '';
+
+				if ($lid > 0 || $txt !== '') {
+					// Labeled row → build key from id OR text
+					$key = $lid > 0 ? (string)$lid : 't:'.md5($txt);
+					if (!isset($cols[$key])) {
+						$cols[$key] = [
+							'text'      => $txt,
+							'icon_html' => (string)($r['icon_html'] ?? ''),
+							'icon_url'  => (string)($r['icon_url']  ?? ''),
+						];
+					}
+				} else {
+					// Unlabeled row → count for position columns
+					$unlabeled_count_for_item++;
+				}
+			}
+
+			if ($unlabeled_count_for_item > $max_unlabeled) {
+				$max_unlabeled = $unlabeled_count_for_item;
+			}
+		}
+
+		// Add position columns p:0..p:(max-1) with empty header meta (NBSP will be rendered)
+		if ($max_unlabeled > 0) {
+			for ($i = 0; $i < $max_unlabeled; $i++) {
+				$key = 'p:' . $i;
+				if (!isset($cols[$key])) {
+					$cols[$key] = [
+						'text'      => '',
+						'icon_html' => '',
+						'icon_url'  => '',
+						'_pos'      => $i,
+					];
 				}
 			}
 		}
-		return $cols;
+
+		// Preserve insertion order (labels first as seeded, then discovered, then positions)
+		$order = array_keys($cols);
+		return ['cols' => $cols, 'order' => $order];
 	}
 }
+
+/**
+ * Find the formatted value for a given column key.
+ *  - labeled columns: match by label_id or label_text
+ *  - position columns (p:N): take the Nth unlabeled row's formatted price
+ */
 if (!function_exists('jprm_matrix_find_cell')) {
 	function jprm_matrix_find_cell(array $rows, string $col_key): ?string {
+		// Position-based?
+		if (strpos($col_key, 'p:') === 0) {
+			$idx = (int)substr($col_key, 2);
+			$seen = 0;
+			foreach ($rows as $r) {
+				$lid = isset($r['label_id']) ? (int)$r['label_id'] : 0;
+				$txt = isset($r['label_text']) ? trim((string)$r['label_text']) : '';
+				if ($lid <= 0 && $txt === '') {
+					if ($seen === $idx) {
+						$fmt = (string)($r['formatted'] ?? '');
+						return $fmt !== '' ? $fmt : null;
+					}
+					$seen++;
+				}
+			}
+			return null;
+		}
+
+		// Labeled: match by id or text-hash
 		foreach ($rows as $r) {
 			$lid = isset($r['label_id']) ? (int)$r['label_id'] : 0;
-			$txt = (string)($r['label_text'] ?? '');
+			$txt = isset($r['label_text']) ? (string)$r['label_text'] : '';
 			$key = $lid > 0 ? (string)$lid : ($txt !== '' ? 't:'.md5($txt) : '');
-			if ($key === $col_key) {
+			if ($key !== '' && $key === $col_key) {
 				$fmt = (string)($r['formatted'] ?? '');
 				return $fmt !== '' ? $fmt : null;
 			}
@@ -110,6 +195,11 @@ if (!function_exists('jprm_matrix_find_cell')) {
 		return null;
 	}
 }
+
+/**
+ * Filter to active columns: keep any column that has at least one value
+ * across all items. For position columns, we also test by position index.
+ */
 if (!function_exists('jprm_matrix_filter_active_columns')) {
 	function jprm_matrix_filter_active_columns(array $items, array $col_keys, array $label_map, array $currency_opts): array {
 		$active = [];
@@ -125,17 +215,22 @@ if (!function_exists('jprm_matrix_filter_active_columns')) {
 }
 
 /* grid build */
-$cols      = jprm_matrix_collect_columns($items, $label_map, $currency_opts);
-$col_keys  = jprm_matrix_filter_active_columns($items, array_keys($cols), $label_map, $currency_opts);
+$collect   = jprm_matrix_collect_columns($items, $label_map, $currency_opts);
+$cols      = $collect['cols'];
+$col_keys  = jprm_matrix_filter_active_columns($items, $collect['order'], $label_map, $currency_opts);
 $col_count = max(1, count($col_keys));
 
 echo '<li class="jp-matrix jp-menu__section jp-menu__section--level-' . (int)$section_level . '" data-section-id="' . (int)$section_id . '" style="--jp-matrix-cols:' . esc_attr((string)$col_count) . '">';
 
 /* header row: first cell blank */
-echo '<div class="jp-matrix__row">';
+echo '<div class="jp-matrix__row jp-matrix__row--header">';
 echo '<div class="jp-matrix__cell jp-matrix__cell--head jp-matrix__cell--item"></div>';
 foreach ($col_keys as $k) {
-	$meta = ['text'=> isset($cols[$k]['text']) ? (string)$cols[$k]['text'] : (string)$k, 'icon_html'=> (string)($cols[$k]['icon_html'] ?? '')];
+	$meta = [
+		'text'      => isset($cols[$k]['text']) ? (string)$cols[$k]['text'] : '',
+		'icon_html' => (string)($cols[$k]['icon_html'] ?? ''),
+		'icon_url'  => (string)($cols[$k]['icon_url']  ?? ''),
+	];
 	echo '<div class="jp-matrix__cell jp-matrix__cell--head" data-label-key="' . esc_attr($k) . '">'
 		. jprm_matrix_header_cell($meta, $label_presentation)
 		. '</div>';
