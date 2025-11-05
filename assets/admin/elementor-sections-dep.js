@@ -2,10 +2,10 @@
 (function(){
   'use strict';
 
-  const LOG = '[JPRM]';
+  const LOG = '[JPRM:DS]';
   function log(){ try{ console.log.apply(console,[LOG].concat([].slice.call(arguments))); }catch(e){} }
 
-  /* ---------------- AJAX ---------------- */
+  /* ------------ AJAX -------------- */
   async function fetchSectionsMap(menuId){
     if(!menuId) return null;
     const url   = (window.JPRMAjax && JPRMAjax.url)   ? JPRMAjax.url   : '/wp-admin/admin-ajax.php';
@@ -15,9 +15,9 @@
     body.set('menu_id', String(menuId));
     if(nonce) body.set('nonce', nonce);
 
-    const res  = await fetch(url,{
+    const res  = await fetch(url, {
       method:'POST', credentials:'include',
-      headers:{'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8'},
+      headers:{ 'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8' },
       body: body.toString()
     });
     const json = await res.json().catch(()=>null);
@@ -32,7 +32,7 @@
     return Object.keys(map).length ? map : null;
   }
 
-  /* ---------------- ELEMENTOR helpers ---------------- */
+  /* --------- Elementor helpers --------- */
   function panelView(){
     try{
       if(window.elementor && elementor.getPanelView){
@@ -42,7 +42,7 @@
     return null;
   }
 
-  function getMenuIdFromModel(pv){
+  function menuValue(pv){
     try{
       const v = pv && pv.model && pv.model.getSetting('menus');
       if(Array.isArray(v)) return v[0] || '';
@@ -50,130 +50,105 @@
     }catch(e){ return ''; }
   }
 
-  // Safely set options for a control by its name via ControlView (no DOM poking)
-  function setControlOptions(pv, controlName, idToLabel){
-    if(!pv || !controlName || !idToLabel) return;
-    const view = pv.getControlView(controlName);
-    if(!view || !view.model) return;
-
-    // Keep valid current selections
-    const current = pv.model.getSetting(controlName);
-    const ids = Object.keys(idToLabel);
-    let keep = [];
-
-    if(Array.isArray(current)){
-      keep = current.map(String).filter(v => ids.includes(v));
-    }else if(typeof current === 'string' || typeof current === 'number'){
-      const s = String(current);
-      keep = ids.includes(s) ? [s] : [];
-    }
-
-    // 1) set new options
-    view.model.set('options', idToLabel);
-
-    // 2) restore selection (Elementor models want raw values)
-    if(Array.isArray(current)){
-      pv.model.setSetting(controlName, keep);
-    }else{
-      pv.model.setSetting(controlName, keep[0] || '');
-    }
-
-    // 3) re-render the control to rebuild its <select>/<select2>
-    if(typeof view.render === 'function') view.render();
-
-    // 4) notify the input (covers Select2)
-    try{
-      const $el = view.$el && view.$el.find ? view.$el.find('[data-setting="'+controlName+'"]') : null;
-      if($el && $el.length && window.jQuery && jQuery.fn){
-        $el.val(keep).trigger('change');
-      }
-    }catch(e){}
+  function getControlView(pv, name){
+    try{ return pv && pv.getControlView ? pv.getControlView(name) : null; }catch(e){ return null; }
   }
 
-  // Update all relevant section-dependent controls
-  function applyScopedOptions(pv, map){
-    setControlOptions(pv, 'sections', map);                      // Data Source → Sections (SELECT2, multiple)
-    setControlOptions(pv, 'layout_split_after_section', map);    // Layout → Split after (1)
-    setControlOptions(pv, 'layout_split_after_section2', map);   // Layout → Split after (2)
+  // Rebuild the SELECT2 after options change (Elementor sometimes doesn’t)
+  function refreshSelect2(view){
+    if(!view || !view.$el || !window.jQuery) return;
+    const $ = window.jQuery;
+    const $sel = view.$el.find('[data-setting="sections"]');
+    if(!$sel.length) return;
+
+    // If Select2 is active → destroy and re-init to pick up new <option>s
+    if($sel.data('select2')) {
+      $sel.select2('destroy');
+    }
+    // Elementor reinitializes select2 after render; but ensure now:
+    $sel.select2({ width: '100%' }).trigger('change');
+  }
+
+  function setOptionsForSections(pv, idToLabel){
+    if(!pv || !idToLabel) return;
+    const view = getControlView(pv, 'sections'); // Data Source → Sections
+    if(!view || !view.model) return;
+
+    // Intersect current selection with new options
+    const ids = Object.keys(idToLabel);
+    let keep = [];
+    try{
+      const cur = pv.model.getSetting('sections');
+      if(Array.isArray(cur)) keep = cur.map(String).filter(v => ids.includes(v));
+    }catch(e){}
+
+    // 1) set options
+    view.model.set('options', idToLabel);
+
+    // 2) restore selection
+    pv.model.setSetting('sections', keep);
+
+    // 3) re-render control
+    if(typeof view.render === 'function') view.render();
+
+    // 4) force Select2 to rebuild
+    refreshSelect2(view);
+
+    log('DataSource Sections updated: opts=', ids.length, 'keep=', keep.length);
   }
 
   let inflight = 0;
-  async function refreshAllForCurrentPanel(){
+  async function refreshDataSourceSections(){
     const pv = panelView();
     if(!pv) return;
-    const menuId = getMenuIdFromModel(pv);
-    if(!menuId) return;
+    const mid = menuValue(pv);
+    if(!mid) return;
 
     const ticket = ++inflight;
-    const map = await fetchSectionsMap(menuId).catch(()=>null);
-    if(ticket !== inflight) return; // superseded
+    const map = await fetchSectionsMap(mid).catch(()=>null);
+    if(ticket !== inflight) return;
     if(!map) return;
 
-    applyScopedOptions(pv, map);
-    log('Updated controls for menu=', menuId, 'options=', Object.keys(map).length);
+    setOptionsForSections(pv, map);
   }
 
-  // Debounce helper
+  // Debounce to avoid storms
   function debounce(fn, wait){
-    let t = 0;
-    return function(){
-      clearTimeout(t);
-      t = setTimeout(()=>fn.apply(this, arguments), wait);
-    };
+    let t=0; return function(){ clearTimeout(t); t=setTimeout(()=>fn.apply(this,arguments), wait); };
   }
-  const refreshDebounced = debounce(refreshAllForCurrentPanel, 120);
+  const refreshDebounced = debounce(refreshDataSourceSections, 120);
 
-  function bindModelChanges(){
+  function bind(){
     const pv = panelView();
     if(!pv || !pv.model) return;
 
-    // When Menu setting changes in the current panel → refresh
+    // On Menu change → refresh Data Source → Sections
+    pv.model.off('change:menus'); // prevent stacking if bound multiple times
     pv.model.on('change:menus', refreshDebounced);
 
-    // When Elementor re-renders the panel or switches controls, re-apply
-    // (panelView is replaced frequently; we add a light MutationObserver as a safety net)
-    const root = pv.$el && pv.$el[0] ? pv.$el[0] : document.querySelector('.elementor-panel');
-    if(!root) return;
-
-    const mo = new MutationObserver((muts)=>{
-      let touched = false;
-      for(const m of muts){
-        if(m.type !== 'childList') continue;
-        for(const n of m.addedNodes){ if(n.nodeType===1){ touched = true; break; } }
-        if(touched) break;
-      }
-      if(touched) refreshDebounced();
-    });
-    mo.observe(root, { childList:true, subtree:true });
-  }
-
-  function onPanelOpened(){
-    // When a widget panel opens, immediately scope its controls
-    try{
-      refreshAllForCurrentPanel();
-      bindModelChanges();
-    }catch(e){}
+    // When the panel opens or re-renders, refresh once
+    refreshDebounced();
   }
 
   function boot(){
-    // 1) Run now if panel already open
-    onPanelOpened();
+    // initial bind
+    bind();
 
-    // 2) Also react whenever Elementor opens (or re-opens) the panel for our widget
+    // re-bind whenever Elementor opens the panel
     if(window.elementor && elementor.channels && elementor.channels.panelElements){
-      elementor.channels.panelElements.on('before:activated', onPanelOpened);
-      elementor.channels.panelElements.on('activated', onPanelOpened);
+      elementor.channels.panelElements.on('before:activated', bind);
+      elementor.channels.panelElements.on('activated', bind);
     }
     if(window.elementor && elementor.channels && elementor.channels.editor){
-      elementor.channels.editor.on('panel:opened', onPanelOpened);
+      elementor.channels.editor.on('panel:opened', bind);
     }
 
-    log('sections-dep active');
+    log('DataSource sections hook active');
   }
 
-  if (document.readyState === 'loading'){
+  if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', boot);
-  } else {
+  }else{
     boot();
   }
 })();
