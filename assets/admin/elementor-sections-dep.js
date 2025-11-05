@@ -1,15 +1,15 @@
 (function () {
   'use strict';
 
-  // Exact keys we must handle
-  const TARGET_EXACT_KEYS = new Set([
-    'sections',                     // Data Source (Select2)
-    'layout_split_after_section',   // Layout → Split (1) (native)
-    'layout_split_after_section2',  // Layout → Split (2) (native)
-    'section_id',                   // repeater rows common key
-  ]);
-  const TARGET_SUFFIX = '_section'; // e.g. repeater …[section]
+  // --- exact keys we handle ---
+  const KEY_SECTIONS = 'sections'; // Data Source (Select2)
+  const KEY_SPLIT_1  = 'layout_split_after_section';   // native select
+  const KEY_SPLIT_2  = 'layout_split_after_section2';  // native select
 
+  // small cache to avoid repeat network hits per menu id
+  const CACHE = new Map();
+
+  // helpers
   function panel(){ return document.querySelector('.elementor-panel') || document; }
   function ajaxUrl(){ const J=window.JPRMAjax||{}; return J.url || window.ajaxurl || (location.origin + '/wp-admin/admin-ajax.php'); }
   function nonce(){ const J=window.JPRMAjax||{}; return J.nonce || ''; }
@@ -24,7 +24,6 @@
     return 0;
   }
 
-  const CACHE = new Map();
   async function fetchSections(mid){
     if (CACHE.has(mid)) return CACHE.get(mid);
     const p = new URLSearchParams({ action:'jprm_sections_for_menu', nonce:nonce(), menu_id:String(mid) });
@@ -56,49 +55,41 @@
   }
 
   function applyOptions(select, opts){
-    const prev = select.multiple ? Array.from(select.selectedOptions).map(o=>o.value) : select.value;
+    const prev = select.value;
+    if (sameOptions(select, opts)) return false;
 
-    if (!sameOptions(select, opts)) {
-      select.innerHTML = '';
-      for (const o of opts) {
-        const opt = document.createElement('option');
-        opt.value = o.value; opt.textContent = o.label;
-        select.appendChild(opt);
-      }
-      // restore selection silently (NO events)
-      if (Array.isArray(prev)) {
-        const keep = prev.filter(v => opts.some(o=>o.value===v));
-        for (const o of select.options) o.selected = keep.includes(o.value);
-      } else if (prev && opts.some(o=>o.value===prev)) {
-        select.value = prev;
-      } else {
-        select.value = '';
-      }
-      return true;
+    // rebuild list
+    select.innerHTML = '';
+    for (const o of opts) {
+      const opt = document.createElement('option');
+      opt.value = o.value;
+      opt.textContent = o.label;
+      select.appendChild(opt);
     }
-    return false;
+    // restore previous selection silently (NO events)
+    if (prev && opts.some(o=>o.value===prev)) select.value = prev;
+    else select.value = '';
+    // stamp so we can detect Elementor overwrites
+    select.setAttribute('data-jprm-stamp', String(opts.length) + ':' + (opts[1]?.value || ''));
+    return true;
   }
 
-  function isTargetSelect(select){
-    const ds = (select.getAttribute('data-setting') || '').trim();
-    const nm = (select.getAttribute('name') || '').trim();
-    if (ds && TARGET_EXACT_KEYS.has(ds)) return true;
-    if (ds && ds.endsWith(TARGET_SUFFIX)) return true;
-    if (/\[section(_id)?\]$/.test(nm)) return true;
-    return false;
+  function selectStamp(select){
+    return select.getAttribute('data-jprm-stamp') || '';
   }
 
-  function findTargets(root){
-    return Array.from(root.querySelectorAll('select')).filter(isTargetSelect);
+  // finders
+  function findSectionsHidden(root){
+    // Select2 source for Data Source → Sections (already working, keep it)
+    return root.querySelector('select.select2-hidden-accessible[data-setting="'+KEY_SECTIONS+'"]') || null;
   }
-
-  // Explicit handles for the two Split selects (re-check them after tab switches)
   function findSplitSelects(root){
-    const a = root.querySelectorAll('select[data-setting="layout_split_after_section"]');
-    const b = root.querySelectorAll('select[data-setting="layout_split_after_section2"]');
+    const a = root.querySelectorAll('select[data-setting="'+KEY_SPLIT_1+'"]');
+    const b = root.querySelectorAll('select[data-setting="'+KEY_SPLIT_2+'"]');
     return Array.from(new Set([].concat(Array.from(a), Array.from(b))));
   }
 
+  // core runner
   let ticking = false;
   function schedule(){ if (!ticking) { ticking = true; requestAnimationFrame(run); } }
 
@@ -111,20 +102,36 @@
     const nodes = await fetchSections(mid);
     const opts  = buildOptions(nodes);
 
-    // Update all detected section-pickers
-    const targets = findTargets(root);
-    let changed = 0;
-    for (const sel of targets) if (applyOptions(sel, opts)) changed++;
+    // sections (Select2) — leave as-is if you already see it working; still apply silently
+    const hidden = findSectionsHidden(root);
+    if (hidden) applyOptions(hidden, opts);
 
-    // And specifically re-apply to the two split controls (native selects)
+    // split selects (native) — aggressively enforce, including after Elementor overwrites
     const splits = findSplitSelects(root);
-    for (const sel of splits) if (applyOptions(sel, opts)) changed++;
+    for (const sel of splits) {
+      applyOptions(sel, opts);
+      // Observe this specific select's childList so if Elementor repaints it, we re-apply immediately
+      ensureObserver(sel, opts);
+    }
+  }
+
+  // Keep one MutationObserver per split select, re-apply if Elementor rewrites options
+  const OBS = new WeakMap();
+  function ensureObserver(select, opts){
+    if (OBS.has(select)) return;
+    const mo = new MutationObserver(() => {
+      // if stamp changed or options length changed, re-apply
+      const need = !sameOptions(select, opts) || selectStamp(select) === '';
+      if (need) applyOptions(select, opts);
+    });
+    mo.observe(select, { childList:true, subtree:false });
+    OBS.set(select, mo);
   }
 
   function bind(){
     const root = panel();
 
-    // Menu changes → refresh (and clear cache)
+    // menu changes → clear cache & update
     root.addEventListener('change', (e) => {
       const t = e.target;
       if (!(t instanceof HTMLSelectElement)) return;
@@ -136,29 +143,32 @@
       }
     }, true);
 
-    // When target selects open/focus (covers lazy renders / repeaters)
+    // opening/focusing any of the split selects → ensure they’re updated just-in-time
     root.addEventListener('focusin', (e) => {
       const t = e.target;
-      if (t instanceof HTMLSelectElement && isTargetSelect(t)) schedule();
+      if (!(t instanceof HTMLSelectElement)) return;
+      const ds = t.getAttribute('data-setting') || '';
+      if (ds === KEY_SPLIT_1 || ds === KEY_SPLIT_2 || ds === KEY_SECTIONS) {
+        schedule();
+      }
     });
 
-    // Tab switches (e.g., going to Layout)
+    // tab switches (e.g. going to Layout) → rerun a few times to catch late DOM paints
     root.addEventListener('click', (e) => {
       const el = e.target;
       if (!(el instanceof Element)) return;
       if (el.getAttribute('role') === 'tab' || el.closest('[role="tablist"]')) {
-        // run a few times to catch late DOM
         schedule();
-        setTimeout(schedule, 100);
-        setTimeout(schedule, 250);
+        setTimeout(schedule, 80);
+        setTimeout(schedule, 200);
       }
     }, true);
 
-    // DOM mutations from Elementor panel rebuilds
+    // global panel mutations → schedule once per frame
     const mo = new MutationObserver(() => schedule());
     mo.observe(root, { childList:true, subtree:true });
 
-    // First pass
+    // first pass
     schedule();
   }
 
