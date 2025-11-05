@@ -1,11 +1,9 @@
 (function ($) {
   'use strict';
 
-  // === Minimal, safe, single-control updater =================================
-  // Targets ONLY the "Sections" picker in Content → Data Source
-  // Does not touch Elementor model; updates DOM <select> in place.
-
-  const LOG = '[JPRM sections]';
+  // Minimal, safe updater: find the control by its visible label "Sections"
+  // Supports translations like "Secties", "Sections and Menus" -> contains "Section"
+  const LOG = '[JPRM sections-by-title]';
   function log(){ /* console.log.apply(console,[LOG].concat([].slice.call(arguments))); */ }
 
   // Menu (data source) controls you use
@@ -15,9 +13,6 @@
     'select[name$="[data_menu]"]',
     'select[name$="[menus]"]',
   ];
-
-  // The ONE control we update in this phase
-  const SECTIONS_SELECTOR = '[data-setting="sections"], select[name$="[sections]"]';
 
   function ajaxUrl() {
     if (window.JPRMAjax && JPRMAjax.url) return JPRMAjax.url;
@@ -74,7 +69,6 @@
   }
 
   function applyOptions($select, opts){
-    // Keep current selection if still valid; do NOT trigger change (prevents preview refresh)
     const prev = $select.val();
     if (optionsEqual($select, opts)) return;
 
@@ -82,24 +76,38 @@
     opts.forEach(o => $select.append(new Option(o.label, o.value, false, false)));
 
     if (prev && (Array.isArray(prev) ? prev.length : prev)) {
-      // If multiple (multi-select), keep intersection silently
       if (Array.isArray(prev)) {
         const keep = prev.filter(v => opts.some(o => o.value === v));
         $select.val(keep);
       } else {
-        // single
         const stillValid = opts.some(o => o.value === prev);
         $select.val(stillValid ? prev : '');
       }
     } else {
       $select.val('');
     }
+    // do NOT trigger change → no preview flicker
   }
 
-  let raf = null;
-  function schedule(reason){
-    if (raf) cancelAnimationFrame(raf);
-    raf = requestAnimationFrame(() => updateOnce(reason));
+  // Find the “Sections” control by its title text (supports translations)
+  function findSectionsSelects($root) {
+    const matches = [];
+    $root.find('.elementor-control').each(function(){
+      const $ctrl = $(this);
+      const title = ($ctrl.find('.elementor-control-title').first().text() || '').trim().toLowerCase();
+
+      // Loose match: contains "section" to allow "Sections and Menus" / translations with "section"
+      if (!title || title.indexOf('section') === -1) return;
+
+      // Only selects within that control (skip select2 clones)
+      const $sels = $ctrl.find('select').filter(function(){
+        return !$(this).hasClass('select2-hidden-accessible');
+      });
+      if ($sels.length) {
+        $sels.each(function(){ matches.push($(this)); });
+      }
+    });
+    return matches;
   }
 
   async function updateOnce(reason){
@@ -110,39 +118,38 @@
     const nodes = await fetchSectionsTree(mid);
     const opts  = buildOptions(nodes);
 
-    // Find ONLY the Data Source → Sections control(s)
-    const $targets = $root.find(SECTIONS_SELECTOR).filter(function(){
-      return !$(this).hasClass('select2-hidden-accessible');
-    });
+    const selects = findSectionsSelects($root);
+    selects.forEach($sel => applyOptions($sel, opts));
 
-    $targets.each(function(){ applyOptions($(this), opts); });
-    log('updated', reason, 'menu=', mid, 'targets=', $targets.length, 'nodes=', nodes.length);
+    log('updated', reason, 'menu=', mid, 'targets=', selects.length, 'nodes=', nodes.length);
+  }
+
+  let raf = null;
+  function schedule(reason){
+    if (raf) cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => updateOnce(reason));
   }
 
   function bind(){
     const $root = panelRoot();
 
-    // Initial fill when the widget panel opens
     if (window.elementor && elementor.hooks && elementor.hooks.addAction) {
       elementor.hooks.addAction('panel/open_editor/widget', function(){
         schedule('open-editor');
       });
     }
 
-    // Update when the menu is changed
     MENU_SELECTORS.forEach(sel => {
       $root.on('change', sel, function(){ schedule('menu-change'); });
     });
 
-    // Update when the Sections select is opened/focused (ensures late-initialized selects are correct)
-    $root.on('focus select2:opening', SECTIONS_SELECTOR, function(){ schedule('sections-open'); });
+    // When a control opens/focuses, re-apply (handles late injection)
+    $root.on('focus select2:opening', 'select', function(){ schedule('select-open'); });
 
-    // Update when new controls appear
     const mo = new MutationObserver(() => schedule('mutation'));
     const el = $root.get(0);
     if (el) mo.observe(el, { childList:true, subtree:true });
 
-    // First run
     schedule('boot');
   }
 
