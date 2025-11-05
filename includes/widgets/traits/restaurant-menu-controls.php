@@ -224,6 +224,7 @@ $sections_tree_scoped = (static function( int $menu_id, array $fallback_all ) : 
 			'type'      => Controls_Manager::SELECT2,
 			'multiple'  => true,
 			'options'   => $_scoped_sections, // ← scoped to current Menu (tree if helper provides it)
+			'default'   => [],
 			'condition' => [ 'data_mode' => 'dynamic' ],
 		] );
 
