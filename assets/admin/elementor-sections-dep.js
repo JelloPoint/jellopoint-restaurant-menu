@@ -1,37 +1,22 @@
 (function () {
   'use strict';
 
-  // =========================
-  // Config: which controls?
-  // =========================
-  // We always include:
-  //  - Data Source → Sections:            data-setting="sections"
-  //  - Layout → Split after section:      data-setting="layout_split_after_section"
-  //  - Layout → Split after section 2:    data-setting="layout_split_after_section2"
-  //
-  // For repeater rows (e.g., Labels Layout Overrides):
-  //  - any select whose data-setting ends with "_section" or equals "section_id"
-  //    (and lives inside a repeater item)
-  //
-  // If your keys differ, add them into TARGET_EXACT or tweak TARGET_SUFFIX.
-
+  // === Which controls should list sections? ===
+  // Exact keys we know + generic matches for repeater fields.
   const TARGET_EXACT_KEYS = new Set([
     'sections',
     'layout_split_after_section',
     'layout_split_after_section2',
-    'section_id', // common in repeater rows
+    'section_id',
   ]);
+  const TARGET_SUFFIX = '_section'; // e.g. repeater ...[section]
 
-  const TARGET_SUFFIX = '_section'; // matches repeater fields like "...[section_layouts][0][section]"
-
-  // When true, logs minimal updates to the console
+  // Toggle for console logs
   const DEBUG = false;
   const LOG = '[JPRM dep]';
   function log(){ if (DEBUG) console.log.apply(console,[LOG].concat([].slice.call(arguments))); }
 
-  // =========================
-  // Helpers
-  // =========================
+  // ----- helpers -----
   function panel(){ return document.querySelector('.elementor-panel') || document; }
   function ajaxUrl(){ const J=window.JPRMAjax||{}; return J.url || window.ajaxurl || (location.origin + '/wp-admin/admin-ajax.php'); }
   function nonce(){ const J=window.JPRMAjax||{}; return J.nonce || ''; }
@@ -105,33 +90,22 @@
     return false;
   }
 
-  // Decide if a <select> is one of our section-pickers
+  // Decide if a <select> is one of our section pickers (works for native AND Select2 sources)
   function isTargetSelect(select){
     const ds = (select.getAttribute('data-setting') || '').trim();
     const nm = (select.getAttribute('name') || '').trim();
 
-    // Only consider the *hidden Select2 source* or a native select that isn't a Select2 clone
-    const isHiddenSrc = select.classList.contains('select2-hidden-accessible');
-
-    // 1) direct data-setting matches (exact)
-    if (ds && TARGET_EXACT_KEYS.has(ds)) return true;
-
-    // 2) suffix match (for fields named like "..._section")
-    if (ds && ds.endsWith(TARGET_SUFFIX)) return true;
-
-    // 3) name-based match (covers repeaters: ...[section_layouts][i][section_id] or [section])
-    if (/\[section(_id)?\]$/.test(nm)) return true;
-
-    // Prefer operating on hidden Select2 "source" for stability
-    if (!isHiddenSrc) return false;
+    if (ds && TARGET_EXACT_KEYS.has(ds)) return true;         // exact key match
+    if (ds && ds.endsWith(TARGET_SUFFIX)) return true;        // ..._section
+    if (/\[section(_id)?\]$/.test(nm)) return true;           // repeater name …[section] / …[section_id]
+    if (/section/i.test(ds) || /section/i.test(nm)) return true; // generic fallback
 
     return false;
   }
 
-  // Collect all relevant selects (hidden Select2 sources and any raw fallback)
   function findTargetSelects(root){
     const found = [];
-    const all = root.querySelectorAll('select'); // include hidden select2 sources
+    const all = root.querySelectorAll('select'); // includes hidden Select2 sources and native selects
     for (const sel of all) {
       if (isTargetSelect(sel)) found.push(sel);
     }
@@ -154,15 +128,15 @@
     let changed = 0;
     for (const sel of targets) {
       if (applyOptions(sel, opts)) changed++;
+      // If this is a Select2 hidden source, let Select2 redraw lazily on open (we do NOT trigger events)
     }
-
     log('updated', 'menu=', mid, 'targets=', targets.length, 'changed=', changed, 'nodes=', nodes.length);
   }
 
   function bind(){
     const root = panel();
 
-    // Update when Menu changes
+    // Update when the Menu changes
     root.addEventListener('change', (e) => {
       const t = e.target;
       if (!(t instanceof HTMLSelectElement)) return;
@@ -173,13 +147,13 @@
       }
     }, true);
 
-    // Update when a select opens/focuses (covers late-created controls & repeaters)
+    // Update when target selects open/focus (handles lazy Select2 / repeater injection)
     root.addEventListener('focusin', (e) => {
       const t = e.target;
       if (t instanceof HTMLSelectElement && isTargetSelect(t)) schedule();
     });
 
-    // React to panel DOM mutations (tabs/repeaters open/close)
+    // React to panel DOM mutations (tabs/repeaters opening)
     const mo = new MutationObserver(() => schedule());
     if (root) mo.observe(root, { childList:true, subtree:true });
 
