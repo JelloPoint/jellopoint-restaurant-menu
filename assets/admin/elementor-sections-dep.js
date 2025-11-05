@@ -1,22 +1,19 @@
 (function () {
   'use strict';
 
-  // === Which controls should list sections? ===
-  // Exact keys we know + generic matches for repeater fields.
+  // === Section-pickers we must refresh ===
   const TARGET_EXACT_KEYS = new Set([
-    'sections',
-    'layout_split_after_section',
-    'layout_split_after_section2',
-    'section_id',
+    'sections',                     // Data Source
+    'layout_split_after_section',   // Layout → Split after section (1)
+    'layout_split_after_section2',  // Layout → Split after section (2)
+    'section_id',                   // repeater rows (common key)
   ]);
-  const TARGET_SUFFIX = '_section'; // e.g. repeater ...[section]
+  const TARGET_SUFFIX = '_section'; // e.g. repeater fields named "...[section]"
 
-  // Toggle for console logs
   const DEBUG = false;
   const LOG = '[JPRM dep]';
-  function log(){ if (DEBUG) console.log.apply(console,[LOG].concat([].slice.call(arguments))); }
+  function dlog(){ if (DEBUG) console.log.apply(console,[LOG].concat([].slice.call(arguments))); }
 
-  // ----- helpers -----
   function panel(){ return document.querySelector('.elementor-panel') || document; }
   function ajaxUrl(){ const J=window.JPRMAjax||{}; return J.url || window.ajaxurl || (location.origin + '/wp-admin/admin-ajax.php'); }
   function nonce(){ const J=window.JPRMAjax||{}; return J.nonce || ''; }
@@ -24,10 +21,7 @@
   function currentMenuId() {
     const root = panel();
     const sels = root.querySelectorAll(
-      '[data-setting="data_menu"],' +
-      '[data-setting="menus"],' +
-      'select[name$="[data_menu]"],' +
-      'select[name$="[menus]"]'
+      '[data-setting="data_menu"],[data-setting="menus"],select[name$="[data_menu]"],select[name$="[menus]"]'
     );
     for (const el of sels) {
       const v = el.value || (el.selectedOptions?.[0]?.value || '');
@@ -36,11 +30,16 @@
     return 0;
   }
 
+  // Simple in-memory cache per menu id to avoid extra AJAX
+  const CACHE = new Map();
   async function fetchSections(mid){
+    if (CACHE.has(mid)) return CACHE.get(mid);
     const p = new URLSearchParams({ action:'jprm_sections_for_menu', nonce:nonce(), menu_id:String(mid) });
     const r = await fetch(ajaxUrl() + '?' + p.toString(), { credentials:'include' });
     const j = await r.json().catch(()=>null);
-    return (j && j.success && j.data && Array.isArray(j.data.sections)) ? j.data.sections : [];
+    const nodes = (j && j.success && j.data && Array.isArray(j.data.sections)) ? j.data.sections : [];
+    CACHE.set(mid, nodes);
+    return nodes;
   }
 
   function buildOptions(nodes){
@@ -90,26 +89,32 @@
     return false;
   }
 
-  // Decide if a <select> is one of our section pickers (works for native AND Select2 sources)
+  // Is this <select> one of our section pickers?
   function isTargetSelect(select){
     const ds = (select.getAttribute('data-setting') || '').trim();
     const nm = (select.getAttribute('name') || '').trim();
 
-    if (ds && TARGET_EXACT_KEYS.has(ds)) return true;         // exact key match
-    if (ds && ds.endsWith(TARGET_SUFFIX)) return true;        // ..._section
-    if (/\[section(_id)?\]$/.test(nm)) return true;           // repeater name …[section] / …[section_id]
-    if (/section/i.test(ds) || /section/i.test(nm)) return true; // generic fallback
-
+    if (ds && TARGET_EXACT_KEYS.has(ds)) return true;
+    if (ds && ds.endsWith(TARGET_SUFFIX)) return true;
+    if (/\[section(_id)?\]$/.test(nm)) return true; // repeater names …[section] / …[section_id]
     return false;
   }
 
+  // Collect both native selects and hidden Select2 sources
   function findTargetSelects(root){
     const found = [];
-    const all = root.querySelectorAll('select'); // includes hidden Select2 sources and native selects
+    const all = root.querySelectorAll('select'); // includes hidden Select2 sources
     for (const sel of all) {
       if (isTargetSelect(sel)) found.push(sel);
     }
     return found;
+  }
+
+  // Force-refresh only the two Split selects — explicit handles for reliability
+  function findSplitSelects(root){
+    const one = root.querySelectorAll('select[data-setting="layout_split_after_section"]');
+    const two = root.querySelectorAll('select[data-setting="layout_split_after_section2"]');
+    return Array.from(new Set([].concat(Array.from(one), Array.from(two))));
   }
 
   let ticking = false;
@@ -124,13 +129,20 @@
     const nodes = await fetchSections(mid);
     const opts  = buildOptions(nodes);
 
+    // 1) Update EVERYTHING that looks like a section picker
     const targets = findTargetSelects(root);
     let changed = 0;
     for (const sel of targets) {
       if (applyOptions(sel, opts)) changed++;
-      // If this is a Select2 hidden source, let Select2 redraw lazily on open (we do NOT trigger events)
     }
-    log('updated', 'menu=', mid, 'targets=', targets.length, 'changed=', changed, 'nodes=', nodes.length);
+
+    // 2) Make absolutely sure the split controls are refreshed (native selects)
+    const splits = findSplitSelects(root);
+    for (const sel of splits) {
+      if (applyOptions(sel, opts)) changed++;
+    }
+
+    dlog('updated', 'menu=', mid, 'targets=', targets.length, 'splits=', splits.length, 'changed=', changed, 'nodes=', nodes.length);
   }
 
   function bind(){
@@ -143,17 +155,28 @@
       const ds = t.getAttribute('data-setting') || '';
       const nm = t.getAttribute('name') || '';
       if (ds === 'data_menu' || ds === 'menus' || nm.endsWith('[data_menu]') || nm.endsWith('[menus]')) {
+        CACHE.clear(); // menu changed → clear cache
         schedule();
       }
     }, true);
 
-    // Update when target selects open/focus (handles lazy Select2 / repeater injection)
+    // Update when any target select receives focus (tabs/repeaters lazy render)
     root.addEventListener('focusin', (e) => {
       const t = e.target;
       if (t instanceof HTMLSelectElement && isTargetSelect(t)) schedule();
     });
 
-    // React to panel DOM mutations (tabs/repeaters opening)
+    // Also update when the Layout tab is shown (catch tab switches)
+    root.addEventListener('click', (e) => {
+      const el = e.target;
+      if (!(el instanceof Element)) return;
+      // Elementor tab buttons often have role="tab"
+      if (el.getAttribute('role') === 'tab' || el.closest('[role="tablist"]')) {
+        schedule();
+      }
+    }, true);
+
+    // React to DOM mutations (panel rebuilds when switching tabs)
     const mo = new MutationObserver(() => schedule());
     if (root) mo.observe(root, { childList:true, subtree:true });
 
