@@ -197,6 +197,18 @@ trait Restaurant_Menu_Style {
 				],
 			]
 		);
+		
+		$this->add_responsive_control(
+			'jprm_main_section_margin',
+			[
+				'label'      => __( 'Margin', 'jellopoint-restaurant-menu' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => [ 'px', 'em', '%' ],
+				'selectors'  => [
+					'{{WRAPPER}} .jp-menu__section--level-0 > .jp-section__title' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				],
+			]
+		);
 		$this->add_responsive_control(
 			'jprm_main_section_padding',
 			[
