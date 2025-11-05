@@ -412,7 +412,7 @@ $rep_ov = new Repeater();
 // Which section (term) the override applies to
 $rep_ov->add_control( 'section_id', [
     'label'   => __( 'Section', 'jellopoint-restaurant-menu' ),
-    'type'    => Controls_Manager::SELECT2,
+    'type'    => Controls_Manager::SELECT,
     'options' => $section_options_scoped,
 ] );
 
