@@ -1,13 +1,49 @@
 (function () {
   'use strict';
 
+  // =========================
+  // Config: which controls?
+  // =========================
+  // We always include:
+  //  - Data Source → Sections:            data-setting="sections"
+  //  - Layout → Split after section:      data-setting="layout_split_after_section"
+  //  - Layout → Split after section 2:    data-setting="layout_split_after_section2"
+  //
+  // For repeater rows (e.g., Labels Layout Overrides):
+  //  - any select whose data-setting ends with "_section" or equals "section_id"
+  //    (and lives inside a repeater item)
+  //
+  // If your keys differ, add them into TARGET_EXACT or tweak TARGET_SUFFIX.
+
+  const TARGET_EXACT_KEYS = new Set([
+    'sections',
+    'layout_split_after_section',
+    'layout_split_after_section2',
+    'section_id', // common in repeater rows
+  ]);
+
+  const TARGET_SUFFIX = '_section'; // matches repeater fields like "...[section_layouts][0][section]"
+
+  // When true, logs minimal updates to the console
+  const DEBUG = false;
+  const LOG = '[JPRM dep]';
+  function log(){ if (DEBUG) console.log.apply(console,[LOG].concat([].slice.call(arguments))); }
+
+  // =========================
+  // Helpers
+  // =========================
   function panel(){ return document.querySelector('.elementor-panel') || document; }
   function ajaxUrl(){ const J=window.JPRMAjax||{}; return J.url || window.ajaxurl || (location.origin + '/wp-admin/admin-ajax.php'); }
   function nonce(){ const J=window.JPRMAjax||{}; return J.nonce || ''; }
 
   function currentMenuId() {
     const root = panel();
-    const sels = root.querySelectorAll('[data-setting="data_menu"],[data-setting="menus"],select[name$="[data_menu]"],select[name$="[menus]"]');
+    const sels = root.querySelectorAll(
+      '[data-setting="data_menu"],' +
+      '[data-setting="menus"],' +
+      'select[name$="[data_menu]"],' +
+      'select[name$="[menus]"]'
+    );
     for (const el of sels) {
       const v = el.value || (el.selectedOptions?.[0]?.value || '');
       if (v && /^\d+$/.test(v)) return parseInt(v, 10);
@@ -64,11 +100,47 @@
       } else {
         select.value = '';
       }
+      return true;
     }
+    return false;
+  }
+
+  // Decide if a <select> is one of our section-pickers
+  function isTargetSelect(select){
+    const ds = (select.getAttribute('data-setting') || '').trim();
+    const nm = (select.getAttribute('name') || '').trim();
+
+    // Only consider the *hidden Select2 source* or a native select that isn't a Select2 clone
+    const isHiddenSrc = select.classList.contains('select2-hidden-accessible');
+
+    // 1) direct data-setting matches (exact)
+    if (ds && TARGET_EXACT_KEYS.has(ds)) return true;
+
+    // 2) suffix match (for fields named like "..._section")
+    if (ds && ds.endsWith(TARGET_SUFFIX)) return true;
+
+    // 3) name-based match (covers repeaters: ...[section_layouts][i][section_id] or [section])
+    if (/\[section(_id)?\]$/.test(nm)) return true;
+
+    // Prefer operating on hidden Select2 "source" for stability
+    if (!isHiddenSrc) return false;
+
+    return false;
+  }
+
+  // Collect all relevant selects (hidden Select2 sources and any raw fallback)
+  function findTargetSelects(root){
+    const found = [];
+    const all = root.querySelectorAll('select'); // include hidden select2 sources
+    for (const sel of all) {
+      if (isTargetSelect(sel)) found.push(sel);
+    }
+    return found;
   }
 
   let ticking = false;
   function schedule(){ if (!ticking) { ticking = true; requestAnimationFrame(run); } }
+
   async function run(){
     ticking = false;
     const root = panel();
@@ -78,9 +150,13 @@
     const nodes = await fetchSections(mid);
     const opts  = buildOptions(nodes);
 
-    // authoritative hidden Select2 source for “Sections”
-    const hidden = root.querySelector('select.select2-hidden-accessible[data-setting="sections"]');
-    if (hidden) applyOptions(hidden, opts);
+    const targets = findTargetSelects(root);
+    let changed = 0;
+    for (const sel of targets) {
+      if (applyOptions(sel, opts)) changed++;
+    }
+
+    log('updated', 'menu=', mid, 'targets=', targets.length, 'changed=', changed, 'nodes=', nodes.length);
   }
 
   function bind(){
@@ -97,9 +173,15 @@
       }
     }, true);
 
-    // Update when controls appear
+    // Update when a select opens/focuses (covers late-created controls & repeaters)
+    root.addEventListener('focusin', (e) => {
+      const t = e.target;
+      if (t instanceof HTMLSelectElement && isTargetSelect(t)) schedule();
+    });
+
+    // React to panel DOM mutations (tabs/repeaters open/close)
     const mo = new MutationObserver(() => schedule());
-    mo.observe(root, { childList: true, subtree: true });
+    if (root) mo.observe(root, { childList:true, subtree:true });
 
     // First pass
     schedule();
