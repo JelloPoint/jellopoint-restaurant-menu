@@ -130,29 +130,49 @@ class Plugin {
 	}
 
 	public static function enqueue_elementor_editor_assets() : void {
-		$base_url = defined( 'JPRM_PLUGIN_URL' ) ? JPRM_PLUGIN_URL : plugin_dir_url( __DIR__ ) . '../';
-		$handle   = 'jprm-elementor-sections-dep';
-		$src      = trailingslashit( $base_url ) . 'assets/admin/elementor-sections-dep.js';
+	$base_url = defined( 'JPRM_PLUGIN_URL' ) ? JPRM_PLUGIN_URL : plugin_dir_url( __DIR__ ) . '../';
 
-		wp_register_script(
-			$handle,
-			$src,
-			[ 'jquery', 'elementor-editor' ],
-			defined( 'JPRM_PLUGIN_VERSION' ) ? JPRM_PLUGIN_VERSION : null,
-			true
-		);
+	/* 1) Core dependency that scopes ALL non-Data-Source section selects */
+	$handle_dep = 'jprm-elementor-sections-dep';
+	$src_dep    = trailingslashit( $base_url ) . 'assets/admin/elementor-sections-dep.js';
 
-		wp_localize_script(
-			$handle,
-			'JPRMAjax',
-			[
-				'url'   => admin_url( 'admin-ajax.php' ),
-				'nonce' => wp_create_nonce( 'jprm_sections' ),
-			]
-		);
+	wp_register_script(
+		$handle_dep,
+		$src_dep,
+		[ 'jquery', 'elementor-editor' ],
+		defined( 'JPRM_PLUGIN_VERSION' ) ? JPRM_PLUGIN_VERSION : null,
+		true
+	);
 
-		wp_enqueue_script( $handle );
-	}
+	// Provide AJAX details once here
+	wp_localize_script(
+		$handle_dep,
+		'JPRMAjax',
+		[
+			'url'   => admin_url( 'admin-ajax.php' ),
+			'nonce' => wp_create_nonce( 'jprm_sections' ),
+		]
+	);
+
+	wp_enqueue_script( $handle_dep );
+
+	/* 2) Data Source → Sections (SELECT2) scoper
+	      - Depends on the dep script (so it reuses JPRMAjax).
+	      - Only touches the DS “Sections” control. */
+	$handle_ds = 'jprm-elementor-sections-datasource';
+	$src_ds    = trailingslashit( $base_url ) . 'assets/admin/elementor-sections-datasource.js';
+
+	wp_register_script(
+		$handle_ds,
+		$src_ds,
+		[ 'jquery', 'elementor-editor', $handle_dep ],
+		defined( 'JPRM_PLUGIN_VERSION' ) ? JPRM_PLUGIN_VERSION : null,
+		true
+	);
+
+	wp_enqueue_script( $handle_ds );
+}
+
 
 	/* =========================
 	 * Elementor registration
