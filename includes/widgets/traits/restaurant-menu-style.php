@@ -254,7 +254,7 @@ trait Restaurant_Menu_Style {
 		] );
 
 		$this->add_responsive_control(
-			'jprm_main_section_align',
+			'jprm_sub_section_align',
 			[
 				'label'   => __( 'Alignment', 'jellopoint-restaurant-menu' ),
 				'type'    => Controls_Manager::CHOOSE,
@@ -272,7 +272,7 @@ trait Restaurant_Menu_Style {
 		);
 		
 		$this->add_responsive_control(
-			'jprm_main_section_margin',
+			'jprm_subsection_margin',
 			[
 				'label'      => __( 'Margin', 'jellopoint-restaurant-menu' ),
 				'type'       => Controls_Manager::DIMENSIONS,
@@ -285,7 +285,7 @@ trait Restaurant_Menu_Style {
 			]
 		);
 		$this->add_responsive_control(
-			'jprm_main_section_padding',
+			'jprm_sub_section_padding',
 			[
 				'label'      => __( 'Padding', 'jellopoint-restaurant-menu' ),
 				'type'       => Controls_Manager::DIMENSIONS,
@@ -297,7 +297,7 @@ trait Restaurant_Menu_Style {
 			],
 			]
 		);
-		$this->add_control( 'jprm_main_section_background', [
+		$this->add_control( 'jprm_sub_section_background', [
 			'label'     => __( 'Background', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::COLOR,
 			'selectors' => [
