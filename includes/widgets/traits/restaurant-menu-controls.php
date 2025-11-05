@@ -509,7 +509,7 @@ $sections_tree_scoped = (static function( int $menu_id, array $fallback_all ) : 
 		$rep_ov->add_control( 'section_id', [
 			'label'   => __( 'Section', 'jellopoint-restaurant-menu' ),
 			'type'    => Controls_Manager::SELECT,
-			'options' => $_scoped_sections, // ← unified scoped list
+			'options' => $sections_tree_scoped,
 		] );
 
 		$rep_ov->add_control( 'layout', [
