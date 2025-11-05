@@ -264,15 +264,15 @@ trait Restaurant_Menu_Style {
 					'right'  => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-text-align-right' ],
 				],
 				'selectors' => [
-				'{{WRAPPER}} .jp-menu__section--level-1 > .jp-section__title' => 'color: {{VALUE}};',
-				'{{WRAPPER}} .jp-menu__section--level-2 > .jp-section__title' => 'color: {{VALUE}};',
-				'{{WRAPPER}} .jp-menu__section--level-3 > .jp-section__title' => 'color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu__section--level-1 > .jp-section__title' => 'text-align: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu__section--level-2 > .jp-section__title' => 'text-align: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu__section--level-3 > .jp-section__title' => 'text-align: {{VALUE}};',
 			],
 			]
 		);
 		
 		$this->add_responsive_control(
-			'jprm_subsection_margin',
+			'jprm_sub_section_margin',
 			[
 				'label'      => __( 'Margin', 'jellopoint-restaurant-menu' ),
 				'type'       => Controls_Manager::DIMENSIONS,
