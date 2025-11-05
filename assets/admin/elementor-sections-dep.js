@@ -1,200 +1,177 @@
-/* global elementor, JPRMAjax */
 (function () {
   'use strict';
 
-  const LOG = '[JPRM]';
-  const d = document;
+  // --- exact keys we handle ---
+  const KEY_SECTIONS = 'sections'; // Data Source (Select2)
+  const KEY_SPLIT_1  = 'layout_split_after_section';   // native select
+  const KEY_SPLIT_2  = 'layout_split_after_section2';  // native select
 
-  function log() {
-    try { console.log.apply(console, [LOG].concat([].slice.call(arguments))); } catch (e) {}
-  }
+  // small cache to avoid repeat network hits per menu id
+  const CACHE = new Map();
 
-  // ----- AJAX -----
-  async function fetchSectionsMap(menuId) {
-    const url = (JPRMAjax && JPRMAjax.url) ? JPRMAjax.url : '/wp-admin/admin-ajax.php';
-    const nonce = (JPRMAjax && JPRMAjax.nonce) ? JPRMAjax.nonce : '';
-    const form = new URLSearchParams();
-    form.set('action', 'jprm_sections_for_menu');
-    if (menuId) form.set('menu_id', String(menuId));
-    if (nonce)  form.set('nonce', nonce);
+  // helpers
+  function panel(){ return document.querySelector('.elementor-panel') || document; }
+  function ajaxUrl(){ const J=window.JPRMAjax||{}; return J.url || window.ajaxurl || (location.origin + '/wp-admin/admin-ajax.php'); }
+  function nonce(){ const J=window.JPRMAjax||{}; return J.nonce || ''; }
 
-    const res = await fetch(url, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-      body: form.toString()
-    });
-
-    let payload;
-    try { payload = await res.json(); } catch (e) { log('AJAX JSON parse error'); return {}; }
-    if (!payload || !payload.success || !payload.data || !Array.isArray(payload.data.sections)) return {};
-
-    // Build id -> label map with indentation
-    const map = {};
-    payload.data.sections.forEach(s => {
-      const lvl = Math.max(0, parseInt(s.level || 0, 10));
-      const indent = (lvl > 0) ? Array(lvl + 1).join('  ') : ''; // NBSP indents
-      map[String(s.id)] = indent + s.text;
-    });
-    return map;
-  }
-
-  // ----- ELEMENTOR PANEL HELPERS -----
-  function getPanelRoot() {
-    return d.querySelector('.elementor-panel') || d.body;
-  }
-
-  // Read selected Menu from model (preferred), fallback to DOM
-  function getCurrentMenuId(panel) {
-    try {
-      if (window.elementor && elementor.getPanelView) {
-        const pv = elementor.getPanelView().getCurrentPanelView();
-        const v = pv && pv.model && pv.model.getSetting('menus');
-        if (Array.isArray(v)) return v[0] || '';
-        return v || '';
-      }
-    } catch (e) {}
-    const p = panel || getPanelRoot();
-    const sel = p.querySelector('[data-setting="menus"]');
-    if (!sel) return '';
-    const val = sel.value;
-    return Array.isArray(val) ? (val[0] || '') : val || '';
-  }
-
-  // Collect all Section selects we need to keep in sync
-  function findAllSectionSelects(scope) {
-    const root = scope || getPanelRoot();
-
-    const nodes = new Set();
-
-    // Data Source → Sections (SELECT2)
-    root.querySelectorAll('select[data-setting="sections"]').forEach(n => nodes.add(n));
-
-    // Layout → Split after section (1/2) (plain SELECT)
-    root.querySelectorAll('select[data-setting="layout_split_after_section"]').forEach(n => nodes.add(n));
-    root.querySelectorAll('select[data-setting="layout_split_after_section2"]').forEach(n => nodes.add(n));
-
-    // Info Blocks (repeater) → Target Section (SELECT2)
-    // Matches inputs like: name="info_blocks[0][section_id]"
-    root.querySelectorAll('select[name$="[section_id]"]').forEach(n => {
-      if (n.closest('[data-repeater-items]') || n.closest('.elementor-repeater-fields')) nodes.add(n);
-    });
-
-    // Labels Layout Overrides (repeater) → Section (plain SELECT)
-    // Matches inputs like: name="labels_layout_overrides[0][section_id]"
-    root.querySelectorAll('select[name^="labels_layout_overrides"][name$="[section_id]"]').forEach(n => nodes.add(n));
-
-    return Array.from(nodes);
-  }
-
-  // Apply new options to a <select> while preserving valid selections
-  function applyOptions(selectEl, idToLabelMap) {
-    if (!selectEl) return;
-    const isMultiple = !!selectEl.multiple;
-
-    // Keep only selections that still exist in map
-    const current = (function () {
-      if (isMultiple) {
-        return Array.from(selectEl.selectedOptions || []).map(o => o.value).filter(v => idToLabelMap.hasOwnProperty(String(v)));
-      }
-      const v = selectEl.value;
-      return idToLabelMap.hasOwnProperty(String(v)) ? [String(v)] : [];
-    })();
-
-    // Rebuild options
-    while (selectEl.firstChild) selectEl.removeChild(selectEl.firstChild);
-    const frag = d.createDocumentFragment();
-    if (!isMultiple) {
-      frag.appendChild(new Option('', '')); // allow clearing
+  function currentMenuId() {
+    const root = panel();
+    const sels = root.querySelectorAll('[data-setting="data_menu"],[data-setting="menus"],select[name$="[data_menu]"],select[name$="[menus]"]');
+    for (const el of sels) {
+      const v = el.value || (el.selectedOptions?.[0]?.value || '');
+      if (v && /^\d+$/.test(v)) return parseInt(v, 10);
     }
-    Object.keys(idToLabelMap).forEach(id => {
-      const opt = new Option(idToLabelMap[id], id, false, current.includes(id));
-      frag.appendChild(opt);
-    });
-    selectEl.appendChild(frag);
+    return 0;
+  }
 
-    // Trigger change (Elementor/Select2 aware)
-    if (typeof jQuery !== 'undefined' && jQuery.fn && jQuery(selectEl).trigger) {
-      jQuery(selectEl).trigger('change');
-    } else {
-      const evt = new Event('change', { bubbles: true });
-      selectEl.dispatchEvent(evt);
+  async function fetchSections(mid){
+    if (CACHE.has(mid)) return CACHE.get(mid);
+    const p = new URLSearchParams({ action:'jprm_sections_for_menu', nonce:nonce(), menu_id:String(mid) });
+    const r = await fetch(ajaxUrl() + '?' + p.toString(), { credentials:'include' });
+    const j = await r.json().catch(()=>null);
+    const nodes = (j && j.success && j.data && Array.isArray(j.data.sections)) ? j.data.sections : [];
+    CACHE.set(mid, nodes);
+    return nodes;
+  }
+
+  function buildOptions(nodes){
+    const out = [{ value:'', label:'' }];
+    for (const n of nodes) {
+      const lvl = Number(n.level || 0);
+      const indent = lvl > 0 ? '— '.repeat(lvl) : '';
+      out.push({ value:String(n.id), label: indent + n.text });
+    }
+    return out;
+  }
+
+  function sameOptions(select, opts){
+    const cur = Array.from(select.options).map(o=>({value:o.value,label:o.text}));
+    if (cur.length !== opts.length) return false;
+    for (let i=0;i<opts.length;i++){
+      if (String(cur[i].value) !== String(opts[i].value)) return false;
+      if (String(cur[i].label) !== String(opts[i].label)) return false;
+    }
+    return true;
+  }
+
+  function applyOptions(select, opts){
+    const prev = select.value;
+    if (sameOptions(select, opts)) return false;
+
+    // rebuild list
+    select.innerHTML = '';
+    for (const o of opts) {
+      const opt = document.createElement('option');
+      opt.value = o.value;
+      opt.textContent = o.label;
+      select.appendChild(opt);
+    }
+    // restore previous selection silently (NO events)
+    if (prev && opts.some(o=>o.value===prev)) select.value = prev;
+    else select.value = '';
+    // stamp so we can detect Elementor overwrites
+    select.setAttribute('data-jprm-stamp', String(opts.length) + ':' + (opts[1]?.value || ''));
+    return true;
+  }
+
+  function selectStamp(select){
+    return select.getAttribute('data-jprm-stamp') || '';
+  }
+
+  // finders
+  function findSectionsHidden(root){
+    // Select2 source for Data Source → Sections (already working, keep it)
+    return root.querySelector('select.select2-hidden-accessible[data-setting="'+KEY_SECTIONS+'"]') || null;
+  }
+  function findSplitSelects(root){
+    const a = root.querySelectorAll('select[data-setting="'+KEY_SPLIT_1+'"]');
+    const b = root.querySelectorAll('select[data-setting="'+KEY_SPLIT_2+'"]');
+    return Array.from(new Set([].concat(Array.from(a), Array.from(b))));
+  }
+
+  // core runner
+  let ticking = false;
+  function schedule(){ if (!ticking) { ticking = true; requestAnimationFrame(run); } }
+
+  async function run(){
+    ticking = false;
+    const root = panel();
+    const mid  = currentMenuId();
+    if (!mid) return;
+
+    const nodes = await fetchSections(mid);
+    const opts  = buildOptions(nodes);
+
+    // sections (Select2) — leave as-is if you already see it working; still apply silently
+    const hidden = findSectionsHidden(root);
+    if (hidden) applyOptions(hidden, opts);
+
+    // split selects (native) — aggressively enforce, including after Elementor overwrites
+    const splits = findSplitSelects(root);
+    for (const sel of splits) {
+      applyOptions(sel, opts);
+      // Observe this specific select's childList so if Elementor repaints it, we re-apply immediately
+      ensureObserver(sel, opts);
     }
   }
 
-  // Refresh all section dropdowns for the active panel
-  let inflight = 0;
-  async function refreshAllSectionDropdowns(scope) {
-    const panel = scope || getPanelRoot();
-    const menuId = getCurrentMenuId(panel);
-    if (!menuId) { log('No menu selected → skip refresh'); return; }
-
-    const myTicket = ++inflight;
-    const map = await fetchSectionsMap(menuId);
-    if (myTicket !== inflight) return; // a newer refresh superseded this one
-
-    const selects = findAllSectionSelects(panel);
-    selects.forEach(sel => applyOptions(sel, map));
-    log('Patched all section selects', { menuId, count: selects.length, options: Object.keys(map).length });
-  }
-
-  // Bind to Menu change to re-scope sections
-  function bindMenuChange(scope) {
-    const panel = scope || getPanelRoot();
-    const menuSel = panel.querySelector('[data-setting="menus"]');
-    if (!menuSel) return;
-
-    menuSel.addEventListener('change', () => {
-      refreshAllSectionDropdowns(panel);
-    }, { passive: true });
-  }
-
-  // Observe panel for newly rendered controls (repeaters, tabs, etc.)
-  function startObserver() {
-    const root = getPanelRoot();
-    const mo = new MutationObserver((muts) => {
-      let needsRefresh = false;
-      muts.forEach(m => {
-        m.addedNodes && Array.prototype.forEach.call(m.addedNodes, (node) => {
-          if (!(node instanceof HTMLElement)) return;
-          if (
-            node.matches('select[data-setting="sections"], select[data-setting="layout_split_after_section"], select[data-setting="layout_split_after_section2"]') ||
-            node.querySelector('select[data-setting="sections"]') ||
-            node.querySelector('select[data-setting="layout_split_after_section"]') ||
-            node.querySelector('select[data-setting="layout_split_after_section2"]') ||
-            node.querySelector('select[name$="[section_id]"]')
-          ) {
-            needsRefresh = true;
-          }
-        });
-      });
-      if (needsRefresh) refreshAllSectionDropdowns(root);
+  // Keep one MutationObserver per split select, re-apply if Elementor rewrites options
+  const OBS = new WeakMap();
+  function ensureObserver(select, opts){
+    if (OBS.has(select)) return;
+    const mo = new MutationObserver(() => {
+      // if stamp changed or options length changed, re-apply
+      const need = !sameOptions(select, opts) || selectStamp(select) === '';
+      if (need) applyOptions(select, opts);
     });
-    mo.observe(root, { childList: true, subtree: true });
-    return mo;
+    mo.observe(select, { childList:true, subtree:false });
+    OBS.set(select, mo);
   }
 
-  // Boot when Elementor editor is ready/open
-  function bootWhenPanelReady() {
-    // If panel already present, bind immediately
-    const attempt = () => {
-      const panel = getPanelRoot();
-      if (!panel.querySelector('.elementor-panel')) {
-        setTimeout(attempt, 300);
-        return;
+  function bind(){
+    const root = panel();
+
+    // menu changes → clear cache & update
+    root.addEventListener('change', (e) => {
+      const t = e.target;
+      if (!(t instanceof HTMLSelectElement)) return;
+      const ds = t.getAttribute('data-setting') || '';
+      const nm = t.getAttribute('name') || '';
+      if (ds === 'data_menu' || ds === 'menus' || nm.endsWith('[data_menu]') || nm.endsWith('[menus]')) {
+        CACHE.clear();
+        schedule();
       }
-      bindMenuChange(panel);
-      startObserver();
-      // Initial pass
-      refreshAllSectionDropdowns(panel);
-      log('sections-dep hook active');
-    };
-    attempt();
+    }, true);
+
+    // opening/focusing any of the split selects → ensure they’re updated just-in-time
+    root.addEventListener('focusin', (e) => {
+      const t = e.target;
+      if (!(t instanceof HTMLSelectElement)) return;
+      const ds = t.getAttribute('data-setting') || '';
+      if (ds === KEY_SPLIT_1 || ds === KEY_SPLIT_2 || ds === KEY_SECTIONS) {
+        schedule();
+      }
+    });
+
+    // tab switches (e.g. going to Layout) → rerun a few times to catch late DOM paints
+    root.addEventListener('click', (e) => {
+      const el = e.target;
+      if (!(el instanceof Element)) return;
+      if (el.getAttribute('role') === 'tab' || el.closest('[role="tablist"]')) {
+        schedule();
+        setTimeout(schedule, 80);
+        setTimeout(schedule, 200);
+      }
+    }, true);
+
+    // global panel mutations → schedule once per frame
+    const mo = new MutationObserver(() => schedule());
+    mo.observe(root, { childList:true, subtree:true });
+
+    // first pass
+    schedule();
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', bootWhenPanelReady);
-  } else {
-    bootWhenPanelReady();
-  }
+  if (document.readyState === 'complete' || document.readyState === 'interactive') bind();
+  else window.addEventListener('DOMContentLoaded', bind);
 })();
