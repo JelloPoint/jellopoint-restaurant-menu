@@ -253,13 +253,57 @@ trait Restaurant_Menu_Style {
 			],
 		] );
 
-		$this->add_responsive_control( 'jprm_sub_section_spacing', [
-			'label'      => __( 'Bottom Spacing', 'jellopoint-restaurant-menu' ),
-			'type'       => Controls_Manager::SLIDER,
-			'size_units' => [ 'px', 'em', 'rem' ],
-			'range'      => [ 'px' => [ 'min' => 0, 'max' => 100 ] ],
-			'selectors'  => [
-				'{{WRAPPER}} .jp-menu__section--level-1 > .jp-section__title, {{WRAPPER}} .jp-menu__section--level-2 > .jp-section__title, {{WRAPPER}} .jp-menu__section--level-3 > .jp-section__title' => 'margin-bottom: {{SIZE}}{{UNIT}};',
+		$this->add_responsive_control(
+			'jprm_main_section_align',
+			[
+				'label'   => __( 'Alignment', 'jellopoint-restaurant-menu' ),
+				'type'    => Controls_Manager::CHOOSE,
+				'options' => [
+					'left'   => [ 'title' => __( 'Left', 'jellopoint-restaurant-menu' ),   'icon' => 'eicon-text-align-left' ],
+					'center' => [ 'title' => __( 'Center', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-center' ],
+					'right'  => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-text-align-right' ],
+				],
+				'selectors' => [
+				'{{WRAPPER}} .jp-menu__section--level-1 > .jp-section__title' => 'color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu__section--level-2 > .jp-section__title' => 'color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu__section--level-3 > .jp-section__title' => 'color: {{VALUE}};',
+			],
+			]
+		);
+		
+		$this->add_responsive_control(
+			'jprm_main_section_margin',
+			[
+				'label'      => __( 'Margin', 'jellopoint-restaurant-menu' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => [ 'px', 'em', '%' ],
+				'selectors'  => [
+				'{{WRAPPER}} .jp-menu__section--level-1 > .jp-section__title' => 'color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu__section--level-2 > .jp-section__title' => 'color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu__section--level-3 > .jp-section__title' => 'color: {{VALUE}};',
+			],
+			]
+		);
+		$this->add_responsive_control(
+			'jprm_main_section_padding',
+			[
+				'label'      => __( 'Padding', 'jellopoint-restaurant-menu' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => [ 'px', 'em', '%' ],
+				'selectors'  => [
+				'{{WRAPPER}} .jp-menu__section--level-1 > .jp-section__title' => 'color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu__section--level-2 > .jp-section__title' => 'color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu__section--level-3 > .jp-section__title' => 'color: {{VALUE}};',
+			],
+			]
+		);
+		$this->add_control( 'jprm_main_section_background', [
+			'label'     => __( 'Background', 'jellopoint-restaurant-menu' ),
+			'type'      => Controls_Manager::COLOR,
+			'selectors' => [
+				'{{WRAPPER}} .jp-menu__section--level-1 > .jp-section__title' => 'color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu__section--level-2 > .jp-section__title' => 'color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu__section--level-3 > .jp-section__title' => 'color: {{VALUE}};',
 			],
 		] );
 
