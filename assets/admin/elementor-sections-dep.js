@@ -6,24 +6,59 @@
   function ajaxNonce(){ return (window.JPRMAjax && JPRMAjax.nonce) || ''; }
 
   function panelRoot(){ return document.querySelector('.elementor-panel'); }
-  function menuSelect(root){ return root && root.querySelector('[data-setting="menus"]'); }
+  function menuSelect(root){ return root && root.querySelector('.elementor-control[data-id="menus"] [data-setting="menus"]'); }
   function dsSectionsSelect(root){
-    return root && (root.querySelector('.elementor-control-sections [data-setting="sections"]') || root.querySelector('[data-setting="sections"]'));
+    // Data Source → Sections (SELECT2)
+    return root && root.querySelector('.elementor-control[data-id="sections"] [data-setting="sections"]');
   }
 
-  // Other dependent selects:
+  // ---------- Robust target discovery for “other” scoped selects ----------
+  function selectCandidates(scope){
+    // Return visible select or select2 input for a control block scope
+    const out = [];
+    if (!scope) return out;
+
+    // Native select, if present
+    scope.querySelectorAll('select[data-setting]').forEach(s => out.push(s));
+
+    // Select2 hidden select (Elementor often uses this)
+    scope.querySelectorAll('select.select2-hidden-accessible[data-setting]').forEach(s => out.push(s));
+
+    return out;
+  }
+
   function splitAfterSelects(root){
     if (!root) return [];
-    return Array.from(root.querySelectorAll('[data-setting="layout_split_after_section"], [data-setting="layout_split_after_section2"]'));
+    const out = [];
+    const s1Scope = root.querySelector('.elementor-control[data-id="layout_split_after_section"]');
+    const s2Scope = root.querySelector('.elementor-control[data-id="layout_split_after_section2"]');
+    out.push(...selectCandidates(s1Scope));
+    out.push(...selectCandidates(s2Scope));
+    return out;
   }
-  // Repeater scoping guards: only section_id inside our two repeaters
+
   function repeaterSectionSelects(root){
     if (!root) return [];
     const out = [];
-    const reps = root.querySelectorAll('.elementor-control-type-repeater[data-id="labels_layout_overrides"], .elementor-control-type-repeater[data-id="info_blocks"]');
-    reps.forEach(rep => {
-      out.push(...rep.querySelectorAll('select[data-setting="section_id"]'));
-    });
+
+    // Labels Layout Overrides → section_id (inside repeater rows)
+    const llScope = root.querySelector('.elementor-control[data-id="labels_layout_overrides"]');
+    if (llScope) {
+      llScope.querySelectorAll('.elementor-repeater-row').forEach(row => {
+        const rowScope = row.querySelector('.elementor-control[data-id="section_id"]');
+        out.push(...selectCandidates(rowScope));
+      });
+    }
+
+    // Info Blocks → section_id (inside repeater rows)
+    const ibScope = root.querySelector('.elementor-control[data-id="info_blocks"]');
+    if (ibScope) {
+      ibScope.querySelectorAll('.elementor-repeater-row').forEach(row => {
+        const rowScope = row.querySelector('.elementor-control[data-id="section_id"]');
+        out.push(...selectCandidates(rowScope));
+      });
+    }
+
     return out;
   }
 
@@ -34,17 +69,25 @@
     const id = parseInt(v || 0, 10);
     return Number.isFinite(id) ? id : 0;
   }
+
   function getSelectedValues(selectEl){
     const vals = [];
     if (!selectEl) return vals;
     for (const opt of selectEl.options) if (opt.selected) vals.push(String(opt.value));
     return vals;
   }
+
   function setSelectedValues(selectEl, values){
     const keep = new Set((values||[]).map(String));
     for (const opt of selectEl.options) opt.selected = keep.has(String(opt.value));
-    if (typeof jQuery !== 'undefined') { jQuery(selectEl).trigger('change', { silent:true }); }
+
+    // Notify Select2 if present
+    if (typeof jQuery !== 'undefined') {
+      const $el = jQuery(selectEl);
+      $el.trigger('change', { silent:true });
+    }
   }
+
   function optionsSignature(map){
     if (!map || typeof map !== 'object') return '';
     const keys = Object.keys(map).sort();
@@ -98,9 +141,10 @@
     const selected = getSelectedValues(selectEl);
     const ids = Object.keys(map || {});
 
+    // Clear options
     while (selectEl.firstChild) selectEl.removeChild(selectEl.firstChild);
 
-    // For single selects, insert an empty option at top
+    // For single selects, add blank option first
     if (!wasMultiple) {
       const emptyOpt = document.createElement('option');
       emptyOpt.value = '';
@@ -115,10 +159,17 @@
       selectEl.appendChild(opt);
     });
 
+    // Restore selection if still valid
     const kept = selected.filter(v => ids.includes(String(v)));
     setSelectedValues(selectEl, kept);
 
     selectEl.setAttribute('data-jprm-sig', sig);
+
+    // If Select2 is mounted, refresh it
+    if (typeof jQuery !== 'undefined' && jQuery.fn.select2 && jQuery(selectEl).hasClass('select2-hidden-accessible')) {
+      jQuery(selectEl).trigger('change.select2'); // refresh UI
+    }
+
     return true;
   }
 
@@ -138,17 +189,19 @@
     return map || {};
   }
 
-  // NEW: apply the same map to other dependent selects
   function applyScopedOptionsToOthers(root, map){
     const targets = [
       ...splitAfterSelects(root),
-      ...repeaterSectionSelects(root)
-    ];
-    if (!targets.length) return;
+      ...repeaterSectionSelects(root),
+    ].filter(Boolean);
+
+    // Filter out the DS select (we already handled it)
+    const ds = dsSectionsSelect(root);
+    const filtered = targets.filter(el => el !== ds);
 
     let applied = 0;
-    targets.forEach(el => { if (rebuildOptionsIfChanged(el, map)) applied++; });
-    if (applied) log('Others applied', { count: applied, totalTargets: targets.length });
+    filtered.forEach(el => { if (rebuildOptionsIfChanged(el, map)) applied++; });
+    log('Others applied', { count: applied, totalTargets: filtered.length });
   }
 
   function scheduleRefresh(root){
@@ -157,12 +210,12 @@
       state.debounceTimer = null;
       if (!menuSelect(root)) return;
 
-      // Always refresh DS first so we reuse the same map for others
+      // Refresh DS first so we reuse its map
       const map = await refreshDataSourceSections(root);
       if (map && typeof map === 'object') {
         applyScopedOptionsToOthers(root, map);
       }
-    }, 200);
+    }, 180);
   }
 
   function bindMenuChange(root){
@@ -173,8 +226,10 @@
       // Clear signatures so rebuild happens
       const ds = dsSectionsSelect(root);
       if (ds) ds.removeAttribute('data-jprm-sig');
-      splitAfterSelects(root).forEach(el => el.removeAttribute('data-jprm-sig'));
-      repeaterSectionSelects(root).forEach(el => el.removeAttribute('data-jprm-sig'));
+
+      splitAfterSelects(root).forEach(el => el && el.removeAttribute('data-jprm-sig'));
+      repeaterSectionSelects(root).forEach(el => el && el.removeAttribute('data-jprm-sig'));
+
       scheduleRefresh(root);
     });
   }
@@ -194,13 +249,20 @@
         if (m.type !== 'childList') continue;
         for (const n of m.addedNodes) {
           if (!(n instanceof HTMLElement)) continue;
+          // Any of our controls appearing (including repeater rows)
+          if (
+            n.matches && (
+              n.matches('.elementor-control[data-id="menus"], .elementor-control[data-id="sections"], .elementor-control[data-id="layout_split_after_section"], .elementor-control[data-id="layout_split_after_section2"], .elementor-control[data-id="labels_layout_overrides"], .elementor-control[data-id="info_blocks"]')
+            )
+          ) { relevant = true; break; }
           if (n.querySelector && (
-              n.querySelector('[data-setting="menus"]') ||
-              n.querySelector('[data-setting="sections"]') ||
-              n.querySelector('[data-setting="layout_split_after_section"]') ||
-              n.querySelector('[data-setting="layout_split_after_section2"]') ||
-              n.querySelector('.elementor-control-type-repeater[data-id="labels_layout_overrides"] select[data-setting="section_id"]') ||
-              n.querySelector('.elementor-control-type-repeater[data-id="info_blocks"] select[data-setting="section_id"]')
+              n.querySelector('.elementor-control[data-id="menus"]') ||
+              n.querySelector('.elementor-control[data-id="sections"]') ||
+              n.querySelector('.elementor-control[data-id="layout_split_after_section"]') ||
+              n.querySelector('.elementor-control[data-id="layout_split_after_section2"]') ||
+              n.querySelector('.elementor-control[data-id="labels_layout_overrides"]') ||
+              n.querySelector('.elementor-control[data-id="info_blocks"]') ||
+              n.querySelector('.elementor-repeater-row .elementor-control[data-id="section_id"]')
           )) { relevant = true; break; }
         }
         if (relevant) break;
