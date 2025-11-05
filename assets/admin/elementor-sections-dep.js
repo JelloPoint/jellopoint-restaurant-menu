@@ -1,198 +1,133 @@
-(function ($) {
+(function(){
   'use strict';
 
-  const LOG = '[JPRM]';
-  function log(){ try{ console.log.apply(console, [LOG].concat([].slice.call(arguments))); }catch(e){} }
+  function log(){ try{ console.log.apply(console, ['[JPRM]'].concat([].slice.call(arguments))); }catch(e){} }
 
-  function ajaxUrl(){ return (window.JPRMAjax && JPRMAjax.url) ? JPRMAjax.url : (typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php'); }
-  function ajaxNonce(){ return (window.JPRMAjax && JPRMAjax.nonce) ? JPRMAjax.nonce : ''; }
+  function ajaxUrl(){ return (window.JPRMAjax && JPRMAjax.url) || (typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php'); }
+  function ajaxNonce(){ return (window.JPRMAjax && JPRMAjax.nonce) || ''; }
 
-  async function fetchSectionsTree(menuId) {
-    const url  = ajaxUrl();
-    const body = new URLSearchParams({
-      action: 'jprm_sections_for_menu',
-      menu_id: String(menuId || 0),
-      nonce: ajaxNonce()
-    });
-
-    const res = await fetch(url, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-      body: body.toString()
-    });
-
-    // If PHP throws (500), don't blow up the editor
-    let data = {};
-    try { data = await res.json(); } catch (e) {
-      log('AJAX parse error; HTTP', res.status);
-      return [];
-    }
-    if (!data || !data.success || !data.data || !Array.isArray(data.data.sections)) return [];
-
-    // Convert to Elementor options map with indentation
-    const opts = {};
-    data.data.sections.forEach(n => {
-      const lvl = Math.max(0, parseInt(n.level || 0, 10));
-      const indent = (lvl > 0) ? ('— '.repeat(lvl)) : '';
-      opts[String(n.id)] = indent + String(n.text || '');
-    });
-    return opts;
+  // Read the current "Menu" control (single SELECT with data-setting="menus")
+  function readMenuId(panelRoot){
+    const sel = panelRoot.querySelector('[data-setting="menus"]');
+    if (!sel) return 0;
+    const v = sel.value;
+    const id = parseInt(v || 0, 10);
+    return Number.isFinite(id) ? id : 0;
   }
 
-  /** Safely get current panel + control views */
-  function getCurrentPanel() {
+  // The Data Source → Sections control (SELECT2 multiple)
+  function dsSectionsSelect(panelRoot){
+    // Prefer the “Data Source” group; fall back to any data-setting="sections"
+    return panelRoot.querySelector('.elementor-control-sections [data-setting="sections"]')
+        || panelRoot.querySelector('[data-setting="sections"]');
+  }
+
+  async function fetchSectionsMap(menuId){
+    const body = new URLSearchParams();
+    body.set('action', 'jprm_sections_by_menu');   // ← your PHP action
+    body.set('menu', String(menuId || ''));        // ← your PHP expects 'menu'
+    body.set('_ajax_nonce', ajaxNonce());          // ← your PHP expects '_ajax_nonce'
+
+    let res;
     try {
-      if (!window.elementor || !elementor.getPanelView) return null;
-      const pv = elementor.getPanelView();
-      if (pv && pv.getCurrentPanelView) return pv.getCurrentPanelView();
-    } catch(e){}
-    return null;
-  }
-
-  function getControlView(name) {
-    try {
-      const panel = getCurrentPanel();
-      if (!panel || !panel.getControlView) return null;
-      return panel.getControlView(name);
-    } catch(e){}
-    return null;
-  }
-
-  function getSetting(name) {
-    try {
-      const panel = getCurrentPanel();
-      if (!panel || !panel.model) return undefined;
-      return panel.model.getSetting(name);
-    } catch(e){}
-    return undefined;
-  }
-
-  function setSetting(name, value) {
-    try {
-      const panel = getCurrentPanel();
-      if (!panel || !panel.model) return;
-      panel.model.setSetting(name, value);
-    } catch(e){}
-  }
-
-  /** Rebuild the Data Source → Sections SELECT2 from AJAX */
-  async function refreshDataSourceSections() {
-    const panel = getCurrentPanel();
-    if (!panel) return;
-
-    // Current Menu value (single select)
-    let menuVal = getSetting('menus');
-    if (Array.isArray(menuVal)) menuVal = menuVal[0] || '';
-    const menuId = parseInt(menuVal || 0, 10);
-
-    // Fetch fresh scoped+tree options
-    const optionsMap = await fetchSectionsTree(menuId);
-    log('DS refresh', { menuId, count: Object.keys(optionsMap).length });
-
-    // Ensure default for multi-select is an array (never null)
-    let selected = getSetting('sections');
-    if (!Array.isArray(selected)) selected = [];
-
-    // Drop any selected ids that aren't in the new options
-    const ids = Object.keys(optionsMap);
-    selected = selected.filter(v => ids.includes(String(v)));
-
-    // Update control model options and re-render
-    const cv = getControlView('sections'); // Data Source → "sections"
-    if (cv && cv.model) {
-      cv.model.set('options', optionsMap);
-
-      // Reapply the value safely (array for SELECT2 multiple)
-      setSetting('sections', selected);
-
-      // Re-render the control so select2 picks up the new options
-      if (typeof cv.render === 'function') cv.render();
-
-      // Make sure select2 shows the current selection
-      const $sel = cv.$el.find('[data-setting="sections"]');
-      if ($sel && $sel.length) {
-        $sel.val(selected).trigger('change', { silent: true });
-      }
-      log('DS applied', { selected });
-      return;
-    }
-
-    // Fallback: DOM only (should rarely happen)
-    const $fallback = panel.$el ? panel.$el.find('[data-setting="sections"]') : $();
-    if ($fallback.length) {
-      $fallback.find('option').remove();
-      Object.keys(optionsMap).forEach(id => {
-        $fallback.append(new Option(optionsMap[id], id, false, selected.includes(id)));
+      res = await fetch(ajaxUrl(), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+        body: body.toString()
       });
-      $fallback.val(selected).trigger('change', { silent: true });
-      log('DS applied (DOM fallback)', { selected });
+    } catch (e) {
+      log('AJAX network error', e);
+      return {};
     }
+
+    let json;
+    try { json = await res.json(); } catch (e) {
+      log('AJAX parse error, status=', res && res.status);
+      return {};
+    }
+
+    if (!json || !json.success || !json.data || typeof json.data !== 'object') return {};
+    return json.data; // { "id": "Label", ... } (tree-indented labels already)
   }
 
-  /** Bind to the “Menu” control so changing it refreshes DS sections immediately */
-  function bindMenuWatcher() {
-    const panel = getCurrentPanel();
-    if (!panel) return;
-
-    // Try via control view first (more reliable)
-    const menuCV = getControlView('menus');
-    if (menuCV && menuCV.$el) {
-      const $sel = menuCV.$el.find('[data-setting="menus"]');
-      if ($sel.length) {
-        $sel.off('.jprm').on('change.jprm', () => refreshDataSourceSections());
-        return;
-      }
+  function getSelectedValues(selectEl){
+    // Use plain DOM to avoid jQuery dependency
+    if (!selectEl) return [];
+    const vals = [];
+    for (const opt of selectEl.options) {
+      if (opt.selected) vals.push(String(opt.value));
     }
-
-    // Fallback: observe the panel for a menus field
-    const $root = panel.$el || $('.elementor-panel');
-    const $try = $root.find('[data-setting="menus"]');
-    if ($try.length) {
-      $try.off('.jprm').on('change.jprm', () => refreshDataSourceSections());
-      return;
-    }
-
-    // Last resort: small poll to catch late render
-    let tries = 0;
-    const iv = setInterval(() => {
-      const cv = getControlView('menus');
-      if (cv && cv.$el && cv.$el.find('[data-setting="menus"]').length) {
-        cv.$el.find('[data-setting="menus"]').off('.jprm').on('change.jprm', () => refreshDataSourceSections());
-        clearInterval(iv);
-      }
-      if (++tries > 20) clearInterval(iv);
-    }, 250);
+    return vals;
   }
 
-  /** Observe panel swaps (opening the widget, switching tabs) and refresh DS once */
-  function watchPanel() {
-    const $panelRoot = $('.elementor-panel');
-    if (!$panelRoot.length) { setTimeout(watchPanel, 500); return; }
+  function setSelectedValues(selectEl, values){
+    const keep = new Set((values || []).map(String));
+    for (const opt of selectEl.options) {
+      opt.selected = keep.has(String(opt.value));
+    }
+    // Fire a change for select2 if present
+    if (typeof jQuery !== 'undefined') { jQuery(selectEl).trigger('change', { silent:true }); }
+  }
 
-    const run = () => {
-      // When widget opens or tab changes, refresh the DS sections once
-      refreshDataSourceSections();
-      bindMenuWatcher();
-    };
-
-    // Initial
-    run();
-
-    // Observe dynamic changes inside the editor panel
-    const mo = new MutationObserver(() => {
-      // Keep this lightweight; just re-bind and refresh DS
-      run();
+  function rebuildOptionsFromMap(selectEl, map){
+    const selected = getSelectedValues(selectEl);
+    const ids = Object.keys(map || {});
+    // Clear
+    while (selectEl.firstChild) selectEl.removeChild(selectEl.firstChild);
+    // Rebuild with the already-indented labels coming from PHP
+    ids.forEach(id => {
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = String(map[id] || '');
+      selectEl.appendChild(opt);
     });
-    mo.observe($panelRoot.get(0), { childList: true, subtree: true });
+    // Reapply only those still present
+    const kept = selected.filter(v => ids.includes(String(v)));
+    setSelectedValues(selectEl, kept);
+    log('DS applied', { kept, total: ids.length });
+  }
+
+  async function refreshDataSourceSections(panelRoot){
+    const menuId = readMenuId(panelRoot);
+    log('DS refresh', { menuId });
+    const sel = dsSectionsSelect(panelRoot);
+    if (!sel) { log('DS select not found'); return; }
+    const map = await fetchSectionsMap(menuId);
+    rebuildOptionsFromMap(sel, map);
+  }
+
+  function bindMenuChange(panelRoot){
+    const menuSel = panelRoot.querySelector('[data-setting="menus"]');
+    if (!menuSel) return;
+    if (menuSel.__jprmBound) return;
+    menuSel.__jprmBound = true;
+    menuSel.addEventListener('change', function(){
+      refreshDataSourceSections(panelRoot);
+    });
   }
 
   function boot(){
+    const panelRoot = document.querySelector('.elementor-panel');
+    if (!panelRoot) { setTimeout(boot, 300); return; }
+
     log('sections-dep.js active');
-    watchPanel();
+
+    // Initial bind + first refresh
+    bindMenuChange(panelRoot);
+    refreshDataSourceSections(panelRoot);
+
+    // Watch the panel for re-renders / tab switches
+    const mo = new MutationObserver(() => {
+      bindMenuChange(panelRoot);
+      if (dsSectionsSelect(panelRoot)) {
+        // Keep DS select in sync when the section control re-renders
+        refreshDataSourceSections(panelRoot);
+      }
+    });
+    mo.observe(panelRoot, { childList: true, subtree: true });
   }
 
   if (document.readyState === 'complete' || document.readyState === 'interactive') boot();
-  else $(boot);
-
-})(jQuery);
+  else document.addEventListener('DOMContentLoaded', boot);
+})();
