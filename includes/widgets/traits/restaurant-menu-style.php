@@ -278,9 +278,9 @@ trait Restaurant_Menu_Style {
 				'type'       => Controls_Manager::DIMENSIONS,
 				'size_units' => [ 'px', 'em', '%' ],
 				'selectors'  => [
-				'{{WRAPPER}} .jp-menu__section--level-1 > .jp-section__title' => 'color: {{VALUE}};',
-				'{{WRAPPER}} .jp-menu__section--level-2 > .jp-section__title' => 'color: {{VALUE}};',
-				'{{WRAPPER}} .jp-menu__section--level-3 > .jp-section__title' => 'color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu__section--level-1 > .jp-section__title' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				'{{WRAPPER}} .jp-menu__section--level-2 > .jp-section__title' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				'{{WRAPPER}} .jp-menu__section--level-3 > .jp-section__title' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 			],
 			]
 		);
@@ -291,9 +291,9 @@ trait Restaurant_Menu_Style {
 				'type'       => Controls_Manager::DIMENSIONS,
 				'size_units' => [ 'px', 'em', '%' ],
 				'selectors'  => [
-				'{{WRAPPER}} .jp-menu__section--level-1 > .jp-section__title' => 'color: {{VALUE}};',
-				'{{WRAPPER}} .jp-menu__section--level-2 > .jp-section__title' => 'color: {{VALUE}};',
-				'{{WRAPPER}} .jp-menu__section--level-3 > .jp-section__title' => 'color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu__section--level-1 > .jp-section__title' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				'{{WRAPPER}} .jp-menu__section--level-2 > .jp-section__title' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				'{{WRAPPER}} .jp-menu__section--level-3 > .jp-section__title' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 			],
 			]
 		);
@@ -301,9 +301,9 @@ trait Restaurant_Menu_Style {
 			'label'     => __( 'Background', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::COLOR,
 			'selectors' => [
-				'{{WRAPPER}} .jp-menu__section--level-1 > .jp-section__title' => 'color: {{VALUE}};',
-				'{{WRAPPER}} .jp-menu__section--level-2 > .jp-section__title' => 'color: {{VALUE}};',
-				'{{WRAPPER}} .jp-menu__section--level-3 > .jp-section__title' => 'color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu__section--level-1 > .jp-section__title' => 'background-color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu__section--level-2 > .jp-section__title' => 'background-color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu__section--level-3 > .jp-section__title' => 'background-color: {{VALUE}};',
 			],
 		] );
 
