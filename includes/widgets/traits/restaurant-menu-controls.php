@@ -24,6 +24,7 @@ trait Restaurant_Menu_Controls {
 
 	/**
 	 * Limit Section dropdown to Sections that occur in items for the chosen Menu (falls back to all).
+	 * (Kept for compatibility; not used for the primary scoped list anymore.)
 	 */
 	protected function section_options_for_menu( int $menu_term_id, array $fallback_all ) : array {
 		if ( $menu_term_id <= 0 ) return $fallback_all;
@@ -66,10 +67,37 @@ trait Restaurant_Menu_Controls {
 		return $out;
 	}
 
+	/**
+	 * Preferred provider for "scoped + tree-indented" section options for a given Menu.
+	 * Uses jprm_infoblocks_sections_for_menu() if present; otherwise falls back to $all_sections (flat).
+	 */
+	protected function scoped_sections_for_menu( int $menu_term_id, array $all_sections ) : array {
+		if ( $menu_term_id > 0 && function_exists( 'jprm_infoblocks_sections_for_menu' ) ) {
+			$map = jprm_infoblocks_sections_for_menu( $menu_term_id );
+			if ( is_array( $map ) && ! empty( $map ) ) {
+				// Expected shape: [ '98' => 'Drinks', '99' => '— Beers', ... ]
+				return $map;
+			}
+		}
+		return $all_sections; // flat fallback
+	}
+
 	/* ========= Controls ========= */
 	protected function register_controls() {
-		$menu_options    = $this->get_terms_options( 'jprm_menu' );
-		$section_options = $this->get_terms_options( 'jprm_section' );
+
+		/* --- Preload option sources ------------------------------------------ */
+		$menu_options_all    = $this->get_terms_options( 'jprm_menu' );
+		$section_options_all = $this->get_terms_options( 'jprm_section' );
+
+		// Try to read the currently selected Menu (Elementor)
+		$selected_menu_id = 0;
+		try {
+			$tmp = $this->get_settings_for_display();
+			if ( ! empty( $tmp['menus'] ) ) $selected_menu_id = (int) $tmp['menus'];
+		} catch ( \Throwable $e ) {}
+
+		// Single, authoritative scoped list used by ALL controls in this widget:
+		$_scoped_sections = $this->scoped_sections_for_menu( $selected_menu_id, $section_options_all );
 
 		/* --- Data Source -------------------------------------------------------- */
 		$this->start_controls_section( 'section_source', [ 'label' => __( 'Data Source', 'jellopoint-restaurant-menu' ) ] );
@@ -97,7 +125,7 @@ trait Restaurant_Menu_Controls {
 			'label'     => __( 'Menu', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::SELECT,
 			'multiple'  => false,
-			'options'   => $menu_options,
+			'options'   => $menu_options_all,
 			'condition' => [ 'data_mode' => 'dynamic' ],
 		] );
 
@@ -105,7 +133,7 @@ trait Restaurant_Menu_Controls {
 			'label'     => __( 'Sections', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::SELECT2,
 			'multiple'  => true,
-			'options'   => $section_options,
+			'options'   => $_scoped_sections, // ← scoped to current Menu (tree if helper provides it)
 			'condition' => [ 'data_mode' => 'dynamic' ],
 		] );
 
@@ -291,18 +319,16 @@ trait Restaurant_Menu_Controls {
 				'icon_text' => __( 'Icon + Text', 'jellopoint-restaurant-menu' ),
 			],
 		] );
-		
-		// Label Position (affects Inline-Below chipline order)
+
 		$this->add_control( 'label_position', [
-    		'label'        => __( 'Label Position', 'jellopoint-restaurant-menu' ),
-    		'type'         => \Elementor\Controls_Manager::SELECT,
-    		'default'      => 'right',
-    		'options'      => [
-        		'left'  => __( 'Left of price', 'jellopoint-restaurant-menu' ),
-        		'right' => __( 'Right of price', 'jellopoint-restaurant-menu' ),
-    		],
-    		// This adds a class on the widget wrapper: jprm-labelpos-left|right
-    		'prefix_class' => 'jprm-labelpos-',
+			'label'        => __( 'Label Position', 'jellopoint-restaurant-menu' ),
+			'type'         => \Elementor\Controls_Manager::SELECT,
+			'default'      => 'right',
+			'options'      => [
+				'left'  => __( 'Left of price', 'jellopoint-restaurant-menu' ),
+				'right' => __( 'Right of price', 'jellopoint-restaurant-menu' ),
+			],
+			'prefix_class' => 'jprm-labelpos-',
 		] );
 
 		$this->end_controls_section();
@@ -329,7 +355,7 @@ trait Restaurant_Menu_Controls {
 		$this->add_control( 'inline_below_sep_enable', [
 			'label'        => __( 'Show Separator (Inline Below)', 'jellopoint-restaurant-menu' ),
 			'type'         => Controls_Manager::SWITCHER,
-			'return_value' => 'on',              // wrapper class becomes .jprm-sep--on
+			'return_value' => 'on',
 			'default'      => '',
 			'condition'    => [ 'labels_layout' => 'inline_below' ],
 			'prefix_class' => 'jprm-sep--',
@@ -372,132 +398,106 @@ trait Restaurant_Menu_Controls {
 		]);
 
 		$this->add_control(
-    		'labels_matrix_placeholder', [
-        	'label'       => __( 'Matrix Placeholder', 'jellopoint-restaurant-menu' ),
-        	'type'        => \Elementor\Controls_Manager::TEXT,
-        	'default'     => '',
-        	'placeholder' => '—',
-        	'description' => __( 'Shown in Matrix cells when a price is missing. Leave empty for a blank cell.', 'jellopoint-restaurant-menu' ),
-        	// IMPORTANT: your file uses `labels_layout`, not `global_labels_layout`
-        	'condition'   => [
-            'labels_layout' => 'matrix',
-        	],
-    ]);
+			'labels_matrix_placeholder', [
+				'label'       => __( 'Matrix Placeholder', 'jellopoint-restaurant-menu' ),
+				'type'        => \Elementor\Controls_Manager::TEXT,
+				'default'     => '',
+				'placeholder' => '—',
+				'description' => __( 'Shown in Matrix cells when a price is missing. Leave empty for a blank cell.', 'jellopoint-restaurant-menu' ),
+				'condition'   => [ 'labels_layout' => 'matrix' ],
+		] );
 
-// === Section Overrides (ALWAYS VISIBLE; supports Inline / Inline Below / Matrix) ===
-$this->add_control( 'matrix_overrides_heading', [
-    'type'      => Controls_Manager::HEADING,
-    'label'     => __( 'Section Overrides', 'jellopoint-restaurant-menu' ),
-    'separator' => 'before',
-    // NOTE: no condition here → always visible
-] );
+		// === Section Overrides (ALWAYS VISIBLE; supports Inline / Inline Below / Matrix)
+		$this->add_control( 'matrix_overrides_heading', [
+			'type'      => Controls_Manager::HEADING,
+			'label'     => __( 'Section Overrides', 'jellopoint-restaurant-menu' ),
+			'separator' => 'before',
+		] );
 
-/* Per-section overrides (scoped to current Menu) */
-$selected_menu_id = 0;
-try {
-    $tmp = $this->get_settings_for_display();
-    if ( ! empty( $tmp['menus'] ) ) $selected_menu_id = (int) $tmp['menus'];
-} catch ( \Throwable $e ) {}
+		$rep_ov = new Repeater();
 
-$section_options_scoped = [];
-if ( $selected_menu_id > 0 && function_exists( 'jprm_infoblocks_sections_for_menu' ) ) {
-    $section_options_scoped = jprm_infoblocks_sections_for_menu( $selected_menu_id );
-}
-if ( empty( $section_options_scoped ) ) {
-    $section_options_scoped = $this->get_terms_options( 'jprm_section' );
-}
+		$rep_ov->add_control( 'section_id', [
+			'label'   => __( 'Section', 'jellopoint-restaurant-menu' ),
+			'type'    => Controls_Manager::SELECT,
+			'options' => $_scoped_sections, // ← unified scoped list
+		] );
 
-$rep_ov = new Repeater();
+		$rep_ov->add_control( 'layout', [
+			'label'   => __( 'Layout', 'jellopoint-restaurant-menu' ),
+			'type'    => Controls_Manager::SELECT,
+			'default' => 'inline',
+			'options' => [
+				'inline'       => __( 'Inline',        'jellopoint-restaurant-menu' ),
+				'inline_below' => __( 'Inline Below',  'jellopoint-restaurant-menu' ),
+				'matrix'       => __( 'Matrix',        'jellopoint-restaurant-menu' ),
+			],
+		] );
 
-// Which section (term) the override applies to
-$rep_ov->add_control( 'section_id', [
-    'label'   => __( 'Section', 'jellopoint-restaurant-menu' ),
-    'type'    => Controls_Manager::SELECT,
-    'options' => $section_options_scoped,
-] );
+		$rep_ov->add_control( 'separator', [
+			'label'       => __( 'Separator (Inline Below only)', 'jellopoint-restaurant-menu' ),
+			'type'        => Controls_Manager::TEXT,
+			'placeholder' => '•',
+			'condition'   => [ 'layout' => 'inline_below' ],
+		] );
 
-// Which layout this override targets
-$rep_ov->add_control( 'layout', [
-    'label'   => __( 'Layout', 'jellopoint-restaurant-menu' ),
-    'type'    => Controls_Manager::SELECT,
-    'default' => 'inline',
-    'options' => [
-        'inline'       => __( 'Inline',        'jellopoint-restaurant-menu' ),
-        'inline_below' => __( 'Inline Below',  'jellopoint-restaurant-menu' ),
-        'matrix'       => __( 'Matrix',        'jellopoint-restaurant-menu' ),
-    ],
-] );
+		$rep_ov->add_control( 'placeholder', [
+			'label'       => __( 'Placeholder (Matrix only)', 'jellopoint-restaurant-menu' ),
+			'type'        => Controls_Manager::TEXT,
+			'placeholder' => '—',
+			'condition'   => [ 'layout' => 'matrix' ],
+		] );
 
-// Separator (applies only to Inline Below)
-$rep_ov->add_control( 'separator', [
-    'label'       => __( 'Separator (Inline Below only)', 'jellopoint-restaurant-menu' ),
-    'type'        => Controls_Manager::TEXT,
-    'placeholder' => '•',
-    'condition'   => [ 'layout' => 'inline_below' ],
-]);
+		$this->add_control( 'labels_layout_overrides', [
+			'label'         => __( 'Per-Section Overrides', 'jellopoint-restaurant-menu' ),
+			'type'          => Controls_Manager::REPEATER,
+			'fields'        => $rep_ov->get_controls(),
+			'title_field'   => '{{{ section_id }}} → {{{ layout }}}',
+			'default'       => [],
+			'prevent_empty' => false,
+			'description'   => __( 'Sections list is scoped to the selected Menu. Change Menu and reopen the widget to refresh the list.', 'jellopoint-restaurant-menu' ),
+		] );
 
-// Placeholder (applies only to Matrix)
-$rep_ov->add_control( 'placeholder', [
-    'label'       => __( 'Placeholder (Matrix only)', 'jellopoint-restaurant-menu' ),
-    'type'        => Controls_Manager::TEXT,
-    'placeholder' => '—',
-    'condition'   => [ 'layout' => 'matrix' ],
-]);
-
-$this->add_control( 'labels_layout_overrides', [
-  'label'         => __( 'Per-Section Overrides', 'jellopoint-restaurant-menu' ),
-  'type'          => Controls_Manager::REPEATER,
-  'fields'        => $rep_ov->get_controls(),
-  'title_field'   => '{{{ section_id }}} → {{{ layout }}}',
-  'default'       => [],
-  'prevent_empty' => false,
-  'description'   => __( 'Sections list is scoped to the selected Menu. Change Menu and reopen the widget to refresh the list.', 'jellopoint-restaurant-menu' ),
-  // NOTE: no condition here → always visible
-] );
-
-$this->end_controls_section();
-
+		$this->end_controls_section();
 
 		/* --- Badges ------------------------------------------------------------- */
-$this->start_controls_section(
-	'jprm_section_badges',
-	[ 'label' => __( 'Badges', 'jellopoint-restaurant-menu' ) ]
-);
+		$this->start_controls_section(
+			'jprm_section_badges',
+			[ 'label' => __( 'Badges', 'jellopoint-restaurant-menu' ) ]
+		);
 
-$this->add_control( 'show_badges', [
-	'label'        => __( 'Show Badges', 'jellopoint-restaurant-menu' ),
-	'type'         => Controls_Manager::SWITCHER,
-	'return_value' => 'yes',
-	'default'      => 'yes',
-	'condition'    => [ 'data_mode' => 'dynamic' ],
-] );
+		$this->add_control( 'show_badges', [
+			'label'        => __( 'Show Badges', 'jellopoint-restaurant-menu' ),
+			'type'         => Controls_Manager::SWITCHER,
+			'return_value' => 'yes',
+			'default'      => 'yes',
+			'condition'    => [ 'data_mode' => 'dynamic' ],
+		] );
 
-$this->add_control( 'badges_position', [
-	'label'     => __( 'Position', 'jellopoint-restaurant-menu' ),
-	'type'      => Controls_Manager::CHOOSE,
-	'options'   => [
-		'before' => [ 'title' => __( 'Before Title', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-h-align-left' ],
-		'after'  => [ 'title' => __( 'After Title',  'jellopoint-restaurant-menu' ), 'icon' => 'eicon-h-align-right' ],
-	],
-	'default'   => 'after',
-	'toggle'    => false,
-	'condition' => [ 'show_badges' => 'yes', 'data_mode' => 'dynamic' ],
-] );
+		$this->add_control( 'badges_position', [
+			'label'     => __( 'Position', 'jellopoint-restaurant-menu' ),
+			'type'      => Controls_Manager::CHOOSE,
+			'options'   => [
+				'before' => [ 'title' => __( 'Before Title', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-h-align-left' ],
+				'after'  => [ 'title' => __( 'After Title',  'jellopoint-restaurant-menu' ), 'icon' => 'eicon-h-align-right' ],
+			],
+			'default'   => 'after',
+			'toggle'    => false,
+			'condition' => [ 'show_badges' => 'yes', 'data_mode' => 'dynamic' ],
+		] );
 
-$this->add_control( 'badges_presentation', [
-	'label'     => __( 'Presentation', 'jellopoint-restaurant-menu' ),
-	'type'      => Controls_Manager::SELECT,
-	'options'   => [
-		'icon'      => __( 'Icon', 'jellopoint-restaurant-menu' ),
-		'text'      => __( 'Text', 'jellopoint-restaurant-menu' ),
-		'icon_text' => __( 'Icon + Text', 'jellopoint-restaurant-menu' ),
-	],
-	'default'   => 'icon_text',
-	'condition' => [ 'show_badges' => 'yes', 'data_mode' => 'dynamic' ],
-] );
+		$this->add_control( 'badges_presentation', [
+			'label'     => __( 'Presentation', 'jellopoint-restaurant-menu' ),
+			'type'      => Controls_Manager::SELECT,
+			'options'   => [
+				'icon'      => __( 'Icon', 'jellopoint-restaurant-menu' ),
+				'text'      => __( 'Text', 'jellopoint-restaurant-menu' ),
+				'icon_text' => __( 'Icon + Text', 'jellopoint-restaurant-menu' ),
+			],
+			'default'   => 'icon_text',
+			'condition' => [ 'show_badges' => 'yes', 'data_mode' => 'dynamic' ],
+		] );
 
-$this->end_controls_section();
-
+		$this->end_controls_section();
 
 		/* --- Info Blocks (HTML + Image; editor-only title) --------------------- */
 		$this->start_controls_section(
@@ -505,11 +505,7 @@ $this->end_controls_section();
 			[ 'label' => __( 'Info Blocks', 'jellopoint-restaurant-menu' ) ]
 		);
 
-		$all_section_opts = $section_options;
-		$menu_selected    = $this->get_settings_for_display( 'menus' );
-		$menu_id_for_ib   = ( is_numeric( $menu_selected ) ? (int) $menu_selected : 0 );
-		$ib_section_opts  = $this->section_options_for_menu( $menu_id_for_ib, $all_section_opts );
-
+		// Use the unified scoped list here as well
 		$ib = new Repeater();
 		$ib->add_control( 'ib_title', [
 			'label'       => __( 'Title (editor only)', 'jellopoint-restaurant-menu' ),
@@ -543,12 +539,9 @@ $this->end_controls_section();
 		$ib->add_control( 'section_id', [
 			'label'       => __( 'Target Section', 'jellopoint-restaurant-menu' ),
 			'type'        => Controls_Manager::SELECT2,
-			'options'     => $ib_section_opts,
+			'options'     => $_scoped_sections, // ← unified scoped list
 			'multiple'    => false,
 			'label_block' => true,
-			'description' => ( $menu_id_for_ib > 0 )
-				? __( 'Sections filtered to the chosen Menu (based on items). If you change Menu, re-open the widget to refresh.', 'jellopoint-restaurant-menu' )
-				: __( 'Pick a Menu to filter section choices.', 'jellopoint-restaurant-menu' ),
 		] );
 
 		$this->add_control( 'info_blocks', [
@@ -596,7 +589,7 @@ $this->end_controls_section();
 		$this->add_control( 'layout_split_after_section', [
 			'label'     => __( 'Split after section (1)', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::SELECT,
-			'options'   => $section_options,
+			'options'   => $_scoped_sections, // ← unified scoped list
 			'default'   => '',
 			'condition' => [
 				'data_mode'        => 'dynamic',
@@ -609,7 +602,7 @@ $this->end_controls_section();
 		$this->add_control( 'layout_split_after_section2', [
 			'label'     => __( 'Split after section (2)', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::SELECT,
-			'options'   => $section_options,
+			'options'   => $_scoped_sections, // ← unified scoped list
 			'default'   => '',
 			'condition' => [
 				'data_mode'        => 'dynamic',
