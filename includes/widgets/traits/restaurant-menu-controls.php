@@ -88,13 +88,23 @@ trait Restaurant_Menu_Controls {
 		/* --- Preload option sources ------------------------------------------ */
 		$menu_options_all    = $this->get_terms_options( 'jprm_menu' );
 		$section_options_all = $this->get_terms_options( 'jprm_section' );
-		// === Scoped options for the "Split after section" controls (use current Menu) ===
-$menu_selected_for_split = $this->get_settings_for_display( 'menus' );
-$menu_id_for_split       = ( is_numeric( $menu_selected_for_split ) ? (int) $menu_selected_for_split : 0 );
-$split_section_opts      = $this->section_options_for_menu(
-    $menu_id_for_split,
-    is_array( $section_options_all ) ? $section_options_all : [] // ensure array fallback
-);
+		// === Unified tree-scoped section options for the CURRENT Menu (parents first, children indented)
+$menu_selected_id_raw = $this->get_settings_for_display( 'menus' );
+$menu_selected_id     = ( is_numeric( $menu_selected_id_raw ) ? (int) $menu_selected_id_raw : 0 );
+
+// Prefer tree from helper (keeps parent→child order and "— " indentation)
+$sections_tree_scoped = [];
+if ( $menu_selected_id > 0 && function_exists( 'jprm_infoblocks_sections_for_menu' ) ) {
+	$sections_tree_scoped = jprm_infoblocks_sections_for_menu( $menu_selected_id );
+}
+
+// Fallback: flat, but still scoped to the menu’s sections (keeps working if helper not present)
+if ( empty( $sections_tree_scoped ) ) {
+	$sections_tree_scoped = $this->section_options_for_menu(
+		$menu_selected_id,
+		is_array( $section_options_all ) ? $section_options_all : []
+	);
+}
 
 
 		// Try to read the currently selected Menu (Elementor)
@@ -597,7 +607,7 @@ $split_section_opts      = $this->section_options_for_menu(
 		$this->add_control( 'layout_split_after_section', [
 			'label'     => __( 'Split after section (1)', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::SELECT,
-			'options'   => $split_section_opts,
+			'options'   => $sections_tree_scoped,
 			'default'   => '',
 			'condition' => [
 				'data_mode'        => 'dynamic',
@@ -610,7 +620,7 @@ $split_section_opts      = $this->section_options_for_menu(
 		$this->add_control( 'layout_split_after_section2', [
 			'label'     => __( 'Split after section (2)', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::SELECT,
-			'options'   => $split_section_opts,
+			'options'   => $sections_tree_scoped,
 			'default'   => '',
 			'condition' => [
 				'data_mode'        => 'dynamic',
