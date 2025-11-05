@@ -88,6 +88,14 @@ trait Restaurant_Menu_Controls {
 		/* --- Preload option sources ------------------------------------------ */
 		$menu_options_all    = $this->get_terms_options( 'jprm_menu' );
 		$section_options_all = $this->get_terms_options( 'jprm_section' );
+		// === Scoped options for the "Split after section" controls (use current Menu) ===
+$menu_selected_for_split = $this->get_settings_for_display( 'menus' );
+$menu_id_for_split       = ( is_numeric( $menu_selected_for_split ) ? (int) $menu_selected_for_split : 0 );
+$split_section_opts      = $this->section_options_for_menu(
+    $menu_id_for_split,
+    is_array( $section_options_all ) ? $section_options_all : [] // ensure array fallback
+);
+
 
 		// Try to read the currently selected Menu (Elementor)
 		$selected_menu_id = 0;
@@ -553,12 +561,6 @@ trait Restaurant_Menu_Controls {
 		] );
 
 		$this->end_controls_section();
-
-		// === Scoped options for the "Split after section" controls (use current Menu) ===
-$menu_selected_for_split = $this->get_settings_for_display( 'menus' );
-$menu_id_for_split       = ( is_numeric( $menu_selected_for_split ) ? (int) $menu_selected_for_split : 0 );
-$split_section_opts      = $this->section_options_for_menu( $menu_id_for_split, $section_options );
-	
 
 		/* --- Layout (columns, split) ------------------------------------------- */
 		$this->start_controls_section(
