@@ -1,4 +1,4 @@
-/* global elementor, JPRMAjax */
+/* global elementor, JPRMAjax, jQuery */
 (function () {
   'use strict';
 
@@ -9,7 +9,7 @@
 
   // ---- AJAX ----
   async function fetchSectionsMap(menuId){
-    if(!menuId){ return null; } // no menu selected → do nothing
+    if(!menuId){ return null; }
     const url   = (window.JPRMAjax && JPRMAjax.url)   ? JPRMAjax.url   : '/wp-admin/admin-ajax.php';
     const nonce = (window.JPRMAjax && JPRMAjax.nonce) ? JPRMAjax.nonce : '';
     const body  = new URLSearchParams();
@@ -34,12 +34,11 @@
         const indent = lvl ? '\u00A0\u00A0'.repeat(lvl) : '';
         map[String(s.id)] = indent + (s.text || '');
       });
-      // if empty, bail (don’t clobber)
       if(Object.keys(map).length === 0){ return null; }
       return map;
     }catch(e){
       log('AJAX error', e);
-      return null; // fail-safe: do nothing
+      return null;
     }
   }
 
@@ -60,95 +59,136 @@
     return sel.multiple ? (sel.value && sel.value[0]) : sel.value;
   }
 
-  // Only target NON–Data-Source selects:
+  // Collect ALL section selects to scope (includes Data Source now)
   function collectTargets(scope){
     const root = scope || panelRoot();
     const out  = new Set();
 
-    // Layout split selects
+    // Data Source → Sections (SELECT2, multiple)
+    root.querySelectorAll('select[data-setting="sections"]').forEach(n=>out.add(n));
+
+    // Layout → Split after section (1/2) (plain SELECT)
     root.querySelectorAll('select[data-setting="layout_split_after_section"]').forEach(n=>out.add(n));
     root.querySelectorAll('select[data-setting="layout_split_after_section2"]').forEach(n=>out.add(n));
 
-    // Info Blocks repeater → [section_id]
+    // Info Blocks repeater → Target Section (SELECT2)
     root.querySelectorAll('select[name$="[section_id]"]').forEach(n=>{
       if (n.closest('[data-repeater-items]') || n.closest('.elementor-repeater-fields')) out.add(n);
     });
 
-    // Labels Layout Overrides repeater → [section_id]
+    // Labels Layout Overrides repeater → Section (plain SELECT)
     root.querySelectorAll('select[name^="labels_layout_overrides"][name$="[section_id]"]').forEach(n=>out.add(n));
 
     return Array.from(out);
   }
 
+  // Apply options to a select while preserving valid selections (Select2 aware)
   function applyOptions(selectEl, idToLabel){
     if(!selectEl || !idToLabel) return;
 
-    const multiple = !!selectEl.multiple;
+    const isMultiple = !!selectEl.multiple;
+
+    // Keep only selections that still exist
     const keep = (function(){
-      if(multiple){
-        return Array.from(selectEl.selectedOptions||[])
-          .map(o=>o.value)
-          .filter(v => Object.prototype.hasOwnProperty.call(idToLabel, String(v)));
+      if(isMultiple){
+        const vals = Array.from(selectEl.selectedOptions || []).map(o => o.value);
+        return vals.filter(v => Object.prototype.hasOwnProperty.call(idToLabel, String(v)));
       }
       const v = selectEl.value;
       return Object.prototype.hasOwnProperty.call(idToLabel, String(v)) ? [String(v)] : [];
     })();
 
-    // rebuild options (do NOT inject a blank for multi)
+    // If this is a Select2, temporarily detach to avoid flicker
+    let wasSelect2 = false;
+    try {
+      if (window.jQuery && jQuery.fn && jQuery(selectEl).data('select2')) {
+        wasSelect2 = true;
+        jQuery(selectEl).select2('destroy');
+      }
+    } catch(e){}
+
+    // Rebuild options
     while(selectEl.firstChild) selectEl.removeChild(selectEl.firstChild);
-    if(!multiple){
-      selectEl.appendChild(new Option('', '')); // allow clearing
+
+    if(!isMultiple){
+      // allow clearing single-selects
+      selectEl.appendChild(new Option('', ''));
     }
+
     Object.keys(idToLabel).forEach(id=>{
-      selectEl.appendChild(new Option(idToLabel[id], id, false, keep.includes(id)));
+      const opt = new Option(idToLabel[id], id, false, keep.includes(id));
+      selectEl.appendChild(opt);
     });
 
-    // notify Elementor/Select2
-    const evt = new Event('change', { bubbles:true });
-    selectEl.dispatchEvent(evt);
+    // Restore selection
+    if(isMultiple){
+      // set multiple values
+      Array.from(selectEl.options).forEach(o => { o.selected = keep.includes(o.value); });
+    }else{
+      selectEl.value = keep[0] || '';
+    }
+
+    // Re-init Select2 if it was one
+    try{
+      if(wasSelect2 && window.jQuery && jQuery.fn){
+        jQuery(selectEl).select2({ width: '100%' });
+      }
+    }catch(e){}
+
+    // Notify Elementor/Select2 about the change
+    try{
+      if(window.jQuery && jQuery.fn){
+        jQuery(selectEl).trigger('change');
+      }else{
+        const evt = new Event('change', { bubbles:true });
+        selectEl.dispatchEvent(evt);
+      }
+    }catch(e){}
   }
 
   let inflight = 0;
-  async function refreshScopes(scope){
+  async function refreshAll(scope){
     const menuId = getMenuId();
     if(!menuId){ log('No menu selected → skip'); return; }
 
     const ticket = ++inflight;
     const map = await fetchSectionsMap(menuId);
-    if(ticket !== inflight) return;           // superseded
-    if(!map){ log('No scoped map (AJAX fail/empty) → do nothing'); return; } // don’t clobber
+    if(ticket !== inflight) return;         // superseded by a newer call
+    if(!map){ log('No scoped map → leave controls unchanged'); return; }
 
     const targets = collectTargets(scope);
     targets.forEach(sel => applyOptions(sel, map));
-    log('Scoped non-DataSource selects', { menuId, targets: targets.length, options: Object.keys(map).length });
+    log('Scoped ALL section selects', { menuId, targets: targets.length, options: Object.keys(map).length });
   }
 
   function bindMenuChange(){
     const sel = panelRoot().querySelector('select[data-setting="menus"]');
     if(!sel) return;
-    sel.addEventListener('change', ()=>refreshScopes(), { passive:true });
+    sel.addEventListener('change', ()=>refreshAll(), { passive:true });
   }
 
   function startObserver(){
     const root = panelRoot();
     const mo   = new MutationObserver(muts=>{
-      let touched = false;
+      let needs = false;
       for(const m of muts){
         for(const n of m.addedNodes || []){
           if(!(n instanceof HTMLElement)) continue;
           if(
-            n.matches('select[data-setting="layout_split_after_section"], select[data-setting="layout_split_after_section2"], select[name$="[section_id]"]') ||
-            n.querySelector && (
+            n.matches('select[data-setting="sections"], select[data-setting="layout_split_after_section"], select[data-setting="layout_split_after_section2"], select[name$="[section_id]"]')
+            ||
+            (n.querySelector && (
+              n.querySelector('select[data-setting="sections"]') ||
               n.querySelector('select[data-setting="layout_split_after_section"]') ||
               n.querySelector('select[data-setting="layout_split_after_section2"]') ||
               n.querySelector('select[name$="[section_id]"]')
-            )
+            ))
           ){
-            touched = true;
+            needs = true;
           }
         }
       }
-      if(touched) refreshScopes(root);
+      if(needs) refreshAll(root);
     });
     mo.observe(root, { childList:true, subtree:true });
     return mo;
@@ -157,9 +197,8 @@
   function boot(){
     bindMenuChange();
     startObserver();
-    // initial pass (will skip if no valid menu / no map)
-    refreshScopes();
-    log('sections-dep (safe) active');
+    refreshAll(); // initial pass
+    log('sections-dep (ALL) active');
   }
 
   if (document.readyState === 'loading') {
