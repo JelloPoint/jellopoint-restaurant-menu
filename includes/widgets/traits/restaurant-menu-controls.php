@@ -557,7 +557,7 @@ if ( empty( $sections_tree_scoped ) ) {
 		$ib->add_control( 'section_id', [
 			'label'       => __( 'Target Section', 'jellopoint-restaurant-menu' ),
 			'type'        => Controls_Manager::SELECT2,
-			'options'     => $_scoped_sections, // ← unified scoped list
+			'options'     => $sections_tree_scoped,
 			'multiple'    => false,
 			'label_block' => true,
 		] );
