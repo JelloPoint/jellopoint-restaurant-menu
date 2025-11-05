@@ -224,7 +224,7 @@ trait Restaurant_Menu_Style {
 			'label'     => __( 'Background', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::COLOR,
 			'selectors' => [
-				'{{WRAPPER}} .jp-menu__section--level-0' => 'background-color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu__section--level-0 > .jp-section__title' => 'background-color: {{VALUE}};',
 			],
 		] );
 
