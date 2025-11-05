@@ -220,15 +220,6 @@ trait Restaurant_Menu_Style {
 				],
 			]
 		);
-		$this->add_responsive_control( 'jprm_main_section_spacing', [
-			'label'      => __( 'Bottom Spacing', 'jellopoint-restaurant-menu' ),
-			'type'       => Controls_Manager::SLIDER,
-			'size_units' => [ 'px', 'em', 'rem' ],
-			'range'      => [ 'px' => [ 'min' => 0, 'max' => 100 ] ],
-			'selectors'  => [
-				'{{WRAPPER}} .jp-menu__section--level-0 > .jp-section__title' => 'margin-bottom: {{SIZE}}{{UNIT}};',
-			],
-		] );
 
 		$this->end_controls_section();
 

@@ -88,23 +88,95 @@ trait Restaurant_Menu_Controls {
 		/* --- Preload option sources ------------------------------------------ */
 		$menu_options_all    = $this->get_terms_options( 'jprm_menu' );
 		$section_options_all = $this->get_terms_options( 'jprm_section' );
-		// === Unified tree-scoped section options for the CURRENT Menu (parents first, children indented)
+		// === Build tree-scoped section options for the CURRENT Menu (parents first, children indented)
 $menu_selected_id_raw = $this->get_settings_for_display( 'menus' );
 $menu_selected_id     = ( is_numeric( $menu_selected_id_raw ) ? (int) $menu_selected_id_raw : 0 );
 
-// Prefer tree from helper (keeps parent→child order and "— " indentation)
-$sections_tree_scoped = [];
-if ( $menu_selected_id > 0 && function_exists( 'jprm_infoblocks_sections_for_menu' ) ) {
-	$sections_tree_scoped = jprm_infoblocks_sections_for_menu( $menu_selected_id );
-}
+$sections_tree_scoped = (static function( int $menu_id, array $fallback_all ) : array {
+	$TAX = 'jprm_section';
+	$META = '_jprm_menu_term_id';
 
-// Fallback: flat, but still scoped to the menu’s sections (keeps working if helper not present)
-if ( empty( $sections_tree_scoped ) ) {
-	$sections_tree_scoped = $this->section_options_for_menu(
-		$menu_selected_id,
-		is_array( $section_options_all ) ? $section_options_all : []
-	);
-}
+	// helper: build assoc map id=>term and parent=>[child_ids]
+	$build_tree = function( array $terms ) {
+		$by_id = []; $kids = [];
+		foreach ( $terms as $t ) {
+			$tid = (int) $t->term_id;
+			$pid = (int) $t->parent;
+			$by_id[ $tid ] = $t;
+			if ( ! isset( $kids[ $pid ] ) ) $kids[ $pid ] = [];
+			$kids[ $pid ][] = $tid;
+		}
+		return [ $by_id, $kids ];
+	};
+
+	// helper: DFS to produce id=>label with "— " indentation
+	$emit = function( int $root_id, array $by_id, array $kids, int $level, array &$out ) use (&$emit) {
+		if ( ! isset( $by_id[ $root_id ] ) ) return;
+		$term = $by_id[ $root_id ];
+		$prefix = ( $level > 0 ) ? str_repeat( '— ', $level ) : '';
+		$out[ (string) $root_id ] = $prefix . $term->name;
+		if ( ! empty( $kids[ $root_id ] ) ) {
+			foreach ( $kids[ $root_id ] as $cid ) {
+				$emit( $cid, $by_id, $kids, $level + 1, $out );
+			}
+		}
+	};
+
+	$make_options = function( array $terms ) use ( $build_tree, $emit ) : array {
+		if ( empty( $terms ) ) return [];
+		[ $by_id, $kids ] = $build_tree( $terms );
+
+		// find roots (parents that either == 0 or whose parent not present)
+		$roots = [];
+		foreach ( $by_id as $tid => $t ) {
+			$pid = (int) $t->parent;
+			if ( $pid === 0 || ! isset( $by_id[ $pid ] ) ) $roots[] = $tid;
+		}
+
+		// sort roots by term_order/name (WP stores order in term_order for taxonomies; fallback name)
+		usort( $roots, function( $a, $b ) use ( $by_id ) {
+			$ta = $by_id[$a]; $tb = $by_id[$b];
+			$oa = isset( $ta->term_order ) ? (int)$ta->term_order : 0;
+			$ob = isset( $tb->term_order ) ? (int)$tb->term_order : 0;
+			if ( $oa !== $ob ) return $oa <=> $ob;
+			return strcasecmp( $ta->name, $tb->name );
+		});
+
+		$out = [ '' => '' ]; // empty first option
+		foreach ( $roots as $rid ) {
+			$emit( $rid, $by_id, $kids, 0, $out );
+		}
+		return $out;
+	};
+
+	// 1) Try owner-scoped tree (keeps mains even when they have no items)
+	if ( $menu_id > 0 ) {
+		$terms = get_terms( [
+			'taxonomy'   => $TAX,
+			'hide_empty' => false,
+			'meta_query' => [
+				[
+					'key'   => $META,
+					'value' => (string) $menu_id,
+				],
+			],
+		] );
+		if ( ! is_wp_error( $terms ) && ! empty( $terms ) ) {
+			$opts = $make_options( $terms );
+			if ( ! empty( $opts ) ) return $opts;
+		}
+	}
+
+	// 2) Fallback: full tree (all sections), still parent-first
+	$all = get_terms( [ 'taxonomy' => $TAX, 'hide_empty' => false ] );
+	if ( ! is_wp_error( $all ) && ! empty( $all ) ) {
+		$opts = $make_options( $all );
+		if ( ! empty( $opts ) ) return $opts;
+	}
+
+	// 3) Last resort: whatever you had
+	return is_array( $fallback_all ) ? ( ['' => ''] + $fallback_all ) : [ '' => '' ];
+})( $menu_selected_id, $section_options_all );
 
 
 		// Try to read the currently selected Menu (Elementor)
