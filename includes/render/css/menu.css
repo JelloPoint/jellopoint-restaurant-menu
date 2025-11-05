@@ -61,53 +61,19 @@
 .jp-menu__price.jp-currency-pos-after.jp-currency-sp-thin    .jp-menu__currency { margin-left: .15em; }
 .jp-menu__price.jp-currency-pos-after.jp-currency-sp-normal  .jp-menu__currency { margin-left: .3em; }
 
-/* =====================================================================
-   Multi-column wrapper (UNIFIED, variable-driven)
-   PHP outputs:
-     <div class="jp-menu-grid jp-menu-grid--cols-3" style="--jp-cols:3">
-   ===================================================================== */
-.jp-menu-grid {
-  display: grid !important;
-  grid-template-columns: repeat(var(--jp-cols, 1), minmax(0, 1fr));
-  gap: var(--jp-gap, 24px);
-}
-
-/* Fallback helpers (match PHP classes) */
-.jp-menu-grid--cols-1 { --jp-cols: 1; }
-.jp-menu-grid--cols-2 { --jp-cols: 2; }
-.jp-menu-grid--cols-3 { --jp-cols: 3; }
-
-/* Responsive collapse */
-@media (max-width: 992px) {
-  .jp-menu-grid { --jp-cols: min(var(--jp-cols, 1), 2); }
-}
-@media (max-width: 768px) {
-  .jp-menu-grid { --jp-cols: 1; }
-}
-
-/* Column UL should not fight the grid */
-.jp-menu-grid .jp-menu--col {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* Keep section blocks intact; avoid internal splitting by the browser */
-.jp-menu__section-header,
-.jp-menu__infoblock-li,
-.jp-matrix,
-.jp-inline,
-.jp-inline-below,
-.jp-menu__item {
-  break-inside: avoid;
-}
+/* Grid (2/3 columns) */
+.jp-menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.jp-menu-grid.jp-cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+@media (max-width: 992px) { .jp-menu-grid.jp-cols-3 { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 768px) { .jp-menu-grid { grid-template-columns: 1fr; } }
+.jp-menu-grid .jp-col { min-width: 0; }
 
 /* Section headers inside columns */
 .jp-menu__section-header { margin: 0 0 6px 0; padding: 0; }
 .jp-section__title { margin: 0 0 2px 0; font-size: 1.05em; line-height: 1.2; }
-.jp-section__desc  { margin: 0 0 8px 0; font-size: 0.95em; opacity: 0.8; }
+.jp-section__desc { margin: 0 0 8px 0; font-size: 0.95em; opacity: 0.8; }
 
-/* Info blocks */
+/* Info blocks (kept from inline, in case you use them now) */
 .jp-infoblocks { display: flex; gap: .5rem; flex-wrap: wrap; margin: .75rem 0; }
 .jp-infoblock { padding: .4em .7em; border-radius: .35em; font-size: .95em; line-height: 1.2; }
 .jp-infoblock--subtle { background: #f6f7f7; border: 1px solid #dcdcde; }
@@ -118,6 +84,7 @@
 
 /* Badges: keep icons small and inline */
 .jp-menu__badges { display: inline-flex; gap: .35em; align-items: center; }
+
 .jp-badge { display: inline-flex; align-items: center; gap: .35em; }
 
 .jp-badge__icon,
@@ -131,7 +98,6 @@
   vertical-align: -0.2em;
   border-radius: 2px;
 }
-
 /* Title line: title + badges stay on one line */
 .jp-menu__titleline{
   display:flex;
@@ -163,22 +129,48 @@
   vertical-align:-0.2em;
   border-radius:2px;
 }
-
 /* === Matrix layout (structural only; no visual styling) === */
-.jp-menu__matrix,
-.jp-menu__matrix > li {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.jp-menu__matrix { padding-inline-start: 0; }
+/* Grid: first column is the item title/desc, then one column per label. */
 
+.jp-menu__matrix { list-style: none; } /* neutralize UL/LI effects */
+
+.jp-matrix {
+  display: grid;
+  /* 1st column flexible for titles; then N auto-sized value columns */
+  grid-template-columns: minmax(12rem, 1fr) repeat(var(--jp-matrix-cols, 1), auto);
+  column-gap: 0; /* styling later */
+  row-gap: 0;    /* styling later */
+}
+
+/* Each "row" becomes just a logical wrapper; cells place into the grid */
+.jp-matrix__row {
+  display: contents;
+}
+
+/* Every cell occupies one grid cell in row order */
+.jp-matrix__cell {
+  /* no padding/margins here; styling comes later */
+  /* Prevent external styles forcing block layout */
+  display: block;
+}
+
+/* Title (leftmost) sits in the first grid column automatically */
+.jp-matrix__cell--title {}
+
+/* Header cells occupy the label columns in the first row */
+.jp-matrix__row--header .jp-matrix__cell--title {
+  /* keep empty; just the top-left empty corner */
+}
+
+/* Value cells stay neutral; we’ll style later in Style tab */
+.jp-matrix__cell--value {
+  text-align: left;
+}
+/* === Matrix (grid) ====================================================== */
 .jp-matrix{
   display: grid;
   grid-auto-rows: auto;
-  /* 1st column flexible for titles; then N auto-sized value columns */
-  grid-template-columns: minmax(12rem, 1fr) repeat(var(--jp-matrix-cols, 1), auto);
-  column-gap: 1.25rem;
+  column-gap: 0;
   row-gap: 0;
 }
 .jp-matrix__row{ display: contents; }
@@ -188,7 +180,7 @@
 /* Ensure full width for Info Blocks background color */
 .jprm-infoblock{ width: 100%; }
 
-/* Default Inline: vertical stack at right (kept) */
+/* Default Inline: vertical stack at right */
 .jp-menu__inner { display:grid; grid-template-columns: 1fr auto; gap:.4rem .8rem; }
 .jp-menu__pricegroup { display:flex; flex-direction:column; gap:.25rem; text-align:right; }
 .jp-menu__pricegroup .jp-menu__row { display:flex; align-items:center; gap:.35em; }
@@ -196,7 +188,61 @@
 /* Separators: off by default; on only in Inline-Below */
 .jp-chip-sep { display:none; }
 .jp-menu__inner.jp--inline-below .jp-chip-sep { display:inline-block; opacity:.75; }
+/* Matrix list reset: kill default bullets/left indent */
+.jp-menu__matrix,
+.jp-menu__matrix > li {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
 
+/* If your theme forces extra indent on ULs, hard-reset it */
+.jp-menu__matrix {
+  padding-inline-start: 0;
+}
+
+/* Matrix grid (keeps current behavior) */
+.jp-matrix {
+  display: grid;
+  grid-template-columns: auto repeat(var(--jp-matrix-cols, 3), auto);
+  column-gap: 1.25rem; /* tweak if you want tighter/wider spacing */
+}
+
+.jp-matrix__row { display: contents; }
+.jp-matrix__cell { padding: .25rem 0; }
+
+//* Multi-column wrapper */
+.jp-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--jp-cols, 1), minmax(0, 1fr));
+  gap: 1.25rem; /* space between columns */
+}
+
+/* Column ULs should have no extra margins */
+.jp-menu-grid .jp-menu--col {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Keep section blocks intact; avoid internal splitting by the browser */
+.jp-menu__section-header,
+.jp-menu__infoblock-li,
+.jp-matrix,
+.jp-inline,
+.jp-inline-below,
+.jp-menu__item {
+  break-inside: avoid;
+}
+/* Kill any list-style bullets leaking from theme styles */
+.jp-menu,
+.jp-menu__meta,
+.jp-menu__meta li {
+	list-style: none;
+}
+.jp-menu__meta li::marker {
+	content: none;
+}
 /* Make the price row items share a baseline: labels/icons centered with price */
 .jp-price-row { display: flex; align-items: center; gap: .35em; }
 
@@ -209,6 +255,17 @@
 
 /* =========================
    INLINE-BELOW (clean rules)
+   Markup shape:
+   <div class="jp-menu__pricegroup jp-menu__pricegroup--below">
+     <div class="jp-inline-below__line">
+       <span class="jp-chipline jp-chipline--priced">
+         <span class="jp-chip"><span class="jp-menu__label">[icon][text]</span></span>
+         <span class="jp-price">[price]</span>
+         <span class="jp-sep">[SEP]</span>    /* optional */
+       </span>
+       … (more pairs)
+     </div>
+   </div>
    ========================= */
 
 /* container that holds all label/price pairs */
@@ -224,7 +281,8 @@
 /* a single tuple (label, price, optional sep) */
 .jp-menu__pricegroup--below .jp-chipline {
   display: inline-flex;
-  align-items: center;
+  align-items: center;     /* vertical alignment of icon/text/price */
+  /* no generic gap here: we control spacing explicitly on children */
   gap: 0;
 }
 
@@ -240,21 +298,23 @@
   display: inline-flex;
   align-items: center;
   line-height: 1;
-  margin-left: 0.25em;
+  margin-left: 0.25em;      /* ← default gap between label → price */
 }
 
-/* separator */
+/* separator: appears AFTER price; no trailing space after it */
 .jp-menu__pricegroup--below .jp-chipline .jp-sep {
   display: inline-flex;
   align-items: center;
   line-height: 1;
   opacity: .75;
-  padding-left: .45em;
-  padding-right: 0;
+  padding-left: .45em;     /* space BEFORE the separator */
+  padding-right: 0;        /* no space after the separator */
 }
 
 /* never show a separator for no-price rows */
-.jp-menu__pricegroup--below .jp-chipline--noprice .jp-sep { display: none !important; }
+.jp-menu__pricegroup--below .jp-chipline--noprice .jp-sep {
+  display: none !important;
+}
 
 /* belt-and-suspenders: kill any trailing padding/margin on last child */
 .jp-menu__pricegroup--below .jp-chipline > :last-child {
@@ -267,12 +327,15 @@
   display: inline-block;
   vertical-align: middle;
 }
-
 /* =========================
    INLINE-BELOW — force stack
+   Content (title+desc) on top,
+   Pricegroup (label/price pairs) below
    ========================= */
+
+/* If your template adds an .jp-inline-below wrapper (preferred) */
 .jp-inline-below .jp-menu__inner {
-  display: grid;
+  display: grid;               /* override any row flex layout */
   grid-template-columns: 1fr;  /* single column */
   align-items: start;
   gap: 0.25rem;
@@ -282,16 +345,68 @@
   grid-column: 1 / -1;         /* full width */
 }
 
-/* Defensive fallback if no .jp-inline-below wrapper is present. */
+/* Defensive fallback if no .jp-inline-below wrapper is present.
+   When a below-pricegroup exists in the item, make both blocks span full width. */
 .jp-menu__pricegroup--below {
   display: block;
   width: 100%;
-  flex: 0 0 100%;
+  flex: 0 0 100%;              /* defeat row flex children */
 }
-.jp-menu__content { flex: 0 0 100%; }
+.jp-menu__content {
+  flex: 0 0 100%;              /* take full row if parent is flex */
+}
+
+/* Keep the pairs line itself laid out horizontally as before */
+.jp-menu__pricegroup--below .jp-inline-below__line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;           /* space between pairs */
+  align-items: center;
+  margin-top: 0.25rem;
+}
+
+/* A single (label, price, optional sep) */
+.jp-menu__pricegroup--below .jp-chipline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+}
+.jp-menu__pricegroup--below .jp-chip .jp-menu__label {
+  display: inline-flex;
+  align-items: center;
+  gap: .35em;
+}
+.jp-menu__pricegroup--below .jp-chipline .jp-price {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  margin-left: .45em;          /* default gap between label → price */
+}
+.jp-menu__pricegroup--below .jp-chipline .jp-sep {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  opacity: .75;
+  padding-left: .45em;         /* space before separator */
+  padding-right: 0;            /* no space after */
+}
+.jp-menu__pricegroup--below .jp-chipline--noprice .jp-sep { 
+  display: none !important; 
+}
+.jp-menu__pricegroup--below .jp-chipline > :last-child {
+  margin-right: 0 !important;
+  padding-right: 0 !important;
+}
+.jp-menu__pricegroup--below .jp-menu__icon {
+  display: inline-block;
+  vertical-align: middle;
+}
 
 /* =========================
    Label Position (Inline + Inline-Below)
+   Requires widget wrapper class: .jprm-labelpos-left|right (via prefix_class)
+   Inline-Below pairs use: .jp-menu__pricegroup--below .jp-chipline > (.jp-chip, .jp-price, .jp-sep)
+   Inline pairs use:        .jp-inline .jp-price-row        > (.jp-chip, .jp-price, .jp-sep)
    ========================= */
 
 /* Ensure rows are flex so we can re-order children */
@@ -334,14 +449,12 @@
 .jprm-labelpos-right .jp-menu__pricegroup--below .jp-chipline--noprice .jp-sep {
   display: none !important;
 }
-
-/* BADGES FIX */
+/*BADGES FIX*/
 .jp-menu__titlewrap { display: inline-flex; align-items: baseline; gap: .35rem; }
 .jp-menu__badges    { display: inline-flex; align-items: center; gap: .35rem; }
 .jp-badge           { display: inline-flex; align-items: center; gap: .25rem; line-height: 1; }
 .jp-badge__icon     { display: inline-block; height: 1em; width: auto; }
 .jp-badge__label    { display: inline-block; }
-
 /* Masks (color via currentColor) */
 .jp-icon-mask,
 .jp-badge__icon--mask,
