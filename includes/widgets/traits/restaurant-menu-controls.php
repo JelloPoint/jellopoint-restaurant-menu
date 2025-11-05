@@ -554,6 +554,12 @@ trait Restaurant_Menu_Controls {
 
 		$this->end_controls_section();
 
+		// === Scoped options for the "Split after section" controls (use current Menu) ===
+$menu_selected_for_split = $this->get_settings_for_display( 'menus' );
+$menu_id_for_split       = ( is_numeric( $menu_selected_for_split ) ? (int) $menu_selected_for_split : 0 );
+$split_section_opts      = $this->section_options_for_menu( $menu_id_for_split, $section_options );
+	
+
 		/* --- Layout (columns, split) ------------------------------------------- */
 		$this->start_controls_section(
 			'jprm_section_layout',
@@ -589,7 +595,7 @@ trait Restaurant_Menu_Controls {
 		$this->add_control( 'layout_split_after_section', [
 			'label'     => __( 'Split after section (1)', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::SELECT,
-			'options'   => $_scoped_sections, // ← unified scoped list
+			'options'   => $split_section_opts,
 			'default'   => '',
 			'condition' => [
 				'data_mode'        => 'dynamic',
@@ -602,7 +608,7 @@ trait Restaurant_Menu_Controls {
 		$this->add_control( 'layout_split_after_section2', [
 			'label'     => __( 'Split after section (2)', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::SELECT,
-			'options'   => $_scoped_sections, // ← unified scoped list
+			'options'   => $split_section_opts,
 			'default'   => '',
 			'condition' => [
 				'data_mode'        => 'dynamic',
