@@ -197,6 +197,17 @@ trait Restaurant_Menu_Style {
 				],
 			]
 		);
+		$this->add_responsive_control(
+			'jprm_main_section_padding',
+			[
+				'label'      => __( 'Padding', 'jellopoint-restaurant-menu' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => [ 'px', 'em', '%' ],
+				'selectors'  => [
+					'{{WRAPPER}} .jp-menu__section--level-0 > .jp-section__title' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				],
+			]
+		);
 		$this->add_responsive_control( 'jprm_main_section_spacing', [
 			'label'      => __( 'Bottom Spacing', 'jellopoint-restaurant-menu' ),
 			'type'       => Controls_Manager::SLIDER,
