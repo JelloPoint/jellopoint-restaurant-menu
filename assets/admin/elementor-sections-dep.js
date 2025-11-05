@@ -1,6 +1,9 @@
 (function(){
   'use strict';
 
+  // ---- CONFIG: flip to false if you only want DS to update ----
+  const ENABLE_OTHERS = true;
+
   function log(){ try{ console.log.apply(console, ['[JPRM]'].concat([].slice.call(arguments))); }catch(e){} }
   function ajaxUrl(){ return (window.JPRMAjax && JPRMAjax.url) || (typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php'); }
   function ajaxNonce(){ return (window.JPRMAjax && JPRMAjax.nonce) || ''; }
@@ -8,10 +11,11 @@
   function panelRoot(){ return document.querySelector('.elementor-panel'); }
   function menuSelect(root){ return root && root.querySelector('[data-setting="menus"]'); }
   function dsSectionsSelect(root){
+    // DS control (SELECT2 in your widget)
     return root && (root.querySelector('.elementor-control-sections [data-setting="sections"]') || root.querySelector('[data-setting="sections"]'));
   }
 
-  // Other dependent selects:
+  // Other dependent selects (plain SELECT in your widget):
   function splitAfterSelects(root){
     if (!root) return [];
     return Array.from(root.querySelectorAll('[data-setting="layout_split_after_section"], [data-setting="layout_split_after_section2"]'));
@@ -25,6 +29,13 @@
       out.push(...rep.querySelectorAll('select[data-setting="section_id"]'));
     });
     return out;
+  }
+
+  // Small helper: avoid hammering hidden controls (Elementor sometimes keeps old DOM hidden)
+  function isVisible(el){
+    if (!el) return false;
+    const s = window.getComputedStyle(el);
+    return s && s.display !== 'none' && s.visibility !== 'hidden';
   }
 
   function readMenuId(root){
@@ -54,7 +65,8 @@
   const state = {
     lastMenuId: null,
     inflight: null,
-    debounceTimer: null
+    debounceTimer: null,
+    lastMapSig: '' // used to avoid re-applying to Others when DS map unchanged
   };
 
   async function fetchSectionsMap(menuId){
@@ -65,7 +77,8 @@
     const body = new URLSearchParams();
     body.set('action', 'jprm_sections_by_menu');
     body.set('menu', String(menuId||''));
-    body.set('_ajax_nonce', ajaxNonce());
+    const n = ajaxNonce();
+    if (n) body.set('_ajax_nonce', n);
 
     try {
       const res = await fetch(ajaxUrl(), {
@@ -75,8 +88,14 @@
         body: body.toString(),
         signal: ctl.signal
       });
-      const json = await res.json();
-      if (!json || !json.success || !json.data) return {};
+      // If server returned HTML (e.g. PHP warning), guard JSON parsing
+      const text = await res.text();
+      let json = null;
+      try { json = JSON.parse(text); } catch(_e){ json = null; }
+      if (!json || !json.success || !json.data) {
+        log('AJAX payload not OK; got:', text.slice(0,200));
+        return {};
+      }
       return json.data; // { id: "— label", ... }
     } catch(e){
       if (e && e.name === 'AbortError') return null;
@@ -89,6 +108,7 @@
 
   function rebuildOptionsIfChanged(selectEl, map){
     if (!selectEl) return false;
+    if (!isVisible(selectEl)) return false;
 
     const sig = optionsSignature(map);
     const prevSig = selectEl.getAttribute('data-jprm-sig') || '';
@@ -119,6 +139,11 @@
     setSelectedValues(selectEl, kept);
 
     selectEl.setAttribute('data-jprm-sig', sig);
+
+    // Refresh Select2 UI if present (DS uses it)
+    if (typeof jQuery !== 'undefined' && jQuery.fn && jQuery.fn.select2 && jQuery(selectEl).hasClass('select2-hidden-accessible')) {
+      jQuery(selectEl).trigger('change.select2');
+    }
     return true;
   }
 
@@ -134,16 +159,23 @@
     const map = await fetchSectionsMap(menuId);
     if (map === null) return; // aborted/superseded
     const changed = rebuildOptionsIfChanged(sel, map || {});
-    if (changed) log('DS applied', { total: Object.keys(map||{}).length });
+    if (changed) {
+      const sigMap = optionsSignature(map||{});
+      state.lastMapSig = sigMap;
+      log('DS applied', { total: Object.keys(map||{}).length });
+    }
     return map || {};
   }
 
-  // NEW: apply the same map to other dependent selects
+  // Apply to other controls only if enabled, and only when map changed
   function applyScopedOptionsToOthers(root, map){
+    if (!ENABLE_OTHERS) return;
+
     const targets = [
       ...splitAfterSelects(root),
       ...repeaterSectionSelects(root)
-    ];
+    ].filter(isVisible);
+
     if (!targets.length) return;
 
     let applied = 0;
@@ -159,10 +191,13 @@
 
       // Always refresh DS first so we reuse the same map for others
       const map = await refreshDataSourceSections(root);
-      if (map && typeof map === 'object') {
-        applyScopedOptionsToOthers(root, map);
-      }
-    }, 200);
+      if (!map || typeof map !== 'object') return;
+
+      // Only mirror to Others if DS map actually changed since last time
+      const sigMap = optionsSignature(map);
+      if (sigMap && sigMap !== state.lastMapSig) state.lastMapSig = sigMap;
+      applyScopedOptionsToOthers(root, map);
+    }, 180);
   }
 
   function bindMenuChange(root){
@@ -173,10 +208,33 @@
       // Clear signatures so rebuild happens
       const ds = dsSectionsSelect(root);
       if (ds) ds.removeAttribute('data-jprm-sig');
-      splitAfterSelects(root).forEach(el => el.removeAttribute('data-jprm-sig'));
-      repeaterSectionSelects(root).forEach(el => el.removeAttribute('data-jprm-sig'));
+      if (ENABLE_OTHERS) {
+        splitAfterSelects(root).forEach(el => el.removeAttribute('data-jprm-sig'));
+        repeaterSectionSelects(root).forEach(el => el.removeAttribute('data-jprm-sig'));
+      }
       scheduleRefresh(root);
     });
+  }
+
+  // When a repeater row is added, re-apply map to the newly inserted select
+  function bindRepeaterAddHooks(root){
+    if (!ENABLE_OTHERS) return;
+
+    // Elementor uses various add buttons in repeaters; listen broadly but cheaply
+    root.addEventListener('click', function(e){
+      const t = e.target;
+      if (!(t instanceof HTMLElement)) return;
+
+      // Any add button inside our two repeaters
+      const btn = t.closest('.elementor-control-type-repeater[data-id="labels_layout_overrides"] .elementor-repeater-add, .elementor-control-type-repeater[data-id="info_blocks"] .elementor-repeater-add');
+      if (!btn) return;
+
+      // After the row is added to the DOM, apply current map
+      setTimeout(async function(){
+        const map = await refreshDataSourceSections(root) || {};
+        applyScopedOptionsToOthers(root, map);
+      }, 120);
+    }, { passive:true });
   }
 
   function boot(){
@@ -186,8 +244,10 @@
     log('sections-dep.js active');
 
     bindMenuChange(root);
+    bindRepeaterAddHooks(root);
     scheduleRefresh(root); // initial
 
+    // Observe panel changes, but only to (re)bind and refresh when relevant controls appear
     const mo = new MutationObserver((list) => {
       let relevant = false;
       for (const m of list) {
@@ -197,10 +257,12 @@
           if (n.querySelector && (
               n.querySelector('[data-setting="menus"]') ||
               n.querySelector('[data-setting="sections"]') ||
-              n.querySelector('[data-setting="layout_split_after_section"]') ||
-              n.querySelector('[data-setting="layout_split_after_section2"]') ||
-              n.querySelector('.elementor-control-type-repeater[data-id="labels_layout_overrides"] select[data-setting="section_id"]') ||
-              n.querySelector('.elementor-control-type-repeater[data-id="info_blocks"] select[data-setting="section_id"]')
+              (ENABLE_OTHERS && (
+                n.querySelector('[data-setting="layout_split_after_section"]') ||
+                n.querySelector('[data-setting="layout_split_after_section2"]') ||
+                n.querySelector('.elementor-control-type-repeater[data-id="labels_layout_overrides"] select[data-setting="section_id"]') ||
+                n.querySelector('.elementor-control-type-repeater[data-id="info_blocks"] select[data-setting="section_id"]')
+              ))
           )) { relevant = true; break; }
         }
         if (relevant) break;
