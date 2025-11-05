@@ -220,6 +220,13 @@ trait Restaurant_Menu_Style {
 				],
 			]
 		);
+		$this->add_control( 'jprm_main_section_background', [
+			'label'     => __( 'Background', 'jellopoint-restaurant-menu' ),
+			'type'      => Controls_Manager::COLOR,
+			'selectors' => [
+				'{{WRAPPER}} .jp-menu__section--level-0 > .jp-section__title' => 'color: {{VALUE}};',
+			],
+		] );
 
 		$this->end_controls_section();
 
