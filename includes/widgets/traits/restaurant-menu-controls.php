@@ -235,6 +235,7 @@ if (is_scalar($raw) && $raw !== '' && is_numeric($raw)) {
 			'type'      => Controls_Manager::SELECT,
 			'multiple'  => false,
 			'options'   => $menu_options_all,
+			'default'      => '',
 			'condition' => [ 'data_mode' => 'dynamic' ],
 		] );
 
@@ -256,6 +257,7 @@ if (is_scalar($raw) && $raw !== '' && is_numeric($raw)) {
 				'title'      => __( 'Title', 'jellopoint-restaurant-menu' ),
 				'date'       => __( 'Date', 'jellopoint-restaurant-menu' ),
 			],
+			'default'      => '',
 			'condition' => [ 'data_mode' => 'dynamic' ],
 		] );
 
@@ -264,6 +266,7 @@ if (is_scalar($raw) && $raw !== '' && is_numeric($raw)) {
 			'type'      => Controls_Manager::SELECT,
 			'default'   => 'ASC',
 			'options'   => [ 'ASC' => 'ASC', 'DESC' => 'DESC' ],
+			'default'      => '',
 			'condition' => [ 'data_mode' => 'dynamic' ],
 		] );
 
@@ -530,6 +533,7 @@ if (is_scalar($raw) && $raw !== '' && is_numeric($raw)) {
 			'label'   => __( 'Section', 'jellopoint-restaurant-menu' ),
 			'type'    => Controls_Manager::SELECT,
 			'options' => $sections_tree_scoped,
+			'default'      => '',
 		] );
 
 		$rep_ov->add_control( 'layout', [
