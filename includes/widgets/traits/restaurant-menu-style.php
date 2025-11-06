@@ -57,9 +57,9 @@ trait Restaurant_Menu_Style {
 			[
 				'name' => 'border-wrapper',
 				'selectors' => [
-				'{{WRAPPER}} .jp-menu-grid--cols-1' => 'background-color: {{VALUE}};',
-				'{{WRAPPER}} .jp-menu-grid--cols-2' => 'background-color: {{VALUE}};',
-				'{{WRAPPER}} .jp-menu-grid--cols-3' => 'background-color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu-grid--cols-1',
+				'{{WRAPPER}} .jp-menu-grid--cols-2',
+				'{{WRAPPER}} .jp-menu-grid--cols-3',
 			],
 			]
 		);
