@@ -1,35 +1,50 @@
 (function(){
   'use strict';
 
-  // ====== logging ======
+  /* ------------ tiny logger ------------ */
   function log(){ try{ console.log.apply(console, ['[JPRM]'].concat([].slice.call(arguments))); }catch(e){} }
 
-  // ====== ajax helpers ======
-  function ajaxUrl(){
-    return (window.JPRMAjax && JPRMAjax.url) || (typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php');
-  }
+  /* ------------ ajax helpers ------------ */
+  function ajaxUrl(){ return (window.JPRMAjax && JPRMAjax.url) || (typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php'); }
   function ajaxNonce(){ return (window.JPRMAjax && JPRMAjax.nonce) || ''; }
 
-  // ====== panel + control finders (DS kept as-is) ======
-  function panelRoot(){ return document.querySelector('.elementor-panel'); }
-  function menuSelect(root){ return root && root.querySelector('[data-setting="menus"]'); }
+  /* ------------ panel + control locators ------------ */
+  function panelRoot(){ return document.querySelector('.elementor-panel') || document; }
 
-  // DS "Sections" (your working SELECT2)
+  function menuSelect(root){
+    return root && root.querySelector('[data-setting="menus"]');
+  }
+
+  // DS control (your working SELECT2)
   function dsSectionsSelect(root){
     return root && (root.querySelector('.elementor-control-sections [data-setting="sections"]') || root.querySelector('[data-setting="sections"]'));
   }
 
-  // Other section dropdowns you EXPLICITLY tag in PHP with: 'classes' => 'jprm-scope-target'
+  // NON-DS scoped targets:
+  // IMPORTANT: Elementor puts the `classes` option on the *wrapper* `.elementor-control`.
+  // We look for those wrappers, then fetch their inner <select>.
   function otherScopedSelects(root){
     if (!root) return [];
-    // Only selects with our class; this avoids touching unrelated controls.
-    const list = Array.from(root.querySelectorAll('select.jprm-scope-target'));
-    // Never include the DS control as "other"
-    const ds = dsSectionsSelect(root);
-    return list.filter(el => !ds || el !== ds);
+    const wrappers = Array.from(root.querySelectorAll('.elementor-control.jprm-scope-target'));
+    const out = [];
+    wrappers.forEach(wrap => {
+      // Prefer a select with a data-setting (Elementor standard)
+      let sel = wrap.querySelector('select[data-setting]');
+      if (!sel) {
+        // If Select2 already enhanced, the original is .select2-hidden-accessible
+        sel = wrap.querySelector('select.select2-hidden-accessible[data-setting]');
+      }
+      if (!sel) return;
+
+      // Skip the DS field (data-setting="sections")
+      if ((sel.getAttribute('data-setting') || '') === 'sections') return;
+
+      out.push(sel);
+    });
+    return out;
   }
 
-  // ====== small utils ======
+  /* ------------ utils ------------ */
   function isVisible(el){
     if (!el) return false;
     const s = window.getComputedStyle(el);
@@ -58,7 +73,7 @@
     return keys.map(k => k + ':' + String(map[k]||'').length).join('|');
   }
 
-  // ====== state ======
+  /* ------------ state ------------ */
   const state = {
     lastMenuId: null,
     inflight: null,
@@ -66,7 +81,7 @@
     lastMapSig: ''
   };
 
-  // ====== ajax ======
+  /* ------------ AJAX: fetch scoped tree map ------------ */
   async function fetchSectionsMap(menuId){
     if (state.inflight) { try { state.inflight.abort(); } catch(e){} state.inflight = null; }
     const ctl = new AbortController();
@@ -103,22 +118,22 @@
     }
   }
 
-  // ====== option rebuild (kept behavior, DS safe) ======
+  /* ------------ DOM: (re)build options ------------ */
   function rebuildOptionsIfChanged(selectEl, map){
     if (!selectEl || !isVisible(selectEl)) return false;
 
     const sig = optionsSignature(map);
     const prevSig = selectEl.getAttribute('data-jprm-sig') || '';
-    if (sig === prevSig) return false; // nothing to do
+    if (sig === prevSig) return false; // no churn
 
     const multiple = !!selectEl.multiple;
     const selected = getSelectedValues(selectEl);
     const ids = Object.keys(map || {});
 
-    // wipe
+    // clear
     while (selectEl.firstChild) selectEl.removeChild(selectEl.firstChild);
 
-    // single selects: leading empty
+    // single: empty first option
     if (!multiple) {
       const emptyOpt = document.createElement('option');
       emptyOpt.value = '';
@@ -126,7 +141,7 @@
       selectEl.appendChild(emptyOpt);
     }
 
-    // add options
+    // add all options
     ids.forEach(id => {
       const opt = document.createElement('option');
       opt.value = id;
@@ -134,20 +149,20 @@
       selectEl.appendChild(opt);
     });
 
-    // keep existing selection if still valid
+    // keep previous selection if valid
     const kept = selected.filter(v => ids.includes(String(v)));
     setSelectedValues(selectEl, kept);
 
     selectEl.setAttribute('data-jprm-sig', sig);
 
-    // refresh select2 UI if needed (DS uses select2)
+    // refresh Select2 UI if present (affects DS and any select2 field)
     if (typeof jQuery !== 'undefined' && jQuery.fn && jQuery.fn.select2 && jQuery(selectEl).hasClass('select2-hidden-accessible')) {
       jQuery(selectEl).trigger('change.select2');
     }
     return true;
   }
 
-  // ====== DS refresh (unchanged logic) ======
+  /* ------------ DS refresh (kept exactly as your working flow) ------------ */
   async function refreshDataSourceSections(root){
     const sel = dsSectionsSelect(root);
     if (!sel) return;
@@ -167,9 +182,10 @@
     return map || {};
   }
 
-  // ====== apply to "other" tagged selects ======
+  /* ------------ apply to non-DS, wrapper-tagged controls ------------ */
   function applyScopedOptionsToOthers(root, map){
     const targets = otherScopedSelects(root).filter(isVisible);
+    log('Others targets', { total: targets.length });
     if (!targets.length) return;
 
     let applied = 0;
@@ -177,7 +193,7 @@
     if (applied) log('Others applied', { count: applied, totalTargets: targets.length });
   }
 
-  // ====== orchestration ======
+  /* ------------ orchestration ------------ */
   function scheduleRefresh(root){
     if (state.debounceTimer) clearTimeout(state.debounceTimer);
     state.debounceTimer = setTimeout(async function(){
@@ -196,7 +212,7 @@
     if (!ms || ms.__jprmBound) return;
     ms.__jprmBound = true;
     ms.addEventListener('change', function(){
-      // Clear signatures so rebuild happens
+      // force rebuild on DS + others
       const ds = dsSectionsSelect(root);
       if (ds) ds.removeAttribute('data-jprm-sig');
       otherScopedSelects(root).forEach(el => el.removeAttribute('data-jprm-sig'));
@@ -204,17 +220,13 @@
     });
   }
 
-  // When a repeater row is added, apply map to the new row’s select(s)
+  // when a repeater row is added, re-apply map to new row selects
   function bindRepeaterAddHooks(root){
     root.addEventListener('click', function(e){
       const t = e.target;
       if (!(t instanceof HTMLElement)) return;
-
-      // Any Add-Item button in any repeater
       const addBtn = t.closest('.elementor-repeater-add');
       if (!addBtn) return;
-
-      // After DOM mutation, re-apply current map
       setTimeout(async function(){
         const map = await refreshDataSourceSections(root) || {};
         applyScopedOptionsToOthers(root, map);
@@ -232,7 +244,7 @@
     bindRepeaterAddHooks(root);
     scheduleRefresh(root); // initial
 
-    // Observe for controls appearing (switching tabs, expanding repeaters, etc.)
+    // watch for controls appearing (tab switches, repeater expand, etc.)
     const mo = new MutationObserver((list) => {
       let relevant = false;
       for (const m of list) {
@@ -240,9 +252,10 @@
         for (const n of m.addedNodes) {
           if (!(n instanceof HTMLElement)) continue;
           if (n.querySelector && (
-              n.querySelector('[data-setting="menus"]') ||
-              n.querySelector('[data-setting="sections"]') ||
-              n.querySelector('select.jprm-scope-target')
+            n.querySelector('[data-setting="menus"]') ||
+            n.querySelector('[data-setting="sections"]') ||                        // DS
+            n.querySelector('.elementor-control.jprm-scope-target select') ||      // non-DS (plain)
+            n.querySelector('.elementor-control.jprm-scope-target .select2-hidden-accessible') // non-DS (select2)
           )) { relevant = true; break; }
         }
         if (relevant) break;
