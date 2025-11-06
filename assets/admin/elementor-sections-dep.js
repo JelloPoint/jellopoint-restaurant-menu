@@ -1,202 +1,189 @@
 (function(){
   'use strict';
 
-  /* --------- tiny helpers --------- */
+  /* ========= small utils ========= */
   function log(){ try{ console.log.apply(console, ['[JPRM]'].concat([].slice.call(arguments))); }catch(e){} }
   function ajaxUrl(){ return (window.JPRMAjax && JPRMAjax.url) || (typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php'); }
   function ajaxNonce(){ return (window.JPRMAjax && JPRMAjax.nonce) || ''; }
-  function panel(){ return document.querySelector('.elementor-panel') || document; }
-  function vis(el){ if(!el) return false; const s=getComputedStyle(el); return s.display!=='none' && s.visibility!=='hidden'; }
+  function visible(el){ if(!el) return false; const s=getComputedStyle(el); return s.display!=='none' && s.visibility!=='hidden'; }
   function sigFromMap(map){ if(!map||typeof map!=='object') return ''; const k=Object.keys(map).sort(); return k.map(x=>x+':'+String(map[x]||'').length).join('|'); }
   function getSelected(select){
     const out=[]; if(!select) return out;
     for(const o of select.options){ if(o.selected) out.push(String(o.value)); }
     return out;
   }
-  function setSelected(select, values){
-    const keep = new Set((values||[]).map(String));
+  function setSelected(select, vals){
+    const keep=new Set((vals||[]).map(String));
     for(const o of select.options){ o.selected = keep.has(String(o.value)); }
     if (typeof jQuery!=='undefined') jQuery(select).trigger('change', {silent:true});
   }
 
-  /* --------- elements we care about --------- */
-  function menuSelect(root){ return root.querySelector('[data-setting="menus"]'); }
-  function dsSectionsSelect(root){
-    // DS control (SELECT2 underneath)
-    return root.querySelector('.elementor-control-sections [data-setting="sections"]')
-        || root.querySelector('[data-setting="sections"]');
-  }
-
-  // EXPLICIT, no guessing:
-  function splitSelects(root){
-    const arr = [];
-    const s1 = root.querySelector('[data-setting="layout_split_after_section"]');
-    const s2 = root.querySelector('[data-setting="layout_split_after_section2"]');
-    if (s1) arr.push(s1);
-    if (s2) arr.push(s2);
-    return arr.filter(vis);
-  }
-
-  function repeaterSectionSelects(root){
-    // any select named section_id inside the two repeaters
-    const out = [];
-    root.querySelectorAll(
-      '.elementor-control-type-repeater[data-id="labels_layout_overrides"] .elementor-repeater-fields select[data-setting="section_id"],' +
-      '.elementor-control-type-repeater[data-id="info_blocks"] .elementor-repeater-fields select[data-setting="section_id"]'
-    ).forEach(el => { if (vis(el)) out.push(el); });
-    return out;
-  }
-
-  function readMenuId(root){
-    const ms = menuSelect(root); if(!ms) return 0;
-    const id = parseInt(ms.value||0,10);
-    return Number.isFinite(id) ? id : 0;
-  }
-
-  /* --------- AJAX + state --------- */
-  const ST = { inflight:null, lastMenuId:null, debounce:null, poll:null };
-
+  /* ========= AJAX map (same endpoint DS uses) ========= */
   async function fetchSectionsMap(menuId){
-    if (ST.inflight) { try{ ST.inflight.abort(); }catch(_e){} ST.inflight=null; }
-    const ctl = new AbortController(); ST.inflight = ctl;
-
     const body = new URLSearchParams();
     body.set('action','jprm_sections_by_menu');
     body.set('menu', String(menuId||''));
     const n = ajaxNonce(); if(n) body.set('_ajax_nonce', n);
 
-    try{
-      const res = await fetch(ajaxUrl(), {
-        method:'POST', credentials:'include',
-        headers:{'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8'},
-        body: body.toString(), signal: ctl.signal
-      });
-      const txt = await res.text();
-      let json=null; try{ json = JSON.parse(txt); }catch(_e){}
-      if(!json || !json.success || !json.data){ log('AJAX not OK, head:', txt.slice(0,200)); return {}; }
-      return json.data; // { id: "— label", ... }
-    }catch(e){
-      if (e && e.name==='AbortError') return null;
-      log('AJAX error', e); return {};
-    }finally{
-      if (ST.inflight===ctl) ST.inflight=null;
+    const res = await fetch(ajaxUrl(), {
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8'},
+      body: body.toString()
+    });
+
+    const txt = await res.text();
+    let json=null; try{ json = JSON.parse(txt); }catch(_e){}
+    if(!json || !json.success || !json.data){
+      log('AJAX not OK, head:', txt.slice(0,200));
+      return {};
     }
+    return json.data; // { id: "— label", ... }
   }
 
   function rebuildOptions(select, map){
-    if(!select || !vis(select)) return false;
+    if(!select || !visible(select)) return false;
 
     const sig = sigFromMap(map);
     const prev = select.getAttribute('data-jprm-sig') || '';
     if (sig === prev) return false;
 
-    const multiple = !!select.multiple;
+    const wasMultiple = !!select.multiple;
     const prevSel = getSelected(select);
     const ids = Object.keys(map||{});
 
     while(select.firstChild) select.removeChild(select.firstChild);
-    if(!multiple){
+    if(!wasMultiple){
       const empty = document.createElement('option');
-      empty.value=''; empty.textContent=''; select.appendChild(empty);
+      empty.value=''; empty.textContent='';
+      select.appendChild(empty);
     }
-    ids.forEach(id => {
-      const opt = document.createElement('option');
-      opt.value = id; opt.textContent = String(map[id]||'');
+    ids.forEach(id=>{
+      const opt=document.createElement('option');
+      opt.value=id; opt.textContent=String(map[id]||'');
       select.appendChild(opt);
     });
 
-    setSelected(select, prevSel.filter(v => ids.includes(String(v))));
+    setSelected(select, prevSel.filter(v=>ids.includes(String(v))));
     select.setAttribute('data-jprm-sig', sig);
 
-    // refresh Select2 if it’s applied
+    // If DS is Select2, refresh its UI
     if (typeof jQuery!=='undefined' && jQuery.fn && jQuery.fn.select2 && jQuery(select).hasClass('select2-hidden-accessible')){
       jQuery(select).trigger('change.select2');
     }
     return true;
   }
 
-  async function applyDS(root){
-    const sel = dsSectionsSelect(root);
-    if(!sel) return null;
+  /* ========= locate controls inside the widget panel view ========= */
+  function findControls(rootEl){
+    // DS controls
+    const menuSel = rootEl.querySelector('[data-setting="menus"]') || null;
+    const dsSel =
+      rootEl.querySelector('.elementor-control-sections [data-setting="sections"]') ||
+      rootEl.querySelector('[data-setting="sections"]') || null;
 
-    const menuId = readMenuId(root);
-    if (ST.lastMenuId===menuId && sel.getAttribute('data-jprm-sig')) return null;
-    ST.lastMenuId = menuId;
+    // Other section-scoped selects:
+    const others = [];
 
-    log('DS refresh', {menuId});
+    // Layout split (1)/(2)
+    const s1 = rootEl.querySelector('[data-setting="layout_split_after_section"]');
+    const s2 = rootEl.querySelector('[data-setting="layout_split_after_section2"]');
+    if (s1) others.push(s1);
+    if (s2) others.push(s2);
+
+    // Repeaters section_id for both repeaters (labels_layout_overrides, info_blocks)
+    rootEl.querySelectorAll(
+      '.elementor-control-type-repeater[data-id="labels_layout_overrides"] .elementor-repeater-fields select[data-setting="section_id"],' +
+      '.elementor-control-type-repeater[data-id="info_blocks"] .elementor-repeater-fields select[data-setting="section_id"]'
+    ).forEach(el=>others.push(el));
+
+    // Any fallback marked explicitly
+    rootEl.querySelectorAll('select.jprm-scope-target[data-setting="section_id"]').forEach(el=>others.push(el));
+
+    return { menuSel, dsSel, others: others.filter(visible) };
+  }
+
+  function readMenuId(menuSel){
+    const id = parseInt(menuSel && menuSel.value || 0, 10);
+    return Number.isFinite(id) ? id : 0;
+  }
+
+  async function refreshAllInView(rootEl){
+    const { menuSel, dsSel, others } = findControls(rootEl);
+    if (!menuSel) return;
+
+    const menuId = readMenuId(menuSel);
+    // Always refetch fresh map (fast, tiny payload)
     const map = await fetchSectionsMap(menuId);
-    if (map===null) return null;
+    if (!map) return;
 
-    if (rebuildOptions(sel, map||{})){
-      log('DS applied', { total:Object.keys(map||{}).length });
+    // DS first
+    if (dsSel){
+      // clear sig so it updates
+      dsSel.removeAttribute('data-jprm-sig');
+      if (rebuildOptions(dsSel, map)) log('DS applied', { total:Object.keys(map||{}).length });
     }
-    return map||{};
-  }
 
-  function applyOthers(root, map){
-    // explicit targets only:
-    const targets = [].concat( splitSelects(root), repeaterSectionSelects(root) );
-    log('Others targets', { total: targets.length });
-    if (!targets.length) return;
-
+    // Then others
     let applied=0;
-    targets.forEach(el => { if (rebuildOptions(el, map)) applied++; });
-    if (applied) log('Others applied', { count: applied, totalTargets: targets.length });
+    others.forEach(el=>{ el.removeAttribute('data-jprm-sig'); if (rebuildOptions(el, map)) applied++; });
+    if (others.length) log('Others applied', { count: applied, totalTargets: others.length });
   }
 
-  function schedule(root){
-    if (ST.debounce) clearTimeout(ST.debounce);
-    ST.debounce = setTimeout(async function(){
-      ST.debounce = null;
-      const map = await applyDS(root);
-      if (map && typeof map==='object') applyOthers(root, map);
-    }, 140);
-  }
+  /* ========= bind to Elementor editor events ========= */
+  function bindWidgetPanel(panelView){
+    // fires every time a widget panel opens
+    elementor.hooks.addAction('panel/open_editor/widget', function(panel, model, view){
+      try{
+        const widgetType = model && model.get && model.get('widgetType');
+        if (widgetType !== 'jprm_restaurant_menu') return; // only our widget
 
-  /* --------- bindings --------- */
-  function bindMenu(root){
-    const ms = menuSelect(root);
-    if (!ms || ms.__jprm) return;
-    ms.__jprm = true;
-    ms.addEventListener('change', function(){
-      const ds = dsSectionsSelect(root);
-      if (ds) ds.removeAttribute('data-jprm-sig');
-      splitSelects(root).forEach(el => el.removeAttribute('data-jprm-sig'));
-      repeaterSectionSelects(root).forEach(el => el.removeAttribute('data-jprm-sig'));
-      schedule(root);
+        const rootEl = view && view.$el && view.$el[0];
+        if (!rootEl) return;
+
+        log('panel/open_editor/widget (JPRM)');
+
+        // initial fill when panel opens
+        refreshAllInView(rootEl);
+
+        // when Menu changes inside this widget, refresh everything
+        model.on('change:menus', function(){
+          log('menus changed');
+          refreshAllInView(rootEl);
+        });
+
+        // when a repeater row is added, Elementor inserts DOM after click
+        // delegate to view container
+        view.$el.on('click', '.elementor-repeater-add', function(){
+          setTimeout(function(){ refreshAllInView(rootEl); }, 120);
+        });
+
+        // also when switching sections/tabs inside the widget, the DOM re-renders;
+        // hook into panel section activated to re-apply map to newly inserted selects
+        elementor.channels.panel.on('section:activated', function(){
+          // throttle a little to let DOM settle
+          setTimeout(function(){ refreshAllInView(rootEl); }, 80);
+        });
+
+      }catch(e){ log('bind error', e); }
     });
   }
 
-  // click-anywhere-in-panel → schedule (tab switches, accordion opens, repeater toggles)
-  function bindClicks(root){
-    if (root.__jprmClicks) return;
-    root.__jprmClicks = true;
-    root.addEventListener('click', function(e){
-      // only clicks inside the left editor panel, not the preview iframe
-      schedule(root);
-    }, {passive:true});
+  /* ========= boot once Elementor editor is ready ========= */
+  function bootWhenReady(){
+    if (typeof elementor === 'undefined' || !elementor || !elementor.hooks || !elementor.channels || !elementor.getPanelView){
+      setTimeout(bootWhenReady, 150);
+      return;
+    }
+    try{
+      const pv = elementor.getPanelView && elementor.getPanelView();
+      if (!pv) { setTimeout(bootWhenReady, 150); return; }
+      log('sections-dep.js active (events)');
+      bindWidgetPanel(pv);
+    }catch(e){
+      setTimeout(bootWhenReady, 150);
+    }
   }
 
-  // small heartbeat so opening a repeater row late still gets filled
-  function startPoll(root){
-    if (ST.poll) clearInterval(ST.poll);
-    ST.poll = setInterval(()=> schedule(root), 900);
-  }
-
-  function boot(){
-    const root = panel();
-    if (!root){ setTimeout(boot, 300); return; }
-
-    log('sections-dep.js active');
-
-    bindMenu(root);
-    bindClicks(root);
-    startPoll(root);
-
-    // initial fill
-    schedule(root);
-  }
-
-  if (document.readyState==='complete' || document.readyState==='interactive') boot();
-  else document.addEventListener('DOMContentLoaded', boot);
+  if (document.readyState==='complete' || document.readyState==='interactive') bootWhenReady();
+  else document.addEventListener('DOMContentLoaded', bootWhenReady);
 })();
