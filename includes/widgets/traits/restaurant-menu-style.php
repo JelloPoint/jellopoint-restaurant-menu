@@ -43,6 +43,15 @@ trait Restaurant_Menu_Style {
 				],
 			]
 		);
+			$this->add_control( 'jprm_menu_wrapper_background', [
+			'label'     => __( 'Background Color', 'jellopoint-restaurant-menu' ),
+			'type'      => Controls_Manager::COLOR,
+			'selectors' => [
+				'{{WRAPPER}} .jp-menu-grid--cols-1' => 'background-color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu-grid--cols-2' => 'background-color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu-grid--cols-3' => 'background-color: {{VALUE}};',
+			],
+		] );
 		$this->end_controls_section();
 
 		/* ===== Menu Title  & Description (scoped to meta only) ===== */
