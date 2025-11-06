@@ -88,17 +88,16 @@ trait Restaurant_Menu_Controls {
 		/* --- Preload option sources ------------------------------------------ */
 		$menu_options_all    = $this->get_terms_options( 'jprm_menu' );
 		$section_options_all = $this->get_terms_options( 'jprm_section' );
-		// === Build tree-scoped section options for the CURRENT Menu (parents first, children indented)
-// BEFORE (don’t use this in register_controls)
-$menu_selected_id_raw = $this->get_settings_for_display('menus');
 
-// AFTER (safe during control registration)
-$menu_selected_id_raw = $this->get_settings('menus');
-if (is_array($menu_selected_id_raw)) { // in case it’s SELECT2 or becomes array
-    $tmp = array_values($menu_selected_id_raw);
-    $menu_selected_id_raw = $tmp[0] ?? '';
-}
-$menu_selected_id = is_numeric($menu_selected_id_raw) ? (int)$menu_selected_id_raw : 0;
+		/* === Build tree-scoped section options for the CURRENT Menu (parents first, children indented)
+			IMPORTANT: inside register_controls() never call get_settings_for_display() */
+		$menu_selected_id_raw = $this->get_settings( 'menus' ); // SAFE here
+		if ( is_array( $menu_selected_id_raw ) ) {
+			// if control ever becomes multi, take first selection
+			$tmp = array_values( $menu_selected_id_raw );
+			$menu_selected_id_raw = $tmp[0] ?? '';
+		}
+		$menu_selected_id = is_numeric( $menu_selected_id_raw ) ? (int) $menu_selected_id_raw : 0;
 
 $sections_tree_scoped = (static function( int $menu_id, array $fallback_all ) : array {
 	$TAX = 'jprm_section';
