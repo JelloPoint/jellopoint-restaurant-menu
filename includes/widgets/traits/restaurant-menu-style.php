@@ -30,6 +30,19 @@ trait Restaurant_Menu_Style {
 				],
 			]
 		);
+		$this->add_responsive_control(
+			'jprm_menu_wrapper_padding',
+			[
+				'label'      => __( 'Padding', 'jellopoint-restaurant-menu' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => [ 'px', 'em', '%' ],
+				'selectors'  => [
+					'{{WRAPPER}} .jp-menu-grid--cols-1' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+					'{{WRAPPER}} .jp-menu-grid--cols-2' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+					'{{WRAPPER}} .jp-menu-grid--cols-3' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				],
+			]
+		);
 		$this->end_controls_section();
 
 		/* ===== Menu Title & Description (scoped to meta only) ===== */
