@@ -108,6 +108,13 @@ trait Restaurant_Menu_Controls {
 				'static'  => [ 'title' => __( 'Static', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-editor-list-ul' ],
 			],
 		] );
+$this->add_control( 'refresh_scoped_lists', [
+    'label'       => __( 'Scoped Lists', 'jellopoint-restaurant-menu' ),
+    'type'        => \Elementor\Controls_Manager::RAW_HTML,
+    'raw'         => '<button id="jprm-refresh-scoped" type="button" class="elementor-button elementor-button-default">'.esc_html__('Refresh scoped lists', 'jellopoint-restaurant-menu').'</button><div style="margin-top:.35rem;opacity:.8">'.esc_html__('Keeps non-DS section selects in sync with the chosen Menu without saving.', 'jellopoint-restaurant-menu').'</div>',
+    'content_classes' => 'jprm-refresh-box',
+    'condition'   => [ 'data_mode' => 'dynamic' ],
+]);
 
 		$this->add_control( 'show_all_when_empty', [
 			'label'        => __( 'Fallback to all items when no Menu/Section', 'jellopoint-restaurant-menu' ),
