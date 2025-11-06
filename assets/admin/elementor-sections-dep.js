@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  // ---- CONFIG: flip to false if you only want DS to update ----
+  // Update the non-DS controls too
   const ENABLE_OTHERS = true;
 
   function log(){ try{ console.log.apply(console, ['[JPRM]'].concat([].slice.call(arguments))); }catch(e){} }
@@ -11,7 +11,7 @@
   function panelRoot(){ return document.querySelector('.elementor-panel'); }
   function menuSelect(root){ return root && root.querySelector('select[data-setting="menus"]'); }
 
-  // Data Source (Sections) control — this is SELECT2 in your widget
+  // DS (Sections) SELECT2
   function dsSectionsSelect(root){
     return root && (
       root.querySelector('.elementor-control-sections select[data-setting="sections"]')
@@ -19,20 +19,23 @@
     );
   }
 
-  // Other dependent selects (plain SELECTs in your widget):
+  // Other dependent selects (NO data-id assumptions)
   function splitAfterSelects(root){
     if (!root) return [];
-    return Array.from(root.querySelectorAll('select[data-setting="layout_split_after_section"], select[data-setting="layout_split_after_section2"]'));
+    return Array.from(
+      root.querySelectorAll(
+        'select[data-setting="layout_split_after_section"], '+
+        'select[data-setting="layout_split_after_section2"]'
+      )
+    );
   }
-  // Only the section_id selects inside the two repeaters:
+
+  // All section pickers inside repeaters (labels_layout_overrides + info_blocks)
+  // Both of your repeaters use the SAME data-setting name "section_id".
   function repeaterSectionSelects(root){
     if (!root) return [];
-    const out = [];
-    const reps = root.querySelectorAll('.elementor-control-type-repeater[data-id="labels_layout_overrides"], .elementor-control-type-repeater[data-id="info_blocks"]');
-    reps.forEach(rep => {
-      out.push(...rep.querySelectorAll('select[data-setting="section_id"]'));
-    });
-    return out;
+    // Broad but safe: nothing else in your widget uses data-setting="section_id"
+    return Array.from(root.querySelectorAll('select[data-setting="section_id"]'));
   }
 
   function isVisible(el){
@@ -62,11 +65,10 @@
     if (typeof jQuery !== 'undefined') {
       const $el = jQuery(selectEl);
       $el.trigger('change', { silent:true });
-      // if Select2 is attached:
       if ($el.hasClass('select2-hidden-accessible')) $el.trigger('change.select2');
     } else {
-      selectEl.dispatchEvent(new Event('change', { bubbles:true }));
       selectEl.dispatchEvent(new Event('input',  { bubbles:true }));
+      selectEl.dispatchEvent(new Event('change', { bubbles:true }));
     }
   }
 
@@ -80,7 +82,7 @@
     lastMenuId: null,
     inflight: null,
     debounceTimer: null,
-    lastMapSig: '' // signature of the last DS map we applied
+    lastMapSig: ''
   };
 
   async function fetchSectionsMap(menuId){
@@ -123,7 +125,7 @@
 
     const sig = optionsSignature(map);
     const prevSig = selectEl.getAttribute('data-jprm-sig') || '';
-    if (sig === prevSig) return false; // no change → avoid loops
+    if (sig === prevSig) return false; // unchanged
 
     const wasMultiple = !!selectEl.multiple;
     const selected = getSelectedValues(selectEl);
@@ -150,7 +152,7 @@
 
     selectEl.setAttribute('data-jprm-sig', sig);
 
-    // If Select2 is attached (DS), refresh UI
+    // If Select2 is attached, refresh UI
     if (typeof jQuery !== 'undefined' && jQuery.fn && jQuery.fn.select2 && jQuery(selectEl).hasClass('select2-hidden-accessible')) {
       jQuery(selectEl).trigger('change.select2');
     }
@@ -167,11 +169,10 @@
 
     log('DS refresh', { menuId });
     const map = await fetchSectionsMap(menuId);
-    if (map === null) return; // aborted/superseded
+    if (map === null) return; // aborted
 
     const changed = rebuildOptionsIfChanged(sel, map || {});
     if (changed) {
-      // stash DS map for anyone else to reuse (and for future initializations)
       try { sel.setAttribute('data-jprm-map', JSON.stringify(map || {})); } catch(e){}
       const sigMap = optionsSignature(map||{});
       state.lastMapSig = sigMap;
@@ -183,7 +184,6 @@
   function applyScopedOptionsToOthers(root, map){
     if (!ENABLE_OTHERS) return;
 
-    // If no map given, try DS stash first (no extra fetch)
     if (!map || typeof map !== 'object' || !Object.keys(map).length) {
       const ds = dsSectionsSelect(root);
       if (ds) {
@@ -191,7 +191,7 @@
         if (stash) { try { map = JSON.parse(stash) || {}; } catch(e){} }
       }
     }
-    if (!map || typeof map !== 'object' || !Object.keys(map).length) return;
+    if (!map || !Object.keys(map).length) return;
 
     const targets = [
       ...splitAfterSelects(root),
@@ -213,12 +213,9 @@
       state.debounceTimer = null;
       if (!menuSelect(root)) return;
 
-      // Always refresh DS first so we reuse the same map for others
       const map = await refreshDataSourceSections(root);
-      if (map && typeof map === 'object') {
-        applyScopedOptionsToOthers(root, map);
-      }
-    }, 180);
+      if (map && typeof map === 'object') applyScopedOptionsToOthers(root, map);
+    }, 160);
   }
 
   function bindMenuChange(root){
@@ -226,7 +223,6 @@
     if (!ms || ms.__jprmBound) return;
     ms.__jprmBound = true;
     ms.addEventListener('change', function(){
-      // Clear signatures so rebuild happens for DS + Others
       const ds = dsSectionsSelect(root);
       if (ds) ds.removeAttribute('data-jprm-sig');
       if (ENABLE_OTHERS) {
@@ -237,17 +233,25 @@
     });
   }
 
-  // When a repeater row is added, re-apply map to the newly inserted select
-  function bindRepeaterAddHooks(root){
-    if (!ENABLE_OTHERS) return;
-
+  // When switching tabs, Elementor adds the controls to the DOM: refresh then.
+  function bindTabSwitchRefresh(root){
     root.addEventListener('click', function(e){
       const t = e.target;
       if (!(t instanceof HTMLElement)) return;
+      if (t.closest('.elementor-panel-navigation, .elementor-tab-control')) {
+        setTimeout(() => scheduleRefresh(root), 100);
+      }
+    }, { passive:true });
+  }
 
-      const btn = t.closest('.elementor-control-type-repeater[data-id="labels_layout_overrides"] .elementor-repeater-add, .elementor-control-type-repeater[data-id="info_blocks"] .elementor-repeater-add');
+  // When a repeater row is added, re-apply map to newly inserted selects
+  function bindRepeaterAddHooks(root){
+    if (!ENABLE_OTHERS) return;
+    root.addEventListener('click', function(e){
+      const t = e.target;
+      if (!(t instanceof HTMLElement)) return;
+      const btn = t.closest('.elementor-repeater__add, .elementor-repeater-add');
       if (!btn) return;
-
       setTimeout(async function(){
         const map = await refreshDataSourceSections(root) || {};
         applyScopedOptionsToOthers(root, map);
@@ -262,10 +266,11 @@
     log('sections-dep.js active');
 
     bindMenuChange(root);
+    bindTabSwitchRefresh(root);
     bindRepeaterAddHooks(root);
     scheduleRefresh(root); // initial
 
-    // Observe panel changes, refresh when relevant controls appear
+    // Also observe controls mounting/unmounting
     const mo = new MutationObserver((list) => {
       let relevant = false;
       for (const m of list) {
@@ -275,12 +280,9 @@
           if (n.querySelector && (
               n.querySelector('select[data-setting="menus"]') ||
               n.querySelector('select[data-setting="sections"]') ||
-              (ENABLE_OTHERS && (
-                n.querySelector('select[data-setting="layout_split_after_section"]') ||
-                n.querySelector('select[data-setting="layout_split_after_section2"]') ||
-                n.querySelector('.elementor-control-type-repeater[data-id="labels_layout_overrides"] select[data-setting="section_id"]') ||
-                n.querySelector('.elementor-control-type-repeater[data-id="info_blocks"] select[data-setting="section_id"]')
-              ))
+              n.querySelector('select[data-setting="layout_split_after_section"]') ||
+              n.querySelector('select[data-setting="layout_split_after_section2"]') ||
+              n.querySelector('select[data-setting="section_id"]')
           )) { relevant = true; break; }
         }
         if (relevant) break;
