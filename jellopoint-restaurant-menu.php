@@ -85,9 +85,9 @@ if ( is_admin() ) {
 	require_once JPRM_PLUGIN_PATH . 'includes/debug/class-inspector.php';
 
 	// Optional debug addon if present
-	if ( file_exists( JPRM_PLUGIN_PATH . 'includes/debug/inspector-badges.php' ) ) {
+	/*if ( file_exists( JPRM_PLUGIN_PATH . 'includes/debug/inspector-badges.php' ) ) {
 		require_once JPRM_PLUGIN_PATH . 'includes/debug/inspector-badges.php';
-	}
+	}*/
 
 	// includes/admin/class-admin-import-export.php
 	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-import-export.php';
