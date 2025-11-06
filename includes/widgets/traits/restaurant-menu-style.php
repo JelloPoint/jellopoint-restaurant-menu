@@ -17,6 +17,17 @@ trait Restaurant_Menu_Style {
 				'tab'   => Controls_Manager::TAB_STYLE,
 			]
 		);
+		$this->add_responsive_control(
+			'jprm_menu_wrapper_margin',
+			[
+				'label'      => __( 'Margin', 'jellopoint-restaurant-menu' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => [ 'px', 'em', '%' ],
+				'selectors'  => [
+					'{{WRAPPER}} .jp-menu' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				],
+			]
+		);
 		$this->end_controls_section();
 
 		/* ===== Menu Title & Description (scoped to meta only) ===== */
