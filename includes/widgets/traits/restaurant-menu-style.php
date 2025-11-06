@@ -317,11 +317,7 @@ trait Restaurant_Menu_Style {
 			\Elementor\Group_Control_Border::get_type(),
 			[
 				'name' => 'border-sub',
-				'selectors' => [
-				'{{WRAPPER}} .jp-menu__section--level-1 > .jp-section__title',
-				'{{WRAPPER}} .jp-menu__section--level-2 > .jp-section__title',
-				'{{WRAPPER}} .jp-menu__section--level-3 > .jp-section__title',
-			],
+				'selector' => '{{WRAPPER}} .jp-menu__section--level-1 > .jp-section__title',
 			]
 		);
 
