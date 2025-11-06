@@ -631,6 +631,7 @@ $sections_tree_scoped = (static function( int $menu_id, array $fallback_all ) : 
 			'label'       => __( 'Target Section', 'jellopoint-restaurant-menu' ),
 			'type'        => Controls_Manager::SELECT2,
 			'options'     => $sections_tree_scoped,
+			'default'   => [],
 			'multiple'    => false,
 			'label_block' => true,
 		] );
