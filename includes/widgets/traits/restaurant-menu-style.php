@@ -324,6 +324,7 @@ trait Restaurant_Menu_Style {
 			],
 			]
 		);
+		
 		$this->end_controls_section();
 
 		/* ===== Item Title & Description (items only, incl. Matrix) ===== */
