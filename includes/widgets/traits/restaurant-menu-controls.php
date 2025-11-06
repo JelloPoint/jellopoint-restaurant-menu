@@ -187,12 +187,23 @@ $sections_tree_scoped = (static function( int $menu_id, array $fallback_all ) : 
 })( $menu_selected_id, $section_options_all );
 
 
-		// Try to read the currently selected Menu (Elementor)
-		$selected_menu_id = 0;
-		try {
-			$tmp = $this->get_settings_for_display();
-			if ( ! empty( $tmp['menus'] ) ) $selected_menu_id = (int) $tmp['menus'];
-		} catch ( \Throwable $e ) {}
+// Read the currently selected Menu safely during control registration
+$selected_menu_id = 0;
+$raw = $this->get_settings('menus');           // SAFE in register_controls()
+
+// If Elementor gives us an array (e.g., SELECT2 or internal casts), take the first
+if (is_array($raw)) {
+    $raw = array_values($raw)[0] ?? '';
+}
+
+// Coerce to int if it’s a scalar numeric-ish value
+if (is_scalar($raw) && $raw !== '' && is_numeric($raw)) {
+    $selected_menu_id = (int) $raw;
+}
+
+// Now build your scoped list with this ID:
+// $_scoped_sections = $this->scoped_sections_for_menu($selected_menu_id, $section_options_all);
+
 
 		// Single, authoritative scoped list used by ALL controls in this widget:
 		$_scoped_sections = $this->scoped_sections_for_menu( $selected_menu_id, $section_options_all );
