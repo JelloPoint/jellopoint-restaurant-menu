@@ -9,18 +9,22 @@
   function ajaxNonce(){ return (window.JPRMAjax && JPRMAjax.nonce) || ''; }
 
   function panelRoot(){ return document.querySelector('.elementor-panel'); }
-  function menuSelect(root){ return root && root.querySelector('[data-setting="menus"]'); }
+  function menuSelect(root){ return root && root.querySelector('select[data-setting="menus"]'); }
+
+  // Data Source (Sections) control — this is SELECT2 in your widget
   function dsSectionsSelect(root){
-    // DS control (SELECT2 in your widget)
-    return root && (root.querySelector('.elementor-control-sections [data-setting="sections"]') || root.querySelector('[data-setting="sections"]'));
+    return root && (
+      root.querySelector('.elementor-control-sections select[data-setting="sections"]')
+      || root.querySelector('select[data-setting="sections"]')
+    );
   }
 
-  // Other dependent selects (plain SELECT in your widget):
+  // Other dependent selects (plain SELECTs in your widget):
   function splitAfterSelects(root){
     if (!root) return [];
-    return Array.from(root.querySelectorAll('[data-setting="layout_split_after_section"], [data-setting="layout_split_after_section2"]'));
+    return Array.from(root.querySelectorAll('select[data-setting="layout_split_after_section"], select[data-setting="layout_split_after_section2"]'));
   }
-  // Repeater scoping guards: only section_id inside our two repeaters
+  // Only the section_id selects inside the two repeaters:
   function repeaterSectionSelects(root){
     if (!root) return [];
     const out = [];
@@ -31,7 +35,6 @@
     return out;
   }
 
-  // Small helper: avoid hammering hidden controls (Elementor sometimes keeps old DOM hidden)
   function isVisible(el){
     if (!el) return false;
     const s = window.getComputedStyle(el);
@@ -45,17 +48,28 @@
     const id = parseInt(v || 0, 10);
     return Number.isFinite(id) ? id : 0;
   }
+
   function getSelectedValues(selectEl){
     const vals = [];
     if (!selectEl) return vals;
     for (const opt of selectEl.options) if (opt.selected) vals.push(String(opt.value));
     return vals;
   }
+
   function setSelectedValues(selectEl, values){
     const keep = new Set((values||[]).map(String));
     for (const opt of selectEl.options) opt.selected = keep.has(String(opt.value));
-    if (typeof jQuery !== 'undefined') { jQuery(selectEl).trigger('change', { silent:true }); }
+    if (typeof jQuery !== 'undefined') {
+      const $el = jQuery(selectEl);
+      $el.trigger('change', { silent:true });
+      // if Select2 is attached:
+      if ($el.hasClass('select2-hidden-accessible')) $el.trigger('change.select2');
+    } else {
+      selectEl.dispatchEvent(new Event('change', { bubbles:true }));
+      selectEl.dispatchEvent(new Event('input',  { bubbles:true }));
+    }
   }
+
   function optionsSignature(map){
     if (!map || typeof map !== 'object') return '';
     const keys = Object.keys(map).sort();
@@ -66,7 +80,7 @@
     lastMenuId: null,
     inflight: null,
     debounceTimer: null,
-    lastMapSig: '' // used to avoid re-applying to Others when DS map unchanged
+    lastMapSig: '' // signature of the last DS map we applied
   };
 
   async function fetchSectionsMap(menuId){
@@ -77,22 +91,20 @@
     const body = new URLSearchParams();
     body.set('action', 'jprm_sections_by_menu');
     body.set('menu', String(menuId||''));
-    const n = ajaxNonce();
-    if (n) body.set('_ajax_nonce', n);
+    const n = ajaxNonce(); if (n) body.set('_ajax_nonce', n);
 
     try {
-      const res = await fetch(ajaxUrl(), {
+      const res  = await fetch(ajaxUrl(), {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
         body: body.toString(),
         signal: ctl.signal
       });
-      // If server returned HTML (e.g. PHP warning), guard JSON parsing
       const text = await res.text();
       let json = null;
       try { json = JSON.parse(text); } catch(_e){ json = null; }
-      if (!json || !json.success || !json.data) {
+      if (!json || !json.success || !json.data || typeof json.data !== 'object') {
         log('AJAX payload not OK; got:', text.slice(0,200));
         return {};
       }
@@ -107,8 +119,7 @@
   }
 
   function rebuildOptionsIfChanged(selectEl, map){
-    if (!selectEl) return false;
-    if (!isVisible(selectEl)) return false;
+    if (!selectEl || !isVisible(selectEl)) return false;
 
     const sig = optionsSignature(map);
     const prevSig = selectEl.getAttribute('data-jprm-sig') || '';
@@ -120,7 +131,6 @@
 
     while (selectEl.firstChild) selectEl.removeChild(selectEl.firstChild);
 
-    // For single selects, insert an empty option at top
     if (!wasMultiple) {
       const emptyOpt = document.createElement('option');
       emptyOpt.value = '';
@@ -140,7 +150,7 @@
 
     selectEl.setAttribute('data-jprm-sig', sig);
 
-    // Refresh Select2 UI if present (DS uses it)
+    // If Select2 is attached (DS), refresh UI
     if (typeof jQuery !== 'undefined' && jQuery.fn && jQuery.fn.select2 && jQuery(selectEl).hasClass('select2-hidden-accessible')) {
       jQuery(selectEl).trigger('change.select2');
     }
@@ -158,8 +168,11 @@
     log('DS refresh', { menuId });
     const map = await fetchSectionsMap(menuId);
     if (map === null) return; // aborted/superseded
+
     const changed = rebuildOptionsIfChanged(sel, map || {});
     if (changed) {
+      // stash DS map for anyone else to reuse (and for future initializations)
+      try { sel.setAttribute('data-jprm-map', JSON.stringify(map || {})); } catch(e){}
       const sigMap = optionsSignature(map||{});
       state.lastMapSig = sigMap;
       log('DS applied', { total: Object.keys(map||{}).length });
@@ -167,14 +180,25 @@
     return map || {};
   }
 
-  // Apply to other controls only if enabled, and only when map changed
   function applyScopedOptionsToOthers(root, map){
     if (!ENABLE_OTHERS) return;
+
+    // If no map given, try DS stash first (no extra fetch)
+    if (!map || typeof map !== 'object' || !Object.keys(map).length) {
+      const ds = dsSectionsSelect(root);
+      if (ds) {
+        const stash = ds.getAttribute('data-jprm-map');
+        if (stash) { try { map = JSON.parse(stash) || {}; } catch(e){} }
+      }
+    }
+    if (!map || typeof map !== 'object' || !Object.keys(map).length) return;
 
     const targets = [
       ...splitAfterSelects(root),
       ...repeaterSectionSelects(root)
     ].filter(isVisible);
+
+    log('Others targets', { total: targets.length });
 
     if (!targets.length) return;
 
@@ -191,12 +215,9 @@
 
       // Always refresh DS first so we reuse the same map for others
       const map = await refreshDataSourceSections(root);
-      if (!map || typeof map !== 'object') return;
-
-      // Only mirror to Others if DS map actually changed since last time
-      const sigMap = optionsSignature(map);
-      if (sigMap && sigMap !== state.lastMapSig) state.lastMapSig = sigMap;
-      applyScopedOptionsToOthers(root, map);
+      if (map && typeof map === 'object') {
+        applyScopedOptionsToOthers(root, map);
+      }
     }, 180);
   }
 
@@ -205,7 +226,7 @@
     if (!ms || ms.__jprmBound) return;
     ms.__jprmBound = true;
     ms.addEventListener('change', function(){
-      // Clear signatures so rebuild happens
+      // Clear signatures so rebuild happens for DS + Others
       const ds = dsSectionsSelect(root);
       if (ds) ds.removeAttribute('data-jprm-sig');
       if (ENABLE_OTHERS) {
@@ -220,16 +241,13 @@
   function bindRepeaterAddHooks(root){
     if (!ENABLE_OTHERS) return;
 
-    // Elementor uses various add buttons in repeaters; listen broadly but cheaply
     root.addEventListener('click', function(e){
       const t = e.target;
       if (!(t instanceof HTMLElement)) return;
 
-      // Any add button inside our two repeaters
       const btn = t.closest('.elementor-control-type-repeater[data-id="labels_layout_overrides"] .elementor-repeater-add, .elementor-control-type-repeater[data-id="info_blocks"] .elementor-repeater-add');
       if (!btn) return;
 
-      // After the row is added to the DOM, apply current map
       setTimeout(async function(){
         const map = await refreshDataSourceSections(root) || {};
         applyScopedOptionsToOthers(root, map);
@@ -247,7 +265,7 @@
     bindRepeaterAddHooks(root);
     scheduleRefresh(root); // initial
 
-    // Observe panel changes, but only to (re)bind and refresh when relevant controls appear
+    // Observe panel changes, refresh when relevant controls appear
     const mo = new MutationObserver((list) => {
       let relevant = false;
       for (const m of list) {
@@ -255,11 +273,11 @@
         for (const n of m.addedNodes) {
           if (!(n instanceof HTMLElement)) continue;
           if (n.querySelector && (
-              n.querySelector('[data-setting="menus"]') ||
-              n.querySelector('[data-setting="sections"]') ||
+              n.querySelector('select[data-setting="menus"]') ||
+              n.querySelector('select[data-setting="sections"]') ||
               (ENABLE_OTHERS && (
-                n.querySelector('[data-setting="layout_split_after_section"]') ||
-                n.querySelector('[data-setting="layout_split_after_section2"]') ||
+                n.querySelector('select[data-setting="layout_split_after_section"]') ||
+                n.querySelector('select[data-setting="layout_split_after_section2"]') ||
                 n.querySelector('.elementor-control-type-repeater[data-id="labels_layout_overrides"] select[data-setting="section_id"]') ||
                 n.querySelector('.elementor-control-type-repeater[data-id="info_blocks"] select[data-setting="section_id"]')
               ))
