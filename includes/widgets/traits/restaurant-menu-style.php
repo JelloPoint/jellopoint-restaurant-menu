@@ -313,7 +313,17 @@ trait Restaurant_Menu_Style {
 				'{{WRAPPER}} .jp-menu__section--level-3 > .jp-section__title' => 'background-color: {{VALUE}};',
 			],
 		] );
-
+		$this->add_group_control(
+			\Elementor\Group_Control_Border::get_type(),
+			[
+				'name' => 'border',
+				'selectors' => [
+				'{{WRAPPER}} .jp-menu__section--level-1 > .jp-section__title',
+				'{{WRAPPER}} .jp-menu__section--level-2 > .jp-section__title',
+				'{{WRAPPER}} .jp-menu__section--level-3 > .jp-section__title',
+			],
+			]
+		);
 		$this->end_controls_section();
 
 		/* ===== Item Title & Description (items only, incl. Matrix) ===== */
