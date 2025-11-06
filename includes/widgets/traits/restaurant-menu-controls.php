@@ -515,11 +515,11 @@ trait Restaurant_Menu_Controls {
 			'label_block' => true,
 			'default'     => '',
 		] );
-		$ib->add_control( 'content_html', [
+		/*$ib->add_control( 'content_html', [
 			'label'       => __( 'HTML', 'jellopoint-restaurant-menu' ),
 			'type'        => Controls_Manager::WYSIWYG,
 			'default'     => 'Type your Text here!',
-		] );
+		] );*/
 		$ib->add_control( 'image', [
 			'label'   => __( 'Image', 'jellopoint-restaurant-menu' ),
 			'type'    => Controls_Manager::MEDIA,
