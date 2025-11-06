@@ -1,87 +1,113 @@
 (function(){
   'use strict';
 
-  /* ------------ tiny logger ------------ */
+  /* =========================
+   * Small helpers
+   * ========================= */
   function log(){ try{ console.log.apply(console, ['[JPRM]'].concat([].slice.call(arguments))); }catch(e){} }
-
-  /* ------------ ajax helpers ------------ */
   function ajaxUrl(){ return (window.JPRMAjax && JPRMAjax.url) || (typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php'); }
   function ajaxNonce(){ return (window.JPRMAjax && JPRMAjax.nonce) || ''; }
 
-  /* ------------ panel + control locators ------------ */
-  function panelRoot(){ return document.querySelector('.elementor-panel') || document; }
-
-  function menuSelect(root){
-    return root && root.querySelector('[data-setting="menus"]');
+  function panelRoot(){
+    // Elementor sometimes mounts the panel inside an iframe; but the DOM we need is in the main doc
+    return document.querySelector('.elementor-panel') || document;
   }
 
-  // DS control (your working SELECT2)
-  function dsSectionsSelect(root){
-    return root && (root.querySelector('.elementor-control-sections [data-setting="sections"]') || root.querySelector('[data-setting="sections"]'));
-  }
-
-  // NON-DS scoped targets:
-  // IMPORTANT: Elementor puts the `classes` option on the *wrapper* `.elementor-control`.
-  // We look for those wrappers, then fetch their inner <select>.
-  function otherScopedSelects(root){
-    if (!root) return [];
-    const wrappers = Array.from(root.querySelectorAll('.elementor-control.jprm-scope-target'));
-    const out = [];
-    wrappers.forEach(wrap => {
-      // Prefer a select with a data-setting (Elementor standard)
-      let sel = wrap.querySelector('select[data-setting]');
-      if (!sel) {
-        // If Select2 already enhanced, the original is .select2-hidden-accessible
-        sel = wrap.querySelector('select.select2-hidden-accessible[data-setting]');
-      }
-      if (!sel) return;
-
-      // Skip the DS field (data-setting="sections")
-      if ((sel.getAttribute('data-setting') || '') === 'sections') return;
-
-      out.push(sel);
-    });
-    return out;
-  }
-
-  /* ------------ utils ------------ */
   function isVisible(el){
     if (!el) return false;
     const s = window.getComputedStyle(el);
     return s && s.display !== 'none' && s.visibility !== 'hidden';
   }
+
   function readMenuId(root){
-    const el = menuSelect(root);
-    if (!el) return 0;
-    const id = parseInt(el.value || 0, 10);
+    const ms = root && root.querySelector('[data-setting="menus"]');
+    if (!ms) return 0;
+    const id = parseInt(ms.value || 0, 10);
     return Number.isFinite(id) ? id : 0;
   }
+
   function getSelectedValues(selectEl){
     const vals = [];
     if (!selectEl) return vals;
     for (const opt of selectEl.options) if (opt.selected) vals.push(String(opt.value));
     return vals;
   }
+
   function setSelectedValues(selectEl, values){
     const keep = new Set((values||[]).map(String));
     for (const opt of selectEl.options) opt.selected = keep.has(String(opt.value));
     if (typeof jQuery !== 'undefined') { jQuery(selectEl).trigger('change', { silent:true }); }
   }
+
   function optionsSignature(map){
     if (!map || typeof map !== 'object') return '';
     const keys = Object.keys(map).sort();
     return keys.map(k => k + ':' + String(map[k]||'').length).join('|');
   }
 
-  /* ------------ state ------------ */
-  const state = {
-    lastMenuId: null,
-    inflight: null,
-    debounceTimer: null,
-    lastMapSig: ''
-  };
+  /* =========================
+   * DS control finders (your working ones)
+   * ========================= */
+  function dsSectionsSelect(root){
+    return root && (root.querySelector('.elementor-control-sections [data-setting="sections"]') || root.querySelector('[data-setting="sections"]'));
+  }
 
-  /* ------------ AJAX: fetch scoped tree map ------------ */
+  /* =========================
+   * OTHER section selects (robust finder)
+   * We look in MANY places:
+   *  - select elements inside ANY element with class containing jprm-scope-target
+   *  - control wrappers that have that class (Elementor puts it on .elementor-control)
+   *  - select2-hidden-accessible originals
+   *  - any select with data-setting that *looks like* a section id (contains "section")
+   * …then we EXCLUDE data-setting="sections" (that’s DS).
+   * ========================= */
+  function findOtherSectionSelects(root){
+    if (!root) return [];
+
+    const found = new Set();
+
+    // 1) any select under an element that has our class on it
+    root.querySelectorAll('.jprm-scope-target select').forEach(el => found.add(el));
+
+    // 2) control wrappers that carry the class
+    root.querySelectorAll('.elementor-control.jprm-scope-target').forEach(wrap => {
+      const sel = wrap.querySelector('select[data-setting]') || wrap.querySelector('select');
+      if (sel) found.add(sel);
+      // if Select2: original select is hidden
+      const s2 = wrap.querySelector('select.select2-hidden-accessible[data-setting]');
+      if (s2) found.add(s2);
+    });
+
+    // 3) class may be on inner field container
+    root.querySelectorAll('.elementor-control-field.jprm-scope-target, .elementor-field.jprm-scope-target').forEach(wrap => {
+      const sel = wrap.querySelector('select[data-setting]') || wrap.querySelector('select');
+      if (sel) found.add(sel);
+      const s2 = wrap.querySelector('select.select2-hidden-accessible[data-setting]');
+      if (s2) found.add(s2);
+    });
+
+    // 4) any select where data-setting *contains* "section" (covers repeaters if classes aren’t applied)
+    root.querySelectorAll('select[data-setting*="section"]').forEach(el => found.add(el));
+    root.querySelectorAll('select.select2-hidden-accessible[data-setting*="section"]').forEach(el => found.add(el));
+
+    // EXCLUDE the DS field
+    const out = [];
+    found.forEach(el => {
+      const ds = (el.getAttribute('data-setting') || '').toLowerCase().trim();
+      if (ds === 'sections') return; // DS – skip
+      // ignore if not visible (collapsed rows will get picked up when opened)
+      if (!isVisible(el)) return;
+      out.push(el);
+    });
+
+    return out;
+  }
+
+  /* =========================
+   * AJAX: fetch scoped tree options
+   * ========================= */
+  const state = { inflight: null, lastMenuId: null, debounce: null, lastMapSig: '' };
+
   async function fetchSectionsMap(menuId){
     if (state.inflight) { try { state.inflight.abort(); } catch(e){} state.inflight = null; }
     const ctl = new AbortController();
@@ -94,7 +120,7 @@
     if (n) body.set('_ajax_nonce', n);
 
     try {
-      const res = await fetch(ajaxUrl(), {
+      const res  = await fetch(ajaxUrl(), {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
@@ -105,7 +131,7 @@
       let json = null;
       try { json = JSON.parse(text); } catch(_e){ json = null; }
       if (!json || !json.success || !json.data) {
-        log('AJAX payload not OK; got:', text.slice(0,200));
+        log('AJAX payload not OK; got:', text.slice(0, 200));
         return {};
       }
       return json.data; // { id: "— label", ... }
@@ -118,13 +144,15 @@
     }
   }
 
-  /* ------------ DOM: (re)build options ------------ */
+  /* =========================
+   * DOM: rebuild <select> options
+   * ========================= */
   function rebuildOptionsIfChanged(selectEl, map){
     if (!selectEl || !isVisible(selectEl)) return false;
 
     const sig = optionsSignature(map);
     const prevSig = selectEl.getAttribute('data-jprm-sig') || '';
-    if (sig === prevSig) return false; // no churn
+    if (sig === prevSig) return false;
 
     const multiple = !!selectEl.multiple;
     const selected = getSelectedValues(selectEl);
@@ -133,7 +161,7 @@
     // clear
     while (selectEl.firstChild) selectEl.removeChild(selectEl.firstChild);
 
-    // single: empty first option
+    // single: keep empty option
     if (!multiple) {
       const emptyOpt = document.createElement('option');
       emptyOpt.value = '';
@@ -141,7 +169,7 @@
       selectEl.appendChild(emptyOpt);
     }
 
-    // add all options
+    // add options
     ids.forEach(id => {
       const opt = document.createElement('option');
       opt.value = id;
@@ -149,21 +177,24 @@
       selectEl.appendChild(opt);
     });
 
-    // keep previous selection if valid
+    // restore selection if still valid
     const kept = selected.filter(v => ids.includes(String(v)));
     setSelectedValues(selectEl, kept);
 
     selectEl.setAttribute('data-jprm-sig', sig);
 
-    // refresh Select2 UI if present (affects DS and any select2 field)
+    // refresh Select2 if this select is enhanced
     if (typeof jQuery !== 'undefined' && jQuery.fn && jQuery.fn.select2 && jQuery(selectEl).hasClass('select2-hidden-accessible')) {
       jQuery(selectEl).trigger('change.select2');
     }
+
     return true;
   }
 
-  /* ------------ DS refresh (kept exactly as your working flow) ------------ */
-  async function refreshDataSourceSections(root){
+  /* =========================
+   * DS refresh (kept intact)
+   * ========================= */
+  async function refreshDS(root){
     const sel = dsSectionsSelect(root);
     if (!sel) return;
 
@@ -174,6 +205,7 @@
     log('DS refresh', { menuId });
     const map = await fetchSectionsMap(menuId);
     if (map === null) return; // aborted
+
     const changed = rebuildOptionsIfChanged(sel, map || {});
     if (changed) {
       state.lastMapSig = optionsSignature(map||{});
@@ -182,9 +214,8 @@
     return map || {};
   }
 
-  /* ------------ apply to non-DS, wrapper-tagged controls ------------ */
-  function applyScopedOptionsToOthers(root, map){
-    const targets = otherScopedSelects(root).filter(isVisible);
+  function applyToOthers(root, map){
+    const targets = findOtherSectionSelects(root);
     log('Others targets', { total: targets.length });
     if (!targets.length) return;
 
@@ -193,44 +224,42 @@
     if (applied) log('Others applied', { count: applied, totalTargets: targets.length });
   }
 
-  /* ------------ orchestration ------------ */
   function scheduleRefresh(root){
-    if (state.debounceTimer) clearTimeout(state.debounceTimer);
-    state.debounceTimer = setTimeout(async function(){
-      state.debounceTimer = null;
-      if (!menuSelect(root)) return;
-
-      const map = await refreshDataSourceSections(root);
+    if (state.debounce) clearTimeout(state.debounce);
+    state.debounce = setTimeout(async function(){
+      state.debounce = null;
+      const map = await refreshDS(root);
       if (!map || typeof map !== 'object') return;
-
-      applyScopedOptionsToOthers(root, map);
-    }, 180);
+      applyToOthers(root, map);
+    }, 160);
   }
 
+  /* =========================
+   * Bindings
+   * ========================= */
   function bindMenuChange(root){
-    const ms = menuSelect(root);
+    const ms = root && root.querySelector('[data-setting="menus"]');
     if (!ms || ms.__jprmBound) return;
     ms.__jprmBound = true;
     ms.addEventListener('change', function(){
-      // force rebuild on DS + others
+      // force rebuild on all targets by clearing signatures
       const ds = dsSectionsSelect(root);
       if (ds) ds.removeAttribute('data-jprm-sig');
-      otherScopedSelects(root).forEach(el => el.removeAttribute('data-jprm-sig'));
+      findOtherSectionSelects(root).forEach(el => el.removeAttribute('data-jprm-sig'));
       scheduleRefresh(root);
     });
   }
 
-  // when a repeater row is added, re-apply map to new row selects
-  function bindRepeaterAddHooks(root){
+  function bindRepeaterHooks(root){
+    // When user adds a repeater row or opens one, new selects appear.
+    // We re-apply current map shortly after the click.
     root.addEventListener('click', function(e){
       const t = e.target;
       if (!(t instanceof HTMLElement)) return;
-      const addBtn = t.closest('.elementor-repeater-add');
-      if (!addBtn) return;
-      setTimeout(async function(){
-        const map = await refreshDataSourceSections(root) || {};
-        applyScopedOptionsToOthers(root, map);
-      }, 120);
+      const addBtn  = t.closest('.elementor-repeater-add');
+      const editBtn = t.closest('.elementor-repeater-tool-edit, .elementor-repeater-row-item'); // open row
+      if (!addBtn && !editBtn) return;
+      setTimeout(()=> scheduleRefresh(root), 150);
     }, { passive:true });
   }
 
@@ -241,21 +270,24 @@
     log('sections-dep.js active');
 
     bindMenuChange(root);
-    bindRepeaterAddHooks(root);
+    bindRepeaterHooks(root);
     scheduleRefresh(root); // initial
 
-    // watch for controls appearing (tab switches, repeater expand, etc.)
-    const mo = new MutationObserver((list) => {
+    // Panel changes: tab switch, accordion expand, new controls, etc.
+    const mo = new MutationObserver((mut) => {
       let relevant = false;
-      for (const m of list) {
+      for (const m of mut) {
         if (m.type !== 'childList') continue;
         for (const n of m.addedNodes) {
           if (!(n instanceof HTMLElement)) continue;
           if (n.querySelector && (
             n.querySelector('[data-setting="menus"]') ||
-            n.querySelector('[data-setting="sections"]') ||                        // DS
-            n.querySelector('.elementor-control.jprm-scope-target select') ||      // non-DS (plain)
-            n.querySelector('.elementor-control.jprm-scope-target .select2-hidden-accessible') // non-DS (select2)
+            n.querySelector('[data-setting="sections"]') ||
+            n.querySelector('.jprm-scope-target select') ||
+            n.querySelector('.elementor-control.jprm-scope-target select') ||
+            n.querySelector('.elementor-control.jprm-scope-target .select2-hidden-accessible') ||
+            n.querySelector('select[data-setting*="section"]') ||
+            n.querySelector('select.select2-hidden-accessible[data-setting*="section"]')
           )) { relevant = true; break; }
         }
         if (relevant) break;
