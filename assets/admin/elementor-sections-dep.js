@@ -1,11 +1,7 @@
 (function(){
   'use strict';
 
-  /* ========================
-   *  HARDENED, POLLING-BASED
-   * ======================== */
-
-  // interval (ms) to re-scan the panel; low enough to feel live, high enough not to thrash
+  // Polling cadence keeps it robust without Elementor internals
   var TICK_MS = 600;
 
   function log(){ try{ console.log.apply(console, ['[JPRM]'].concat([].slice.call(arguments))); }catch(e){} }
@@ -14,7 +10,7 @@
 
   function panelRoot(){ return document.querySelector('.elementor-panel'); }
 
-  // DS (your original selectors kept exactly)
+  // DS controls (keep exactly as you had)
   function menuSelect(root){ return root && root.querySelector('[data-setting="menus"]'); }
   function dsSectionsSelect(root){
     return root && (root.querySelector('.elementor-control-sections [data-setting="sections"]')
@@ -36,13 +32,16 @@
     });
     return out;
   }
+  // Any select you marked in PHP with classes => 'jprm-scope-target'
   function markedScopeTargets(root){
     if (!root) return [];
     return Array.from(root.querySelectorAll('select.jprm-scope-target[data-setting="section_id"]'));
   }
 
+  // Treat hidden Select2 selects as “visible” so we still update their options
   function isVisible(el){
     if (!el) return false;
+    if (el.classList && el.classList.contains('select2-hidden-accessible')) return true; // hidden by Select2 but must be updated
     var s = getComputedStyle(el);
     return s.display !== 'none' && s.visibility !== 'hidden';
   }
@@ -85,7 +84,6 @@
     return acc.join('|');
   }
 
-  // cache between ticks
   var state = {
     lastMenuId: null,
     lastMap: null,
@@ -159,7 +157,7 @@
 
     selectEl.setAttribute('data-jprm-sig', sig);
 
-    // Refresh Select2 UI (DS)
+    // Refresh Select2 UI if this select is enhanced
     if (window.jQuery && jQuery.fn && jQuery.fn.select2 && jQuery(selectEl).hasClass('select2-hidden-accessible')) {
       jQuery(selectEl).trigger('change.select2');
     }
@@ -170,8 +168,6 @@
     if (!root) return;
 
     var menuId = readMenuId(root);
-
-    // decide whether to refetch
     var needFetch = false;
     if (state.lastMap == null) needFetch = true;
     if (state.lastMenuId !== menuId) needFetch = true;
@@ -193,7 +189,7 @@
       if (changedDS) log('DS applied', { total:Object.keys(map||{}).length });
     }
 
-    // Others
+    // Others (plain selects, repeater select2, explicit scope-targets)
     var targets = []
       .concat(splitAfterSelects(root))
       .concat(repeaterSectionSelects(root))
@@ -202,10 +198,6 @@
 
     if (targets.length){
       var applied = 0;
-      // clear sig if menu changed so they actually rebuild
-      var menuChanged = (state.lastMenuId !== menuId); // but we set lastMenuId above; compute earlier:
-      // We captured menuChanged too late; recompute: compare against stored "sig on first target"
-      // Simpler: always try rebuild — guarded by signature
       targets.forEach(function(el){ if (rebuildOptionsIfChanged(el, map)) applied++; });
       if (applied) log('Others applied', { count:applied, totalTargets:targets.length });
     }
@@ -216,13 +208,18 @@
     if (!ms || ms.__jprmBound) return;
     ms.__jprmBound = true;
     ms.addEventListener('change', function(){
-      // invalidate cached map so next tick refetches; also clear DS sig so it rebuilds immediately
+      // Invalidate cache & clear signatures on all scoped selects so they rebuild
       state.lastMap = null;
       state.lastMapSig = '';
+
       var ds = dsSectionsSelect(root);
       if (ds) ds.removeAttribute('data-jprm-sig');
-      // Other signatures will be compared anyway
-      // fire an immediate refresh (don’t wait for the next tick)
+
+      markedScopeTargets(root).forEach(function(el){ el.removeAttribute('data-jprm-sig'); });
+      splitAfterSelects(root).forEach(function(el){ el.removeAttribute('data-jprm-sig'); });
+      repeaterSectionSelects(root).forEach(function(el){ el.removeAttribute('data-jprm-sig'); });
+
+      // refresh immediately
       refreshNow(root);
     });
   }
@@ -231,15 +228,12 @@
     var root = panelRoot();
     if (!root) return;
     bindMenuImmediate(root);
-    // If the widget isn’t open, controls won’t be present; refreshNow handles that gracefully
     refreshNow(root);
   }
 
   function boot(){
     log('sections-dep.js active (polling)');
-    // start periodic panel scan
     setInterval(tick, TICK_MS);
-    // also run once quickly
     setTimeout(tick, 150);
   }
 
