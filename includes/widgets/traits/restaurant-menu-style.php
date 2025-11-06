@@ -231,7 +231,7 @@ trait Restaurant_Menu_Style {
 			\Elementor\Group_Control_Border::get_type(),
 			[
 				'name' => 'border',
-				'selector' => '{{WRAPPER}} .your-class',
+				'selector' => '{{WRAPPER}} .jp-menu__section--level-0 > .jp-section__title',
 			]
 		);
 
