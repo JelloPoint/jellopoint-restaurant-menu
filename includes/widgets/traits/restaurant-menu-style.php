@@ -52,6 +52,17 @@ trait Restaurant_Menu_Style {
 				'{{WRAPPER}} .jp-menu-grid--cols-3' => 'background-color: {{VALUE}};',
 			],
 		] );
+		$this->add_group_control(
+			\Elementor\Group_Control_Border::get_type(),
+			[
+				'name' => 'border-wrapper',
+				'selectors' => [
+				'{{WRAPPER}} .jp-menu-grid--cols-1' => 'background-color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu-grid--cols-2' => 'background-color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu-grid--cols-3' => 'background-color: {{VALUE}};',
+			],
+			]
+		);
 		$this->end_controls_section();
 
 		/* ===== Menu Title  & Description (scoped to meta only) ===== */
