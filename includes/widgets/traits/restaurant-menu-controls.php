@@ -89,8 +89,14 @@ trait Restaurant_Menu_Controls {
 		$menu_options_all    = $this->get_terms_options( 'jprm_menu' );
 		$section_options_all = $this->get_terms_options( 'jprm_section' );
 		// === Build tree-scoped section options for the CURRENT Menu (parents first, children indented)
-$menu_selected_id_raw = $this->get_settings_for_display( 'menus' );
-$menu_selected_id     = ( is_numeric( $menu_selected_id_raw ) ? (int) $menu_selected_id_raw : 0 );
+		// BEFORE (likely)
+		// $menu_selected_id_raw = $this->get_settings_for_display( 'menus' );
+
+		$menu_selected_id_raw = $this->get_settings( 'menus' ); // safe during control registration
+		$menu_selected_id     = is_numeric( $menu_selected_id_raw ) ? (int) $menu_selected_id_raw : 0;
+
+		// If you later re-read selected menu again in this method, reuse the same:
+		$selected_menu_id = $menu_selected_id;
 
 $sections_tree_scoped = (static function( int $menu_id, array $fallback_all ) : array {
 	$TAX = 'jprm_section';
