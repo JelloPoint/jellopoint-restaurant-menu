@@ -45,7 +45,7 @@ trait Restaurant_Menu_Style {
 		);
 		$this->end_controls_section();
 
-		/* ===== Menu Title & Description (scoped to meta only) ===== */
+		/* ===== Menu Title  & Description (scoped to meta only) ===== */
 		$this->start_controls_section(
 			'jprm_style_menu_meta',
 			[
