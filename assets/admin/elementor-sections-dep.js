@@ -1,189 +1,248 @@
 (function(){
   'use strict';
 
-  /* ========= small utils ========= */
+  /* ========================
+   *  HARDENED, POLLING-BASED
+   * ======================== */
+
+  // interval (ms) to re-scan the panel; low enough to feel live, high enough not to thrash
+  var TICK_MS = 600;
+
   function log(){ try{ console.log.apply(console, ['[JPRM]'].concat([].slice.call(arguments))); }catch(e){} }
   function ajaxUrl(){ return (window.JPRMAjax && JPRMAjax.url) || (typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php'); }
   function ajaxNonce(){ return (window.JPRMAjax && JPRMAjax.nonce) || ''; }
-  function visible(el){ if(!el) return false; const s=getComputedStyle(el); return s.display!=='none' && s.visibility!=='hidden'; }
-  function sigFromMap(map){ if(!map||typeof map!=='object') return ''; const k=Object.keys(map).sort(); return k.map(x=>x+':'+String(map[x]||'').length).join('|'); }
-  function getSelected(select){
-    const out=[]; if(!select) return out;
-    for(const o of select.options){ if(o.selected) out.push(String(o.value)); }
+
+  function panelRoot(){ return document.querySelector('.elementor-panel'); }
+
+  // DS (your original selectors kept exactly)
+  function menuSelect(root){ return root && root.querySelector('[data-setting="menus"]'); }
+  function dsSectionsSelect(root){
+    return root && (root.querySelector('.elementor-control-sections [data-setting="sections"]')
+      || root.querySelector('[data-setting="sections"]'));
+  }
+
+  // Other section-scoped selects
+  function splitAfterSelects(root){
+    if (!root) return [];
+    return Array.from(root.querySelectorAll(
+      '[data-setting="layout_split_after_section"], [data-setting="layout_split_after_section2"]'
+    ));
+  }
+  function repeaterSectionSelects(root){
+    if (!root) return [];
+    var out = [];
+    root.querySelectorAll('.elementor-control-type-repeater[data-id="labels_layout_overrides"], .elementor-control-type-repeater[data-id="info_blocks"]').forEach(function(rep){
+      out.push.apply(out, rep.querySelectorAll('select[data-setting="section_id"]'));
+    });
     return out;
   }
-  function setSelected(select, vals){
-    const keep=new Set((vals||[]).map(String));
-    for(const o of select.options){ o.selected = keep.has(String(o.value)); }
-    if (typeof jQuery!=='undefined') jQuery(select).trigger('change', {silent:true});
+  function markedScopeTargets(root){
+    if (!root) return [];
+    return Array.from(root.querySelectorAll('select.jprm-scope-target[data-setting="section_id"]'));
   }
 
-  /* ========= AJAX map (same endpoint DS uses) ========= */
+  function isVisible(el){
+    if (!el) return false;
+    var s = getComputedStyle(el);
+    return s.display !== 'none' && s.visibility !== 'hidden';
+  }
+
+  function readMenuId(root){
+    var el = menuSelect(root);
+    if (!el) return 0;
+    var v = el.value;
+    var id = parseInt(v || 0, 10);
+    return Number.isFinite(id) ? id : 0;
+  }
+
+  function getSelectedValues(selectEl){
+    var vals = [];
+    if (!selectEl) return vals;
+    for (var i=0;i<selectEl.options.length;i++){
+      var opt = selectEl.options[i];
+      if (opt.selected) vals.push(String(opt.value));
+    }
+    return vals;
+  }
+
+  function setSelectedValues(selectEl, values){
+    var keep = new Set((values||[]).map(String));
+    for (var i=0;i<selectEl.options.length;i++){
+      var opt = selectEl.options[i];
+      opt.selected = keep.has(String(opt.value));
+    }
+    if (window.jQuery) { jQuery(selectEl).trigger('change', { silent:true }); }
+  }
+
+  function optionsSignature(map){
+    if (!map || typeof map !== 'object') return '';
+    var keys = Object.keys(map).sort();
+    var acc = [];
+    for (var i=0;i<keys.length;i++){
+      var k = keys[i];
+      acc.push(k + ':' + String(map[k]||'').length);
+    }
+    return acc.join('|');
+  }
+
+  // cache between ticks
+  var state = {
+    lastMenuId: null,
+    lastMap: null,
+    lastMapSig: '',
+    inflight: null
+  };
+
   async function fetchSectionsMap(menuId){
-    const body = new URLSearchParams();
+    if (state.inflight) { try { state.inflight.abort(); } catch(_e){} state.inflight = null; }
+    var ctl = new AbortController();
+    state.inflight = ctl;
+
+    var body = new URLSearchParams();
     body.set('action','jprm_sections_by_menu');
     body.set('menu', String(menuId||''));
-    const n = ajaxNonce(); if(n) body.set('_ajax_nonce', n);
+    var n = ajaxNonce(); if (n) body.set('_ajax_nonce', n);
 
-    const res = await fetch(ajaxUrl(), {
-      method:'POST', credentials:'include',
-      headers:{'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8'},
-      body: body.toString()
-    });
-
-    const txt = await res.text();
-    let json=null; try{ json = JSON.parse(txt); }catch(_e){}
-    if(!json || !json.success || !json.data){
-      log('AJAX not OK, head:', txt.slice(0,200));
+    try{
+      var res = await fetch(ajaxUrl(), {
+        method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8'},
+        body: body.toString(),
+        signal: ctl.signal
+      });
+      var text = await res.text();
+      var json = null; try { json = JSON.parse(text); } catch(_e) {}
+      if (!json || !json.success || !json.data) {
+        log('AJAX payload not OK; head=', text.slice(0,200));
+        return {};
+      }
+      return json.data; // { id: "— label", ... }
+    }catch(e){
+      if (e && e.name === 'AbortError') return null;
+      log('AJAX error', e);
       return {};
+    }finally{
+      if (state.inflight === ctl) state.inflight = null;
     }
-    return json.data; // { id: "— label", ... }
   }
 
-  function rebuildOptions(select, map){
-    if(!select || !visible(select)) return false;
+  function rebuildOptionsIfChanged(selectEl, map){
+    if (!selectEl || !isVisible(selectEl)) return false;
 
-    const sig = sigFromMap(map);
-    const prev = select.getAttribute('data-jprm-sig') || '';
-    if (sig === prev) return false;
+    var sig = optionsSignature(map);
+    var prevSig = selectEl.getAttribute('data-jprm-sig') || '';
+    if (sig === prevSig) return false;
 
-    const wasMultiple = !!select.multiple;
-    const prevSel = getSelected(select);
-    const ids = Object.keys(map||{});
+    var wasMultiple = !!selectEl.multiple;
+    var selected = getSelectedValues(selectEl);
+    var ids = Object.keys(map || {});
 
-    while(select.firstChild) select.removeChild(select.firstChild);
-    if(!wasMultiple){
-      const empty = document.createElement('option');
-      empty.value=''; empty.textContent='';
-      select.appendChild(empty);
+    while (selectEl.firstChild) selectEl.removeChild(selectEl.firstChild);
+
+    if (!wasMultiple) {
+      var emptyOpt = document.createElement('option');
+      emptyOpt.value = '';
+      emptyOpt.textContent = '';
+      selectEl.appendChild(emptyOpt);
     }
-    ids.forEach(id=>{
-      const opt=document.createElement('option');
-      opt.value=id; opt.textContent=String(map[id]||'');
-      select.appendChild(opt);
-    });
 
-    setSelected(select, prevSel.filter(v=>ids.includes(String(v))));
-    select.setAttribute('data-jprm-sig', sig);
+    for (var i=0;i<ids.length;i++){
+      var id = ids[i];
+      var opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = String(map[id] || '');
+      selectEl.appendChild(opt);
+    }
 
-    // If DS is Select2, refresh its UI
-    if (typeof jQuery!=='undefined' && jQuery.fn && jQuery.fn.select2 && jQuery(select).hasClass('select2-hidden-accessible')){
-      jQuery(select).trigger('change.select2');
+    var kept = selected.filter(function(v){ return ids.includes(String(v)); });
+    setSelectedValues(selectEl, kept);
+
+    selectEl.setAttribute('data-jprm-sig', sig);
+
+    // Refresh Select2 UI (DS)
+    if (window.jQuery && jQuery.fn && jQuery.fn.select2 && jQuery(selectEl).hasClass('select2-hidden-accessible')) {
+      jQuery(selectEl).trigger('change.select2');
     }
     return true;
   }
 
-  /* ========= locate controls inside the widget panel view ========= */
-  function findControls(rootEl){
-    // DS controls
-    const menuSel = rootEl.querySelector('[data-setting="menus"]') || null;
-    const dsSel =
-      rootEl.querySelector('.elementor-control-sections [data-setting="sections"]') ||
-      rootEl.querySelector('[data-setting="sections"]') || null;
+  async function refreshNow(root){
+    if (!root) return;
 
-    // Other section-scoped selects:
-    const others = [];
+    var menuId = readMenuId(root);
 
-    // Layout split (1)/(2)
-    const s1 = rootEl.querySelector('[data-setting="layout_split_after_section"]');
-    const s2 = rootEl.querySelector('[data-setting="layout_split_after_section2"]');
-    if (s1) others.push(s1);
-    if (s2) others.push(s2);
+    // decide whether to refetch
+    var needFetch = false;
+    if (state.lastMap == null) needFetch = true;
+    if (state.lastMenuId !== menuId) needFetch = true;
 
-    // Repeaters section_id for both repeaters (labels_layout_overrides, info_blocks)
-    rootEl.querySelectorAll(
-      '.elementor-control-type-repeater[data-id="labels_layout_overrides"] .elementor-repeater-fields select[data-setting="section_id"],' +
-      '.elementor-control-type-repeater[data-id="info_blocks"] .elementor-repeater-fields select[data-setting="section_id"]'
-    ).forEach(el=>others.push(el));
-
-    // Any fallback marked explicitly
-    rootEl.querySelectorAll('select.jprm-scope-target[data-setting="section_id"]').forEach(el=>others.push(el));
-
-    return { menuSel, dsSel, others: others.filter(visible) };
-  }
-
-  function readMenuId(menuSel){
-    const id = parseInt(menuSel && menuSel.value || 0, 10);
-    return Number.isFinite(id) ? id : 0;
-  }
-
-  async function refreshAllInView(rootEl){
-    const { menuSel, dsSel, others } = findControls(rootEl);
-    if (!menuSel) return;
-
-    const menuId = readMenuId(menuSel);
-    // Always refetch fresh map (fast, tiny payload)
-    const map = await fetchSectionsMap(menuId);
-    if (!map) return;
-
-    // DS first
-    if (dsSel){
-      // clear sig so it updates
-      dsSel.removeAttribute('data-jprm-sig');
-      if (rebuildOptions(dsSel, map)) log('DS applied', { total:Object.keys(map||{}).length });
+    var map = state.lastMap;
+    if (needFetch) {
+      var fetched = await fetchSectionsMap(menuId);
+      if (fetched === null) return; // aborted
+      map = fetched || {};
+      state.lastMap = map;
+      state.lastMapSig = optionsSignature(map);
+      state.lastMenuId = menuId;
     }
 
-    // Then others
-    let applied=0;
-    others.forEach(el=>{ el.removeAttribute('data-jprm-sig'); if (rebuildOptions(el, map)) applied++; });
-    if (others.length) log('Others applied', { count: applied, totalTargets: others.length });
+    // DS first
+    var dsSel = dsSectionsSelect(root);
+    if (dsSel) {
+      var changedDS = rebuildOptionsIfChanged(dsSel, map);
+      if (changedDS) log('DS applied', { total:Object.keys(map||{}).length });
+    }
+
+    // Others
+    var targets = []
+      .concat(splitAfterSelects(root))
+      .concat(repeaterSectionSelects(root))
+      .concat(markedScopeTargets(root))
+      .filter(isVisible);
+
+    if (targets.length){
+      var applied = 0;
+      // clear sig if menu changed so they actually rebuild
+      var menuChanged = (state.lastMenuId !== menuId); // but we set lastMenuId above; compute earlier:
+      // We captured menuChanged too late; recompute: compare against stored "sig on first target"
+      // Simpler: always try rebuild — guarded by signature
+      targets.forEach(function(el){ if (rebuildOptionsIfChanged(el, map)) applied++; });
+      if (applied) log('Others applied', { count:applied, totalTargets:targets.length });
+    }
   }
 
-  /* ========= bind to Elementor editor events ========= */
-  function bindWidgetPanel(panelView){
-    // fires every time a widget panel opens
-    elementor.hooks.addAction('panel/open_editor/widget', function(panel, model, view){
-      try{
-        const widgetType = model && model.get && model.get('widgetType');
-        if (widgetType !== 'jprm_restaurant_menu') return; // only our widget
-
-        const rootEl = view && view.$el && view.$el[0];
-        if (!rootEl) return;
-
-        log('panel/open_editor/widget (JPRM)');
-
-        // initial fill when panel opens
-        refreshAllInView(rootEl);
-
-        // when Menu changes inside this widget, refresh everything
-        model.on('change:menus', function(){
-          log('menus changed');
-          refreshAllInView(rootEl);
-        });
-
-        // when a repeater row is added, Elementor inserts DOM after click
-        // delegate to view container
-        view.$el.on('click', '.elementor-repeater-add', function(){
-          setTimeout(function(){ refreshAllInView(rootEl); }, 120);
-        });
-
-        // also when switching sections/tabs inside the widget, the DOM re-renders;
-        // hook into panel section activated to re-apply map to newly inserted selects
-        elementor.channels.panel.on('section:activated', function(){
-          // throttle a little to let DOM settle
-          setTimeout(function(){ refreshAllInView(rootEl); }, 80);
-        });
-
-      }catch(e){ log('bind error', e); }
+  function bindMenuImmediate(root){
+    var ms = menuSelect(root);
+    if (!ms || ms.__jprmBound) return;
+    ms.__jprmBound = true;
+    ms.addEventListener('change', function(){
+      // invalidate cached map so next tick refetches; also clear DS sig so it rebuilds immediately
+      state.lastMap = null;
+      state.lastMapSig = '';
+      var ds = dsSectionsSelect(root);
+      if (ds) ds.removeAttribute('data-jprm-sig');
+      // Other signatures will be compared anyway
+      // fire an immediate refresh (don’t wait for the next tick)
+      refreshNow(root);
     });
   }
 
-  /* ========= boot once Elementor editor is ready ========= */
-  function bootWhenReady(){
-    if (typeof elementor === 'undefined' || !elementor || !elementor.hooks || !elementor.channels || !elementor.getPanelView){
-      setTimeout(bootWhenReady, 150);
-      return;
-    }
-    try{
-      const pv = elementor.getPanelView && elementor.getPanelView();
-      if (!pv) { setTimeout(bootWhenReady, 150); return; }
-      log('sections-dep.js active (events)');
-      bindWidgetPanel(pv);
-    }catch(e){
-      setTimeout(bootWhenReady, 150);
-    }
+  function tick(){
+    var root = panelRoot();
+    if (!root) return;
+    bindMenuImmediate(root);
+    // If the widget isn’t open, controls won’t be present; refreshNow handles that gracefully
+    refreshNow(root);
   }
 
-  if (document.readyState==='complete' || document.readyState==='interactive') bootWhenReady();
-  else document.addEventListener('DOMContentLoaded', bootWhenReady);
+  function boot(){
+    log('sections-dep.js active (polling)');
+    // start periodic panel scan
+    setInterval(tick, TICK_MS);
+    // also run once quickly
+    setTimeout(tick, 150);
+  }
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') boot();
+  else document.addEventListener('DOMContentLoaded', boot);
 })();
