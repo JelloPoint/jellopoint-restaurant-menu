@@ -94,7 +94,7 @@ trait Restaurant_Menu_Controls {
 	// - Do NOT try to scope to a menu here.
 	// - Provide non-null defaults for ALL controls.
 	$_scoped_sections = $section_options_all; // editor JS will scope + indent dynamically
-	
+
 		/* --- Data Source -------------------------------------------------------- */
 		$this->start_controls_section( 'section_source', [ 'label' => __( 'Data Source', 'jellopoint-restaurant-menu' ) ] );
 
@@ -419,7 +419,7 @@ trait Restaurant_Menu_Controls {
 		$rep_ov->add_control( 'section_id', [
 			'label'   => __( 'Section', 'jellopoint-restaurant-menu' ),
 			'type'    => Controls_Manager::SELECT,
-			'options' => $sections_tree_scoped,
+			'options' => $_scoped_sections,
 			'default'      => '',
 		] );
 
@@ -540,7 +540,7 @@ trait Restaurant_Menu_Controls {
 		$ib->add_control( 'section_id', [
 			'label'       => __( 'Target Section', 'jellopoint-restaurant-menu' ),
 			'type'        => Controls_Manager::SELECT2,
-			'options'     => $sections_tree_scoped,
+			'options'     => $_scoped_sections,
 			'default'   => [],
 			'multiple'    => false,
 			'label_block' => true,
@@ -591,7 +591,7 @@ trait Restaurant_Menu_Controls {
 		$this->add_control( 'layout_split_after_section', [
 			'label'     => __( 'Split after section (1)', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::SELECT,
-			'options'   => $sections_tree_scoped,
+			'options'   => $_scoped_sections,
 			'default'   => '',
 			'condition' => [
 				'data_mode'        => 'dynamic',
@@ -604,7 +604,7 @@ trait Restaurant_Menu_Controls {
 		$this->add_control( 'layout_split_after_section2', [
 			'label'     => __( 'Split after section (2)', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::SELECT,
-			'options'   => $sections_tree_scoped,
+			'options'   => $_scoped_sections,
 			'default'   => '',
 			'condition' => [
 				'data_mode'        => 'dynamic',
