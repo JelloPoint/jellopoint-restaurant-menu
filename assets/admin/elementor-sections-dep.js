@@ -1,43 +1,66 @@
 (function(){
   'use strict';
 
-  // ---- CONFIG: flip to false if you only want DS to update ----
   const ENABLE_OTHERS = true;
+
+  /* --------- helpers bound to the Elementor panel iframe --------- */
+  function getPanelIframe(){
+    return document.getElementById('elementor-panel-iframe');
+  }
+  function getPanelDoc(){
+    const ifr = getPanelIframe();
+    return (ifr && ifr.contentDocument) ? ifr.contentDocument : document;
+  }
+  function getPanelWin(){
+    const ifr = getPanelIframe();
+    return (ifr && ifr.contentWindow) ? ifr.contentWindow : window;
+  }
+  function $jq(){
+    const win = getPanelWin();
+    return (win && win.jQuery) ? win.jQuery : (window.jQuery || null);
+  }
 
   function log(){ try{ console.log.apply(console, ['[JPRM]'].concat([].slice.call(arguments))); }catch(e){} }
   function ajaxUrl(){ return (window.JPRMAjax && JPRMAjax.url) || (typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php'); }
   function ajaxNonce(){ return (window.JPRMAjax && JPRMAjax.nonce) || ''; }
 
-  function panelRoot(){ return document.querySelector('.elementor-panel'); }
-  function menuSelect(root){ return root && root.querySelector('select[data-setting="menus"]'); }
+  function panelRoot(){
+    const d = getPanelDoc();
+    return d && d.querySelector('.elementor-panel');
+  }
 
-  // Data Source (Sections) control — this is SELECT2 in your widget
+  function menuSelect(root){
+    return root && root.querySelector('select[data-setting="menus"]');
+  }
+
+  // DS (Sections) SELECT2
   function dsSectionsSelect(root){
     return root && (
-      root.querySelector('.elementor-control-sections select[data-setting="sections"]')
-      || root.querySelector('select[data-setting="sections"]')
+      root.querySelector('.elementor-control-sections select[data-setting="sections"]') ||
+      root.querySelector('select[data-setting="sections"]')
     );
   }
 
-  // Other dependent selects (plain SELECTs in your widget):
+  // Other dependent selects (NO data-id or tab assumptions; all from panel doc)
   function splitAfterSelects(root){
     if (!root) return [];
-    return Array.from(root.querySelectorAll('select[data-setting="layout_split_after_section"], select[data-setting="layout_split_after_section2"]'));
+    return Array.from(
+      root.querySelectorAll(
+        'select[data-setting="layout_split_after_section"], ' +
+        'select[data-setting="layout_split_after_section2"]'
+      )
+    );
   }
-  // Only the section_id selects inside the two repeaters:
+
+  // All repeater “Section” pickers (both repeaters use data-setting="section_id")
   function repeaterSectionSelects(root){
     if (!root) return [];
-    const out = [];
-    const reps = root.querySelectorAll('.elementor-control-type-repeater[data-id="labels_layout_overrides"], .elementor-control-type-repeater[data-id="info_blocks"]');
-    reps.forEach(rep => {
-      out.push(...rep.querySelectorAll('select[data-setting="section_id"]'));
-    });
-    return out;
+    return Array.from(root.querySelectorAll('select[data-setting="section_id"]'));
   }
 
   function isVisible(el){
     if (!el) return false;
-    const s = window.getComputedStyle(el);
+    const s = getPanelWin().getComputedStyle(el);
     return s && s.display !== 'none' && s.visibility !== 'hidden';
   }
 
@@ -59,14 +82,16 @@
   function setSelectedValues(selectEl, values){
     const keep = new Set((values||[]).map(String));
     for (const opt of selectEl.options) opt.selected = keep.has(String(opt.value));
-    if (typeof jQuery !== 'undefined') {
-      const $el = jQuery(selectEl);
-      $el.trigger('change', { silent:true });
-      // if Select2 is attached:
-      if ($el.hasClass('select2-hidden-accessible')) $el.trigger('change.select2');
-    } else {
-      selectEl.dispatchEvent(new Event('change', { bubbles:true }));
-      selectEl.dispatchEvent(new Event('input',  { bubbles:true }));
+
+    // Fire change in the iframe’s context
+    const win = getPanelWin();
+    selectEl.dispatchEvent(new win.Event('input',  { bubbles:true }));
+    selectEl.dispatchEvent(new win.Event('change', { bubbles:true }));
+
+    // If Select2 is attached (in iframe), gently poke it
+    const jq = $jq();
+    if (jq && jq.fn && jq.fn.select2 && selectEl.classList.contains('select2-hidden-accessible')) {
+      jq(selectEl).trigger('change.select2');
     }
   }
 
@@ -79,8 +104,7 @@
   const state = {
     lastMenuId: null,
     inflight: null,
-    debounceTimer: null,
-    lastMapSig: '' // signature of the last DS map we applied
+    debounceTimer: null
   };
 
   async function fetchSectionsMap(menuId){
@@ -123,7 +147,7 @@
 
     const sig = optionsSignature(map);
     const prevSig = selectEl.getAttribute('data-jprm-sig') || '';
-    if (sig === prevSig) return false; // no change → avoid loops
+    if (sig === prevSig) return false; // unchanged
 
     const wasMultiple = !!selectEl.multiple;
     const selected = getSelectedValues(selectEl);
@@ -132,14 +156,14 @@
     while (selectEl.firstChild) selectEl.removeChild(selectEl.firstChild);
 
     if (!wasMultiple) {
-      const emptyOpt = document.createElement('option');
+      const emptyOpt = getPanelDoc().createElement('option');
       emptyOpt.value = '';
       emptyOpt.textContent = '';
       selectEl.appendChild(emptyOpt);
     }
 
     ids.forEach(id => {
-      const opt = document.createElement('option');
+      const opt = getPanelDoc().createElement('option');
       opt.value = id;
       opt.textContent = String(map[id] || '');
       selectEl.appendChild(opt);
@@ -149,11 +173,6 @@
     setSelectedValues(selectEl, kept);
 
     selectEl.setAttribute('data-jprm-sig', sig);
-
-    // If Select2 is attached (DS), refresh UI
-    if (typeof jQuery !== 'undefined' && jQuery.fn && jQuery.fn.select2 && jQuery(selectEl).hasClass('select2-hidden-accessible')) {
-      jQuery(selectEl).trigger('change.select2');
-    }
     return true;
   }
 
@@ -167,14 +186,11 @@
 
     log('DS refresh', { menuId });
     const map = await fetchSectionsMap(menuId);
-    if (map === null) return; // aborted/superseded
+    if (map === null) return; // aborted
 
     const changed = rebuildOptionsIfChanged(sel, map || {});
     if (changed) {
-      // stash DS map for anyone else to reuse (and for future initializations)
       try { sel.setAttribute('data-jprm-map', JSON.stringify(map || {})); } catch(e){}
-      const sigMap = optionsSignature(map||{});
-      state.lastMapSig = sigMap;
       log('DS applied', { total: Object.keys(map||{}).length });
     }
     return map || {};
@@ -183,7 +199,7 @@
   function applyScopedOptionsToOthers(root, map){
     if (!ENABLE_OTHERS) return;
 
-    // If no map given, try DS stash first (no extra fetch)
+    // If map missing (e.g. selector not mounted yet), try DS stash
     if (!map || typeof map !== 'object' || !Object.keys(map).length) {
       const ds = dsSectionsSelect(root);
       if (ds) {
@@ -191,7 +207,7 @@
         if (stash) { try { map = JSON.parse(stash) || {}; } catch(e){} }
       }
     }
-    if (!map || typeof map !== 'object' || !Object.keys(map).length) return;
+    if (!map || !Object.keys(map).length) return;
 
     const targets = [
       ...splitAfterSelects(root),
@@ -209,16 +225,14 @@
 
   function scheduleRefresh(root){
     if (state.debounceTimer) clearTimeout(state.debounceTimer);
-    state.debounceTimer = setTimeout(async function(){
+    const win = getPanelWin();
+    state.debounceTimer = win.setTimeout(async function(){
       state.debounceTimer = null;
       if (!menuSelect(root)) return;
 
-      // Always refresh DS first so we reuse the same map for others
       const map = await refreshDataSourceSections(root);
-      if (map && typeof map === 'object') {
-        applyScopedOptionsToOthers(root, map);
-      }
-    }, 180);
+      if (map && typeof map === 'object') applyScopedOptionsToOthers(root, map);
+    }, 160);
   }
 
   function bindMenuChange(root){
@@ -226,7 +240,6 @@
     if (!ms || ms.__jprmBound) return;
     ms.__jprmBound = true;
     ms.addEventListener('change', function(){
-      // Clear signatures so rebuild happens for DS + Others
       const ds = dsSectionsSelect(root);
       if (ds) ds.removeAttribute('data-jprm-sig');
       if (ENABLE_OTHERS) {
@@ -237,18 +250,28 @@
     });
   }
 
-  // When a repeater row is added, re-apply map to the newly inserted select
+  // When switching tabs, Elementor mounts controls in the panel iframe
+  function bindTabSwitchRefresh(root){
+    const d = getPanelDoc();
+    d.addEventListener('click', function(e){
+      const t = e.target;
+      if (!(t instanceof getPanelWin().HTMLElement)) return;
+      if (t.closest('.elementor-panel-navigation, .elementor-tab-control')) {
+        getPanelWin().setTimeout(() => scheduleRefresh(root), 100);
+      }
+    }, { passive:true });
+  }
+
+  // When a repeater row is added, re-apply map to newly inserted selects
   function bindRepeaterAddHooks(root){
     if (!ENABLE_OTHERS) return;
-
-    root.addEventListener('click', function(e){
+    const d = getPanelDoc();
+    d.addEventListener('click', function(e){
       const t = e.target;
-      if (!(t instanceof HTMLElement)) return;
-
-      const btn = t.closest('.elementor-control-type-repeater[data-id="labels_layout_overrides"] .elementor-repeater-add, .elementor-control-type-repeater[data-id="info_blocks"] .elementor-repeater-add');
+      if (!(t instanceof getPanelWin().HTMLElement)) return;
+      const btn = t.closest('.elementor-repeater__add, .elementor-repeater-add');
       if (!btn) return;
-
-      setTimeout(async function(){
+      getPanelWin().setTimeout(async function(){
         const map = await refreshDataSourceSections(root) || {};
         applyScopedOptionsToOthers(root, map);
       }, 120);
@@ -257,30 +280,29 @@
 
   function boot(){
     const root = panelRoot();
-    if (!root) { setTimeout(boot, 300); return; }
+    if (!root) { setTimeout(boot, 250); return; }
 
-    log('sections-dep.js active');
+    log('sections-dep.js active (iframe-aware)');
 
     bindMenuChange(root);
+    bindTabSwitchRefresh(root);
     bindRepeaterAddHooks(root);
     scheduleRefresh(root); // initial
 
-    // Observe panel changes, refresh when relevant controls appear
+    // Observe mounts inside the iframe’s panel
+    const d = getPanelDoc();
     const mo = new MutationObserver((list) => {
       let relevant = false;
       for (const m of list) {
         if (m.type !== 'childList') continue;
         for (const n of m.addedNodes) {
-          if (!(n instanceof HTMLElement)) continue;
+          if (!(n instanceof getPanelWin().HTMLElement)) continue;
           if (n.querySelector && (
               n.querySelector('select[data-setting="menus"]') ||
               n.querySelector('select[data-setting="sections"]') ||
-              (ENABLE_OTHERS && (
-                n.querySelector('select[data-setting="layout_split_after_section"]') ||
-                n.querySelector('select[data-setting="layout_split_after_section2"]') ||
-                n.querySelector('.elementor-control-type-repeater[data-id="labels_layout_overrides"] select[data-setting="section_id"]') ||
-                n.querySelector('.elementor-control-type-repeater[data-id="info_blocks"] select[data-setting="section_id"]')
-              ))
+              n.querySelector('select[data-setting="layout_split_after_section"]') ||
+              n.querySelector('select[data-setting="layout_split_after_section2"]') ||
+              n.querySelector('select[data-setting="section_id"]')
           )) { relevant = true; break; }
         }
         if (relevant) break;
@@ -289,7 +311,7 @@
       bindMenuChange(root);
       scheduleRefresh(root);
     });
-    mo.observe(root, { childList: true, subtree: true });
+    mo.observe(d, { childList: true, subtree: true });
   }
 
   if (document.readyState === 'complete' || document.readyState === 'interactive') boot();
