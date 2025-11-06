@@ -420,6 +420,7 @@ trait Restaurant_Menu_Controls {
 			'label'   => __( 'Section', 'jellopoint-restaurant-menu' ),
 			'type'    => Controls_Manager::SELECT,
 			'options' => $_scoped_sections,
+			'classes'  => 'jprm-scope-target',
 			'default'      => '',
 		] );
 
@@ -539,6 +540,7 @@ trait Restaurant_Menu_Controls {
 			'label'       => __( 'Target Section', 'jellopoint-restaurant-menu' ),
 			'type'        => Controls_Manager::SELECT2,
 			'options'     => $_scoped_sections,
+			'classes'  => 'jprm-scope-target',
 			'default'   => [],
 			'multiple'    => false,
 			'label_block' => true,
@@ -590,6 +592,7 @@ trait Restaurant_Menu_Controls {
 			'label'     => __( 'Split after section (1)', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::SELECT,
 			'options'   => $_scoped_sections,
+			'classes'   => 'jprm-scope-target',
 			'default'   => '',
 			'condition' => [
 				'data_mode'        => 'dynamic',
@@ -603,6 +606,7 @@ trait Restaurant_Menu_Controls {
 			'label'     => __( 'Split after section (2)', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::SELECT,
 			'options'   => $_scoped_sections,
+			'classes'   => 'jprm-scope-target',
 			'default'   => '',
 			'condition' => [
 				'data_mode'        => 'dynamic',

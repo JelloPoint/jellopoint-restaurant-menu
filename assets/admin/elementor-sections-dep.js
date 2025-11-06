@@ -1,323 +1,262 @@
 (function(){
   'use strict';
 
-  /* -------- configuration -------- */
-  const ENABLE_OTHERS = true;
-  const TARGET_SETTINGS = new Set([
-    'layout_split_after_section',
-    'layout_split_after_section2',
-    'section_id' // used in both repeaters
-  ]);
+  /* ---------- helpers for Elementor panel iframe ---------- */
+  function panelIframe(){ return document.getElementById('elementor-panel-iframe'); }
+  function pWin(){ const f = panelIframe(); return f && f.contentWindow ? f.contentWindow : window; }
+  function pDoc(){ const f = panelIframe(); return f && f.contentDocument ? f.contentDocument : document; }
+  function $jq(){ const w = pWin(); return w && w.jQuery ? w.jQuery : (window.jQuery || null); }
 
-  /* -------- iframe helpers -------- */
-  function getPanelIframe(){ return document.getElementById('elementor-panel-iframe'); }
-  function getPanelWin(){ const ifr = getPanelIframe(); return ifr && ifr.contentWindow ? ifr.contentWindow : window; }
-  function getPanelDoc(){ const ifr = getPanelIframe(); return ifr && ifr.contentDocument ? ifr.contentDocument : document; }
-  function $jq(){ const w = getPanelWin(); return w && w.jQuery ? w.jQuery : (window.jQuery || null); }
-
-  /* -------- misc helpers -------- */
   function log(){ try{ console.log.apply(console, ['[JPRM]'].concat([].slice.call(arguments))); }catch(e){} }
   function ajaxUrl(){ return (window.JPRMAjax && JPRMAjax.url) || (typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php'); }
   function ajaxNonce(){ return (window.JPRMAjax && JPRMAjax.nonce) || ''; }
 
-  function panelRoot(){ return getPanelDoc().querySelector('.elementor-panel'); }
+  function menuSelect(){ return pDoc().querySelector('select[data-setting="menus"]'); }
+  function dsSelect(){    return pDoc().querySelector('.elementor-control-sections select[data-setting="sections"], select[data-setting="sections"]'); }
+
   function isVisible(el){
     if (!el) return false;
-    const s = getPanelWin().getComputedStyle(el);
+    const s = pWin().getComputedStyle(el);
     return s && s.display !== 'none' && s.visibility !== 'hidden';
   }
 
-  /* -------- control pickers -------- */
-  function selectMenu(){ return getPanelDoc().querySelector('select[data-setting="menus"]'); }
-  function selectDS(){   return getPanelDoc().querySelector('.elementor-control-sections select[data-setting="sections"], select[data-setting="sections"]'); }
-
-  // Robust “other controls” finder: scan ALL visible selects with one of our data-settings
-  function findOtherTargets(){
-    if (!ENABLE_OTHERS) return [];
-    const doc = getPanelDoc();
-    const list = Array.from(doc.querySelectorAll('select[data-setting]'))
-      .filter(el => TARGET_SETTINGS.has(el.getAttribute('data-setting')||''))
-      .filter(isVisible);
-    return list;
-  }
-
-  /* -------- values + options -------- */
+  /* ---------- basic select utilities ---------- */
   function readMenuId(){
-    const el = selectMenu();
-    if (!el) return 0;
-    const v = el.value;
-    const id = parseInt(v || 0, 10);
+    const el = menuSelect(); if (!el) return 0;
+    const v = el.value; const id = parseInt(v || 0, 10);
     return Number.isFinite(id) ? id : 0;
   }
-
-  function getSelectedValues(selectEl){
-    const vals = [];
-    if (!selectEl) return vals;
-    for (const opt of selectEl.options) if (opt.selected) vals.push(String(opt.value));
-    return vals;
+  function getSelValues(el){
+    const out = []; if (!el) return out;
+    for (const o of el.options) if (o.selected) out.push(String(o.value));
+    return out;
   }
-
-  function setSelectedValues(selectEl, values){
+  function setSelValues(el, values){
     const keep = new Set((values||[]).map(String));
-    for (const opt of selectEl.options) opt.selected = keep.has(String(opt.value));
-
-    // Fire change in iframe context
-    const win = getPanelWin();
-    selectEl.dispatchEvent(new win.Event('input',  { bubbles:true }));
-    selectEl.dispatchEvent(new win.Event('change', { bubbles:true }));
-
-    // Nudge Select2 if present (in iframe)
+    for (const o of el.options) o.selected = keep.has(String(o.value));
+    // fire change inside iframe
+    el.dispatchEvent(new (pWin().Event)('input',  {bubbles:true}));
+    el.dispatchEvent(new (pWin().Event)('change', {bubbles:true}));
+    // kick Select2 if present (in iframe)
     const jq = $jq();
-    if (jq && jq.fn && jq.fn.select2 && selectEl.classList.contains('select2-hidden-accessible')) {
-      jq(selectEl).trigger('change.select2');
+    if (jq && jq.fn && jq.fn.select2 && el.classList.contains('select2-hidden-accessible')) {
+      jq(el).trigger('change.select2');
     }
   }
-
-  function optionsSignature(map){
+  function sigOf(map){
     if (!map || typeof map !== 'object') return '';
     const keys = Object.keys(map).sort();
     return keys.map(k => k + ':' + String(map[k]||'').length).join('|');
   }
 
-  function rebuildOptionsIfChanged(selectEl, map){
-    if (!selectEl || !isVisible(selectEl)) return false;
+  function rebuildOptionsIfChanged(el, map){
+    if (!el || !isVisible(el)) return false;
+    const sig = sigOf(map || {});
+    const prev = el.getAttribute('data-jprm-sig') || '';
+    if (sig === prev) return false;
 
-    const sig = optionsSignature(map);
-    const prevSig = selectEl.getAttribute('data-jprm-sig') || '';
-    if (sig === prevSig) return false; // unchanged → skip
-
-    const wasMultiple = !!selectEl.multiple;
-    const selected = getSelectedValues(selectEl);
+    const wasMultiple = !!el.multiple;
+    const selected = getSelValues(el);
     const ids = Object.keys(map || {});
 
-    // clear
-    while (selectEl.firstChild) selectEl.removeChild(selectEl.firstChild);
+    while (el.firstChild) el.removeChild(el.firstChild);
 
-    // single selects get an empty first option
     if (!wasMultiple) {
-      const emptyOpt = getPanelDoc().createElement('option');
-      emptyOpt.value = '';
-      emptyOpt.textContent = '';
-      selectEl.appendChild(emptyOpt);
+      const empty = pDoc().createElement('option');
+      empty.value = ''; empty.textContent = '';
+      el.appendChild(empty);
     }
-
-    // fill
     ids.forEach(id => {
-      const opt = getPanelDoc().createElement('option');
+      const opt = pDoc().createElement('option');
       opt.value = id;
       opt.textContent = String(map[id] || '');
-      selectEl.appendChild(opt);
+      el.appendChild(opt);
     });
 
-    // restore valid selections
     const kept = selected.filter(v => ids.includes(String(v)));
-    setSelectedValues(selectEl, kept);
+    setSelValues(el, kept);
 
-    selectEl.setAttribute('data-jprm-sig', sig);
+    el.setAttribute('data-jprm-sig', sig);
     return true;
   }
 
-  /* -------- data layer (AJAX to your endpoint) -------- */
-  const state = {
-    lastMenuId: null,
-    lastMap: null,
-    inflight: null,
-    debounceTimer: null,
-    pollTimer: null
-  };
+  /* ---------- AJAX to your scoped-sections endpoint ---------- */
+  const state = { lastMenuId: null, lastMap: null, inflight: null, debounce: null, poll: null };
 
-  async function fetchSectionsMap(menuId){
-    if (state.inflight) { try { state.inflight.abort(); } catch(e){} state.inflight = null; }
-    const ctl = new AbortController();
-    state.inflight = ctl;
+  async function fetchScopedMap(menuId){
+    if (state.inflight) { try{ state.inflight.abort(); }catch(e){} state.inflight = null; }
+    const ctl = new AbortController(); state.inflight = ctl;
 
     const body = new URLSearchParams();
     body.set('action', 'jprm_sections_by_menu');
     body.set('menu', String(menuId || ''));
     const n = ajaxNonce(); if (n) body.set('_ajax_nonce', n);
 
-    try {
-      const res  = await fetch(ajaxUrl(), {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+    try{
+      const res = await fetch(ajaxUrl(), {
+        method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8'},
         body: body.toString(),
         signal: ctl.signal
       });
-      const text = await res.text();
-      let json = null;
-      try { json = JSON.parse(text); } catch(_e){ json = null; }
-      if (!json || !json.success || !json.data || typeof json.data !== 'object') {
-        log('AJAX payload not OK; got:', text.slice(0,200));
+      const txt = await res.text();
+      let json = null; try{ json = JSON.parse(txt); }catch(_){}
+      if (!json || !json.success || typeof json.data !== 'object') {
+        log('AJAX not OK; got:', txt.slice(0,200));
         return {};
       }
-      return json.data; // { id: "— label", ... }
-    } catch(e){
+      return json.data;
+    }catch(e){
       if (e && e.name === 'AbortError') return null;
-      log('AJAX error', e);
-      return {};
-    } finally {
+      log('AJAX error', e); return {};
+    }finally{
       if (state.inflight === ctl) state.inflight = null;
     }
   }
 
-  /* -------- application -------- */
+  /* ---------- apply: DS + every tagged select ---------- */
+  function findTaggedTargets(){
+    // We only touch selects we explicitly tagged in PHP with classes => 'jprm-scope-target'
+    const list = Array.from(pDoc().querySelectorAll('select.jprm-scope-target')).filter(isVisible);
+    return list;
+  }
+
   async function refreshDS(){
-    const rootSel = selectDS();
-    if (!rootSel) return null;
+    const ds = dsSelect(); if (!ds) return null;
 
     const menuId = readMenuId();
-    if (state.lastMenuId === menuId && rootSel.getAttribute('data-jprm-sig')) {
-      // no need to re-fetch if nothing changed and DS already has sig
-      return state.lastMap;
-    }
-    state.lastMenuId = menuId;
+    if (state.lastMenuId === menuId && ds.getAttribute('data-jprm-sig')) return state.lastMap;
 
+    state.lastMenuId = menuId;
     log('DS refresh', { menuId });
-    const map = await fetchSectionsMap(menuId);
+
+    const map = await fetchScopedMap(menuId);
     if (map === null) return null; // aborted
 
-    const changed = rebuildOptionsIfChanged(rootSel, map || {});
+    const changed = rebuildOptionsIfChanged(ds, map || {});
     if (changed) {
-      try { rootSel.setAttribute('data-jprm-map', JSON.stringify(map || {})); } catch(e){}
+      try{ ds.setAttribute('data-jprm-map', JSON.stringify(map||{})); }catch(_){}
       state.lastMap = map || {};
       log('DS applied', { total: Object.keys(state.lastMap||{}).length });
     }
     return state.lastMap;
   }
 
-  function applyToOthers(map){
-    if (!ENABLE_OTHERS) return 0;
+  function applyToTagged(map){
     if (!map || !Object.keys(map).length) {
-      // fallback to DS stash
-      const ds = selectDS();
+      const ds = dsSelect();
       const stash = ds && ds.getAttribute('data-jprm-map');
-      if (stash) { try { map = JSON.parse(stash) || {}; } catch(e){} }
+      if (stash) { try{ map = JSON.parse(stash)||{}; }catch(_){} }
       if (!map || !Object.keys(map).length) return 0;
     }
 
-    const targets = findOtherTargets();
-    // Debug: how many controls we’re touching
-    log('Others targets', { total: targets.length });
-
+    const targets = findTaggedTargets();
     let applied = 0;
-    for (const el of targets) {
-      if (rebuildOptionsIfChanged(el, map)) applied++;
-    }
+    for (const el of targets) if (rebuildOptionsIfChanged(el, map)) applied++;
     if (applied) log('Others applied', { count: applied, totalTargets: targets.length });
     return applied;
   }
 
-  // After a menu change or tab switch, Elementor can mount controls late.
-  // We run a short polling burst (e.g., 6 passes over ~1.5s) to catch them.
-  function burstPollApply(){
-    const win = getPanelWin();
+  function burstPoll(){
+    const w = pWin();
     let passes = 6;
-    if (state.pollTimer) win.clearInterval(state.pollTimer);
-    state.pollTimer = win.setInterval(() => {
-      if (--passes <= 0) { win.clearInterval(state.pollTimer); state.pollTimer = null; }
-      applyToOthers(state.lastMap);
-    }, 250);
+    if (state.poll) w.clearInterval(state.poll);
+    state.poll = w.setInterval(() => {
+      if (--passes <= 0) { w.clearInterval(state.poll); state.poll = null; }
+      applyToTagged(state.lastMap);
+    }, 220);
   }
 
-  function scheduleRefresh(){
-    const win = getPanelWin();
-    if (state.debounceTimer) win.clearTimeout(state.debounceTimer);
-    state.debounceTimer = win.setTimeout(async () => {
-      state.debounceTimer = null;
-      // Always refresh DS first to have the latest scoped tree
+  function scheduleAll(){
+    const w = pWin();
+    if (state.debounce) w.clearTimeout(state.debounce);
+    state.debounce = w.setTimeout(async () => {
+      state.debounce = null;
       const map = await refreshDS();
-      if (map) {
-        applyToOthers(map);
-        burstPollApply(); // keep trying briefly for late-mounted controls
-      }
+      if (map) { applyToTagged(map); burstPoll(); }
     }, 140);
   }
 
-  /* -------- bindings -------- */
+  /* ---------- bindings (robust, iframe-safe) ---------- */
   function bindMenuChange(){
-    const ms = selectMenu();
-    if (!ms || ms.__jprmBound) return;
-    ms.__jprmBound = true;
-    ms.addEventListener('change', () => {
-      const ds = selectDS();
-      if (ds) ds.removeAttribute('data-jprm-sig');
-      // clear signatures on potential targets; they might not be present yet
-      const all = getPanelDoc().querySelectorAll('select[data-setting]');
-      all.forEach(el => {
-        const key = el.getAttribute('data-setting')||'';
-        if (TARGET_SETTINGS.has(key) || key === 'sections') el.removeAttribute('data-jprm-sig');
-      });
-      scheduleRefresh();
+    const el = menuSelect(); if (!el || el.__jprmBound) return;
+    el.__jprmBound = true;
+    el.addEventListener('change', () => {
+      const ds = dsSelect(); if (ds) ds.removeAttribute('data-jprm-sig');
+      // clear signatures on our tagged selects; they might mount later
+      pDoc().querySelectorAll('select.jprm-scope-target, select[data-setting="sections"]').forEach(s => s.removeAttribute('data-jprm-sig'));
+      scheduleAll();
     });
   }
 
-  function bindTabSwitch(){
-    const doc = getPanelDoc();
-    doc.addEventListener('click', (e) => {
-      const t = e.target;
-      const H = getPanelWin().HTMLElement;
+  // When a repeater row is toggled open or a new row is added, its fields mount later.
+  function bindRepeaterHooks(){
+    const d = pDoc();
+    d.addEventListener('click', (e) => {
+      const H = pWin().HTMLElement, t = e.target;
       if (!(t instanceof H)) return;
-      if (t.closest('.elementor-panel-navigation, .elementor-tab-control')) {
-        // on tab change, controls mount later
-        scheduleRefresh();
-      }
-    }, { passive:true });
-  }
 
-  function bindRepeaterAdd(){
-    if (!ENABLE_OTHERS) return;
-    const doc = getPanelDoc();
-    doc.addEventListener('click', (e) => {
-      const t = e.target;
-      const H = getPanelWin().HTMLElement;
-      if (!(t instanceof H)) return;
+      // Row toggle (opens/expands row)
+      if (t.closest('.elementor-repeater-row-toggle')) {
+        setTimeout(() => { applyToTagged(state.lastMap); }, 120);
+        setTimeout(() => { applyToTagged(state.lastMap); }, 300);
+      }
+
+      // Add new row
       if (t.closest('.elementor-repeater__add, .elementor-repeater-add')) {
-        // new row mounts shortly afterwards
-        const win = getPanelWin();
-        win.setTimeout(() => { applyToOthers(state.lastMap); }, 120);
-        win.setTimeout(() => { applyToOthers(state.lastMap); }, 300);
+        setTimeout(() => { applyToTagged(state.lastMap); }, 150);
+        setTimeout(() => { applyToTagged(state.lastMap); }, 350);
       }
     }, { passive:true });
   }
 
+  // Tabs / panel navigation
+  function bindTabNav(){
+    const d = pDoc();
+    d.addEventListener('click', (e) => {
+      const H = pWin().HTMLElement, t = e.target;
+      if (!(t instanceof H)) return;
+      if (t.closest('.elementor-panel-navigation, .elementor-tab-control')) scheduleAll();
+    }, { passive:true });
+  }
+
+  // Observe late mounts in the iframe DOM
   function observePanel(){
-    const doc = getPanelDoc();
     const mo = new MutationObserver((list) => {
-      let relevant = false;
+      let seen = false;
       for (const m of list) {
         if (m.type !== 'childList') continue;
         for (const n of m.addedNodes) {
-          const H = getPanelWin().HTMLElement;
+          const H = pWin().HTMLElement;
           if (!(n instanceof H)) continue;
           if (n.querySelector && (
               n.querySelector('select[data-setting="menus"]') ||
               n.querySelector('select[data-setting="sections"]') ||
-              n.querySelector('select[data-setting="layout_split_after_section"]') ||
-              n.querySelector('select[data-setting="layout_split_after_section2"]') ||
-              n.querySelector('select[data-setting="section_id"]')
-          )) { relevant = true; break; }
+              n.querySelector('select.jprm-scope-target')
+          )) { seen = true; break; }
         }
-        if (relevant) break;
+        if (seen) break;
       }
-      if (relevant) scheduleRefresh();
+      if (seen) scheduleAll();
     });
-    mo.observe(doc, { childList:true, subtree:true });
+    mo.observe(pDoc(), { childList:true, subtree:true });
   }
 
-  /* -------- boot -------- */
+  /* ---------- boot ---------- */
   function boot(){
-    const root = panelRoot();
-    if (!root) { setTimeout(boot, 250); return; }
-    log('sections-dep.js active (iframe + late-mount safe)');
+    // Wait for the iframe to exist
+    const f = panelIframe();
+    if (!f || !pDoc().querySelector('.elementor-panel')) { setTimeout(boot, 200); return; }
+
+    log('sections-dep.js active');
 
     bindMenuChange();
-    bindTabSwitch();
-    bindRepeaterAdd();
+    bindRepeaterHooks();
+    bindTabNav();
     observePanel();
 
-    // initial run
-    scheduleRefresh();
+    // initial
+    scheduleAll();
   }
 
   if (document.readyState === 'complete' || document.readyState === 'interactive') boot();
