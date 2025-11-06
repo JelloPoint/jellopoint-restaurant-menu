@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  // Update the non-DS controls too
+  // ---- CONFIG: flip to false if you only want DS to update ----
   const ENABLE_OTHERS = true;
 
   function log(){ try{ console.log.apply(console, ['[JPRM]'].concat([].slice.call(arguments))); }catch(e){} }
@@ -11,7 +11,7 @@
   function panelRoot(){ return document.querySelector('.elementor-panel'); }
   function menuSelect(root){ return root && root.querySelector('select[data-setting="menus"]'); }
 
-  // DS (Sections) SELECT2
+  // Data Source (Sections) control — this is SELECT2 in your widget
   function dsSectionsSelect(root){
     return root && (
       root.querySelector('.elementor-control-sections select[data-setting="sections"]')
@@ -19,23 +19,20 @@
     );
   }
 
-  // Other dependent selects (NO data-id assumptions)
+  // Other dependent selects (plain SELECTs in your widget):
   function splitAfterSelects(root){
     if (!root) return [];
-    return Array.from(
-      root.querySelectorAll(
-        'select[data-setting="layout_split_after_section"], '+
-        'select[data-setting="layout_split_after_section2"]'
-      )
-    );
+    return Array.from(root.querySelectorAll('select[data-setting="layout_split_after_section"], select[data-setting="layout_split_after_section2"]'));
   }
-
-  // All section pickers inside repeaters (labels_layout_overrides + info_blocks)
-  // Both of your repeaters use the SAME data-setting name "section_id".
+  // Only the section_id selects inside the two repeaters:
   function repeaterSectionSelects(root){
     if (!root) return [];
-    // Broad but safe: nothing else in your widget uses data-setting="section_id"
-    return Array.from(root.querySelectorAll('select[data-setting="section_id"]'));
+    const out = [];
+    const reps = root.querySelectorAll('.elementor-control-type-repeater[data-id="labels_layout_overrides"], .elementor-control-type-repeater[data-id="info_blocks"]');
+    reps.forEach(rep => {
+      out.push(...rep.querySelectorAll('select[data-setting="section_id"]'));
+    });
+    return out;
   }
 
   function isVisible(el){
@@ -65,10 +62,11 @@
     if (typeof jQuery !== 'undefined') {
       const $el = jQuery(selectEl);
       $el.trigger('change', { silent:true });
+      // if Select2 is attached:
       if ($el.hasClass('select2-hidden-accessible')) $el.trigger('change.select2');
     } else {
-      selectEl.dispatchEvent(new Event('input',  { bubbles:true }));
       selectEl.dispatchEvent(new Event('change', { bubbles:true }));
+      selectEl.dispatchEvent(new Event('input',  { bubbles:true }));
     }
   }
 
@@ -82,7 +80,7 @@
     lastMenuId: null,
     inflight: null,
     debounceTimer: null,
-    lastMapSig: ''
+    lastMapSig: '' // signature of the last DS map we applied
   };
 
   async function fetchSectionsMap(menuId){
@@ -125,7 +123,7 @@
 
     const sig = optionsSignature(map);
     const prevSig = selectEl.getAttribute('data-jprm-sig') || '';
-    if (sig === prevSig) return false; // unchanged
+    if (sig === prevSig) return false; // no change → avoid loops
 
     const wasMultiple = !!selectEl.multiple;
     const selected = getSelectedValues(selectEl);
@@ -152,7 +150,7 @@
 
     selectEl.setAttribute('data-jprm-sig', sig);
 
-    // If Select2 is attached, refresh UI
+    // If Select2 is attached (DS), refresh UI
     if (typeof jQuery !== 'undefined' && jQuery.fn && jQuery.fn.select2 && jQuery(selectEl).hasClass('select2-hidden-accessible')) {
       jQuery(selectEl).trigger('change.select2');
     }
@@ -169,10 +167,11 @@
 
     log('DS refresh', { menuId });
     const map = await fetchSectionsMap(menuId);
-    if (map === null) return; // aborted
+    if (map === null) return; // aborted/superseded
 
     const changed = rebuildOptionsIfChanged(sel, map || {});
     if (changed) {
+      // stash DS map for anyone else to reuse (and for future initializations)
       try { sel.setAttribute('data-jprm-map', JSON.stringify(map || {})); } catch(e){}
       const sigMap = optionsSignature(map||{});
       state.lastMapSig = sigMap;
@@ -184,6 +183,7 @@
   function applyScopedOptionsToOthers(root, map){
     if (!ENABLE_OTHERS) return;
 
+    // If no map given, try DS stash first (no extra fetch)
     if (!map || typeof map !== 'object' || !Object.keys(map).length) {
       const ds = dsSectionsSelect(root);
       if (ds) {
@@ -191,7 +191,7 @@
         if (stash) { try { map = JSON.parse(stash) || {}; } catch(e){} }
       }
     }
-    if (!map || !Object.keys(map).length) return;
+    if (!map || typeof map !== 'object' || !Object.keys(map).length) return;
 
     const targets = [
       ...splitAfterSelects(root),
@@ -213,9 +213,12 @@
       state.debounceTimer = null;
       if (!menuSelect(root)) return;
 
+      // Always refresh DS first so we reuse the same map for others
       const map = await refreshDataSourceSections(root);
-      if (map && typeof map === 'object') applyScopedOptionsToOthers(root, map);
-    }, 160);
+      if (map && typeof map === 'object') {
+        applyScopedOptionsToOthers(root, map);
+      }
+    }, 180);
   }
 
   function bindMenuChange(root){
@@ -223,6 +226,7 @@
     if (!ms || ms.__jprmBound) return;
     ms.__jprmBound = true;
     ms.addEventListener('change', function(){
+      // Clear signatures so rebuild happens for DS + Others
       const ds = dsSectionsSelect(root);
       if (ds) ds.removeAttribute('data-jprm-sig');
       if (ENABLE_OTHERS) {
@@ -233,25 +237,17 @@
     });
   }
 
-  // When switching tabs, Elementor adds the controls to the DOM: refresh then.
-  function bindTabSwitchRefresh(root){
-    root.addEventListener('click', function(e){
-      const t = e.target;
-      if (!(t instanceof HTMLElement)) return;
-      if (t.closest('.elementor-panel-navigation, .elementor-tab-control')) {
-        setTimeout(() => scheduleRefresh(root), 100);
-      }
-    }, { passive:true });
-  }
-
-  // When a repeater row is added, re-apply map to newly inserted selects
+  // When a repeater row is added, re-apply map to the newly inserted select
   function bindRepeaterAddHooks(root){
     if (!ENABLE_OTHERS) return;
+
     root.addEventListener('click', function(e){
       const t = e.target;
       if (!(t instanceof HTMLElement)) return;
-      const btn = t.closest('.elementor-repeater__add, .elementor-repeater-add');
+
+      const btn = t.closest('.elementor-control-type-repeater[data-id="labels_layout_overrides"] .elementor-repeater-add, .elementor-control-type-repeater[data-id="info_blocks"] .elementor-repeater-add');
       if (!btn) return;
+
       setTimeout(async function(){
         const map = await refreshDataSourceSections(root) || {};
         applyScopedOptionsToOthers(root, map);
@@ -266,11 +262,10 @@
     log('sections-dep.js active');
 
     bindMenuChange(root);
-    bindTabSwitchRefresh(root);
     bindRepeaterAddHooks(root);
     scheduleRefresh(root); // initial
 
-    // Also observe controls mounting/unmounting
+    // Observe panel changes, refresh when relevant controls appear
     const mo = new MutationObserver((list) => {
       let relevant = false;
       for (const m of list) {
@@ -280,9 +275,12 @@
           if (n.querySelector && (
               n.querySelector('select[data-setting="menus"]') ||
               n.querySelector('select[data-setting="sections"]') ||
-              n.querySelector('select[data-setting="layout_split_after_section"]') ||
-              n.querySelector('select[data-setting="layout_split_after_section2"]') ||
-              n.querySelector('select[data-setting="section_id"]')
+              (ENABLE_OTHERS && (
+                n.querySelector('select[data-setting="layout_split_after_section"]') ||
+                n.querySelector('select[data-setting="layout_split_after_section2"]') ||
+                n.querySelector('.elementor-control-type-repeater[data-id="labels_layout_overrides"] select[data-setting="section_id"]') ||
+                n.querySelector('.elementor-control-type-repeater[data-id="info_blocks"] select[data-setting="section_id"]')
+              ))
           )) { relevant = true; break; }
         }
         if (relevant) break;
