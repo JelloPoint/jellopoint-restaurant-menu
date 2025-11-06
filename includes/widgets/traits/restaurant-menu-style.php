@@ -227,6 +227,13 @@ trait Restaurant_Menu_Style {
 				'{{WRAPPER}} .jp-menu__section--level-0 > .jp-section__title' => 'background-color: {{VALUE}};',
 			],
 		] );
+		$this->add_group_control(
+			\Elementor\Group_Control_Border::get_type(),
+			[
+				'name' => 'border',
+				'selector' => '{{WRAPPER}} .your-class',
+			]
+		);
 
 		$this->end_controls_section();
 
