@@ -230,7 +230,7 @@ trait Restaurant_Menu_Style {
 		$this->add_group_control(
 			\Elementor\Group_Control_Border::get_type(),
 			[
-				'name' => 'border',
+				'name' => 'border-main',
 				'selector' => '{{WRAPPER}} .jp-menu__section--level-0 > .jp-section__title',
 			]
 		);
@@ -316,7 +316,7 @@ trait Restaurant_Menu_Style {
 		$this->add_group_control(
 			\Elementor\Group_Control_Border::get_type(),
 			[
-				'name' => 'border',
+				'name' => 'border-sub',
 				'selectors' => [
 				'{{WRAPPER}} .jp-menu__section--level-1 > .jp-section__title',
 				'{{WRAPPER}} .jp-menu__section--level-2 > .jp-section__title',
@@ -324,7 +324,7 @@ trait Restaurant_Menu_Style {
 			],
 			]
 		);
-		
+
 		$this->end_controls_section();
 
 		/* ===== Item Title & Description (items only, incl. Matrix) ===== */
