@@ -5,9 +5,10 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Sections_Admin {
 
-	const TAX_SECTION     = 'jprm_section';
-	const TAX_MENU        = 'jprm_menu';
-	const META_MENU_OWNER = '_jprm_menu_term_id';
+	const TAX_SECTION         = 'jprm_section';
+	const TAX_MENU            = 'jprm_menu';
+	const META_MENU_OWNER     = '_jprm_menu_term_id';
+	const META_SECTION_ORDER  = '_jprm_section_order'; // <-- added
 
 	public static function init() : void {
 		// Columns
@@ -37,19 +38,30 @@ class Sections_Admin {
 		$new = [];
 		foreach ( $cols as $k => $v ) {
 			$new[ $k ] = $v;
-			if ( 'name' === $k ) $new['jprm_menu'] = __( 'Menu', 'jprm' );
+			if ( 'name' === $k ) {
+				$new['jprm_menu']  = __( 'Menu', 'jprm' );
+				$new['jprm_order'] = __( 'Order', 'jprm' ); // <-- added
+			}
 		}
-		if ( ! isset( $new['jprm_menu'] ) ) $new['jprm_menu'] = __( 'Menu', 'jprm' );
+		if ( ! isset( $new['jprm_menu'] ) )  $new['jprm_menu']  = __( 'Menu', 'jprm' );
+		if ( ! isset( $new['jprm_order'] ) ) $new['jprm_order'] = __( 'Order', 'jprm' );
 		if ( isset( $new['slug'] ) ) unset( $new['slug'] ); // cleaner UI
 		return $new;
 	}
 
 	public static function print_column( $out, $column_name, $term_id ) {
-		if ( 'jprm_menu' !== $column_name ) return;
-		$owner = (int) get_term_meta( $term_id, self::META_MENU_OWNER, true );
-		if ( ! $owner ) { echo '—'; return; }
-		$menu = get_term( $owner, self::TAX_MENU );
-		echo ( $menu && ! is_wp_error( $menu ) ) ? esc_html( $menu->name ) : '—';
+		if ( 'jprm_menu' === $column_name ) {
+			$owner = (int) get_term_meta( $term_id, self::META_MENU_OWNER, true );
+			if ( ! $owner ) { echo '—'; return; }
+			$menu = get_term( $owner, self::TAX_MENU );
+			echo ( $menu && ! is_wp_error( $menu ) ) ? esc_html( $menu->name ) : '—';
+			return;
+		}
+		if ( 'jprm_order' === $column_name ) { // <-- added
+			$ord = get_term_meta( $term_id, self::META_SECTION_ORDER, true );
+			echo ( $ord !== '' && $ord !== null ) ? (int) $ord : '—';
+			return;
+		}
 	}
 
 	/* ================= Filtering logic ================= */
@@ -99,6 +111,17 @@ class Sections_Admin {
 		if ( strpos( $clauses['fields'], 'DISTINCT' ) === false ) {
 			$clauses['fields'] = 'DISTINCT ' . $clauses['fields'];
 		}
+
+		/* ---- Added: join order meta + ORDER BY section order, then name ---- */
+		if ( strpos( $clauses['join'], 'jprm_ord' ) === false ) {
+			$clauses['join'] .= $wpdb->prepare(
+				" LEFT JOIN {$wpdb->termmeta} AS jprm_ord
+				  ON ( jprm_ord.term_id = t.term_id AND jprm_ord.meta_key = %s ) ",
+				self::META_SECTION_ORDER
+			);
+		}
+		$clauses['orderby'] = " ORDER BY CAST(jprm_ord.meta_value AS SIGNED) ASC, t.name ASC ";
+
 		return $clauses;
 	}
 
@@ -206,6 +229,7 @@ class Sections_Admin {
 			/* Hide Slug on add + edit */
 			.taxonomy-<?php echo esc_attr( self::TAX_SECTION ); ?> .form-field.term-slug-wrap,
 			.taxonomy-<?php echo esc_attr( self::TAX_SECTION ); ?> .term-slug-wrap { display:none !important; }
+			.column-jprm_order{ width:90px; text-align:right; } /* width for new column */
 		</style>
 		<script>
 		(function(){
@@ -276,7 +300,6 @@ class Sections_Admin {
 					'<label class="screen-reader-text" for="jprm_filter_menu"><?php echo esc_js( __( 'Filter by Menu', 'jprm' ) ); ?></label>' +
 					'<select name="jprm_filter_menu" id="jprm_filter_menu" class="postform"><?php echo $options; ?></select>' +
 					'<input type="submit" name="filter_action" class="button" value="<?php echo esc_js( __( 'Filter', 'jprm' ) ); ?>">';
-
 				topActions.prepend(wrap);
 			}
 
