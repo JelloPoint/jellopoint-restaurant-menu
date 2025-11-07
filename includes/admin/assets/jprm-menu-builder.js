@@ -118,25 +118,61 @@
 
   function initSortable($ul){
     try{ $ul.sortable('destroy'); }catch(e){}
+
     function buildSectionHelper($item){
       const startDepth=parseInt($item.attr('data-depth'),10)||0;
       const $helper=$('<div class="jprm-helper-group">');
       $helper.append($item.clone());
+
       const block=[]; let $next=$item.next();
-      while($next.length){ const d=parseInt($next.attr('data-depth'),10)||0; if(d>startDepth){ block.push($next[0]); $helper.append($next.clone()); $next.data('jprm-old-display',$next.css('display')); $next.css('display','none').addClass('jprm-drag-hidden'); $next=$next.next(); } else break; }
+      while($next.length){
+        const d=parseInt($next.attr('data-depth'),10)||0;
+        if(d>startDepth){
+          block.push($next[0]);
+          $helper.append($next.clone());
+          $next.data('jprm-old-display',$next.css('display'));
+          $next.css('display','none').addClass('jprm-drag-hidden');
+          $next=$next.next();
+        } else break;
+      }
       $item.data('jprm-drag-block',block).data('jprm-start-depth',startDepth);
-      $helper.find('> li').each(function(){ const d=parseInt($(this).attr('data-depth'),10)||0; $(this).css('margin-left',(d*INDENT)+'px'); });
+      $helper.find('> li').each(function(){
+        const d=parseInt($(this).attr('data-depth'),10)||0;
+        $(this).css('margin-left',(d*INDENT)+'px');
+      });
       return $helper;
     }
-    function snapPlaceholderForSection(ui){
-      if(!drag||!drag.isSection) return;
-      let $prev=ui.placeholder.prev();
-      while($prev.length && $prev.hasClass('is-item')){ ui.placeholder.insertBefore($prev); $prev=ui.placeholder.prev(); }
+
+    // NEW: ensure placeholder never sits inside an item block.
+    function placePlaceholderAtSectionBoundary(ui){
+      const $ph = ui.placeholder;
+      // Snap after the closest previous section; if none, to the very top.
+      const $anchor = $ph.prevAll('.jprm-section:first');
+      if ($anchor.length) {
+        $ph.insertAfter($anchor);
+      } else {
+        // top
+        $ph.parent().prepend($ph);
+      }
+      // Also guard the case where the next node is an item/entry:
+      // keep pushing the placeholder up until the next node is not an item.
+      let $next = $ph.next();
+      while ($next.length && !$next.hasClass('jprm-section') && $next.hasClass('jprm-item')) {
+        $ph.insertBefore($next);
+        $next = $ph.next();
+      }
     }
+
     function enforceItemDepth(ui){
       if(!drag||drag.isSection) return;
       let $prev=ui.placeholder.prev(), sectionDepth=0;
-      while($prev.length){ if($prev.hasClass('jprm-section')){ sectionDepth=parseInt($prev.attr('data-depth'),10)||0; break; } $prev=$prev.prev(); }
+      while($prev.length){
+        if($prev.hasClass('jprm-section')){
+          sectionDepth=parseInt($prev.attr('data-depth'),10)||0;
+          break;
+        }
+        $prev=$prev.prev();
+      }
       applyIndent(ui.placeholder, sectionDepth+1);
     }
 
@@ -147,6 +183,7 @@
       tolerance:'pointer',
       forcePlaceholderSize:true,
       helper:function(e,item){ return $(item).hasClass('jprm-section') ? buildSectionHelper($(item)) : item.clone(); },
+
       start:function(e,ui){
         $('body').addClass('jprm-sorting');
         const isSection=ui.item.hasClass('jprm-section');
@@ -154,26 +191,42 @@
         drag={ startX:e.pageX, startDepth, isSection, $item:ui.item };
         ui.placeholder.height(ui.item.outerHeight());
         applyIndent(ui.placeholder,startDepth);
-        if(isSection) snapPlaceholderForSection(ui); else enforceItemDepth(ui);
+        if(isSection){
+          placePlaceholderAtSectionBoundary(ui);
+        } else {
+          enforceItemDepth(ui);
+        }
       },
+
       sort:function(e,ui){
         if(!drag) return;
         if(drag.isSection){
           const deltaX=e.pageX-drag.startX;
           let newDepth=drag.startDepth+Math.round(deltaX/INDENT);
           newDepth=clampDepth(newDepth,ui.placeholder);
-          snapPlaceholderForSection(ui);
+          placePlaceholderAtSectionBoundary(ui);  // <— keep boundary on every move
           applyIndent(ui.placeholder,newDepth);
         } else {
           enforceItemDepth(ui); // vertical-only for items
         }
       },
-      beforeStop:function(e,ui){ applyIndent(ui.item, parseInt(ui.placeholder.attr('data-depth'),10)||0 ); },
+
+      beforeStop:function(e,ui){
+        applyIndent(ui.item, parseInt(ui.placeholder.attr('data-depth'),10)||0 );
+      },
+
       stop:function(e,ui){
         $('body').removeClass('jprm-sorting');
         if(drag && drag.isSection){
           const block=ui.item.data('jprm-drag-block')||[];
-          if(block.length){ for(let i=0;i<block.length;i++){ const $n=$(block[i]); $n.css('display',$n.data('jprm-old-display')||''); $n.removeClass('jprm-drag-hidden'); $n.insertAfter(ui.item); } }
+          if(block.length){
+            for(let i=0;i<block.length;i++){
+              const $n=$(block[i]);
+              $n.css('display',$n.data('jprm-old-display')||'');
+              $n.removeClass('jprm-drag-hidden');
+              $n.insertAfter(ui.item);
+            }
+          }
           ui.item.removeData('jprm-drag-block jprm-start-depth');
         }
         drag=null;
