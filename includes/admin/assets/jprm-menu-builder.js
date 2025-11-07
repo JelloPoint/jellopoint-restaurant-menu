@@ -123,7 +123,6 @@
       const startDepth=parseInt($item.attr('data-depth'),10)||0;
       const $helper=$('<div class="jprm-helper-group">');
       $helper.append($item.clone());
-
       const block=[]; let $next=$item.next();
       while($next.length){
         const d=parseInt($next.attr('data-depth'),10)||0;
@@ -136,30 +135,31 @@
         } else break;
       }
       $item.data('jprm-drag-block',block).data('jprm-start-depth',startDepth);
-      $helper.find('> li').each(function(){
-        const d=parseInt($(this).attr('data-depth'),10)||0;
-        $(this).css('margin-left',(d*INDENT)+'px');
-      });
+      $helper.find('> li').each(function(){ const d=parseInt($(this).attr('data-depth'),10)||0; $(this).css('margin-left',(d*INDENT)+'px'); });
       return $helper;
     }
 
-    // NEW: ensure placeholder never sits inside an item block.
-    function placePlaceholderAtSectionBoundary(ui){
+    // NEW: keep placeholder at section boundaries only (never among items)
+    function snapPlaceholderForSection(ui){
       const $ph = ui.placeholder;
-      // Snap after the closest previous section; if none, to the very top.
-      const $anchor = $ph.prevAll('.jprm-section:first');
-      if ($anchor.length) {
-        $ph.insertAfter($anchor);
-      } else {
-        // top
-        $ph.parent().prepend($ph);
-      }
-      // Also guard the case where the next node is an item/entry:
-      // keep pushing the placeholder up until the next node is not an item.
+
+      // If next sibling is an item, push placeholder forward to the next section (or after last section)
       let $next = $ph.next();
-      while ($next.length && !$next.hasClass('jprm-section') && $next.hasClass('jprm-item')) {
-        $ph.insertBefore($next);
-        $next = $ph.next();
+      if ($next.length && $next.hasClass('is-item')) {
+        const $nextSection = $ph.nextAll('.jprm-section:first');
+        if ($nextSection.length) {
+          $ph.insertBefore($nextSection);
+        } else {
+          const $lastSection = $ph.parent().children('.jprm-section:last');
+          if ($lastSection.length) $ph.insertAfter($lastSection);
+        }
+      }
+
+      // If previous sibling is an item, pull placeholder back until previous is a section or start
+      let $prev = $ph.prev();
+      while ($prev.length && $prev.hasClass('is-item')) {
+        $ph.insertBefore($prev);
+        $prev = $ph.prev();
       }
     }
 
@@ -191,11 +191,7 @@
         drag={ startX:e.pageX, startDepth, isSection, $item:ui.item };
         ui.placeholder.height(ui.item.outerHeight());
         applyIndent(ui.placeholder,startDepth);
-        if(isSection){
-          placePlaceholderAtSectionBoundary(ui);
-        } else {
-          enforceItemDepth(ui);
-        }
+        if(isSection){ snapPlaceholderForSection(ui); } else { enforceItemDepth(ui); }
       },
 
       sort:function(e,ui){
@@ -204,29 +200,19 @@
           const deltaX=e.pageX-drag.startX;
           let newDepth=drag.startDepth+Math.round(deltaX/INDENT);
           newDepth=clampDepth(newDepth,ui.placeholder);
-          placePlaceholderAtSectionBoundary(ui);  // <— keep boundary on every move
+          snapPlaceholderForSection(ui);   // keep boundary on every move
           applyIndent(ui.placeholder,newDepth);
         } else {
-          enforceItemDepth(ui); // vertical-only for items
+          enforceItemDepth(ui);
         }
       },
 
-      beforeStop:function(e,ui){
-        applyIndent(ui.item, parseInt(ui.placeholder.attr('data-depth'),10)||0 );
-      },
-
+      beforeStop:function(e,ui){ applyIndent(ui.item, parseInt(ui.placeholder.attr('data-depth'),10)||0 ); },
       stop:function(e,ui){
         $('body').removeClass('jprm-sorting');
         if(drag && drag.isSection){
           const block=ui.item.data('jprm-drag-block')||[];
-          if(block.length){
-            for(let i=0;i<block.length;i++){
-              const $n=$(block[i]);
-              $n.css('display',$n.data('jprm-old-display')||'');
-              $n.removeClass('jprm-drag-hidden');
-              $n.insertAfter(ui.item);
-            }
-          }
+          if(block.length){ for(let i=0;i<block.length;i++){ const $n=$(block[i]); $n.css('display',$n.data('jprm-old-display')||''); $n.removeClass('jprm-drag-hidden'); $n.insertAfter(ui.item); } }
           ui.item.removeData('jprm-drag-block jprm-start-depth');
         }
         drag=null;
