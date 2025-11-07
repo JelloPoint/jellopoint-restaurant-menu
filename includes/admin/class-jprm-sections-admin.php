@@ -8,7 +8,6 @@ class Sections_Admin {
 	const TAX_SECTION     = 'jprm_section';
 	const TAX_MENU        = 'jprm_menu';
 	const META_MENU_OWNER = '_jprm_menu_term_id';
-	const META_SECTION_ORDER = '_jprm_section_order';
 
 	public static function init() : void {
 		// Columns
@@ -30,9 +29,6 @@ class Sections_Admin {
 		// UI polish + force toolbar filter + AJAX swap
 		add_action( 'admin_head-edit-tags.php',   [ __CLASS__, 'inject_admin_css_js' ] );
 		add_action( 'admin_footer-edit-tags.php', [ __CLASS__, 'force_toolbar_filter' ] );
-
-		// Section Filter Registration
-		add_filter( 'jprm_get_sections_for_menu', [ __CLASS__, 'get_sections_for_menu' ], 10, 2 );
 	}
 
 	/* ================= Columns ================= */
@@ -41,27 +37,19 @@ class Sections_Admin {
 		$new = [];
 		foreach ( $cols as $k => $v ) {
 			$new[ $k ] = $v;
-			if ( 'name' === $k ) { $new['jprm_menu'] = __( 'Menu', 'jprm' ); $new['jprm_order'] = __( 'Order', 'jprm' ); }
+			if ( 'name' === $k ) $new['jprm_menu'] = __( 'Menu', 'jprm' );
 		}
-		if ( ! isset( $new['jprm_menu'] ) )  $new['jprm_menu']  = __( 'Menu', 'jprm' );
-		if ( ! isset( $new['jprm_order'] ) ) $new['jprm_order'] = __( 'Order', 'jprm' );
+		if ( ! isset( $new['jprm_menu'] ) ) $new['jprm_menu'] = __( 'Menu', 'jprm' );
 		if ( isset( $new['slug'] ) ) unset( $new['slug'] ); // cleaner UI
 		return $new;
 	}
 
 	public static function print_column( $out, $column_name, $term_id ) {
-		if ( 'jprm_menu' === $column_name ) {
-			$owner = (int) get_term_meta( $term_id, self::META_MENU_OWNER, true );
-			if ( ! $owner ) { echo '—'; return; }
-			$menu = get_term( $owner, self::TAX_MENU );
-			echo ( $menu && ! is_wp_error( $menu ) ) ? esc_html( $menu->name ) : '—';
-			return;
-		}
-		if ( 'jprm_order' === $column_name ) {
-			$ord = (int) get_term_meta( $term_id, self::META_SECTION_ORDER, true );
-			echo $ord ? $ord : '—';
-			return;
-		}
+		if ( 'jprm_menu' !== $column_name ) return;
+		$owner = (int) get_term_meta( $term_id, self::META_MENU_OWNER, true );
+		if ( ! $owner ) { echo '—'; return; }
+		$menu = get_term( $owner, self::TAX_MENU );
+		echo ( $menu && ! is_wp_error( $menu ) ) ? esc_html( $menu->name ) : '—';
 	}
 
 	/* ================= Filtering logic ================= */
@@ -111,39 +99,14 @@ class Sections_Admin {
 		if ( strpos( $clauses['fields'], 'DISTINCT' ) === false ) {
 			$clauses['fields'] = 'DISTINCT ' . $clauses['fields'];
 		}
-
-		// Join order meta and enforce ORDER BY (section order then name)
-		if ( strpos( $clauses['join'], 'jprm_ord' ) === false ) {
-			$clauses['join'] .= $wpdb->prepare(
-				" LEFT JOIN {$wpdb->termmeta} AS jprm_ord ON ( jprm_ord.term_id = t.term_id AND jprm_ord.meta_key = %s ) ",
-				self::META_SECTION_ORDER
-			);
-		}
-		$clauses['orderby'] = " ORDER BY CAST(jprm_ord.meta_value AS SIGNED) ASC, t.name ASC ";
-
 		return $clauses;
 	}
 
 	/* ================= Add/Edit fields ================= */
 
 	public static function add_field() {
-		$menus   = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false ] );
-		$parents = get_terms( [ 'taxonomy' => self::TAX_SECTION, 'hide_empty' => false ] );
+		$menus = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false ] );
 		?>
-		<div class="form-field term-name-wrap">
-			<label for="tag-name"><?php esc_html_e( 'Name', 'jprm' ); ?></label>
-			<input name="tag-name" id="tag-name" type="text" size="40" aria-required="true" />
-		</div>
-		<div class="form-field term-parent-wrap">
-			<label for="parent"><?php esc_html_e( 'Parent Section', 'jprm' ); ?></label>
-			<select name="parent" id="parent" class="postform">
-				<option value="-1"><?php esc_html_e( '— None —', 'jprm' ); ?></option>
-				<?php if ( ! is_wp_error( $parents ) ) foreach ( $parents as $p ) : ?>
-					<option value="<?php echo (int) $p->term_id; ?>"><?php echo esc_html( $p->name ); ?></option>
-				<?php endforeach; ?>
-			</select>
-			<p class="description"><?php esc_html_e( 'Optional: leave empty for a top-level Section.', 'jprm' ); ?></p>
-		</div>
 		<div class="form-field term-owner-wrap">
 			<label for="jprm_owner_menu"><?php esc_html_e( 'Owner Menu', 'jprm' ); ?></label>
 			<select name="jprm_owner_menu" id="jprm_owner_menu">
@@ -152,7 +115,7 @@ class Sections_Admin {
 					<option value="<?php echo (int) $m->term_id; ?>"><?php echo esc_html( $m->name ); ?></option>
 				<?php endforeach; ?>
 			</select>
-			<p class="description"><?php esc_html_e( 'If you set a parent, and leave this empty, ownership will inherit from the parent.', 'jprm' ); ?></p>
+			<p class="description"><?php esc_html_e( 'If you set a parent later, ownership will inherit from the parent.', 'jprm' ); ?></p>
 		</div>
 		<?php
 	}
@@ -182,34 +145,46 @@ class Sections_Admin {
 		<?php
 	}
 
-	public static function save_on_create( $term_id, $tt_id ) : void {
-		$owner_menu_id = isset( $_POST['jprm_owner_menu'] ) ? (int) $_POST['jprm_owner_menu'] : 0; // phpcs:ignore
-		if ( $owner_menu_id > 0 ) {
-			update_term_meta( $term_id, self::META_MENU_OWNER, $owner_menu_id );
-			self::cascade_children( (int) $term_id, $owner_menu_id );
-		} else {
-			// If not explicitly set, try inheriting from parent
-			$term = get_term( $term_id, self::TAX_SECTION );
-			if ( $term && ! is_wp_error( $term ) && $term->parent ) {
-				$parent_owner = (int) get_term_meta( (int) $term->parent, self::META_MENU_OWNER, true );
-				if ( $parent_owner ) {
-					update_term_meta( $term_id, self::META_MENU_OWNER, $parent_owner );
-				}
-			}
+	/* ================= Save & cascade ================= */
+
+	public static function save_on_create( $term_id, $tt_id ) {
+		$owner = isset( $_POST['jprm_owner_menu'] ) ? (int) $_POST['jprm_owner_menu'] : 0; // phpcs:ignore
+		$term  = get_term( $term_id, self::TAX_SECTION );
+		if ( ! $term || is_wp_error( $term ) ) return;
+
+		// Inherit from parent if any
+		if ( $term->parent ) {
+			$po = (int) get_term_meta( $term->parent, self::META_MENU_OWNER, true );
+			if ( $po ) $owner = $po;
+		}
+		if ( $owner > 0 ) update_term_meta( $term_id, self::META_MENU_OWNER, $owner );
+	}
+
+	public static function save_on_edit( $term_id, $tt_id ) {
+		$term = get_term( $term_id, self::TAX_SECTION );
+		if ( ! $term || is_wp_error( $term ) ) return;
+
+		$chosen = isset( $_POST['jprm_owner_menu'] ) ? (int) $_POST['jprm_owner_menu'] : 0; // phpcs:ignore
+		$final  = $chosen;
+
+		// If parent exists, force inheritance
+		if ( $term->parent ) {
+			$po = (int) get_term_meta( $term->parent, self::META_MENU_OWNER, true );
+			if ( $po ) $final = $po;
+		}
+
+		$current = (int) get_term_meta( $term_id, self::META_MENU_OWNER, true );
+		if ( $final !== $current ) {
+			update_term_meta( $term_id, self::META_MENU_OWNER, $final );
+			self::cascade_children( $term_id, $final );
 		}
 	}
 
-	public static function save_on_edit( $term_id, $tt_id ) : void {
-		$owner_menu_id = isset( $_POST['jprm_owner_menu'] ) ? (int) $_POST['jprm_owner_menu'] : 0; // phpcs:ignore
-		update_term_meta( $term_id, self::META_MENU_OWNER, $owner_menu_id );
-		self::cascade_children( (int) $term_id, $owner_menu_id );
-	}
-
-	private static function cascade_children( int $parent_term_id, int $owner_menu_id ) : void {
+	private static function cascade_children( int $parent_id, int $owner_menu_id ) : void {
 		$children = get_terms( [
 			'taxonomy'   => self::TAX_SECTION,
+			'parent'     => $parent_id,
 			'hide_empty' => false,
-			'parent'     => $parent_term_id,
 		] );
 		if ( is_wp_error( $children ) || empty( $children ) ) return;
 
@@ -231,7 +206,6 @@ class Sections_Admin {
 			/* Hide Slug on add + edit */
 			.taxonomy-<?php echo esc_attr( self::TAX_SECTION ); ?> .form-field.term-slug-wrap,
 			.taxonomy-<?php echo esc_attr( self::TAX_SECTION ); ?> .term-slug-wrap { display:none !important; }
-			.column-jprm_order{ width:90px; text-align:right; }
 		</style>
 		<script>
 		(function(){
@@ -241,27 +215,48 @@ class Sections_Admin {
 				var owner   = addForm.querySelector('.form-field.term-owner-wrap');
 				var nameFld = addForm.querySelector('.form-field.term-name-wrap');
 				if (owner && nameFld && owner !== nameFld.previousElementSibling) {
-					addForm.insertBefore(owner, nameFld);
+					nameFld.parentNode.insertBefore(owner, nameFld);
 				}
 			}
-			document.addEventListener('DOMContentLoaded', moveOwnerToTop);
+			function renameLabels(){
+				var hdr = document.querySelector('.wrap .form-wrap > h2') || document.querySelector('.tag-add-form h2');
+				if (hdr && /Add\s+Category/i.test(hdr.textContent)) hdr.textContent = 'Add Section';
+				var parentAdd = document.querySelector('#addtag .form-field.term-parent-wrap > label');
+				if (parentAdd) parentAdd.textContent = 'Parent Section';
+				var parentEdit = document.querySelector('.edit-tag-form .form-field.term-parent-wrap th label');
+				if (parentEdit) parentEdit.textContent = 'Parent Section';
+				var srch = document.querySelector('label[for="tag-search-input"]');
+				if (srch) srch.textContent = 'Search Sections:';
+				var inp = document.getElementById('tag-search-input');
+				if (inp) inp.placeholder = 'Search Sections';
+			}
+			document.addEventListener('DOMContentLoaded', function(){
+				moveOwnerToTop();
+				renameLabels();
+			});
 		})();
 		</script>
 		<?php
 	}
 
+	/**
+	 * Force a populated filter control into the TOP toolbar + AJAX swap.
+	 */
 	public static function force_toolbar_filter() : void {
 		$tax = isset( $_GET['taxonomy'] ) ? sanitize_key( $_GET['taxonomy'] ) : ''; // phpcs:ignore
 		if ( $tax !== self::TAX_SECTION ) return;
 
-		$menus = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false ] );
-		if ( is_wp_error( $menus ) ) return;
+		$selected = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
+		$menus    = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false ] );
 
-		$options = '<option value="0">'. esc_html__( '— Filter by Menu —', 'jprm' ) .'</option>';
-		foreach ( $menus as $m ) {
-			$sel = ( isset($_GET['jprm_filter_menu']) && (int)$_GET['jprm_filter_menu'] === (int)$m->term_id ) ? ' selected' : ''; // phpcs:ignore
-			$options .= '<option value="'. (int)$m->term_id .'"'. $sel .'>'. esc_html($m->name) .'</option>';
+		$options  = '<option value="0">' . esc_html__( 'All Menus', 'jprm' ) . '</option>';
+		if ( ! is_wp_error( $menus ) ) {
+			foreach ( $menus as $m ) {
+				$sel = ( $selected === (int) $m->term_id ) ? ' selected' : '';
+				$options .= '<option value="' . (int) $m->term_id . '"' . $sel . '>' . esc_html( $m->name ) . '</option>';
+			}
 		}
+
 		?>
 		<script>
 		(function(){
@@ -291,13 +286,49 @@ class Sections_Admin {
 				if (!sel) return;
 
 				sel.addEventListener('change', function(){
-					// graceful: just submit the form if JS fails
-					try {
-						// subtle: let WP handle the refresh
+					var form = document.getElementById('posts-filter');
+					if (!form) { this.form && this.form.submit(); return; }
+
+					var url = new URL(window.location.href);
+					url.searchParams.set('jprm_filter_menu', this.value || '0');
+					url.searchParams.delete('paged');
+
+					fetch(url.toString(), {
+						method: 'GET',
+						credentials: 'same-origin',
+						headers: { 'X-Requested-With': 'XMLHttpRequest' }
+					})
+					.then(function(r){ return r.text(); })
+					.then(function(html){
+						var doc = new DOMParser().parseFromString(html, 'text/html');
+
+						// Replace table body
+						var newBody = doc.querySelector('#the-list');
+						var curBody = document.getElementById('the-list');
+						if (newBody && curBody) curBody.innerHTML = newBody.innerHTML;
+
+						// Replace views (All / Most Used / etc.)
+						var newViews = doc.querySelector('.subsubsub');
+						var curViews = document.querySelector('.subsubsub');
+						if (newViews && curViews) curViews.innerHTML = newViews.innerHTML;
+
+						// Replace counts and paginations
+						var newTopPag = doc.querySelector('.tablenav.top .tablenav-pages');
+						var curTopPag = document.querySelector('.tablenav.top .tablenav-pages');
+						if (newTopPag && curTopPag) curTopPag.innerHTML = newTopPag.innerHTML;
+
+						var newBotPag = doc.querySelector('.tablenav.bottom .tablenav-pages');
+						var curBotPag = document.querySelector('.tablenav.bottom .tablenav-pages');
+						if (newBotPag && curBotPag) curBotPag.innerHTML = newBotPag.innerHTML;
+
+						// Persist URL
+						if (history && history.replaceState) {
+							history.replaceState({}, '', url.toString());
+						}
+					})
+					.catch(function(){
 						if (sel.form) sel.form.submit();
-					} catch(e) {
-						if (sel.form) sel.form.submit();
-					}
+					});
 				});
 			}
 
@@ -308,12 +339,5 @@ class Sections_Admin {
 		})();
 		</script>
 		<?php
-	}
-
-	/* ================= Section list provider (filter hook) ================= */
-
-	public static function get_sections_for_menu( $sections, $menu_id ) {
-		// Keep your existing behavior; this is a hook point for other admin screens.
-		return $sections;
 	}
 }
