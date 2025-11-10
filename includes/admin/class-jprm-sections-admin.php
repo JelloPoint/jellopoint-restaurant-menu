@@ -16,10 +16,10 @@ class Sections_Admin {
 		add_action( 'manage_' . self::TAX_SECTION . '_custom_column',         [ __CLASS__, 'print_column' ], 10, 3 );
 		add_filter( 'manage_edit-' . self::TAX_SECTION . '_sortable_columns', [ __CLASS__, 'sortable_columns' ] );
 
-		// Toolbar filter (server-side output only; no JS injection)
+		// Toolbar filter (server-side). If WP/UI hides it, we add a JS fallback below.
 		add_action( 'restrict_manage_terms', [ __CLASS__, 'toolbar_filter' ], 10, 1 );
 
-		// Shape list-table query (single source of truth; no raw SQL)
+		// Single source of truth for list-table shaping (tree vs flat, filter, sort)
 		add_filter( 'terms_list_table_query_args', [ __CLASS__, 'list_table_args' ], 10, 2 );
 
 		// Add/Edit fields (Owner Menu selector)
@@ -30,8 +30,8 @@ class Sections_Admin {
 		add_action( 'created_' . self::TAX_SECTION, [ __CLASS__, 'save_on_create' ], 10, 2 );
 		add_action( 'edited_'  . self::TAX_SECTION, [ __CLASS__, 'save_on_edit' ],   10, 2 );
 
-		// Small UI polish
-		add_action( 'admin_head-edit-tags.php', [ __CLASS__, 'admin_css' ] );
+		// UI polish + guaranteed filter fallback
+		add_action( 'admin_head-edit-tags.php', [ __CLASS__, 'admin_head' ] );
 	}
 
 	/* ================= Columns ================= */
@@ -47,7 +47,7 @@ class Sections_Admin {
 		}
 		if ( ! isset( $new['jprm_menu'] ) )  $new['jprm_menu']  = __( 'Menu',  'jprm' );
 		if ( ! isset( $new['jprm_order'] ) ) $new['jprm_order'] = __( 'Order', 'jprm' );
-		if ( isset( $new['slug'] ) ) unset( $new['slug'] ); // cleaner UI
+		if ( isset( $new['slug'] ) ) unset( $new['slug'] );
 		return $new;
 	}
 
@@ -98,25 +98,26 @@ class Sections_Admin {
 			}
 		}
 		echo '</select>';
-		// We rely on the default "Filter" submit button in the toolbar.
+		// Rely on the default Filter submit button in the toolbar.
 	}
 
-	/* ================= Query shaping (single source of truth) ================= */
+	/* ================= Query shaping (tree vs flat, filter, sort) ================= */
 
 	public static function list_table_args( $args, $taxonomies ) {
-		if ( empty( $taxonomies ) || ! in_array( self::TAX_SECTION, (array) $taxonomies, true ) ) return $args;
 		if ( ! is_admin() ) return $args;
+		if ( empty( $taxonomies ) || ! in_array( self::TAX_SECTION, (array) $taxonomies, true ) ) return $args;
 
 		$menu_id = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
 		$orderby = isset( $_GET['orderby'] ) ? (string) $_GET['orderby'] : '';              // phpcs:ignore
 		$order   = isset( $_GET['order'] )   ? strtoupper( (string) $_GET['order'] ) : 'ASC'; // phpcs:ignore
 
-		// CASE A — default: All Menus + no "Order" click → keep the tree (do not touch args)
+		// Explicitly guarantee TREE on default load (no filter + no "Order" click)
 		if ( $menu_id <= 0 && $orderby !== 'jprm_order' ) {
+			$args['hierarchical'] = true;
 			return $args;
 		}
 
-		// From here, we switch to a FLAT, reliable list (tree + meta filtering/sorting is fragile)
+		// Switch to FLAT list when a filter is applied or "Order" sort is requested
 		$args['hierarchical'] = false;
 		$args['hide_empty']   = false;
 
@@ -129,15 +130,15 @@ class Sections_Admin {
 			];
 			$args['meta_query'] = $mq;
 
-			// Default ordering under a selected menu unless user clicked "Order"
+			// Default order under a specific menu unless user clicked "Order"
 			if ( $orderby !== 'jprm_order' ) {
 				$args['meta_key'] = self::META_SECTION_ORDER;
-				$args['orderby']  = 'meta_value_num'; // single key avoids duplicate ASC
+				$args['orderby']  = 'meta_value_num'; // single key keeps SQL clean
 				$args['order']    = 'ASC';
 			}
 		}
 
-		// If user clicked the "Order" header: flat + sort by order meta (ASC/DESC)
+		// If user clicked "Order" header: flat + sort by our order meta (ASC/DESC)
 		if ( $orderby === 'jprm_order' ) {
 			$args['meta_key'] = self::META_SECTION_ORDER;
 			$args['orderby']  = 'meta_value_num';
@@ -197,7 +198,6 @@ class Sections_Admin {
 		$term  = get_term( $term_id, self::TAX_SECTION );
 		if ( ! $term || is_wp_error( $term ) ) return;
 
-		// Inherit from parent if any
 		if ( $term->parent ) {
 			$po = (int) get_term_meta( $term->parent, self::META_MENU_OWNER, true );
 			if ( $po ) $owner = $po;
@@ -212,7 +212,6 @@ class Sections_Admin {
 		$chosen = isset( $_POST['jprm_owner_menu'] ) ? (int) $_POST['jprm_owner_menu'] : 0; // phpcs:ignore
 		$final  = $chosen;
 
-		// If parent exists, force inheritance
 		if ( $term->parent ) {
 			$po = (int) get_term_meta( $term->parent, self::META_MENU_OWNER, true );
 			if ( $po ) $final = $po;
@@ -241,15 +240,58 @@ class Sections_Admin {
 		}
 	}
 
-	/* ================= UI polish ================= */
+	/* ================= UI polish + guaranteed filter fallback ================= */
 
-	public static function admin_css() : void {
+	public static function admin_head() : void {
 		$tax = isset( $_GET['taxonomy'] ) ? sanitize_key( $_GET['taxonomy'] ) : ''; // phpcs:ignore
 		if ( $tax !== self::TAX_SECTION ) return;
+
+		// CSS
 		echo '<style>
 			.taxonomy-' . esc_attr( self::TAX_SECTION ) . ' .form-field.term-slug-wrap,
 			.taxonomy-' . esc_attr( self::TAX_SECTION ) . ' .term-slug-wrap { display:none!important; }
 			.fixed .column-jprm_order{ width:90px; text-align:right; }
 		</style>';
+
+		// JS fallback: if toolbar filter select is missing, inject it (safe, minimal).
+		$menus = get_terms( [
+			'taxonomy'   => self::TAX_MENU,
+			'hide_empty' => false,
+			'orderby'    => 'name',
+			'order'      => 'ASC',
+		] );
+		$selected = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
+
+		$options = '<option value="0">' . esc_html__( 'All Menus', 'jprm' ) . '</option>';
+		if ( ! is_wp_error( $menus ) ) {
+			foreach ( $menus as $m ) {
+				$sel = ( $selected === (int) $m->term_id ) ? ' selected' : '';
+				$options .= '<option value="' . (int) $m->term_id . '"' . $sel . '>' . esc_html( $m->name ) . '</option>';
+			}
+		}
+
+		?>
+		<script>
+		(function(){
+		  function ensureToolbarFilter(){
+		    var form = document.getElementById('posts-filter');
+		    if (!form) return;
+		    if (document.getElementById('jprm_filter_menu')) return; // already present
+
+		    var topActions = form.querySelector('.tablenav.top .actions') || form.querySelector('.tablenav.top');
+		    if (!topActions) return;
+
+		    var wrap = document.createElement('div');
+		    wrap.className = 'alignleft actions jprm-sections-filter-fallback';
+		    wrap.innerHTML =
+		      '<label class="screen-reader-text" for="jprm_filter_menu"><?php echo esc_js( __( 'Filter by Menu', 'jprm' ) ); ?></label>' +
+		      '<select name="jprm_filter_menu" id="jprm_filter_menu" class="postform"><?php echo $options; ?></select>' +
+		      '<input type="submit" name="filter_action" class="button" value="<?php echo esc_js( __( 'Filter', 'jprm' ) ); ?>">';
+		    topActions.prepend(wrap);
+		  }
+		  document.addEventListener('DOMContentLoaded', ensureToolbarFilter);
+		})();
+		</script>
+		<?php
 	}
 }
