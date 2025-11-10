@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class Menu_Builder {
 
     const SLUG        = 'jprm-menu-builder';
-    const PARENT_SLUG = 'jellopoint'; // ✅ your existing parent menu slug
+    const PARENT_SLUG = 'jellopoint'; // parent menu you already use
 
     /** Back-compat entrypoint expected by your main plugin */
     public static function hooks() : void { self::init(); }
@@ -39,7 +39,7 @@ class Menu_Builder {
 
     /** Enqueue cache-busted assets + localized vars used by the UI */
     public static function enqueue( string $hook ) : void {
-        if ( empty( $_GET['page'] ) || $_GET['page'] !== self::SLUG ) return;
+        if ( empty( $_GET['page'] ) || $_GET['page'] !== self::SLUG ) return; // phpcs:ignore
 
         $js_rel  = 'includes/admin/assets/jprm-menu-builder.js';
         $css_rel = 'includes/admin/assets/jprm-menu-builder.css';
@@ -60,12 +60,11 @@ class Menu_Builder {
             true
         );
 
-        // If your CPT slug differs, change 'jprm_menu_item' below.
         wp_localize_script( 'jprm-menu-builder', 'JPRM_MENU_BUILDER', [
-            'root'                => esc_url_raw( rest_url( 'jprm/v1' ) ),
-            'nonce'               => wp_create_nonce( 'wp_rest' ),
-            'debug'               => true, // set to false to hide the Diagnostics stripe
-            'admin_new_item_url'  => admin_url( 'post-new.php?post_type=jprm_menu_item' ),
+            'root'               => esc_url_raw( rest_url( 'jprm/v1' ) ),
+            'nonce'              => wp_create_nonce( 'wp_rest' ),
+            'debug'              => true, // set false to hide the diagnostics stripe
+            'admin_new_item_url' => admin_url( 'post-new.php?post_type=jprm_menu_item' ),
         ] );
 
         wp_enqueue_style(
