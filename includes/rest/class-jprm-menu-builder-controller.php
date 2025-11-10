@@ -20,6 +20,7 @@ class Menu_Builder_Controller extends \WP_REST_Controller {
 
 	const META_MENU_OWNER     = '_jprm_menu_term_id';    // term meta on jprm_section
 	const META_ITEM_ORDER     = '_jprm_order_in_section';// post meta on jprm_menu_item
+	const META_SECTION_ORDER  = '_jprm_section_order';   // term meta on jprm_section
 
 	public function __construct() {
 		$this->namespace = self::NS;
@@ -147,31 +148,42 @@ class Menu_Builder_Controller extends \WP_REST_Controller {
 	 * ============================================================ */
 
 	public function get_sections( $request ) {
-		$menu_id = (int) $request['menu_id'];
-		if ( $menu_id <= 0 ) {
-			return new \WP_Error( 'jprm_bad_menu', __( 'Missing or invalid menu_id.', 'jprm' ), [ 'status' => 400 ] );
-		}
-
-		$terms = get_terms( [ 'taxonomy' => self::TAX_SECTION, 'hide_empty' => false ] );
-		if ( is_wp_error( $terms ) ) {
-			return new \WP_Error( 'jprm_terms_err', $terms->get_error_message(), [ 'status' => 500 ] );
-		}
-
-		// Filter to this menu owner
-		$list = [];
-		foreach ( $terms as $t ) {
-			$owner = (int) get_term_meta( $t->term_id, self::META_MENU_OWNER, true );
-			if ( $owner !== $menu_id ) continue;
-			$list[] = [
-				'id'         => (int) $t->term_id,
-				'title'      => (string) $t->name,
-				'parent_id'  => (int) $t->parent,
-			];
-		}
-
-		// No special tree format needed by JS; it flattens anyway. Return sections array.
-		return rest_ensure_response( [ 'sections' => $list ] );
+	$menu_id = (int) $request['menu_id'];
+	if ( $menu_id <= 0 ) {
+		return new \WP_Error( 'jprm_bad_menu', __( 'Missing or invalid menu_id.', 'jprm' ), [ 'status' => 400 ] );
 	}
+
+	$terms = get_terms( [ 'taxonomy' => self::TAX_SECTION, 'hide_empty' => false ] );
+	if ( is_wp_error( $terms ) ) {
+		return new \WP_Error( 'jprm_terms_err', $terms->get_error_message(), [ 'status' => 500 ] );
+	}
+
+	$list = [];
+	foreach ( $terms as $t ) {
+		$owner = (int) get_term_meta( $t->term_id, self::META_MENU_OWNER, true );
+		if ( $owner !== $menu_id ) continue;
+
+		$ord = get_term_meta( $t->term_id, self::META_SECTION_ORDER, true );
+		$list[] = [
+			'id'         => (int) $t->term_id,
+			'title'      => (string) $t->name,
+			'parent_id'  => (int) $t->parent,
+			'order'      => ( $ord !== '' && $ord !== null ) ? (int) $ord : PHP_INT_MAX, // unordered go to end
+		];
+	}
+
+	usort( $list, static function( $a, $b ) {
+		$oa = $a['order'] ?? PHP_INT_MAX;
+		$ob = $b['order'] ?? PHP_INT_MAX;
+		if ( $oa === $ob ) {
+			return strcasecmp( (string) $a['title'], (string) $b['title'] );
+		}
+		return $oa <=> $ob;
+	} );
+
+	return rest_ensure_response( [ 'sections' => $list ] );
+}
+
 
 	public function create_section( $request ) {
 		$name    = (string) $request['name'];
@@ -263,7 +275,8 @@ class Menu_Builder_Controller extends \WP_REST_Controller {
 			$this->cascade_owner( $tid, $menu_id );
 
 			$seq++;
-			update_term_meta( $tid, self::META_ITEM_ORDER, $seq ); // simple sequence on section, optional
+			update_term_meta( $tid, self::META_SECTION_ORDER, $seq );
+
 		}
 
 		return rest_ensure_response( [ 'ok' => true ] );
