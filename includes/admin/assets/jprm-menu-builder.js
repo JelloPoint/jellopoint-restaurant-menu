@@ -123,6 +123,8 @@
       const startDepth=parseInt($item.attr('data-depth'),10)||0;
       const $helper=$('<div class="jprm-helper-group">');
       $helper.append($item.clone());
+
+      // capture and hide the entire block following the section (descendants)
       const block=[]; let $next=$item.next();
       while($next.length){
         const d=parseInt($next.attr('data-depth'),10)||0;
@@ -135,32 +137,11 @@
         } else break;
       }
       $item.data('jprm-drag-block',block).data('jprm-start-depth',startDepth);
-      $helper.find('> li').each(function(){ const d=parseInt($(this).attr('data-depth'),10)||0; $(this).css('margin-left',(d*INDENT)+'px'); });
+      $helper.find('> li').each(function(){
+        const d=parseInt($(this).attr('data-depth'),10)||0;
+        $(this).css('margin-left',(d*INDENT)+'px');
+      });
       return $helper;
-    }
-
-    // NEW: keep placeholder at section boundaries only (never among items)
-    function snapPlaceholderForSection(ui){
-      const $ph = ui.placeholder;
-
-      // If next sibling is an item, push placeholder forward to the next section (or after last section)
-      let $next = $ph.next();
-      if ($next.length && $next.hasClass('is-item')) {
-        const $nextSection = $ph.nextAll('.jprm-section:first');
-        if ($nextSection.length) {
-          $ph.insertBefore($nextSection);
-        } else {
-          const $lastSection = $ph.parent().children('.jprm-section:last');
-          if ($lastSection.length) $ph.insertAfter($lastSection);
-        }
-      }
-
-      // If previous sibling is an item, pull placeholder back until previous is a section or start
-      let $prev = $ph.prev();
-      while ($prev.length && $prev.hasClass('is-item')) {
-        $ph.insertBefore($prev);
-        $prev = $ph.prev();
-      }
     }
 
     function enforceItemDepth(ui){
@@ -176,9 +157,12 @@
       applyIndent(ui.placeholder, sectionDepth+1);
     }
 
+    // the default selector (sections + items)
+    const DEFAULT_ITEMS = '> li.jprm-section, > li.is-item';
+
     $ul.sortable({
       placeholder:'jprm-placeholder',
-      items: '> li.jprm-section, > li.is-item',
+      items: DEFAULT_ITEMS,
       handle: '.jprm-handle',
       tolerance:'pointer',
       forcePlaceholderSize:true,
@@ -191,7 +175,13 @@
         drag={ startX:e.pageX, startDepth, isSection, $item:ui.item };
         ui.placeholder.height(ui.item.outerHeight());
         applyIndent(ui.placeholder,startDepth);
-        if(isSection){ snapPlaceholderForSection(ui); } else { enforceItemDepth(ui); }
+
+        if(isSection){
+          // **Critical**: while dragging a section, only sections are sortable targets
+          $ul.sortable('option','items','> li.jprm-section');
+        } else {
+          enforceItemDepth(ui);
+        }
       },
 
       sort:function(e,ui){
@@ -200,19 +190,34 @@
           const deltaX=e.pageX-drag.startX;
           let newDepth=drag.startDepth+Math.round(deltaX/INDENT);
           newDepth=clampDepth(newDepth,ui.placeholder);
-          snapPlaceholderForSection(ui);   // keep boundary on every move
           applyIndent(ui.placeholder,newDepth);
+          // no need to snap; items aren't valid targets during section drag
         } else {
           enforceItemDepth(ui);
         }
       },
 
-      beforeStop:function(e,ui){ applyIndent(ui.item, parseInt(ui.placeholder.attr('data-depth'),10)||0 ); },
+      beforeStop:function(e,ui){
+        applyIndent(ui.item, parseInt(ui.placeholder.attr('data-depth'),10)||0 );
+      },
+
       stop:function(e,ui){
         $('body').removeClass('jprm-sorting');
+
         if(drag && drag.isSection){
+          // restore default targets
+          $ul.sortable('option','items', DEFAULT_ITEMS);
+
+          // re-attach the hidden descendants block immediately after the section
           const block=ui.item.data('jprm-drag-block')||[];
-          if(block.length){ for(let i=0;i<block.length;i++){ const $n=$(block[i]); $n.css('display',$n.data('jprm-old-display')||''); $n.removeClass('jprm-drag-hidden'); $n.insertAfter(ui.item); } }
+          if(block.length){
+            for(let i=0;i<block.length;i++){
+              const $n=$(block[i]);
+              $n.css('display',$n.data('jprm-old-display')||'');
+              $n.removeClass('jprm-drag-hidden');
+              $n.insertAfter(ui.item);
+            }
+          }
           ui.item.removeData('jprm-drag-block jprm-start-depth');
         }
         drag=null;
@@ -220,7 +225,7 @@
     });
   }
 
-  /* ---------- Collapse / Expand (sync both buttons) ---------- */
+  /* ---------- Collapse / Expand ---------- */
   function setToggleAllLabel(collapsed){
     $('.jprm-toggle-all').text(collapsed ? 'Expand all' : 'Collapse all')
                          .attr('data-collapsed', collapsed ? '1' : '0');
