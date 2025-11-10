@@ -16,10 +16,10 @@ class Sections_Admin {
 		add_action( 'manage_' . self::TAX_SECTION . '_custom_column',         [ __CLASS__, 'print_column' ], 10, 3 );
 		add_filter( 'manage_edit-' . self::TAX_SECTION . '_sortable_columns', [ __CLASS__, 'sortable_columns' ] );
 
-		// Toolbar filter (server-side, inside the list-table form)
+		// Toolbar filter (server-side in the real list table form)
 		add_action( 'restrict_manage_terms', [ __CLASS__, 'toolbar_filter' ], 10, 1 );
 
-		// Query shaping (tree vs flat, filter, sort)
+		// Query shaping: tree vs flat, filter, sort
 		add_action( 'pre_get_terms', [ __CLASS__, 'shape_terms_query' ] );
 
 		// Add/Edit fields (Owner Menu)
@@ -30,8 +30,8 @@ class Sections_Admin {
 		add_action( 'created_' . self::TAX_SECTION, [ __CLASS__, 'save_on_create' ], 10, 2 );
 		add_action( 'edited_'  . self::TAX_SECTION, [ __CLASS__, 'save_on_edit' ],   10, 2 );
 
-		// UI polish + robust dropdown behaviour (URL rewrite on change)
-		add_action( 'admin_head-edit-tags.php', [ __CLASS__, 'admin_head_assets' ] );
+		// Small CSS polish
+		add_action( 'admin_head-edit-tags.php', [ __CLASS__, 'admin_head_css' ] );
 	}
 
 	/* ================= Columns ================= */
@@ -47,7 +47,7 @@ class Sections_Admin {
 		}
 		if ( ! isset( $new['jprm_menu'] ) )  $new['jprm_menu']  = __( 'Menu',  'jprm' );
 		if ( ! isset( $new['jprm_order'] ) ) $new['jprm_order'] = __( 'Order', 'jprm' );
-		if ( isset( $new['slug'] ) ) unset( $new['slug'] ); // cleaner UI
+		if ( isset( $new['slug'] ) ) unset( $new['slug'] );
 		return $new;
 	}
 
@@ -71,7 +71,7 @@ class Sections_Admin {
 		}
 	}
 
-	/* ================= Toolbar filter (dropdown) ================= */
+	/* ================= Toolbar filter ================= */
 
 	public static function toolbar_filter( $taxonomy ) : void {
 		if ( $taxonomy !== self::TAX_SECTION ) return;
@@ -86,7 +86,7 @@ class Sections_Admin {
 
 		echo '<div class="alignleft actions jprm-filter-wrap">';
 		echo '<label class="screen-reader-text" for="jprm_filter_menu">' . esc_html__( 'Filter by Menu', 'jprm' ) . '</label>';
-		echo '<select name="jprm_filter_menu" id="jprm_filter_menu" class="postform">';
+		echo '<select name="jprm_filter_menu" id="jprm_filter_menu" class="postform" onchange="this.form.submit()">';
 		echo '<option value="0">' . esc_html__( 'All Menus', 'jprm' ) . '</option>';
 		if ( ! is_wp_error( $menus ) ) {
 			foreach ( $menus as $m ) {
@@ -102,7 +102,7 @@ class Sections_Admin {
 		echo '</div>';
 	}
 
-	/* ================= Query shaping (tree vs flat, filter, sort) ================= */
+	/* ================= Query shaping ================= */
 
 	public static function shape_terms_query( \WP_Term_Query $q ) : void {
 		if ( ! is_admin() ) return;
@@ -110,42 +110,47 @@ class Sections_Admin {
 		$taxonomies = (array) ( $q->query_vars['taxonomy'] ?? [] );
 		if ( ! in_array( self::TAX_SECTION, $taxonomies, true ) ) return;
 
-		// Read menu param robustly
+		// Read the filter robustly
 		$menu_id = 0;
 		if ( isset( $_GET['jprm_filter_menu'] ) ) { // phpcs:ignore
 			$menu_id = (int) $_GET['jprm_filter_menu']; // phpcs:ignore
-		} elseif ( isset( $_REQUEST['jprm_filter_menu'] ) ) { // fallback
+		} elseif ( isset( $_REQUEST['jprm_filter_menu'] ) ) {
 			$menu_id = (int) $_REQUEST['jprm_filter_menu']; // phpcs:ignore
 		}
 
 		$orderby = isset( $_GET['orderby'] ) ? (string) $_GET['orderby'] : '';              // phpcs:ignore
 		$order   = isset( $_GET['order'] )   ? strtoupper( (string) $_GET['order'] ) : 'ASC'; // phpcs:ignore
 
-		// Default: TREE (no menu filter) — also reset any lingering orderby to name
-		if ( $menu_id <= 0 ) {
+		// Default: TREE (no menu filter and not explicitly sorting by order)
+		if ( $menu_id <= 0 && $orderby !== 'jprm_order' ) {
 			$q->query_vars['hierarchical'] = true;
-			$q->query_vars['meta_query']   = [];
+			$q->query_vars['orderby']      = 'name';
+			$q->query_vars['order']        = 'ASC';
 			unset( $q->query_vars['meta_key'] );
-			$q->query_vars['orderby'] = 'name';
-			$q->query_vars['order']   = 'ASC';
+			$q->query_vars['meta_query'] = [];
 			return;
 		}
 
-		// Flat list when a filter is applied (reliable for meta filtering)
+		// Flat list when filtering or sorting by "Order"
 		$q->query_vars['hierarchical'] = false;
 		$q->query_vars['hide_empty']   = false;
 
-		// Filter by owner meta
-		$mq   = (array) ( $q->query_vars['meta_query'] ?? [] );
-		$mq[] = [ 'key' => self::META_MENU_OWNER, 'value' => (string) $menu_id ];
-		$q->query_vars['meta_query'] = $mq;
+		// Filter by owner when a menu is selected
+		if ( $menu_id > 0 ) {
+			$mq   = (array) ( $q->query_vars['meta_query'] ?? [] );
+			$mq[] = [ 'key' => self::META_MENU_OWNER, 'value' => (string) $menu_id ];
+			$q->query_vars['meta_query'] = $mq;
 
-		// Sorting: default by section order unless user clicked "Order"
-		if ( $orderby !== 'jprm_order' ) {
-			$q->query_vars['meta_key'] = self::META_SECTION_ORDER;
-			$q->query_vars['orderby']  = 'meta_value_num';
-			$q->query_vars['order']    = 'ASC';
-		} else {
+			// Default sort by section order unless user clicked "Order"
+			if ( $orderby !== 'jprm_order' ) {
+				$q->query_vars['meta_key'] = self::META_SECTION_ORDER;
+				$q->query_vars['orderby']  = 'meta_value_num';
+				$q->query_vars['order']    = 'ASC';
+			}
+		}
+
+		// If sorting by the "Order" column
+		if ( $orderby === 'jprm_order' ) {
 			$q->query_vars['meta_key'] = self::META_SECTION_ORDER;
 			$q->query_vars['orderby']  = 'meta_value_num';
 			$q->query_vars['order']    = ( $order === 'DESC' ) ? 'DESC' : 'ASC';
@@ -202,7 +207,6 @@ class Sections_Admin {
 		$term  = get_term( $term_id, self::TAX_SECTION );
 		if ( ! $term || is_wp_error( $term ) ) return;
 
-		// Inherit from parent if any
 		if ( $term->parent ) {
 			$po = (int) get_term_meta( $term->parent, self::META_MENU_OWNER, true );
 			if ( $po ) $owner = $po;
@@ -217,7 +221,6 @@ class Sections_Admin {
 		$chosen = isset( $_POST['jprm_owner_menu'] ) ? (int) $_POST['jprm_owner_menu'] : 0; // phpcs:ignore
 		$final  = $chosen;
 
-		// If parent exists, force inheritance
 		if ( $term->parent ) {
 			$po = (int) get_term_meta( $term->parent, self::META_MENU_OWNER, true );
 			if ( $po ) $final = $po;
@@ -246,55 +249,16 @@ class Sections_Admin {
 		}
 	}
 
-	/* ================= UI polish + robust dropdown behaviour ================= */
+	/* ================= UI polish ================= */
 
-	public static function admin_head_assets() : void {
+	public static function admin_head_css() : void {
 		$tax = isset( $_GET['taxonomy'] ) ? sanitize_key( $_GET['taxonomy'] ) : ''; // phpcs:ignore
 		if ( $tax !== self::TAX_SECTION ) return;
-
-		// CSS
 		echo '<style>
 			.taxonomy-' . esc_attr( self::TAX_SECTION ) . ' .form-field.term-slug-wrap,
 			.taxonomy-' . esc_attr( self::TAX_SECTION ) . ' .term-slug-wrap { display:none!important; }
 			.fixed .column-jprm_order{ width:90px; text-align:right; }
 			.jprm-filter-wrap { margin-right: 8px; }
 		</style>';
-
-		// JS: rewrite URL on change (guarantees param delivery), and clear paged.
-		?>
-		<script>
-		(function(){
-		  function onChangeGo(){
-		    var sel = document.getElementById('jprm_filter_menu');
-		    if (!sel) return;
-		    sel.addEventListener('change', function(){
-		      var url = new URL(window.location.href);
-		      url.searchParams.set('jprm_filter_menu', this.value || '0');
-		      // reset pagination and (optionally) orderby when switching to All Menus to restore the tree
-		      url.searchParams.delete('paged');
-		      if (this.value === '0') {
-		        url.searchParams.delete('orderby');
-		        url.searchParams.delete('order');
-		      }
-		      window.location.assign(url.toString());
-		    });
-		  }
-		  // Fallback injector if some admin theme didn’t render our select in restrict_manage_terms
-		  function ensureSelect(){
-		    if (document.getElementById('jprm_filter_menu')) return;
-		    var form = document.getElementById('posts-filter');
-		    if (!form) return;
-		    var top = form.querySelector('.tablenav.top .actions') || form.querySelector('.tablenav.top');
-		    if (!top) return;
-		    // Build options server-side-evaluated (PHP printed nothing here to keep it simple)
-		    // If you ever need it, we can echo options here too.
-		  }
-		  document.addEventListener('DOMContentLoaded', function(){
-		    ensureSelect();
-		    onChangeGo();
-		  });
-		})();
-		</script>
-		<?php
 	}
 }
