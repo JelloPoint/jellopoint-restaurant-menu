@@ -77,6 +77,9 @@ if ( is_admin() ) {
 	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-menus-admin.php';
 	\JelloPoint\RestaurantMenu\Admin\Menus_Admin::init();
 
+	// includes/admin/admin.php (or similar)
+	require_once JPRM_PLUGIN_PATH . '/class-jprm-sections-admin-order.php';
+
 	// Sections UX helpers
 	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-sections-ux.php';
 	\JelloPoint\RestaurantMenu\Admin\Sections_UX::init();

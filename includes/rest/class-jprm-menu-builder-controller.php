@@ -148,40 +148,39 @@ class Menu_Builder_Controller extends \WP_REST_Controller {
 	 * ============================================================ */
 
 	public function get_sections( $request ) {
-	$menu_id = (int) $request['menu_id'];
-	if ( $menu_id <= 0 ) {
-		return new \WP_Error( 'jprm_bad_menu', __( 'Missing or invalid menu_id.', 'jprm' ), [ 'status' => 400 ] );
-	}
+$menu_id = (int) $request['menu_id'];
+if ( $menu_id <= 0 ) {
+	return new \WP_Error( 'jprm_bad_menu', __( 'Missing or invalid menu_id.', 'jprm' ), [ 'status' => 400 ] );
+}
 
-	$terms = get_terms( [ 'taxonomy' => self::TAX_SECTION, 'hide_empty' => false ] );
-	if ( is_wp_error( $terms ) ) {
-		return new \WP_Error( 'jprm_terms_err', $terms->get_error_message(), [ 'status' => 500 ] );
-	}
+$terms = get_terms( [
+	'taxonomy'   => self::TAX_SECTION,
+	'hide_empty' => false,
+	'meta_query' => [
+		[ 'key' => self::META_MENU_OWNER, 'value' => (string) $menu_id ],
+	],
+	'meta_key'   => self::META_SECTION_ORDER,
+	'orderby'    => 'meta_value_num',
+	'order'      => 'ASC',
+] );
 
-	$list = [];
-	foreach ( $terms as $t ) {
-		$owner = (int) get_term_meta( $t->term_id, self::META_MENU_OWNER, true );
-		if ( $owner !== $menu_id ) continue;
+if ( is_wp_error( $terms ) ) {
+	return new \WP_Error( 'jprm_terms_err', $terms->get_error_message(), [ 'status' => 500 ] );
+}
 
-		$ord = get_term_meta( $t->term_id, self::META_SECTION_ORDER, true );
-		$list[] = [
-			'id'         => (int) $t->term_id,
-			'title'      => (string) $t->name,
-			'parent_id'  => (int) $t->parent,
-			'order'      => ( $ord !== '' && $ord !== null ) ? (int) $ord : PHP_INT_MAX, // unordered go to end
-		];
-	}
+$list = [];
+foreach ( $terms as $t ) {
+	$list[] = [
+		'id'        => (int) $t->term_id,
+		'title'     => (string) $t->name,
+		'parent_id' => (int) $t->parent,
+		'order'     => (int) get_term_meta( $t->term_id, self::META_SECTION_ORDER, true ),
+		'owner'     => (int) get_term_meta( $t->term_id, self::META_MENU_OWNER, true ),
+	];
+}
 
-	usort( $list, static function( $a, $b ) {
-		$oa = $a['order'] ?? PHP_INT_MAX;
-		$ob = $b['order'] ?? PHP_INT_MAX;
-		if ( $oa === $ob ) {
-			return strcasecmp( (string) $a['title'], (string) $b['title'] );
-		}
-		return $oa <=> $ob;
-	} );
+return rest_ensure_response( [ 'sections' => $list ] );
 
-	return rest_ensure_response( [ 'sections' => $list ] );
 }
 
 
@@ -229,57 +228,63 @@ class Menu_Builder_Controller extends \WP_REST_Controller {
 	}
 
 	public function save_sections_order( $request ) {
-		$menu_id = (int) $request['menu_id'];
-		$flat    = (array) $request['tree']; // [{id, parent_id, order}]
+$menu_id = (int) $request['menu_id'];
+$flat    = (array) $request['tree']; // [{id, parent_id, order}]
 
-		if ( $menu_id <= 0 || ! is_array( $flat ) ) {
-			return new \WP_Error( 'jprm_bad_params', __( 'menu_id and tree are required.', 'jprm' ), [ 'status' => 400 ] );
-		}
+if ( $menu_id <= 0 || ! is_array( $flat ) ) {
+	return new \WP_Error( 'jprm_bad_params', __( 'menu_id and tree are required.', 'jprm' ), [ 'status' => 400 ] );
+}
 
-		// Guard: all section IDs belong to this menu
-		foreach ( $flat as $row ) {
-			$tid = (int) ( $row['id'] ?? 0 );
-			if ( ! $tid ) continue;
-			$owner = (int) get_term_meta( $tid, self::META_MENU_OWNER, true );
-			if ( $owner !== $menu_id ) {
-				return new \WP_Error(
-					'jprm_cross_menu',
-					sprintf( __( 'Section %d belongs to another Menu and cannot be moved here.', 'jprm' ), $tid ),
-					[ 'status' => 400 ]
-				);
-			}
-		}
+// Guard: all sections in payload belong to this menu
+foreach ( $flat as $row ) {
+	$tid = (int) ( $row['id'] ?? 0 );
+	if ( ! $tid ) continue;
+	$owner = (int) get_term_meta( $tid, self::META_MENU_OWNER, true );
+	if ( $owner !== $menu_id ) {
+		return new \WP_Error(
+			'jprm_cross_menu',
+			sprintf( __( 'Section %d belongs to another Menu and cannot be moved here.', 'jprm' ), $tid ),
+			[ 'status' => 400 ]
+		);
+	}
+}
 
-		// Apply parents and ensure owner cascades
-		$seq = 0;
-		usort( $flat, static function( $a, $b ) {
-			$ao = (int) ( $a['order'] ?? 0 );
-			$bo = (int) ( $b['order'] ?? 0 );
-			return $ao <=> $bo;
-		});
+// Apply parents and write sequential order 1..N
+usort( $flat, static function( $a, $b ) {
+	return (int) ( $a['order'] ?? 0 ) <=> (int) ( $b['order'] ?? 0 );
+} );
 
-		foreach ( $flat as $row ) {
-			$tid   = (int) ( $row['id'] ?? 0 );
-			$pid   = (int) ( $row['parent_id'] ?? 0 );
-			if ( ! $tid ) continue;
+$seq     = 0;
+$touched = [];
 
-			// parent update
-			$term = get_term( $tid, self::TAX_SECTION );
-			if ( $term && ! is_wp_error( $term ) ) {
-				if ( (int) $term->parent !== $pid ) {
-					wp_update_term( $tid, self::TAX_SECTION, [ 'parent' => $pid ] );
-				}
-			}
+foreach ( $flat as $row ) {
+	$tid = (int) ( $row['id'] ?? 0 );
+	if ( ! $tid ) continue;
 
-			// cascade owner for this term (and its descendants)
-			$this->cascade_owner( $tid, $menu_id );
+	$pid  = (int) ( $row['parent_id'] ?? 0 );
+	$term = get_term( $tid, self::TAX_SECTION );
 
-			$seq++;
-			update_term_meta( $tid, self::META_SECTION_ORDER, $seq );
+	// Update parent if changed
+	if ( $term && ! is_wp_error( $term ) && (int) $term->parent !== $pid ) {
+		wp_update_term( $tid, self::TAX_SECTION, [ 'parent' => $pid ] );
+	}
 
-		}
+	// Ensure owner on this term (+ descendants)
+	$this->cascade_owner( $tid, $menu_id );
 
-		return rest_ensure_response( [ 'ok' => true ] );
+	// IMPORTANT: write order on the SECTION (term) meta:
+	$seq++;
+	update_term_meta( $tid, self::META_SECTION_ORDER, $seq );
+	$touched[] = $tid;
+}
+
+// Targeted cache clear only for changed terms
+if ( $touched ) {
+	clean_term_cache( $touched, self::TAX_SECTION );
+}
+
+return rest_ensure_response( [ 'ok' => true, 'count' => count( $touched ) ] );
+
 	}
 
 	public function unassign_section( $request ) {
@@ -358,35 +363,46 @@ class Menu_Builder_Controller extends \WP_REST_Controller {
 	}
 
 	public function save_items_order( $request ) {
-		$menu_id = (int) $request['menu_id'];
-		$items   = (array) $request['items']; // [{id,section_id,order}]
+$menu_id = (int) $request['menu_id'];
+$items   = (array) $request['items']; // [{id,section_id,order}]
 
-		if ( $menu_id <= 0 || ! is_array( $items ) ) {
-			return new \WP_Error( 'jprm_bad_params', __( 'menu_id and items are required.', 'jprm' ), [ 'status' => 400 ] );
-		}
+if ( $menu_id <= 0 || ! is_array( $items ) ) {
+	return new \WP_Error( 'jprm_bad_params', __( 'menu_id and items are required.', 'jprm' ), [ 'status' => 400 ] );
+}
 
-		foreach ( $items as $row ) {
-			$pid        = (int) ( $row['id'] ?? 0 );
-			$section_id = (int) ( $row['section_id'] ?? 0 );
-			$order      = (int) ( $row['order'] ?? 0 );
-			if ( ! $pid || ! $section_id ) continue;
+$changed_posts = [];
 
-			// Guard: section must belong to the menu
-			$owner = (int) get_term_meta( $section_id, self::META_MENU_OWNER, true );
-			if ( $owner !== $menu_id ) {
-				return new \WP_Error(
-					'jprm_cross_menu',
-					__( 'Cannot assign item to a section owned by another Menu.', 'jprm' ),
-					[ 'status' => 400 ]
-				);
-			}
+foreach ( $items as $row ) {
+	$pid        = (int) ( $row['id'] ?? 0 );
+	$section_id = (int) ( $row['section_id'] ?? 0 );
+	$order      = (int) ( $row['order'] ?? 0 );
+	if ( ! $pid || ! $section_id ) continue;
 
-			// Assign single section (replace any previous)
-			wp_set_post_terms( $pid, [ $section_id ], self::TAX_SECTION, false );
-			update_post_meta( $pid, self::META_ITEM_ORDER, $order );
-		}
+	// Guard: section must belong to the menu
+	$owner = (int) get_term_meta( $section_id, self::META_MENU_OWNER, true );
+	if ( $owner !== $menu_id ) {
+		return new \WP_Error(
+			'jprm_cross_menu',
+			__( 'Cannot assign item to a section owned by another Menu.', 'jprm' ),
+			[ 'status' => 400 ]
+		);
+	}
 
-		return rest_ensure_response( [ 'ok' => true ] );
+	// Assign section (single) and stamp the menu taxonomy (additive)
+	wp_set_post_terms( $pid, [ $section_id ], self::TAX_SECTION, false );
+	wp_set_post_terms( $pid, [ $menu_id ],   self::TAX_MENU,    true );
+
+	update_post_meta( $pid, self::META_ITEM_ORDER, $order );
+	$changed_posts[] = $pid;
+}
+
+// Targeted cache clear for changed posts
+foreach ( array_unique( $changed_posts ) as $p ) {
+	clean_post_cache( $p );
+}
+
+return rest_ensure_response( [ 'ok' => true, 'count' => count( $changed_posts ) ] );
+
 	}
 
 	public function assign_items_batch( $request ) {
