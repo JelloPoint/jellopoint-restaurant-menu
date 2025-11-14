@@ -163,41 +163,55 @@ class Sections_Admin {
 	public static function force_admin_order( $pieces, $taxonomies, $args ) : array {
 	if ( ! is_admin() ) return $pieces;
 
-	// Only our taxonomy on the admin list screen.
+	// Only our taxonomy on its admin screen.
 	if ( empty( $taxonomies ) || ! in_array( self::TAX_SECTION, (array) $taxonomies, true ) ) {
 		return $pieces;
 	}
-
-	// We only want to force this on the taxonomy management screen.
-	// get_current_screen() is safe in admin; guard in case it's null.
 	$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
 	if ( ! $screen || empty( $screen->taxonomy ) || $screen->taxonomy !== self::TAX_SECTION ) {
 		return $pieces;
 	}
 
-	// Read the selected Menu (toolbar filter).
-	$selected_menu = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
+	global $wpdb;
 
-	// We want: when a Menu is selected OR when the user clicked the "Order" header,
-	// force ORDER BY _jprm_section_order ASC, then name ASC to break ties.
-	$orderby_clicked = isset( $_GET['orderby'] ) && $_GET['orderby'] === 'jprm_order'; // phpcs:ignore
+	$selected_menu   = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
+	$orderby_clicked = isset( $_GET['orderby'] ) && $_GET['orderby'] === 'jprm_order';           // phpcs:ignore
 
-	if ( $selected_menu > 0 || $orderby_clicked ) {
-		global $wpdb;
+	// Always join the "order" meta so we can sort deterministically.
+	if ( strpos( $pieces['join'] ?? '', 'tm_sort' ) === false ) {
+		$meta_key_order = esc_sql( self::META_SECTION_ORDER );
+		$pieces['join'] .= " LEFT JOIN {$wpdb->termmeta} AS tm_sort
+			ON (tm_sort.term_id = t.term_id AND tm_sort.meta_key = '{$meta_key_order}')";
+	}
 
-		// Join the order meta explicitly under a stable alias.
-		if ( strpos( $pieces['join'] ?? '', 'tm_sort' ) === false ) {
-			$meta_key = esc_sql( self::META_SECTION_ORDER );
-			$pieces['join'] .= " LEFT JOIN {$wpdb->termmeta} AS tm_sort
-				ON (tm_sort.term_id = t.term_id AND tm_sort.meta_key = '{$meta_key}')";
+	// If a specific Menu is selected, ENFORCE the owner filter at SQL level (robust against other filters).
+	if ( $selected_menu > 0 ) {
+		if ( strpos( $pieces['join'] ?? '', 'tm_owner' ) === false ) {
+			$meta_key_owner = esc_sql( self::META_MENU_OWNER );
+			$pieces['join'] .= " INNER JOIN {$wpdb->termmeta} AS tm_owner
+				ON (tm_owner.term_id = t.term_id AND tm_owner.meta_key = '{$meta_key_owner}')";
 		}
 
-		// Enforce deterministic order: numeric meta ASC, then name.
+		// Add/extend WHERE so only rows with the selected owner show.
+		$where = $pieces['where'] ?? '';
+		$where .= $where ? ' ' : ' WHERE 1=1 ';
+		$where .= $wpdb->prepare( ' AND tm_owner.meta_value = %s ', (string) $selected_menu );
+		$pieces['where'] = $where;
+
+		// Force deterministic order when filtering by menu.
+		$pieces['orderby'] = " CAST(tm_sort.meta_value AS UNSIGNED) ASC, t.name ASC ";
+		return $pieces;
+	}
+
+	// No specific menu selected:
+	// If user clicked the "Order" column, still enforce the deterministic order.
+	if ( $orderby_clicked ) {
 		$pieces['orderby'] = " CAST(tm_sort.meta_value AS UNSIGNED) ASC, t.name ASC ";
 	}
 
 	return $pieces;
 }
+
 
 
 	/* ================= Add/Edit fields ================= */
