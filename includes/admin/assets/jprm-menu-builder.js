@@ -115,6 +115,58 @@
     initSortable($ul);
     setToggleAllLabel(false);
   }
+  // === PAYLOAD HELPERS (used by drag-stop and the Save button) ===
+  function buildTreeFromDOM(){
+    const stack = [], out = [];
+    $('#jprm-tree > li.jprm-section').each(function(idx){
+      const $li = $(this);
+      const id = parseInt($li.attr('data-id'),10);
+      const depth = parseInt($li.attr('data-depth'),10)||0;
+      stack.length = depth;
+      const parentId = depth>0 ? (stack[depth-1]||0) : 0;
+      out.push({ id, parent_id: parentId, order: idx });
+      stack[depth] = id;
+    });
+    return out;
+  }
+
+  function buildItemsPayloadFromDOM(){
+    const arr = [];
+    let currentSectionId = 0, order = -1;
+    $('#jprm-tree > li.jprm-item').each(function(){
+      const $li = $(this);
+      if ($li.hasClass('jprm-section')){
+        currentSectionId = parseInt($li.attr('data-id'),10);
+        order = -1;
+      } else if ($li.hasClass('is-item')){
+        const depth = parseInt($li.attr('data-depth'),10)||1;
+        if (depth < 1 || !currentSectionId) return;
+        order++;
+        const id = parseInt($li.attr('data-id'),10);
+        arr.push({ id, section_id: currentSectionId, order });
+      }
+    });
+    return arr;
+  }
+  function persistSectionsOnly(){
+    if(!state.currentMenu) return;
+    const tree = buildTreeFromDOM();
+    // silent save (no spinner during drag)
+    apiPost('menu-builder/sections/order', { tree, menu_id: state.currentMenu })
+      .then(()=> loadSections().then(()=>{ // normalise depths/parents
+        renderList();
+        // don't auto-expand; keep current view stable
+        setToggleAllLabel(false);
+      }))
+      .fail(x => toast(apiFailToMessage(x)));
+  }
+
+  function persistItemsOnly(){
+    if(!state.currentMenu) return;
+    const items = buildItemsPayloadFromDOM();
+    apiPost('menu-builder/items/order', { menu_id: state.currentMenu, items })
+      .fail(x => toast(apiFailToMessage(x)));
+  }
 
   function initSortable($ul){
     try{ $ul.sortable('destroy'); }catch(e){}
@@ -209,7 +261,7 @@
           $ul.sortable('option','items', DEFAULT_ITEMS);
 
           // re-attach the hidden descendants block immediately after the section
-          const block=ui.item.data('jprm-drag-block')||[];
+          const block = ui.item.data('jprm-drag-block') || [];
           if(block.length){
             for(let i=0;i<block.length;i++){
               const $n=$(block[i]);
@@ -219,9 +271,16 @@
             }
           }
           ui.item.removeData('jprm-drag-block jprm-start-depth');
+
+          // save ONLY sections (parents + order)
+          persistSectionsOnly();
+        } else {
+          // save ONLY items (section assignment + order)
+          persistItemsOnly();
         }
         drag=null;
       }
+
     });
   }
 
@@ -294,27 +353,11 @@
       .always(()=>setLoading(false));
   });
 
-  $('#jprm-save').on('click',function(){
+   $('#jprm-save').on('click',function(){
     if(!state.currentMenu) return toast('Select a Menu first.');
 
-    const tree=(function(){
-      const stack=[], out=[];
-      $('#jprm-tree > li.jprm-section').each(function(idx){
-        const $li=$(this), id=parseInt($li.attr('data-id'),10), depth=parseInt($li.attr('data-depth'),10)||0;
-        stack.length=depth; const parentId=depth>0?(stack[depth-1]||0):0; out.push({id, parent_id:parentId, order:idx}); stack[depth]=id;
-      });
-      return out;
-    })();
-
-    const itemsPayload=(function(){
-      const arr=[]; let currentSectionId=0, order=-1;
-      $('#jprm-tree > li.jprm-item').each(function(){
-        const $li=$(this);
-        if($li.hasClass('jprm-section')){ currentSectionId=parseInt($li.attr('data-id'),10); order=-1; }
-        else if($li.hasClass('is-item')){ const depth=parseInt($li.attr('data-depth'),10)||1; if(depth<1||!currentSectionId) return; order++; const id=parseInt($li.attr('data-id'),10); arr.push({id, section_id:currentSectionId, order}); }
-      });
-      return arr;
-    })();
+    const tree = buildTreeFromDOM();
+    const itemsPayload = buildItemsPayloadFromDOM();
 
     setLoading(true);
     apiPost('menu-builder/sections/order',{tree,menu_id:state.currentMenu})
