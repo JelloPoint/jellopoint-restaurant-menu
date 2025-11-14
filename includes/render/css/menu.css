@@ -376,3 +376,6 @@
   opacity: .8; /* optional */
   transform: translateY(-0.08em); /* aligns with text baseline a bit nicer */
 }
+.jp-menu__inner { display:flex; align-items:baseline; gap:.5rem; }
+.jp-menu__content { display:flex; flex-direction:column; }
+.jp-leader { flex:1 1 auto; min-width:12px; }
