@@ -160,7 +160,7 @@ class Sections_Admin {
 		}
 	}
 
-	public static function force_admin_order( $pieces, $taxonomies, $args ) : array {
+public static function force_admin_order( $pieces, $taxonomies, $args ) : array {
 	if ( ! is_admin() ) return $pieces;
 
 	// Only on our taxonomy screen.
@@ -231,7 +231,7 @@ class Sections_Admin {
 		}
 	}
 
-	// --- Quick debug switch (optional) ---
+	// Optional debug: append &jprm_dbg=1 to the URL to dump final clauses.
 	if ( isset( $_GET['jprm_dbg'] ) && $_GET['jprm_dbg'] === '1' ) { // phpcs:ignore
 		error_log('[JPRM terms_clauses] WHERE=' . ($pieces['where'] ?? '(none)'));
 		error_log('[JPRM terms_clauses] JOIN='  . ($pieces['join']  ?? '(none)'));
@@ -241,7 +241,6 @@ class Sections_Admin {
 
 	return $pieces;
 }
-
 
 	// "All Menus" view:
 	// If user clicked the "Order" column, enforce deterministic order globally.
