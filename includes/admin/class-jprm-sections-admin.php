@@ -163,7 +163,7 @@ class Sections_Admin {
 	public static function force_admin_order( $pieces, $taxonomies, $args ) : array {
 	if ( ! is_admin() ) return $pieces;
 
-	// Only our taxonomy on its admin screen.
+	// Only run on the jprm_section admin screen.
 	if ( empty( $taxonomies ) || ! in_array( self::TAX_SECTION, (array) $taxonomies, true ) ) {
 		return $pieces;
 	}
@@ -184,7 +184,7 @@ class Sections_Admin {
 			ON (tm_sort.term_id = t.term_id AND tm_sort.meta_key = '{$meta_key_order}')";
 	}
 
-	// If a specific Menu is selected, ENFORCE the owner filter at SQL level (robust against other filters).
+	// If a specific Menu is selected, ENFORCE the owner filter at SQL level.
 	if ( $selected_menu > 0 ) {
 		if ( strpos( $pieces['join'] ?? '', 'tm_owner' ) === false ) {
 			$meta_key_owner = esc_sql( self::META_MENU_OWNER );
@@ -192,25 +192,41 @@ class Sections_Admin {
 				ON (tm_owner.term_id = t.term_id AND tm_owner.meta_key = '{$meta_key_owner}')";
 		}
 
-		// Add/extend WHERE so only rows with the selected owner show.
+		// WHERE safety: keep only our taxonomy and the chosen owner.
 		$where = $pieces['where'] ?? '';
 		$where .= $where ? ' ' : ' WHERE 1=1 ';
+		$where .= $wpdb->prepare( ' AND tt.taxonomy = %s ', self::TAX_SECTION );
 		$where .= $wpdb->prepare( ' AND tm_owner.meta_value = %s ', (string) $selected_menu );
 		$pieces['where'] = $where;
 
-		// Force deterministic order when filtering by menu.
+		// Group to avoid rows getting swallowed by duplicate meta joins.
+		if ( empty( $pieces['groupby'] ) ) {
+			$pieces['groupby'] = ' t.term_id ';
+		} elseif ( strpos( $pieces['groupby'], 't.term_id' ) === false ) {
+			$pieces['groupby'] .= ', t.term_id';
+		}
+
+		// Deterministic order for the filtered view.
 		$pieces['orderby'] = " CAST(tm_sort.meta_value AS UNSIGNED) ASC, t.name ASC ";
+
 		return $pieces;
 	}
 
-	// No specific menu selected:
-	// If user clicked the "Order" column, still enforce the deterministic order.
+	// "All Menus" view:
+	// If user clicked the "Order" column, enforce deterministic order globally.
 	if ( $orderby_clicked ) {
+		// Grouping also prevents duplicate rows when other plugins add meta joins.
+		if ( empty( $pieces['groupby'] ) ) {
+			$pieces['groupby'] = ' t.term_id ';
+		} elseif ( strpos( $pieces['groupby'], 't.term_id' ) === false ) {
+			$pieces['groupby'] .= ', t.term_id';
+		}
 		$pieces['orderby'] = " CAST(tm_sort.meta_value AS UNSIGNED) ASC, t.name ASC ";
 	}
 
 	return $pieces;
 }
+
 
 
 
