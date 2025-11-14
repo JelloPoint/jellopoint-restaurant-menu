@@ -82,7 +82,7 @@ if ( is_admin() ) {
 	\JelloPoint\RestaurantMenu\Admin\Sections_UX::init();
 
 	// Debug (admin-only tools)
-	require_once JPRM_PLUGIN_PATH . 'includes/debug/class-inspector.php';
+	// require_once JPRM_PLUGIN_PATH . 'includes/debug/class-inspector.php';
 
 	// Optional debug addon if present
 	/*if ( file_exists( JPRM_PLUGIN_PATH . 'includes/debug/inspector-badges.php' ) ) {

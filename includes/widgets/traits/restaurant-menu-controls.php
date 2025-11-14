@@ -309,6 +309,19 @@ trait Restaurant_Menu_Controls {
 			'prefix_class' => 'jprm-labelpos-',
 		] );
 
+		// --- Inline leader (title ↔ price) ------------------------------------------
+		$this->add_control( 'inline_leader_enable', [
+			'label'        => __( 'Leader between Title and Price', 'jprm' ),
+			'type'         => \Elementor\Controls_Manager::SWITCHER,
+			'label_on'     => __( 'Show', 'jprm' ),
+			'label_off'    => __( 'Hide', 'jprm' ),
+			'return_value' => 'yes',
+			'default'      => '',
+			// only makes sense for the Inline template
+			'condition'    => [ 'labels_layout' => 'inline' ],
+		]);
+
+
 		$this->end_controls_section();
 
 		/* --- Labels Layout ------------------------------------------------------ */

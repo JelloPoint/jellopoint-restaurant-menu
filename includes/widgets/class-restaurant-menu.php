@@ -164,7 +164,7 @@ if ( function_exists( 'jprm_render_badges_inline_html' ) ) {
 		$show_badges         = ( isset( $s['show_badges'] ) && $s['show_badges'] === 'yes' );
 		$badges_presentation = isset( $s['badges_presentation'] ) ? (string) $s['badges_presentation'] : 'icon_text';
 		$badges_position     = isset( $s['badges_position'] ) ? (string) $s['badges_position'] : 'after';
-
+		$inline_leader_enable = ( ! empty( $s['inline_leader_enable'] ) && $s['inline_leader_enable'] === 'yes' );
 		$currency_opts = [
 			'show'     => ( isset( $s['jprm_curr_show'] ) && $s['jprm_curr_show'] === 'yes' ),
 			'symbol'   => (string) ( $s['jprm_curr_symbol']   ?? '€' ),
@@ -316,6 +316,7 @@ foreach ( $overrides as $ov ) {
 			'label_position'      => $label_position,
 			'label_map'           => $label_map,
 			'currency_opts'       => $currency_opts,
+			'inline_leader_enable' => $inline_leader_enable,
 			'split_mode'          => $split_mode,
 			'split_after_1'       => $split_after_1,
 			'split_after_2'       => $split_after_2,

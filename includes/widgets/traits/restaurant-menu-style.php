@@ -946,6 +946,61 @@ $this->add_responsive_control(
     ]
 );
 
+// === Leader (Inline template) ===============================================
+$this->add_control( 'inline_leader_hr', [
+    'type'      => \Elementor\Controls_Manager::DIVIDER,
+    'condition' => [
+        'labels_layout'        => 'inline',
+        'inline_leader_enable' => 'yes',
+    ],
+]);
+
+$this->add_control( 'inline_leader_style', [
+    'label'     => __( 'Leader Style', 'jprm' ),
+    'type'      => \Elementor\Controls_Manager::SELECT,
+    'default'   => 'dotted',
+    'options'   => [
+        'dotted' => __( 'Dotted', 'jprm' ),
+        'dashed' => __( 'Dashed', 'jprm' ),
+        'solid'  => __( 'Solid',  'jprm' ),
+    ],
+    'selectors' => [
+        '{{WRAPPER}} .jp-layout-inline .jp-leader' => 'border-bottom-style: {{VALUE}};',
+    ],
+    'condition' => [
+        'labels_layout'        => 'inline',
+        'inline_leader_enable' => 'yes',
+    ],
+]);
+
+$this->add_control( 'inline_leader_color', [
+    'label'     => __( 'Leader Color', 'jprm' ),
+    'type'      => \Elementor\Controls_Manager::COLOR,
+    'selectors' => [
+        '{{WRAPPER}} .jp-layout-inline .jp-leader' => 'border-bottom-color: {{VALUE}};',
+    ],
+    'condition' => [
+        'labels_layout'        => 'inline',
+        'inline_leader_enable' => 'yes',
+    ],
+]);
+
+$this->add_responsive_control( 'inline_leader_thickness', [
+    'label'      => __( 'Leader Thickness', 'jprm' ),
+    'type'       => \Elementor\Controls_Manager::SLIDER,
+    'size_units' => [ 'px' ],
+    'range'      => [ 'px' => [ 'min' => 1, 'max' => 6 ] ],
+    'default'    => [ 'size' => 1, 'unit' => 'px' ],
+    'selectors'  => [
+        '{{WRAPPER}} .jp-layout-inline .jp-leader' => 'border-bottom-width: {{SIZE}}{{UNIT}};',
+    ],
+    'condition'  => [
+        'labels_layout'        => 'inline',
+        'inline_leader_enable' => 'yes',
+    ],
+]);
+
+
 $this->end_controls_section();
 
 
