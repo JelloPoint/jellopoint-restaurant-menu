@@ -160,63 +160,64 @@ class Sections_Admin {
 	}
 
 public static function force_admin_order( $pieces, $taxonomies, $args ) : array {
-	// Admin only.
+	// Only run on the jprm_section terms list screen in wp-admin.
 	if ( ! is_admin() ) return $pieces;
 
-	// Decide target taxonomy robustly.
-	$taxes    = (array) $taxonomies;
-	$url_tax  = isset($_GET['taxonomy']) ? sanitize_key($_GET['taxonomy']) : ''; // phpcs:ignore
-	$where_tx = '';
-	if ( ! empty( $pieces['where'] ) && preg_match("/tt\\.taxonomy\\s+IN\\s*\\('(.*?)'\\)/", $pieces['where'], $m) ) {
-		$where_tx = strtolower($m[1] ?? '');
+	$screen = function_exists('get_current_screen') ? get_current_screen() : null;
+	if ( ! $screen || empty($screen->taxonomy) || $screen->taxonomy !== self::TAX_SECTION ) {
+		return $pieces; // do NOT touch other taxonomies (e.g., jprm_menu, wp_theme)
 	}
-	$for_sections = in_array( self::TAX_SECTION, $taxes, true ) || $url_tax === self::TAX_SECTION || $where_tx === self::TAX_SECTION;
-	if ( ! $for_sections ) return $pieces;
+
+	// Only if the queried taxonomy actually includes jprm_section.
+	$taxes = is_array($taxonomies) ? $taxonomies : [];
+	if ( ! in_array( self::TAX_SECTION, $taxes, true ) ) {
+		return $pieces;
+	}
 
 	global $wpdb;
 
-	$selected_menu   = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
-	$orderby_clicked = isset( $_GET['orderby'] ) && $_GET['orderby'] === 'jprm_order';           // phpcs:ignore
+	$selected_menu   = isset($_GET['jprm_filter_menu']) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
+	$orderby_clicked = ( isset($_GET['orderby']) && $_GET['orderby'] === 'jprm_order' );      // phpcs:ignore
 
-	// Are we in a COUNT(*) pass? If so, don't inject ORDER BY (Core doesn't add ORDER BY for count).
-	$is_count = isset( $args['fields'] ) && $args['fields'] === 'count';
+	// COUNT(*) passes must never receive ORDER BY injections (Core doesn't add one there).
+	$is_count = ( isset($args['fields']) && $args['fields'] === 'count' );
 
-	// Always join order meta so we can order deterministically later (safe for non-count).
-	if ( ! $is_count && strpos( $pieces['join'] ?? '', 'tm_sort' ) === false ) {
-		$meta_key_order = esc_sql( self::META_SECTION_ORDER );
+	// Always have the ORDER meta available when we plan to order (non-count only).
+	if ( ! $is_count && strpos($pieces['join'] ?? '', 'tm_sort') === false ) {
+		$meta_key_order = esc_sql(self::META_SECTION_ORDER);
 		$pieces['join'] .= " LEFT JOIN {$wpdb->termmeta} AS tm_sort
 			ON (tm_sort.term_id = t.term_id AND tm_sort.meta_key = '{$meta_key_order}')";
 	}
 
 	// If a specific Menu is selected, filter by owner meta value.
 	if ( $selected_menu > 0 ) {
-		// LEFT JOIN owner meta, then filter in WHERE.
-		if ( strpos( $pieces['join'] ?? '', 'tm_owner' ) === false ) {
-			$meta_key_owner = esc_sql( self::META_MENU_OWNER );
+		if ( strpos($pieces['join'] ?? '', 'tm_owner') === false ) {
+			$meta_key_owner = esc_sql(self::META_MENU_OWNER);
 			$pieces['join'] .= " LEFT JOIN {$wpdb->termmeta} AS tm_owner
 				ON (tm_owner.term_id = t.term_id AND tm_owner.meta_key = '{$meta_key_owner}')";
 		}
 
-		// Append WHERE safely.
+		// WHERE
 		$where = $pieces['where'] ?? '';
 		if ( $where === '' ) $where = ' WHERE 1=1 ';
-		$where .= $wpdb->prepare( ' AND tm_owner.meta_value = %s ', (string) $selected_menu );
+		$where .= $wpdb->prepare(' AND tm_owner.meta_value = %s ', (string) $selected_menu);
 		$pieces['where'] = $where;
 
-		// Deduplicate rows if other joins exist.
-		if ( empty( $pieces['groupby'] ) ) {
+		// De-duplicate rows when joins exist.
+		if ( empty($pieces['groupby']) ) {
 			$pieces['groupby'] = ' t.term_id ';
-		} elseif ( strpos( $pieces['groupby'], 't.term_id' ) === false ) {
+		} elseif ( strpos($pieces['groupby'], 't.term_id') === false ) {
 			$pieces['groupby'] .= ', t.term_id';
 		}
 
-		// Deterministic order in filtered view (only for non-count).
+		// Deterministic default order (non-count only).
 		if ( ! $is_count ) {
-			$pieces['orderby'] = " CAST(tm_sort.meta_value AS UNSIGNED) ASC, t.name ASC ";
+			// IMPORTANT: include the 'ORDER BY' keyword and leave off trailing ASC to let Core append a single ASC.
+			$pieces['orderby'] = ' ORDER BY CAST(tm_sort.meta_value AS UNSIGNED), t.name ';
 		}
 
-		// Debug
-		if ( isset($_GET['jprm_dbg']) && $_GET['jprm_dbg']==='1' ) { // phpcs:ignore
+		// Debug hook
+		if ( isset($_GET['jprm_dbg']) && $_GET['jprm_dbg'] === '1' ) { // phpcs:ignore
 			error_log('[JPRM terms_clauses:filtered] WHERE=' . ($pieces['where'] ?? '(none)'));
 			error_log('[JPRM terms_clauses:filtered] JOIN='  . ($pieces['join']  ?? '(none)'));
 			error_log('[JPRM terms_clauses:filtered] GROUP=' . ($pieces['groupby']?? '(none)'));
@@ -225,18 +226,18 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 		return $pieces;
 	}
 
-	// "All Menus": only enforce order when user clicked the Order column; skip for count.
+	// "All Menus" view: only re-order when the user clicked the Order column; never for count.
 	if ( $orderby_clicked && ! $is_count ) {
-		if ( empty( $pieces['groupby'] ) ) {
+		if ( empty($pieces['groupby']) ) {
 			$pieces['groupby'] = ' t.term_id ';
-		} elseif ( strpos( $pieces['groupby'], 't.term_id' ) === false ) {
+		} elseif ( strpos($pieces['groupby'], 't.term_id') === false ) {
 			$pieces['groupby'] .= ', t.term_id';
 		}
-		$pieces['orderby'] = " CAST(tm_sort.meta_value AS UNSIGNED) ASC, t.name ASC ";
+		$pieces['orderby'] = ' ORDER BY CAST(tm_sort.meta_value AS UNSIGNED), t.name ';
 	}
 
 	// Debug
-	if ( isset($_GET['jprm_dbg']) && $_GET['jprm_dbg']==='1' ) { // phpcs:ignore
+	if ( isset($_GET['jprm_dbg']) && $_GET['jprm_dbg'] === '1' ) { // phpcs:ignore
 		error_log('[JPRM terms_clauses:all] WHERE=' . ($pieces['where'] ?? '(none)'));
 		error_log('[JPRM terms_clauses:all] JOIN='  . ($pieces['join']  ?? '(none)'));
 		error_log('[JPRM terms_clauses:all] GROUP=' . ($pieces['groupby']?? '(none)'));
@@ -245,7 +246,6 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 
 	return $pieces;
 }
-
 
 	/* ================= Add/Edit fields ================= */
 
