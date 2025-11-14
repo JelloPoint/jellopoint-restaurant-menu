@@ -107,16 +107,17 @@ foreach ($items as $post) {
 				if ($badges_position !== 'before' && $badges_html !== '') {
 					echo $badges_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				}
+				// Leader between title and price (only if enabled)
+	if ( ! empty( $sctx['inline_leader_enable'] ) ) {
+		echo '<span class="jp-leader" aria-hidden="true"></span>';
+	}
 			echo '</div>';
 		}
 		if (is_string($desc) && $desc !== '') {
 			echo '<div class="jp-menu__desc">' . esc_html($desc) . '</div>';
 		}
 	echo '</div>';
-	// Leader between title and price (only if enabled)
-	if ( ! empty( $sctx['inline_leader_enable'] ) ) {
-		echo '<span class="jp-leader" aria-hidden="true"></span>';
-	}
+	
 	echo '<div class="jp-menu__pricegroup">';
 
 	/* inline: label chip + price, same line; if no price, just chip */
