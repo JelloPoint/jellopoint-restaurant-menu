@@ -33,7 +33,6 @@ class Sections_Admin {
 		// UI polish + **self-healing** filter injector (guarantees dropdown is present & works)
 		add_action( 'admin_head-edit-tags.php', [ __CLASS__, 'admin_head_assets' ] );
 
-		self::hook_terms_order_and_filter();
 		add_filter( 'terms_clauses', [ __CLASS__, 'force_admin_order' ], 999, 3 );
 
 	}
@@ -161,13 +160,17 @@ class Sections_Admin {
 	}
 
 public static function force_admin_order( $pieces, $taxonomies, $args ) : array {
-	// Only run in admin and only for our taxonomy.
+	// Admin only.
 	if ( ! is_admin() ) return $pieces;
 
-	// Detect target taxonomy from query or URL.
-	$taxes = (array) $taxonomies;
-	$url_tax = isset($_GET['taxonomy']) ? sanitize_key($_GET['taxonomy']) : ''; // phpcs:ignore
-	$for_sections = in_array( self::TAX_SECTION, $taxes, true ) || $url_tax === self::TAX_SECTION;
+	// Decide target taxonomy robustly.
+	$taxes    = (array) $taxonomies;
+	$url_tax  = isset($_GET['taxonomy']) ? sanitize_key($_GET['taxonomy']) : ''; // phpcs:ignore
+	$where_tx = '';
+	if ( ! empty( $pieces['where'] ) && preg_match("/tt\\.taxonomy\\s+IN\\s*\\('(.*?)'\\)/", $pieces['where'], $m) ) {
+		$where_tx = strtolower($m[1] ?? '');
+	}
+	$for_sections = in_array( self::TAX_SECTION, $taxes, true ) || $url_tax === self::TAX_SECTION || $where_tx === self::TAX_SECTION;
 	if ( ! $for_sections ) return $pieces;
 
 	global $wpdb;
@@ -175,39 +178,44 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 	$selected_menu   = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
 	$orderby_clicked = isset( $_GET['orderby'] ) && $_GET['orderby'] === 'jprm_order';           // phpcs:ignore
 
-	// Always join the "order" meta so we can sort deterministically.
-	if ( strpos( $pieces['join'] ?? '', 'tm_sort' ) === false ) {
+	// Are we in a COUNT(*) pass? If so, don't inject ORDER BY (Core doesn't add ORDER BY for count).
+	$is_count = isset( $args['fields'] ) && $args['fields'] === 'count';
+
+	// Always join order meta so we can order deterministically later (safe for non-count).
+	if ( ! $is_count && strpos( $pieces['join'] ?? '', 'tm_sort' ) === false ) {
 		$meta_key_order = esc_sql( self::META_SECTION_ORDER );
 		$pieces['join'] .= " LEFT JOIN {$wpdb->termmeta} AS tm_sort
 			ON (tm_sort.term_id = t.term_id AND tm_sort.meta_key = '{$meta_key_order}')";
 	}
 
-	// When a specific menu is selected, filter by owner meta value.
+	// If a specific Menu is selected, filter by owner meta value.
 	if ( $selected_menu > 0 ) {
-		// Use LEFT JOIN to avoid hiding rows before WHERE is applied; WHERE will filter anyway.
+		// LEFT JOIN owner meta, then filter in WHERE.
 		if ( strpos( $pieces['join'] ?? '', 'tm_owner' ) === false ) {
 			$meta_key_owner = esc_sql( self::META_MENU_OWNER );
 			$pieces['join'] .= " LEFT JOIN {$wpdb->termmeta} AS tm_owner
 				ON (tm_owner.term_id = t.term_id AND tm_owner.meta_key = '{$meta_key_owner}')";
 		}
 
-		// Build WHERE safely (preserve any existing conditions).
+		// Append WHERE safely.
 		$where = $pieces['where'] ?? '';
 		if ( $where === '' ) $where = ' WHERE 1=1 ';
 		$where .= $wpdb->prepare( ' AND tm_owner.meta_value = %s ', (string) $selected_menu );
 		$pieces['where'] = $where;
 
-		// Prevent duplicates when other plugins add joins.
+		// Deduplicate rows if other joins exist.
 		if ( empty( $pieces['groupby'] ) ) {
 			$pieces['groupby'] = ' t.term_id ';
 		} elseif ( strpos( $pieces['groupby'], 't.term_id' ) === false ) {
 			$pieces['groupby'] .= ', t.term_id';
 		}
 
-		// Deterministic order in filtered view.
-		$pieces['orderby'] = " CAST(tm_sort.meta_value AS UNSIGNED) ASC, t.name ASC ";
+		// Deterministic order in filtered view (only for non-count).
+		if ( ! $is_count ) {
+			$pieces['orderby'] = " CAST(tm_sort.meta_value AS UNSIGNED) ASC, t.name ASC ";
+		}
 
-		// Optional debug
+		// Debug
 		if ( isset($_GET['jprm_dbg']) && $_GET['jprm_dbg']==='1' ) { // phpcs:ignore
 			error_log('[JPRM terms_clauses:filtered] WHERE=' . ($pieces['where'] ?? '(none)'));
 			error_log('[JPRM terms_clauses:filtered] JOIN='  . ($pieces['join']  ?? '(none)'));
@@ -217,8 +225,8 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 		return $pieces;
 	}
 
-	// "All Menus" view: only enforce when user clicked the Order column.
-	if ( $orderby_clicked ) {
+	// "All Menus": only enforce order when user clicked the Order column; skip for count.
+	if ( $orderby_clicked && ! $is_count ) {
 		if ( empty( $pieces['groupby'] ) ) {
 			$pieces['groupby'] = ' t.term_id ';
 		} elseif ( strpos( $pieces['groupby'], 't.term_id' ) === false ) {
@@ -227,7 +235,7 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 		$pieces['orderby'] = " CAST(tm_sort.meta_value AS UNSIGNED) ASC, t.name ASC ";
 	}
 
-	// Optional debug
+	// Debug
 	if ( isset($_GET['jprm_dbg']) && $_GET['jprm_dbg']==='1' ) { // phpcs:ignore
 		error_log('[JPRM terms_clauses:all] WHERE=' . ($pieces['where'] ?? '(none)'));
 		error_log('[JPRM terms_clauses:all] JOIN='  . ($pieces['join']  ?? '(none)'));
@@ -237,6 +245,7 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 
 	return $pieces;
 }
+
 
 	/* ================= Add/Edit fields ================= */
 
