@@ -5,13 +5,14 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 class Sections_By_Menu_Controller {
 
-	const NAMESPACE = 'jprm/v1';
-	const ROUTE     = '/sections';
+	const NAMESPACE          = 'jprm/v1';
+	const ROUTE              = '/sections';
 
 	/** Canonical keys (confirmed) */
-	const TAX_MENU            = 'jprm_menu';
-	const TAX_SECTION         = 'jprm_section';
-	const META_SECTION_ORDER  = '_jprm_section_order';
+	const TAX_MENU           = 'jprm_menu';
+	const TAX_SECTION        = 'jprm_section';
+	const META_MENU_OWNER    = '_jprm_menu_term_id';
+	const META_SECTION_ORDER = '_jprm_section_order';
 
 	public static function register() : void {
 		register_rest_route(
@@ -21,12 +22,11 @@ class Sections_By_Menu_Controller {
 				'methods'             => \WP_REST_Server::READABLE,
 				'callback'            => [ __CLASS__, 'handle' ],
 				'permission_callback' => function () {
-					// Elementor editor context → user editing posts.
 					return current_user_can( 'edit_posts' );
 				},
 				'args'                => [
 					'menu' => [
-						'description' => 'Menu (jprm_menu) as term ID or slug.',
+						'description' => 'Menu (jprm_menu) as term ID, slug, or name.',
 						'type'        => 'string',
 						'required'    => true,
 					],
@@ -45,19 +45,16 @@ class Sections_By_Menu_Controller {
 			return ( $term && ! is_wp_error( $term ) ) ? (int) $term->term_id : 0;
 		}
 		$menu = (string) $menu;
-		if ( '' === $menu ) {
-			return 0;
-		}
-		// Try slug first.
+		if ( $menu === '' ) return 0;
+
+		// slug
 		$term = get_term_by( 'slug', $menu, self::TAX_MENU );
-		if ( $term && ! is_wp_error( $term ) ) {
-			return (int) $term->term_id;
-		}
-		// Try name second.
+		if ( $term && ! is_wp_error( $term ) ) return (int) $term->term_id;
+
+		// name
 		$term = get_term_by( 'name', $menu, self::TAX_MENU );
-		if ( $term && ! is_wp_error( $term ) ) {
-			return (int) $term->term_id;
-		}
+		if ( $term && ! is_wp_error( $term ) ) return (int) $term->term_id;
+
 		return 0;
 	}
 
@@ -66,87 +63,46 @@ class Sections_By_Menu_Controller {
 		$menu_id  = self::normalize_menu_to_id( $menu_raw );
 
 		if ( $menu_id <= 0 ) {
-			// Response shape remains an object/map in consumer JS:
-			// previously empty array worked as "no results". Keep that behavior.
+			// Keep prior consumer behavior: empty map when no results/invalid.
 			return rest_ensure_response( [] );
 		}
 
 		/**
-		 * Query helper: collect section terms used by items in a given menu.
-		 * NOTE: We do not change selection logic; we only change the final sort order.
+		 * Fetch sections that are OWNED by this menu (single source of truth),
+		 * ordered by _jprm_section_order (ASC) with name as a tie-breaker.
 		 */
-		$get_sections_for_menu = function( bool $suppress_filters ) use ( $menu_id ) : array {
-			$q = new \WP_Query( [
-				'post_type'        => 'jprm_menu_item',
-				'post_status'      => 'publish',
-				'posts_per_page'   => -1,
-				'fields'           => 'ids',
-				'tax_query'        => [
-					[
-						'taxonomy' => self::TAX_MENU,
-						'field'    => 'term_id',
-						'terms'    => [ $menu_id ],
-					],
+		$terms = get_terms( [
+			'taxonomy'   => self::TAX_SECTION,
+			'hide_empty' => false,
+			'meta_query' => [
+				[
+					'key'   => self::META_MENU_OWNER,
+					'value' => (string) $menu_id,
 				],
-				// When false: language/other filters active (default).
-				// When true: bypass filters (fallback to be extra tolerant).
-				'suppress_filters' => $suppress_filters,
-			] );
+			],
+			'meta_key'   => self::META_SECTION_ORDER,
+			'orderby'    => 'meta_value_num',
+			'order'      => 'ASC',
+		] );
 
-			if ( empty( $q->posts ) ) {
-				return [];
-			}
-
-			// Build a unique set of sections with their order meta for sorting.
-			$tmp = []; // [term_id => ['id'=>int,'name'=>string,'order'=>int]]
-			foreach ( $q->posts as $pid ) {
-				$terms = wp_get_post_terms( $pid, self::TAX_SECTION );
-				if ( is_array( $terms ) ) {
-					foreach ( $terms as $t ) {
-						$tid = (int) $t->term_id;
-						if ( isset( $tmp[ $tid ] ) ) {
-							continue;
-						}
-						$tmp[ $tid ] = [
-							'id'    => $tid,
-							'name'  => (string) $t->name,
-							'order' => (int) get_term_meta( $tid, self::META_SECTION_ORDER, true ),
-						];
-					}
-				}
-			}
-
-			if ( empty( $tmp ) ) {
-				return [];
-			}
-
-			// Sort by _jprm_section_order ASC, then by name to break ties.
-			uasort( $tmp, static function( $a, $b ) {
-				$ao = (int) ( $a['order'] ?? 0 );
-				$bo = (int) ( $b['order'] ?? 0 );
-				if ( $ao !== $bo ) {
-					return $ao <=> $bo;
-				}
-				return strcasecmp( (string) $a['name'], (string) $b['name'] );
-			} );
-
-			// Return shape remains: map "term_id" => "name"
-			$out = [];
-			foreach ( $tmp as $row ) {
-				$out[ (string) $row['id'] ] = $row['name'];
-			}
-			return $out;
-		};
-
-		// First pass: normal (respect language filters)
-		$sections = $get_sections_for_menu( false );
-
-		// Fallback: bypass filters in case editor context differs (WPML/Polylang, etc.)
-		if ( empty( $sections ) ) {
-			$sections = $get_sections_for_menu( true );
+		if ( is_wp_error( $terms ) || empty( $terms ) ) {
+			return rest_ensure_response( [] );
 		}
 
-		// We already returned in desired order; no further sorting needed.
-		return rest_ensure_response( $sections );
+		// Stable secondary sort by name for equal/missing order values.
+		usort( $terms, static function( $a, $b ) {
+			$ao = (int) get_term_meta( $a->term_id, self::META_SECTION_ORDER, true );
+			$bo = (int) get_term_meta( $b->term_id, self::META_SECTION_ORDER, true );
+			if ( $ao !== $bo ) return $ao <=> $bo;
+			return strcasecmp( (string) $a->name, (string) $b->name );
+		} );
+
+		// Response shape expected by consumer: map "term_id" => "name".
+		$out = [];
+		foreach ( $terms as $t ) {
+			$out[ (string) (int) $t->term_id ] = (string) $t->name;
+		}
+
+		return rest_ensure_response( $out );
 	}
 }

@@ -32,6 +32,8 @@ class Sections_Admin {
 
 		// UI polish + **self-healing** filter injector (guarantees dropdown is present & works)
 		add_action( 'admin_head-edit-tags.php', [ __CLASS__, 'admin_head_assets' ] );
+
+		self::hook_terms_order_and_filter();
 	}
 
 	/* ================= Columns ================= */
@@ -249,6 +251,36 @@ class Sections_Admin {
 			self::cascade_children( (int) $child->term_id, $owner_menu_id );
 		}
 	}
+/**
+ * Extra safety: on the jprm_section admin screen, force ordering by
+ * _jprm_section_order and respect ?jprm_filter_menu= when present.
+ * Runs only on the taxonomy list screen; does not affect REST.
+ */
+public static function hook_terms_order_and_filter() : void {
+	add_filter( 'get_terms_args', function( $args, $taxonomies ) {
+		if ( ! is_admin() ) return $args;
+
+		$screen = function_exists('get_current_screen') ? get_current_screen() : null;
+		if ( ! $screen || $screen->taxonomy !== self::TAX_SECTION ) return $args;
+		if ( is_array( $taxonomies ) && ! in_array( self::TAX_SECTION, $taxonomies, true ) ) return $args;
+		if ( isset( $args['fields'] ) && $args['fields'] === 'count' ) return $args;
+
+		// Default ordering key
+		$args['meta_key'] = self::META_SECTION_ORDER;
+		$args['orderby']  = 'meta_value_num';
+		$args['order']    = 'ASC';
+
+		// Respect toolbar filter
+		$menu_id = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
+		if ( $menu_id > 0 ) {
+			$mq   = isset( $args['meta_query'] ) && is_array( $args['meta_query'] ) ? $args['meta_query'] : [];
+			$mq[] = [ 'key' => self::META_MENU_OWNER, 'value' => (string) $menu_id ];
+			$args['meta_query'] = $mq;
+		}
+
+		return $args;
+	}, 10, 2 );
+}
 
 	/* ================= UI polish + self-healing injector ================= */
 
