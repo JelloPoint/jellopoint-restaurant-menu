@@ -361,3 +361,85 @@
   fill: currentColor !important;
   stroke: currentColor !important;
 }
+
+/* LEADER STYLING */
+/* Keep each inline item in a single column row */
+.jp-inline .jp-menu__item { break-inside: avoid; }
+
+/* One-row layout: content (with title+leader) on the left, price on the right */
+.jp-inline .jp-menu__inner {
+  display: flex;
+  align-items: baseline;
+  gap: .5rem;
+}
+
+/* Left side must be flexible so the leader can expand */
+.jp-inline .jp-menu__content { 
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Title row: title + leader on one line */
+.jp-inline .jp-menu__titlewrap {
+  display: flex;
+  align-items: baseline;
+  gap: .35rem;
+  min-width: 0;
+}
+
+/* Don’t collapse the title; allow wrapping if it’s very long */
+.jp-inline .jp-menu__title {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* Price block should stay at the far right, same line */
+.jp-inline .jp-menu__pricegroup {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* ========== LEADER ========== */
+/* CSS custom properties expected from Style tab (fallbacks included) */
+.jp-inline {
+  --jprm-leader-on: 1;                 /* 1 = show, 0 = hide */
+  --jprm-leader-color: currentColor;   /* from color control */
+  --jprm-leader-weight: 2px;           /* from thickness control */
+  --jprm-leader-gap: 6px;              /* from spacing control */
+  --jprm-leader-style: dotted;         /* 'dotted' | 'dashed' | 'solid' */
+}
+
+/* Base: stretch to fill between title and price */
+.jp-inline .jp-leader {
+  display: inline-block;
+  flex: 1 1 auto;
+  align-self: center;
+  height: 1em;
+  min-width: 8px;
+  margin: 0 .25rem;
+  opacity: calc(var(--jprm-leader-on) * 1);
+}
+
+/* DOTTED (default) */
+.jp-inline .jp-leader {
+  background-image: radial-gradient(var(--jprm-leader-color) calc(var(--jprm-leader-weight)/2), transparent calc(var(--jprm-leader-weight)/2));
+  background-size: var(--jprm-leader-gap) var(--jprm-leader-weight);
+  background-repeat: repeat-x;
+  background-position: center;
+  /* feather edges so dots don’t touch the text tightly */
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 10px, #000 calc(100% - 10px), transparent);
+          mask-image: linear-gradient(to right, transparent, #000 10px, #000 calc(100% - 10px), transparent);
+}
+
+/* DASHED */
+.jp-inline .jp-leader[data-style="dashed"] {
+  background-image: linear-gradient(to right, var(--jprm-leader-color) 0, var(--jprm-leader-color) 50%, transparent 50%, transparent 100%);
+  background-size: calc(var(--jprm-leader-gap) * 2) var(--jprm-leader-weight);
+}
+
+/* SOLID */
+.jp-inline .jp-leader[data-style="solid"] {
+  background-image: none;
+  border-bottom: var(--jprm-leader-weight) solid var(--jprm-leader-color);
+  transform: translateY(-0.1em); /* align baseline nicely */
+}
