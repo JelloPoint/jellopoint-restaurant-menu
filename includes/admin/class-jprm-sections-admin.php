@@ -34,7 +34,7 @@ class Sections_Admin {
 		add_action( 'admin_head-edit-tags.php', [ __CLASS__, 'admin_head_assets' ] );
 
 		self::hook_terms_order_and_filter();
-		add_filter( 'terms_clauses', [ __CLASS__, 'force_admin_order' ], 20, 3 );
+		add_filter( 'terms_clauses', [ __CLASS__, 'force_admin_order' ], 999, 3 );
 
 	}
 
@@ -163,7 +163,7 @@ class Sections_Admin {
 	public static function force_admin_order( $pieces, $taxonomies, $args ) : array {
 	if ( ! is_admin() ) return $pieces;
 
-	// Only run on the jprm_section admin screen.
+	// Only on our taxonomy screen.
 	if ( empty( $taxonomies ) || ! in_array( self::TAX_SECTION, (array) $taxonomies, true ) ) {
 		return $pieces;
 	}
@@ -177,40 +177,71 @@ class Sections_Admin {
 	$selected_menu   = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
 	$orderby_clicked = isset( $_GET['orderby'] ) && $_GET['orderby'] === 'jprm_order';           // phpcs:ignore
 
-	// Always join the "order" meta so we can sort deterministically.
+	// Always LEFT JOIN the "order" meta so we can sort deterministically.
 	if ( strpos( $pieces['join'] ?? '', 'tm_sort' ) === false ) {
 		$meta_key_order = esc_sql( self::META_SECTION_ORDER );
 		$pieces['join'] .= " LEFT JOIN {$wpdb->termmeta} AS tm_sort
 			ON (tm_sort.term_id = t.term_id AND tm_sort.meta_key = '{$meta_key_order}')";
 	}
 
-	// If a specific Menu is selected, ENFORCE the owner filter at SQL level.
-	if ( $selected_menu > 0 ) {
-		if ( strpos( $pieces['join'] ?? '', 'tm_owner' ) === false ) {
-			$meta_key_owner = esc_sql( self::META_MENU_OWNER );
-			$pieces['join'] .= " INNER JOIN {$wpdb->termmeta} AS tm_owner
-				ON (tm_owner.term_id = t.term_id AND tm_owner.meta_key = '{$meta_key_owner}')";
-		}
+	// Always constrain to our taxonomy explicitly (extra safety).
+	$where = $pieces['where'] ?? '';
+	$where .= $where ? ' ' : ' WHERE 1=1 ';
+	$where .= $wpdb->prepare( ' AND tt.taxonomy = %s ', self::TAX_SECTION );
 
-		// WHERE safety: keep only our taxonomy and the chosen owner.
-		$where = $pieces['where'] ?? '';
-		$where .= $where ? ' ' : ' WHERE 1=1 ';
-		$where .= $wpdb->prepare( ' AND tt.taxonomy = %s ', self::TAX_SECTION );
-		$where .= $wpdb->prepare( ' AND tm_owner.meta_value = %s ', (string) $selected_menu );
+	// If a specific Menu is selected, require owner via WHERE EXISTS instead of an INNER JOIN.
+	if ( $selected_menu > 0 ) {
+		$meta_key_owner = esc_sql( self::META_MENU_OWNER );
+		$where .= $wpdb->prepare(
+			" AND EXISTS (
+				SELECT 1
+				FROM {$wpdb->termmeta} omo
+				WHERE omo.term_id = t.term_id
+				  AND omo.meta_key = %s
+				  AND omo.meta_value = %s
+			) ",
+			$meta_key_owner,
+			(string) $selected_menu
+		);
+
 		$pieces['where'] = $where;
 
-		// Group to avoid rows getting swallowed by duplicate meta joins.
+		// De-dupe results in case other plugins add joins.
 		if ( empty( $pieces['groupby'] ) ) {
 			$pieces['groupby'] = ' t.term_id ';
 		} elseif ( strpos( $pieces['groupby'], 't.term_id' ) === false ) {
 			$pieces['groupby'] .= ', t.term_id';
 		}
 
-		// Deterministic order for the filtered view.
+		// Deterministic ordering for filtered view.
 		$pieces['orderby'] = " CAST(tm_sort.meta_value AS UNSIGNED) ASC, t.name ASC ";
 
-		return $pieces;
+	} else {
+		// "All Menus" view:
+		$pieces['where'] = $where;
+
+		// If user clicked the "Order" header, enforce numeric order + group.
+		if ( $orderby_clicked ) {
+			if ( empty( $pieces['groupby'] ) ) {
+				$pieces['groupby'] = ' t.term_id ';
+			} elseif ( strpos( $pieces['groupby'], 't.term_id' ) === false ) {
+				$pieces['groupby'] .= ', t.term_id';
+			}
+			$pieces['orderby'] = " CAST(tm_sort.meta_value AS UNSIGNED) ASC, t.name ASC ";
+		}
 	}
+
+	// --- Quick debug switch (optional) ---
+	if ( isset( $_GET['jprm_dbg'] ) && $_GET['jprm_dbg'] === '1' ) { // phpcs:ignore
+		error_log('[JPRM terms_clauses] WHERE=' . ($pieces['where'] ?? '(none)'));
+		error_log('[JPRM terms_clauses] JOIN='  . ($pieces['join']  ?? '(none)'));
+		error_log('[JPRM terms_clauses] GROUP=' . ($pieces['groupby']?? '(none)'));
+		error_log('[JPRM terms_clauses] ORDER=' . ($pieces['orderby']?? '(none)'));
+	}
+
+	return $pieces;
+}
+
 
 	// "All Menus" view:
 	// If user clicked the "Order" column, enforce deterministic order globally.
