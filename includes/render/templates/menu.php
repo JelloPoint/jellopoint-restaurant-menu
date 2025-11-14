@@ -262,6 +262,8 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 			'label_position'     => $label_position,
 			'label_map'          => $label_map,
 			'currency_opts'      => $currency_opts,
+			'inline_leader_enable' => ( isset( $ctx['inline_leader_enable'] ) && $ctx['inline_leader_enable'] === 'yes' ) ? 'yes' : 'no',
+			'inline_leader_char'   => (string) ( $ctx['inline_leader_char'] ?? '' ),
 			// badges
 			'show_badges'         => $show_badges ? 'yes' : 'no',
 			'badges_position'     => $badges_position,

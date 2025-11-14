@@ -22,6 +22,8 @@ $label_presentation = (string)($sctx['label_presentation'] ?? 'icon_text');
 $label_position     = (string)($sctx['label_position'] ?? 'right');
 $label_map          = is_array($sctx['label_map'] ?? null) ? $sctx['label_map'] : [];
 $currency_opts      = is_array($sctx['currency_opts'] ?? null) ? $sctx['currency_opts'] : [];
+$leader_enabled = (string)($sctx['inline_leader_enable'] ?? 'no') === 'yes';
+$leader_char    = (string)($sctx['inline_leader_char'] ?? '');
 
 // === BADGES: read from section context (with safe defaults)
 $badges_enabled      = (string)($sctx['show_badges'] ?? 'yes') === 'yes';
