@@ -361,24 +361,8 @@
   fill: currentColor !important;
   stroke: currentColor !important;
 }
-/* Inline leader baseline */
-.jp-layout-inline .jp-menu__row,
-.jp-layout-inline .jp-menu__titleline {
-  display: flex;
-  align-items: baseline;
-}
 
-.jp-layout-inline .jp-leader {
-  flex: 1 1 auto;
-  min-width: 1.5rem;
-  margin: 0 .5rem;
-  border-bottom: 1px dotted currentColor; /* overridden by Elementor controls */
-  opacity: .8; /* optional */
-  transform: translateY(-0.08em); /* aligns with text baseline a bit nicer */
-}
-.jp-menu__inner { display:flex; align-items:baseline; gap:.5rem; }
-.jp-menu__content { display:flex; flex-direction:column; }
-.jp-leader { flex:1 1 auto; min-width:12px; }
+
 /* Keep each inline item on one column */
 .jp-inline .jp-menu__item { break-inside: avoid; }
 
