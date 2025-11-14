@@ -155,8 +155,8 @@ if ( function_exists( 'jprm_render_badges_inline_html' ) ) {
 		$show_all           = ( isset( $s['show_all_when_empty'] ) && 'yes' === $s['show_all_when_empty'] );
 		$menu_sel           = $s['menus'] ?? '';
 		$sections_sel       = $s['sections'] ?? [];
-		$orderby            = isset( $s['query_orderby'] ) ? (string) $s['query_orderby'] : 'menu_order';
-		$order              = isset( $s['query_order'] ) ? (string) $s['query_order'] : 'ASC';
+		$orderby 			= 'menu_order';
+		$order   			= 'ASC';
 		$limit              = ( isset( $s['query_limit'] ) && is_numeric( $s['query_limit'] ) ) ? (int) $s['query_limit'] : 0;
 		$label_presentation = isset( $s['label_presentation'] ) ? (string) $s['label_presentation'] : 'icon_text';
 		$label_position     = isset( $s['label_position'] ) ? (string) $s['label_position'] : 'right';

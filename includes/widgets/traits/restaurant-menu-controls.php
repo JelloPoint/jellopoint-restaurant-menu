@@ -135,28 +135,6 @@ trait Restaurant_Menu_Controls {
 			'condition' => [ 'data_mode' => 'dynamic' ],
 		] );
 
-		$this->add_control( 'query_orderby', [
-			'label'     => __( 'Order By', 'jellopoint-restaurant-menu' ),
-			'type'      => Controls_Manager::SELECT,
-			'default'   => 'menu_order',
-			'options'   => [
-				'menu_order' => __( 'Menu Order', 'jellopoint-restaurant-menu' ),
-				'title'      => __( 'Title', 'jellopoint-restaurant-menu' ),
-				'date'       => __( 'Date', 'jellopoint-restaurant-menu' ),
-			],
-			'default'      => '',
-			'condition' => [ 'data_mode' => 'dynamic' ],
-		] );
-
-		$this->add_control( 'query_order', [
-			'label'     => __( 'Order', 'jellopoint-restaurant-menu' ),
-			'type'      => Controls_Manager::SELECT,
-			'default'   => 'ASC',
-			'options'   => [ 'ASC' => 'ASC', 'DESC' => 'DESC' ],
-			'default'      => '',
-			'condition' => [ 'data_mode' => 'dynamic' ],
-		] );
-
 		$this->add_control( 'query_limit', [
 			'label'       => __( 'Max Items', 'jellopoint-restaurant-menu' ),
 			'type'        => Controls_Manager::NUMBER,
