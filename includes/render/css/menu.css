@@ -361,3 +361,18 @@
   fill: currentColor !important;
   stroke: currentColor !important;
 }
+/* Inline leader baseline */
+.jp-layout-inline .jp-menu__row,
+.jp-layout-inline .jp-menu__titleline {
+  display: flex;
+  align-items: baseline;
+}
+
+.jp-layout-inline .jp-leader {
+  flex: 1 1 auto;
+  min-width: 1.5rem;
+  margin: 0 .5rem;
+  border-bottom: 1px dotted currentColor; /* overridden by Elementor controls */
+  opacity: .8; /* optional */
+  transform: translateY(-0.08em); /* aligns with text baseline a bit nicer */
+}
