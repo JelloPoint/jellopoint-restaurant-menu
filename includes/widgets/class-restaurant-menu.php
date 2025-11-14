@@ -61,6 +61,68 @@ private static function require_badges_partial_once() : void {
 			return $out;
 		}
 	}
+	/** Fetch sections that belong to a Menu, ordered by _jprm_section_order (ASC), then name. */
+private function jprm_get_ordered_sections_for_menu( int $menu_id ) : array {
+    if ( $menu_id <= 0 ) return [];
+
+    $args = [
+        'taxonomy'   => 'jprm_section',
+        'hide_empty' => false,
+        'meta_query' => [
+            [ 'key' => '_jprm_menu_term_id', 'value' => (string) $menu_id ],
+        ],
+        'meta_key'   => '_jprm_section_order',
+        'orderby'    => 'meta_value_num',
+        'order'      => 'ASC',
+    ];
+
+    $terms = get_terms( $args );
+    if ( is_wp_error( $terms ) || empty( $terms ) ) return [];
+
+    // Belt-and-braces stable order.
+    usort( $terms, static function( $a, $b ){
+        $ao = (int) get_term_meta( $a->term_id, '_jprm_section_order', true );
+        $bo = (int) get_term_meta( $b->term_id, '_jprm_section_order', true );
+        if ( $ao !== $bo ) return $ao <=> $bo;
+        return strcasecmp( (string) $a->name, (string) $b->name );
+    });
+
+    return $terms;
+}
+	
+	/** Fetch sections that belong to a Menu, ordered by _jprm_section_order (ASC), then name. */
+private function jprm_get_ordered_sections_for_menu( int $menu_id ) : array {
+	if ( $menu_id <= 0 ) return [];
+
+	$args = [
+		'taxonomy'   => 'jprm_section',
+		'hide_empty' => false,
+		'meta_query' => [
+			[
+				'key'   => '_jprm_menu_term_id',
+				'value' => (string) $menu_id,
+			],
+		],
+		'meta_key'   => '_jprm_section_order',
+		'orderby'    => 'meta_value_num',
+		'order'      => 'ASC',
+	];
+
+	$terms = get_terms( $args );
+	if ( is_wp_error( $terms ) || empty( $terms ) ) return [];
+
+	// Safety: if some terms don’t have order yet, keep a deterministic fallback (by name).
+	usort( $terms, static function( $a, $b ){
+		$ao = (int) get_term_meta( $a->term_id, '_jprm_section_order', true );
+		$bo = (int) get_term_meta( $b->term_id, '_jprm_section_order', true );
+		if ( $ao !== $bo ) return $ao <=> $bo;
+		return strcasecmp( (string) $a->name, (string) $b->name );
+	});
+
+	return $terms;
+}
+	
+	}
 	/**
  * Normalize 'labels_layout_overrides' repeater into a lookup:
  * $map[SECTION_ID]['matrix']['placeholder']
@@ -197,6 +259,40 @@ if ( function_exists( 'jprm_render_badges_inline_html' ) ) {
 			}
 			$sections_data[ $primary_tid ]['items'][] = $post;
 		}
+// --- Reorder sections by builder order if a single Menu is chosen ---
+if ( $menu_term && empty( $section_ids ) ) {
+    $ordered_terms = $this->jprm_get_ordered_sections_for_menu( (int) $menu_term->term_id );
+
+    $ordered_ids_all = array_map( static fn( $t ) => (int) $t->term_id, $ordered_terms );
+
+    $reordered = [];
+
+    // Decide whether to include empty sections too:
+    $show_main_sections        = ( !empty( $s['show_main_sections'] ) && $s['show_main_sections'] === 'yes' );
+    $show_main_even_if_empty   = ( !empty( $s['show_main_even_if_empty'] ) && $s['show_main_even_if_empty'] === 'yes' );
+
+    if ( $show_main_sections && $show_main_even_if_empty ) {
+        // Ensure $sections_data has a slot for every section (even if no items)
+        foreach ( $ordered_ids_all as $tid ) {
+            if ( ! isset( $sections_data[ $tid ] ) ) {
+                $term = get_term( $tid, 'jprm_section' );
+                if ( $term && ! is_wp_error( $term ) ) {
+                    $sections_data[ $tid ] = [ 'term' => $term, 'items' => [] ];
+                }
+            }
+        }
+        $reordered = $ordered_ids_all; // show them all in builder order
+    } else {
+        // Only keep sections that actually have items, but still in builder order.
+        $have_items = array_keys( array_filter( $sections_data, static fn($row) => !empty($row['items']) ) );
+        $reordered  = array_values( array_intersect( $ordered_ids_all, $have_items ) );
+    }
+
+    // If for any reason that produced empty, fall back to the discovered order.
+    if ( ! empty( $reordered ) ) {
+        $sections_order = $reordered;
+    }
+}
 
 		$show_section_name = ( isset( $s['show_section_name'] ) && $s['show_section_name'] === 'yes' );
 		$show_section_desc = ( isset( $s['show_section_description'] ) && $s['show_section_description'] === 'yes' );
