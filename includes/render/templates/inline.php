@@ -109,7 +109,7 @@ foreach ($items as $post) {
 				}
 				// Leader between title and price (only if enabled)
 	if ( ! empty( $sctx['inline_leader_enable'] ) ) {
-		echo '<span class="jp-leader" aria-hidden="true"></span>';
+		echo '<span class="jp-leader" aria-hidden="true">.......</span>';
 	}
 			echo '</div>';
 		}
