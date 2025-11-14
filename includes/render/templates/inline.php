@@ -111,7 +111,10 @@ foreach ($items as $post) {
 			echo '<div class="jp-menu__desc">' . esc_html($desc) . '</div>';
 		}
 	echo '</div>';
-
+	// Leader between title and price (only if enabled)
+	if ( ! empty( $sctx['inline_leader_enable'] ) ) {
+		echo '<span class="jp-leader" aria-hidden="true"></span>';
+	}
 	echo '<div class="jp-menu__pricegroup">';
 
 	/* inline: label chip + price, same line; if no price, just chip */
