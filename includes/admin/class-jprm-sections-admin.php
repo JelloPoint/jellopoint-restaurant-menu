@@ -257,9 +257,6 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 	return $pieces;
 }
 
-
-
-
 	/* ================= Add/Edit fields ================= */
 
 	public static function add_field() {
