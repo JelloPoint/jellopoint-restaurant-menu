@@ -24,7 +24,7 @@ $label_map          = is_array($sctx['label_map'] ?? null) ? $sctx['label_map'] 
 $currency_opts      = is_array($sctx['currency_opts'] ?? null) ? $sctx['currency_opts'] : [];
 $leader_enabled = (string)($sctx['inline_leader_enable'] ?? 'no') === 'yes';
 $leader_char    = (string)($sctx['inline_leader_char'] ?? '');
-
+$leader_style = isset($sctx['inline_leader_style']) ? (string)$sctx['inline_leader_style'] : 'dotted';
 // === BADGES: read from section context (with safe defaults)
 $badges_enabled      = (string)($sctx['show_badges'] ?? 'yes') === 'yes';
 $badges_position     = (string)($sctx['badges_position'] ?? 'after');         // 'before' | 'after'
@@ -109,7 +109,7 @@ foreach ($items as $post) {
 				}
 				// Leader between title and price (only if enabled)
 	if ( ! empty( $sctx['inline_leader_enable'] ) ) {
-		echo '<span class="jp-leader" aria-hidden="true">.......</span>';
+		echo '<span class="jp-leader" aria-hidden="true" data-style="'.esc_attr($leader_style).'"></span>';
 	}
 			echo '</div>';
 		}

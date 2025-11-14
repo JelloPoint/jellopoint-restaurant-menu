@@ -947,6 +947,22 @@ $this->add_responsive_control(
 );
 
 // === Leader (Inline template) ===============================================
+$this->add_control( 'inline_leader_enable', [
+    'label'        => __( 'Leader (Title → Price)', 'jprm' ),
+    'type'         => \Elementor\Controls_Manager::SWITCHER,
+    'return_value' => 'yes',
+    'default'      => '',
+    // Toggle the CSS variable so we can completely hide/show the leader
+    'selectors_dictionary' => [
+        'yes' => '1',
+        ''    => '0',
+    ],
+    'selectors' => [
+        '{{WRAPPER}} .jp-layout-inline, {{WRAPPER}} .jp-inline' => '--jprm-leader-on: {{VALUE}};',
+    ],
+    'condition'    => [ 'labels_layout' => 'inline' ],
+]);
+
 $this->add_control( 'inline_leader_hr', [
     'type'      => \Elementor\Controls_Manager::DIVIDER,
     'condition' => [
@@ -964,9 +980,8 @@ $this->add_control( 'inline_leader_style', [
         'dashed' => __( 'Dashed', 'jprm' ),
         'solid'  => __( 'Solid',  'jprm' ),
     ],
-    'selectors' => [
-        '{{WRAPPER}} .jp-layout-inline .jp-leader' => 'border-bottom-style: {{VALUE}};',
-    ],
+    // NOTE: the visual style is implemented via CSS that reads [data-style],
+    // so here we only need to store the value in $settings.
     'condition' => [
         'labels_layout'        => 'inline',
         'inline_leader_enable' => 'yes',
@@ -977,7 +992,7 @@ $this->add_control( 'inline_leader_color', [
     'label'     => __( 'Leader Color', 'jprm' ),
     'type'      => \Elementor\Controls_Manager::COLOR,
     'selectors' => [
-        '{{WRAPPER}} .jp-layout-inline .jp-leader' => 'border-bottom-color: {{VALUE}};',
+        '{{WRAPPER}} .jp-layout-inline, {{WRAPPER}} .jp-inline' => '--jprm-leader-color: {{VALUE}};',
     ],
     'condition' => [
         'labels_layout'        => 'inline',
@@ -990,15 +1005,31 @@ $this->add_responsive_control( 'inline_leader_thickness', [
     'type'       => \Elementor\Controls_Manager::SLIDER,
     'size_units' => [ 'px' ],
     'range'      => [ 'px' => [ 'min' => 1, 'max' => 6 ] ],
-    'default'    => [ 'size' => 1, 'unit' => 'px' ],
+    'default'    => [ 'size' => 2, 'unit' => 'px' ],
     'selectors'  => [
-        '{{WRAPPER}} .jp-layout-inline .jp-leader' => 'border-bottom-width: {{SIZE}}{{UNIT}};',
+        '{{WRAPPER}} .jp-layout-inline, {{WRAPPER}} .jp-inline' => '--jprm-leader-weight: {{SIZE}}{{UNIT}};',
     ],
     'condition'  => [
         'labels_layout'        => 'inline',
         'inline_leader_enable' => 'yes',
     ],
 ]);
+
+$this->add_responsive_control( 'inline_leader_gap', [
+    'label'      => __( 'Leader Gap', 'jprm' ),
+    'type'       => \Elementor\Controls_Manager::SLIDER,
+    'size_units' => [ 'px' ],
+    'range'      => [ 'px' => [ 'min' => 4, 'max' => 32 ] ],
+    'default'    => [ 'size' => 8, 'unit' => 'px' ],
+    'selectors'  => [
+        '{{WRAPPER}} .jp-layout-inline, {{WRAPPER}} .jp-inline' => '--jprm-leader-gap: {{SIZE}}{{UNIT}};',
+    ],
+    'condition'  => [
+        'labels_layout'        => 'inline',
+        'inline_leader_enable' => 'yes',
+    ],
+]);
+
 
 
 $this->end_controls_section();
