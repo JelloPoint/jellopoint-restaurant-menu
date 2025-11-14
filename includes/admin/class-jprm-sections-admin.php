@@ -242,21 +242,6 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 	return $pieces;
 }
 
-	// "All Menus" view:
-	// If user clicked the "Order" column, enforce deterministic order globally.
-	if ( $orderby_clicked ) {
-		// Grouping also prevents duplicate rows when other plugins add meta joins.
-		if ( empty( $pieces['groupby'] ) ) {
-			$pieces['groupby'] = ' t.term_id ';
-		} elseif ( strpos( $pieces['groupby'], 't.term_id' ) === false ) {
-			$pieces['groupby'] .= ', t.term_id';
-		}
-		$pieces['orderby'] = " CAST(tm_sort.meta_value AS UNSIGNED) ASC, t.name ASC ";
-	}
-
-	return $pieces;
-}
-
 	/* ================= Add/Edit fields ================= */
 
 	public static function add_field() {
