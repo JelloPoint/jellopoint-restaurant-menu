@@ -46,114 +46,78 @@ private static function require_badges_partial_once() : void {
 		if ( is_readable( $path ) ) require_once $path;
 		$loaded = true;
 	}
-	private static function ensure_menu_meta_helper() : void {
-		if ( function_exists( 'jprm_render_menu_meta' ) ) return;
-		function jprm_render_menu_meta( $term, bool $show_title, bool $show_desc, string $scope ) : string {
-			if ( ! $term || ( ! $show_title && ! $show_desc ) ) return '';
-			$title = $show_title ? trim( (string) $term->name ) : '';
-			$desc  = $show_desc  ? trim( (string) $term->description ) : '';
-			if ( $title === '' && $desc === '' ) return '';
-			$cls = 'jp-menu__meta ' . ( $scope === 'global' ? 'jp-menu__meta--global' : 'jp-menu__meta--col' );
-			$out  = '<div class="' . esc_attr( $cls ) . '">';
-			if ( $title !== '' ) $out .= '<h2 class="jp-menu__meta-title">' . esc_html( $title ) . '</h2>';
-			if ( $desc  !== '' ) $out .= '<div class="jp-menu__meta-desc">' . esc_html( $desc ) . '</div>';
-			$out .= '</div>';
-			return $out;
-		}
-	}
-	/** Fetch sections that belong to a Menu, ordered by _jprm_section_order (ASC), then name. */
-private function jprm_get_ordered_sections_for_menu( int $menu_id ) : array {
-    if ( $menu_id <= 0 ) return [];
-
-    $args = [
-        'taxonomy'   => 'jprm_section',
-        'hide_empty' => false,
-        'meta_query' => [
-            [ 'key' => '_jprm_menu_term_id', 'value' => (string) $menu_id ],
-        ],
-        'meta_key'   => '_jprm_section_order',
-        'orderby'    => 'meta_value_num',
-        'order'      => 'ASC',
-    ];
-
-    $terms = get_terms( $args );
-    if ( is_wp_error( $terms ) || empty( $terms ) ) return [];
-
-    // Belt-and-braces stable order.
-    usort( $terms, static function( $a, $b ){
-        $ao = (int) get_term_meta( $a->term_id, '_jprm_section_order', true );
-        $bo = (int) get_term_meta( $b->term_id, '_jprm_section_order', true );
-        if ( $ao !== $bo ) return $ao <=> $bo;
-        return strcasecmp( (string) $a->name, (string) $b->name );
-    });
-
-    return $terms;
-}
-	
-	/** Fetch sections that belong to a Menu, ordered by _jprm_section_order (ASC), then name. */
-private function jprm_get_ordered_sections_for_menu( int $menu_id ) : array {
-	if ( $menu_id <= 0 ) return [];
-
-	$args = [
-		'taxonomy'   => 'jprm_section',
-		'hide_empty' => false,
-		'meta_query' => [
-			[
-				'key'   => '_jprm_menu_term_id',
-				'value' => (string) $menu_id,
-			],
-		],
-		'meta_key'   => '_jprm_section_order',
-		'orderby'    => 'meta_value_num',
-		'order'      => 'ASC',
-	];
-
-	$terms = get_terms( $args );
-	if ( is_wp_error( $terms ) || empty( $terms ) ) return [];
-
-	// Safety: if some terms don’t have order yet, keep a deterministic fallback (by name).
-	usort( $terms, static function( $a, $b ){
-		$ao = (int) get_term_meta( $a->term_id, '_jprm_section_order', true );
-		$bo = (int) get_term_meta( $b->term_id, '_jprm_section_order', true );
-		if ( $ao !== $bo ) return $ao <=> $bo;
-		return strcasecmp( (string) $a->name, (string) $b->name );
-	});
-
-	return $terms;
-}
-	
-	}
-	/**
- * Normalize 'labels_layout_overrides' repeater into a lookup:
- * $map[SECTION_ID]['matrix']['placeholder']
- * $map[SECTION_ID]['inline_below']['separator']
- * (Add other layouts as needed.)
- */
-private function jprm_normalize_section_overrides( $rows ) : array {
-    $map = [];
-    if ( ! is_array( $rows ) || empty( $rows ) ) return $map;
-
-    foreach ( $rows as $row ) {
-        $sec = isset( $row['section_id'] ) ? (int) $row['section_id'] : 0;
-        if ( $sec <= 0 ) continue;
-
-        $layout = isset( $row['layout'] ) ? (string) $row['layout'] : '';
-
-        // Matrix → placeholder
-        if ( $layout === 'matrix' && array_key_exists( 'placeholder', $row ) ) {
-            $map[$sec]['matrix']['placeholder'] = html_entity_decode( (string) $row['placeholder'], ENT_QUOTES );
+    private static function ensure_menu_meta_helper() : void {
+        if ( function_exists( 'jprm_render_menu_meta' ) ) return;
+        function jprm_render_menu_meta( $term, bool $show_title, bool $show_desc, string $scope ) : string {
+            if ( ! $term || ( ! $show_title && ! $show_desc ) ) return '';
+            $title = $show_title ? trim( (string) $term->name ) : '';
+            $desc  = $show_desc  ? trim( (string) $term->description ) : '';
+            if ( $title === '' && $desc === '' ) return '';
+            $cls = 'jp-menu__meta ' . ( $scope === 'global' ? 'jp-menu__meta--global' : 'jp-menu__meta--col' );
+            $out  = '<div class="' . esc_attr( $cls ) . '">';
+            if ( $title !== '' ) $out .= '<h2 class="jp-menu__meta-title">' . esc_html( $title ) . '</h2>';
+            if ( $desc  !== '' ) $out .= '<div class="jp-menu__meta-desc">' . esc_html( $desc ) . '</div>';
+            $out .= '</div>';
+            return $out;
         }
-
-        // Inline-Below → separator
-        if ( $layout === 'inline_below' && array_key_exists( 'separator', $row ) ) {
-            $map[$sec]['inline_below']['separator'] = (string) $row['separator'];
-        }
-
-        // (Inline or other layouts can be added here later if needed.)
     }
 
-    return $map;
-}
+    /** Fetch sections that belong to a Menu, ordered by _jprm_section_order (ASC), then name. */
+    private function jprm_get_ordered_sections_for_menu( int $menu_id ) : array {
+        if ( $menu_id <= 0 ) return [];
+
+        $terms = get_terms( [
+            'taxonomy'   => 'jprm_section',
+            'hide_empty' => false,
+            'meta_query' => [
+                [ 'key' => '_jprm_menu_term_id', 'value' => (string) $menu_id ],
+            ],
+            'meta_key'   => '_jprm_section_order',
+            'orderby'    => 'meta_value_num',
+            'order'      => 'ASC',
+        ] );
+        if ( is_wp_error( $terms ) || empty( $terms ) ) return [];
+
+        // Stable fallback by name if some terms miss the meta.
+        usort( $terms, static function( $a, $b ){
+            $ao = (int) get_term_meta( $a->term_id, '_jprm_section_order', true );
+            $bo = (int) get_term_meta( $b->term_id, '_jprm_section_order', true );
+            if ( $ao !== $bo ) return $ao <=> $bo;
+            return strcasecmp( (string) $a->name, (string) $b->name );
+        } );
+
+        return $terms;
+    }
+
+    /**
+     * Normalize 'labels_layout_overrides' repeater into a lookup:
+     * $map[SECTION_ID]['matrix']['placeholder']
+     * $map[SECTION_ID]['inline_below']['separator']
+     */
+    private function jprm_normalize_section_overrides( $rows ) : array {
+        $map = [];
+        if ( ! is_array( $rows ) || empty( $rows ) ) return $map;
+
+        foreach ( $rows as $row ) {
+            $sec = isset( $row['section_id'] ) ? (int) $row['section_id'] : 0;
+            if ( $sec <= 0 ) continue;
+
+            $layout = isset( $row['layout'] ) ? (string) $row['layout'] : '';
+
+            // Matrix → placeholder
+            if ( $layout === 'matrix' && array_key_exists( 'placeholder', $row ) ) {
+                $map[$sec]['matrix']['placeholder'] = html_entity_decode( (string) $row['placeholder'], ENT_QUOTES );
+            }
+
+            // Inline-Below → separator
+            if ( $layout === 'inline_below' && array_key_exists( 'separator', $row ) ) {
+                $map[$sec]['inline_below']['separator'] = (string) $row['separator'];
+            }
+        }
+
+        return $map;
+    }
+
 
 	/* =========================
 	 * Render
