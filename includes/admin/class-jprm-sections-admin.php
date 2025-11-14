@@ -34,6 +34,8 @@ class Sections_Admin {
 		add_action( 'admin_head-edit-tags.php', [ __CLASS__, 'admin_head_assets' ] );
 
 		self::hook_terms_order_and_filter();
+		add_filter( 'terms_clauses', [ __CLASS__, 'force_admin_order' ], 20, 3 );
+
 	}
 
 	/* ================= Columns ================= */
@@ -157,6 +159,46 @@ class Sections_Admin {
 			$q->query_vars['order']    = ( $order === 'DESC' ) ? 'DESC' : 'ASC';
 		}
 	}
+
+	public static function force_admin_order( $pieces, $taxonomies, $args ) : array {
+	if ( ! is_admin() ) return $pieces;
+
+	// Only our taxonomy on the admin list screen.
+	if ( empty( $taxonomies ) || ! in_array( self::TAX_SECTION, (array) $taxonomies, true ) ) {
+		return $pieces;
+	}
+
+	// We only want to force this on the taxonomy management screen.
+	// get_current_screen() is safe in admin; guard in case it's null.
+	$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+	if ( ! $screen || empty( $screen->taxonomy ) || $screen->taxonomy !== self::TAX_SECTION ) {
+		return $pieces;
+	}
+
+	// Read the selected Menu (toolbar filter).
+	$selected_menu = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
+
+	// We want: when a Menu is selected OR when the user clicked the "Order" header,
+	// force ORDER BY _jprm_section_order ASC, then name ASC to break ties.
+	$orderby_clicked = isset( $_GET['orderby'] ) && $_GET['orderby'] === 'jprm_order'; // phpcs:ignore
+
+	if ( $selected_menu > 0 || $orderby_clicked ) {
+		global $wpdb;
+
+		// Join the order meta explicitly under a stable alias.
+		if ( strpos( $pieces['join'] ?? '', 'tm_sort' ) === false ) {
+			$meta_key = esc_sql( self::META_SECTION_ORDER );
+			$pieces['join'] .= " LEFT JOIN {$wpdb->termmeta} AS tm_sort
+				ON (tm_sort.term_id = t.term_id AND tm_sort.meta_key = '{$meta_key}')";
+		}
+
+		// Enforce deterministic order: numeric meta ASC, then name.
+		$pieces['orderby'] = " CAST(tm_sort.meta_value AS UNSIGNED) ASC, t.name ASC ";
+	}
+
+	return $pieces;
+}
+
 
 	/* ================= Add/Edit fields ================= */
 
