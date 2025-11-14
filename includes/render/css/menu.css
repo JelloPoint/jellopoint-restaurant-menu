@@ -411,3 +411,5 @@
   align-items: baseline; 
   gap: .35rem; 
 }
+/* If a grid parent squeezes the row, allow overflow to stay on the same line */
+.jp-inline .jp-menu__inner { min-width: 0; }
