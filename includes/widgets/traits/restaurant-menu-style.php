@@ -1019,8 +1019,8 @@ $this->add_responsive_control( 'inline_leader_gap', [
     'label'      => __( 'Leader Gap', 'jprm' ),
     'type'       => \Elementor\Controls_Manager::SLIDER,
     'size_units' => [ 'px' ],
-    'range'      => [ 'px' => [ 'min' => 4, 'max' => 32 ] ],
-    'default'    => [ 'size' => 8, 'unit' => 'px' ],
+    'range'      => [ 'px' => [ 'min' => 0, 'max' => 32 ] ],
+    'default'    => [ 'size' => 2, 'unit' => 'px' ],
     'selectors'  => [
         '{{WRAPPER}} .jp-layout-inline, {{WRAPPER}} .jp-inline' => '--jprm-leader-gap: {{SIZE}}{{UNIT}};',
     ],
