@@ -439,3 +439,48 @@
 .jp-layout-inline .jp-leader[data-style="dotted"]{ border-bottom-style:dotted; }
 .jp-layout-inline .jp-leader[data-style="dashed"]{ border-bottom-style:dashed; }
 .jp-layout-inline .jp-leader[data-style="solid"] { border-bottom-style:solid; }
+
+/* ===== Inline grid to keep description under title, prices on the right ===== */
+.jp-layout-inline .jp-grid--inline{
+  display:grid;
+  grid-template-columns: auto 1fr auto; /* title | leader | prices */
+  grid-template-rows: auto auto;        /* row1: title/leader/prices ; row2: desc / (spacer) / prices */
+  column-gap:.5rem;
+  row-gap:.25rem;
+  align-items:first baseline; /* modern browsers; falls back to baseline */
+}
+
+/* Place items into the grid cells */
+.jp-layout-inline .jp-left-title{ grid-column:1; grid-row:1; min-width:0; }
+.jp-layout-inline .jp-left-desc { grid-column:1; grid-row:2; }
+.jp-layout-inline .jp-leader    { grid-column:2; grid-row:1; align-self:baseline; }
+.jp-layout-inline .jp-right-pricegroup{
+  grid-column:3;
+  grid-row:1 / span 2; /* prices occupy both rows */
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:.25rem;
+}
+
+/* Title area details */
+.jp-layout-inline .jp-menu__titlewrap{ display:inline-flex; align-items:baseline; gap:.35rem; }
+
+/* Price rows baseline tidy */
+.jp-layout-inline .jp-price-row{ display:inline-flex; align-items:baseline; gap:.35rem; }
+
+/* --- Leader styling driven by Elementor variables --- */
+.jp-layout-inline .jp-leader{
+  min-width:1rem;
+  border-bottom-width: var(--jprm-leader-weight, 1px);
+  border-bottom-color: var(--jprm-leader-color, currentColor);
+  border-bottom-style: dotted; /* fallback; overridden below */
+  margin: 0 var(--jprm-leader-gap, .5rem);
+  transform: translateY(var(--jprm-leader-offset, 0));
+}
+.jp-layout-inline .jp-leader[data-style="dotted"]{ border-bottom-style:dotted; }
+.jp-layout-inline .jp-leader[data-style="dashed"]{ border-bottom-style:dashed; }
+.jp-layout-inline .jp-leader[data-style="solid"] { border-bottom-style:solid; }
+
+/* When leader is logically off, keep a 0-size placeholder so grid stays stable */
+.jp-layout-inline .jp-leader.jp-leader--off{ border:0; width:0; margin:0; }

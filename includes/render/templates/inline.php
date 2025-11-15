@@ -101,56 +101,67 @@ foreach ($items as $post) {
 
 	echo '<div class="jp-menu__item"><div class="jp-menu__inner">';
 
-	// --- ONE ROW: Title + (optional) leader + Pricegroup (baseline aligned) ---
-	echo '<div class="jp-row jp-row--titleline">';
+// Determine price presence + rows
+$has_price = false;
+foreach ($rows as $r) { if (isset($r['formatted']) && (string)$r['formatted'] !== '') { $has_price = true; break; } }
 
-		echo '<div class="jp-menu__content">';
+// --- GRID: Title + Leader + Prices (row 1) ; Description under Title (row 2) ---
+echo '<div class="jp-grid jp-grid--inline">';
 
-			if ($title !== '') {
-				echo '<div class="jp-menu__titlewrap">';
-					if ($badges_position === 'before' && $badges_html !== '') {
-						echo $badges_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-					}
-					echo '<span class="jp-menu__title">' . esc_html($title) . '</span>';
-					if ($badges_position !== 'before' && $badges_html !== '') {
-						echo $badges_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-					}
-				echo '</div>';
-			}
+  // LEFT column, row 1: Title (+badges)
+  echo '<div class="jp-left-title">';
+    echo '<div class="jp-menu__content">';
+      if ($title !== '') {
+        echo '<div class="jp-menu__titlewrap">';
+          if ($badges_position === 'before' && $badges_html !== '') {
+            echo $badges_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+          }
+          echo '<span class="jp-menu__title">' . esc_html($title) . '</span>';
+          if ($badges_position !== 'before' && $badges_html !== '') {
+            echo $badges_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+          }
+        echo '</div>';
+      }
+    echo '</div>';
+  echo '</div>';
 
-		echo '</div>'; // .jp-menu__content
+  // MIDDLE column, row 1: Leader
+  if ( $leader_enabled && $has_price ) {
+    echo '<span class="jp-leader" aria-hidden="true" data-style="'.esc_attr($leader_style).'"></span>';
+  } else {
+    // keep grid structure consistent
+    echo '<span class="jp-leader jp-leader--off" aria-hidden="true"></span>';
+  }
 
-		// Leader sits BETWEEN title and pricegroup, same baseline
-		if ( $leader_enabled && $has_price ) {
-			echo '<span class="jp-leader" aria-hidden="true" data-style="'.esc_attr($leader_style).'"></span>';
-		}
+  // RIGHT column, rows 1–2: full price group
+  echo '<div class="jp-right-pricegroup">';
+    foreach ($rows as $r) {
+      $price = (string)($r['formatted'] ?? '');
+      $lbl   = [
+        'text'      => (string)($r['label_text'] ?? ''),
+        'icon_html' => (string)($r['icon_html'] ?? ''),
+        'icon'      => (string)($r['icon'] ?? ''),
+        'svg'       => (string)($r['svg'] ?? ''),
+        'icon_url'  => (string)($r['icon_url'] ?? ''),
+      ];
+      echo '<div class="jp-price-row">';
+        echo '<span class="jp-chip">'. jprm_label_chip_inline($lbl, $label_presentation) .'</span>';
+        if ($price !== '') echo '<span class="jp-price">'. $price .'</span>';
+      echo '</div>';
+    }
+  echo '</div>';
 
-		// Full pricegroup on the same row (can be multiple rows visually)
-		echo '<div class="jp-menu__pricegroup">';
-			foreach ($rows as $r) {
-				$price = (string)($r['formatted'] ?? '');
-				$lbl   = [
-					'text'      => (string)($r['label_text'] ?? ''),
-					'icon_html' => (string)($r['icon_html'] ?? ''),
-					'icon'      => (string)($r['icon'] ?? ''),
-					'svg'       => (string)($r['svg'] ?? ''),
-					'icon_url'  => (string)($r['icon_url'] ?? ''),
-				];
-				echo '<div class="jp-price-row">';
-					echo '<span class="jp-chip">'. jprm_label_chip_inline($lbl, $label_presentation) .'</span>';
-					if ($price !== '') echo '<span class="jp-price">'. $price .'</span>';
-				echo '</div>';
-			}
-		echo '</div>'; // .jp-menu__pricegroup
+  // LEFT column, row 2: Description (always just under title)
+  echo '<div class="jp-left-desc">';
+    if (is_string($desc) && $desc !== '') {
+      echo '<div class="jp-menu__desc">' . esc_html($desc) . '</div>';
+    }
+  echo '</div>';
 
-	echo '</div>'; // .jp-row--titleline
+echo '</div>'; // .jp-grid
 
-	// --- Description BELOW the row so it never pushes the leader down ---
-	if (is_string($desc) && $desc !== '') {
-		echo '<div class="jp-menu__desc">' . esc_html($desc) . '</div>';
-	}
+echo '</div></div>'; // .jp-menu__inner / .jp-menu__item
 
-	echo '</div></div>'; // .jp-menu__inner / .jp-menu__item
 }
 
 echo '</li>';
