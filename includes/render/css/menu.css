@@ -398,3 +398,44 @@
 .jp-layout-inline .jp-leader[data-style="dashed"]{ border-bottom-style:dashed; }
 .jp-layout-inline .jp-leader[data-style="solid"] { border-bottom-style:solid; }
 
+/*EXTRA TWEAK*/
+/* === Inline layout baseline fix ======================================= */
+.jp-layout-inline .jp-menu__inner{ display:block; }
+
+/* Row that holds title + leader + pricegroup on a single baseline */
+.jp-layout-inline .jp-row--titleline{
+  display:flex;
+  align-items:baseline; /* <- key for clean alignment */
+  gap:.5rem;
+}
+
+/* Title block can wrap; leader will still align to its first line */
+.jp-layout-inline .jp-menu__content{ flex:0 1 auto; min-width:0; }
+.jp-layout-inline .jp-menu__titlewrap{ display:inline-flex; align-items:baseline; gap:.35rem; }
+
+/* Price group stays compact on the right */
+.jp-layout-inline .jp-menu__pricegroup{
+  flex:0 0 auto;
+  display:flex;
+  flex-direction:column;
+  gap:.25rem;
+}
+
+/* Leader expands between content and price */
+.jp-layout-inline .jp-leader{
+  flex:1 1 auto;
+  min-width:1rem;
+  margin:0 var(--jprm-leader-gap, .5rem);
+
+  border-bottom-width: var(--jprm-leader-weight, 1px);
+  border-bottom-color: var(--jprm-leader-color, currentColor);
+  border-bottom-style: dotted; /* fallback; overridden by data-style below */
+
+  /* fine-tune vertical feel if needed from Style tab */
+  transform: translateY(var(--jprm-leader-offset, 0));
+}
+
+/* Map data-style to actual line style */
+.jp-layout-inline .jp-leader[data-style="dotted"]{ border-bottom-style:dotted; }
+.jp-layout-inline .jp-leader[data-style="dashed"]{ border-bottom-style:dashed; }
+.jp-layout-inline .jp-leader[data-style="solid"] { border-bottom-style:solid; }

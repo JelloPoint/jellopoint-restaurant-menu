@@ -1030,6 +1030,20 @@ $this->add_responsive_control( 'inline_leader_gap', [
     ],
 ]);
 
+$this->add_responsive_control( 'inline_leader_offset', [
+    'label'      => __( 'Leader Vertical Offset', 'jprm' ),
+    'type'       => \Elementor\Controls_Manager::SLIDER,
+    'size_units' => [ 'px' ],
+    'range'      => [ 'px' => [ 'min' => -6, 'max' => 6, 'step' => 1 ] ],
+    'default'    => [ 'size' => 0, 'unit' => 'px' ],
+    'selectors'  => [
+        '{{WRAPPER}} .jp-layout-inline, {{WRAPPER}} .jp-inline' => '--jprm-leader-offset: {{SIZE}}{{UNIT}};',
+    ],
+    'condition'  => [
+        'labels_layout'        => 'inline',
+        'inline_leader_enable' => 'yes',
+    ],
+]);
 
 
 $this->end_controls_section();
