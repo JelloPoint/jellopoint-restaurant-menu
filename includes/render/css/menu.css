@@ -363,18 +363,38 @@
 }
 
 /* LEADER STYLING */
-.jp-menu__item .jp-menu__inner {
+/* === Inline leader — consume Elementor variables === */
+/* Put this near your existing inline layout rules */
+
+.jp-layout-inline .jp-menu__inner{
   display:flex;
   align-items:baseline;
   gap:.5rem;
 }
-.jp-menu__content { flex:0 1 auto; min-width:0; }
-.jp-menu__pricegroup { flex:0 0 auto; }
-.jp-leader {
+
+.jp-layout-inline .jp-menu__content{ flex:0 1 auto; min-width:0; }
+.jp-layout-inline .jp-menu__pricegroup{ flex:0 0 auto; }
+
+/* The leader expands between content and price */
+.jp-layout-inline .jp-leader{
   flex:1 1 auto;
   min-width:1rem;
-  border-bottom-width:1px;
-  border-bottom-style:dotted; /* overridden by Elementor */
-  border-bottom-color:currentColor; /* overridden by Elementor color control */
+
+  /* use the Elementor-driven variables */
+  margin:0 var(--jprm-leader-gap, .5rem);
+  border-bottom-width: var(--jprm-leader-weight, 1px);
+  border-bottom-color: var(--jprm-leader-color, currentColor);
+
+  /* default fallback; overridden by the data-style rules below */
+  border-bottom-style: dotted;
+
+  /* keeps the line visually centered on text baseline */
+  align-self:center;
   transform: translateY(-0.1em);
 }
+
+/* Style coming from the data-style attribute that inline.php renders */
+.jp-layout-inline .jp-leader[data-style="dotted"]{ border-bottom-style:dotted; }
+.jp-layout-inline .jp-leader[data-style="dashed"]{ border-bottom-style:dashed; }
+.jp-layout-inline .jp-leader[data-style="solid"] { border-bottom-style:solid; }
+
