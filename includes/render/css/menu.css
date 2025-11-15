@@ -363,30 +363,18 @@
 }
 
 /* LEADER STYLING */
-/* Inline layout: align title + leader + price on one row */
-.jp-layout-inline .jp-menu__item .jp-menu__inner{
+.jp-menu__item .jp-menu__inner {
   display:flex;
   align-items:baseline;
   gap:.5rem;
 }
-
-/* Make the content shrinkable so the leader gets space */
-.jp-layout-inline .jp-menu__content{min-width:0}
-
-/* The leader itself; controls will override border-* via inline styles from Elementor */
-.jp-layout-inline .jp-leader{
+.jp-menu__content { flex:0 1 auto; min-width:0; }
+.jp-menu__pricegroup { flex:0 0 auto; }
+.jp-leader {
   flex:1 1 auto;
-  border-bottom:1px dotted currentColor; /* default look */
-  opacity:.6;
   min-width:1rem;
-  transform:translateY(.35em); /* line sits nicely under the text baseline */
-}
-
-/* Price column sits at the end, doesn’t wrap into the next column */
-.jp-layout-inline .jp-menu__pricegroup{
-  margin-left:.5rem;
-  flex:0 0 auto;
-  display:flex;
-  flex-direction:column;
-  align-items:flex-end;
+  border-bottom-width:1px;
+  border-bottom-style:dotted; /* overridden by Elementor */
+  border-bottom-color:currentColor; /* overridden by Elementor color control */
+  transform: translateY(-0.1em);
 }

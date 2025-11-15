@@ -18,9 +18,9 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
 	function jprm_render_menu_meta( $menu_term, bool $show_title, bool $show_desc, string $scope = 'global' ) : string {
 		if ( ! $menu_term ) return '';
-		$out = '';
-		$title = is_object( $menu_term ) ? (string)($menu_term->name ?? '') : (string)($menu_term['name'] ?? '');
-		$desc  = is_object( $menu_term ) ? (string)($menu_term->description ?? '') : (string)($menu_term['description'] ?? '');
+		$out   = '';
+		$title = is_object( $menu_term ) ? (string)($menu_term->name ?? '' ) : (string)($menu_term['name'] ?? '' );
+		$desc  = is_object( $menu_term ) ? (string)($menu_term->description ?? '' ) : (string)($menu_term['description'] ?? '' );
 		if ( $show_title || ( $show_desc && $desc !== '' ) ) {
 			$out .= '<li class="jp-menu__meta jp-menu__meta--' . esc_attr( $scope ) . '">';
 			if ( $show_title && $title !== '' ) $out .= '<h2 class="jp-menu__title">' . esc_html( $title ) . '</h2>';
@@ -62,6 +62,11 @@ $global_placeholder_legacy = (string)($ctx['global_placeholder'] ?? '—');
 $show_badges         = ! empty( $ctx['show_badges'] );
 $badges_position     = (string)($ctx['badges_position'] ?? 'after');
 $badges_presentation = (string)($ctx['badges_presentation'] ?? 'icon_text');
+
+/* === Inline leader (from widget ctx) === */
+$inline_leader_enable = ( ! empty( $ctx['inline_leader_enable'] ) && $ctx['inline_leader_enable'] === 'yes' ) ? 'yes' : 'no';
+$inline_leader_char   = (string) ( $ctx['inline_leader_char']   ?? '' );
+$inline_leader_style  = (string) ( $ctx['inline_leader_style']  ?? 'dotted' ); // 'dotted'|'dashed'|'solid'
 
 $columns                  = max(1, min(3, (int)($ctx['layout_columns'] ?? 1)));
 $split_mode               = (string)($ctx['layout_split_mode'] ?? 'auto');
@@ -178,6 +183,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 	$label_presentation, $label_position, $label_map, $currency_opts,
 	$show_badges, $badges_position, $badges_presentation,
 	$show_main_sections, $show_main_even_if_empty,
+	$inline_leader_enable, $inline_leader_char, $inline_leader_style,
 	$__resolve_section_level, $ib_map
 ) : void {
 
@@ -221,9 +227,6 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 			$allow_main = ( $show_main_sections === 'yes' )
 				&& ( $show_main_even_if_empty === 'yes' || $has_items || $has_children );
 
-			// Debug: echo effective layout info too
-			echo "<!-- MAIN tid={$tid} sms={$show_main_sections} even={$show_main_even_if_empty} items=" . ($has_items?'1':'0') . " kids=" . ($has_children?'1':'0') . " allow=" . ($allow_main?'1':'0') . " eff_layout={$eff_layout} -->";
-
 			if ( $allow_main ) {
 				echo '<li class="' . esc_attr($classes) . '"' . $data_id . '>';
 					echo '<h3 class="jp-section__title">' . esc_html( is_object($term)?($term->name??''):($term['name']??'') ) . '</h3>';
@@ -262,9 +265,6 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 			'label_position'     => $label_position,
 			'label_map'          => $label_map,
 			'currency_opts'      => $currency_opts,
-			'inline_leader_enable' => ( isset( $ctx['inline_leader_enable'] ) && $ctx['inline_leader_enable'] === 'yes' ) ? 'yes' : 'no',
-			'inline_leader_char'   => (string) ( $ctx['inline_leader_char'] ?? '' ),
-			'inline_leader_style' => $inline_style,
 			// badges
 			'show_badges'         => $show_badges ? 'yes' : 'no',
 			'badges_position'     => $badges_position,
@@ -272,12 +272,14 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 			// effective per-layout extras
 			'matrix_placeholder'  => $eff_placeholder,
 			'inline_separator'    => $eff_separator,
+			// inline leader (only used by inline.php)
+			'inline_leader_enable' => $inline_leader_enable,
+			'inline_leader_char'   => $inline_leader_char,
+			'inline_leader_style'  => $inline_leader_style,
 			// extras
 			'section_level'       => $level,
 			'section_id'          => $tid,
 		];
-		// debug note for dev tools
-		echo "<!-- layout={$eff_layout} placeholder=" . htmlspecialchars((string)$eff_placeholder) . " sep=" . htmlspecialchars((string)$eff_separator) . " -->";
 		include $file;
 		unset($_section_ctx);
 	} elseif ( ! file_exists($file) ) {
