@@ -553,17 +553,22 @@ trait Restaurant_Menu_Controls {
 			[ 'label' => __( 'Layout', 'jellopoint-restaurant-menu' ) ]
 		);
 
-		$this->add_control( 'layout_columns', [
-			'label'   => __( 'Columns', 'jellopoint-restaurant-menu' ),
-			'type'    => Controls_Manager::SELECT,
-			'default' => '1',
-			'options' => [
-				'1' => __( '1 column', 'jellopoint-restaurant-menu' ),
-				'2' => __( '2 columns', 'jellopoint-restaurant-menu' ),
-				'3' => __( '3 columns', 'jellopoint-restaurant-menu' ),
-			],
-			'condition' => [ 'data_mode' => 'dynamic' ],
-		] );
+		$this->add_responsive_control( 'layout_columns', [
+		'label'        => __( 'Columns', 'jprm' ),
+		'type'         => \Elementor\Controls_Manager::SELECT,
+		'default'      => '2',          // desktop default
+		'tablet_default' => '2',
+		'mobile_default' => '1',        // mobile → 1 column by default
+		'options'      => [
+			'1' => '1',
+			'2' => '2',
+			'3' => '3',
+		],
+		// Override the CSS variable per breakpoint; the !important ensures it beats inline style
+		'selectors'    => [
+			'{{WRAPPER}} .jp-menu-grid' => '--jp-cols: {{VALUE}} !important;',
+		],
+		]);
 
 		$this->add_control( 'layout_split_mode', [
 			'label'   => __( 'Split mode', 'jellopoint-restaurant-menu' ),
