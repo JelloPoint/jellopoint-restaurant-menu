@@ -117,6 +117,41 @@ private static function require_badges_partial_once() : void {
 
         return $map;
     }
+	/** Return a numeric price used only for sorting.
+	 *  Strategy:
+	 *   - if single price: meta 'jprm_price_amount'
+	 *   - if multi: first row from 'jprm_prices' or 'jprm_price[rows][0][value]'
+	 *  We parse "fr-style" strings like "2,50" to 2.50. Non-parsable -> INF.
+	 */
+	private static function jprm_effective_price_number( int $post_id ) : float {
+		$mode = (string) get_post_meta( $post_id, 'jprm_price_mode', true );
+		$amount = '';
+		if ( $mode === 'single' ) {
+			$amount = (string) get_post_meta( $post_id, 'jprm_price_amount', true );
+		} else {
+			$rows = get_post_meta( $post_id, 'jprm_prices', true );
+			if ( ! is_array( $rows ) ) {
+				$p = get_post_meta( $post_id, 'jprm_price', true );
+				$rows = ( is_array($p) && !empty($p['rows']) && is_array($p['rows']) ) ? $p['rows'] : [];
+			}
+			if ( ! empty( $rows ) ) {
+				// prefer 'amount' then 'value'
+				$r = (array) $rows[0];
+				$amount = (string) ( $r['amount'] ?? ( $r['value'] ?? '' ) );
+			}
+		}
+		$s = trim( (string) $amount );
+		if ( $s === '' ) return INF; // empty pushes to end if ASC
+		// normalize strings like "€ 2,50" -> "2.50"
+		$s = preg_replace('~[^0-9,.\-]~', '', $s);
+		// if both comma and dot, assume comma is decimal if it occurs after dot count; simplest: last non-digit is decimal sep
+		if ( strpos($s, ',') !== false && strpos($s, '.') === false ) {
+			$s = str_replace(',', '.', $s);
+		}
+		// now parse
+		$n = floatval( $s );
+		return is_finite($n) ? $n : INF;
+	}
 
 
 	/* =========================
@@ -225,6 +260,59 @@ if ( function_exists( 'jprm_render_badges_inline_html' ) ) {
 			}
 			$sections_data[ $primary_tid ]['items'][] = $post;
 		}
+
+	// ---- Sort items per section based on global controls + optional overrides
+$global_ob = isset( $s['items_orderby'] ) ? (string)$s['items_orderby'] : 'menu_order';
+$global_od = isset( $s['items_order'] )   ? strtoupper((string)$s['items_order']) : 'ASC';
+
+// Build quick override map: [ section_id => ['orderby'=>'...','order'=>'ASC|DESC'] ]
+$ov_map = [];
+if ( ! empty( $s['items_order_overrides'] ) && is_array( $s['items_order_overrides'] ) ) {
+    foreach ( $s['items_order_overrides'] as $ov ) {
+        $sid = isset($ov['section_id']) ? (int)$ov['section_id'] : 0;
+        if ( $sid <= 0 ) continue;
+        $ob = isset($ov['orderby']) ? (string)$ov['orderby'] : $global_ob;
+        $od = isset($ov['order'])   ? strtoupper((string)$ov['order']) : $global_od;
+        $ov_map[$sid] = ['orderby'=>$ob, 'order'=>$od];
+    }
+}
+
+foreach ( $sections_data as $tid => &$bucket ) {
+    if ( empty( $bucket['items'] ) || ! is_array( $bucket['items'] ) ) continue;
+
+    $use_ob = $ov_map[$tid]['orderby'] ?? $global_ob;
+    $use_od = $ov_map[$tid]['order']   ?? $global_od;
+    $dir    = ($use_od === 'DESC') ? -1 : 1;
+
+    usort( $bucket['items'], function( $a, $b ) use ( $use_ob, $dir ) {
+        $aid = (int)$a->ID; $bid = (int)$b->ID;
+
+        switch ( $use_ob ) {
+            case 'title':
+                $av = mb_strtolower( get_the_title($aid) ?: '' );
+                $bv = mb_strtolower( get_the_title($bid) ?: '' );
+                $cmp = $av <=> $bv;
+                break;
+
+            case 'price':
+                $ap = self::jprm_effective_price_number( $aid );
+                $bp = self::jprm_effective_price_number( $bid );
+                // INF sorts to end in ASC; for DESC invert naturally via $dir
+                $cmp = ($ap <=> $bp);
+                break;
+
+            case 'menu_order':
+            default:
+                $am = (int) get_post_field( 'menu_order', $aid );
+                $bm = (int) get_post_field( 'menu_order', $bid );
+                $cmp = $am <=> $bm;
+                break;
+        }
+        return $dir * $cmp;
+    });
+}
+unset($bucket);
+	
 // --- Reorder sections by builder order if a single Menu is chosen ---
 if ( $menu_term && empty( $section_ids ) ) {
     $ordered_terms = $this->jprm_get_ordered_sections_for_menu( (int) $menu_term->term_id );
