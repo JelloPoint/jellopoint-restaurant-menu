@@ -14,14 +14,21 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * - Price_Multiple must be '*' separated: e.g. "2,50*5,00*7,50".
  * - Amount strings are stored EXACTLY as provided (no normalization/guessing).
  * - If create_missing_terms=1, missing Menus/Sections are created.
- * - New Sections get _jprm_menu_term_id set to the first Menu in the row (if any).
+ * - New/Existing Sections get `_jprm_menu_term_id` set to the first Menu in the row (if any)
+ *   and a sequential `_jprm_section_order` is assigned if missing.
  */
 final class JPRM_Importer {
+
+	/** Per-run counters: next section order per owner-menu term_id. */
+	private static array $section_order_seq = []; // [ menu_term_id => next_int ]
 
 	public static function run( array $file, array $opts = [] ): array {
 		$dry_run              = ! empty( $opts['dry_run'] );
 		$create_missing_terms = ! empty( $opts['create_missing_terms'] );
 		$ignore_ids           = ! empty( $opts['ignore_ids'] ); // when true, always create new posts
+
+		// reset per-run state
+		self::$section_order_seq = [];
 
 		$report = [
 			'dry_run'   => $dry_run,
@@ -356,7 +363,7 @@ final class JPRM_Importer {
 				}
 			}
 
-			// Assign terms by name
+			// Assign terms by name (keeps strict behavior)
 			self::assign_terms_if_changed( $post_id, 'jprm_menu',    $new['menu_terms'] );
 			self::assign_terms_if_changed( $post_id, 'jprm_section', $new['sect_terms'] );
 
@@ -433,6 +440,21 @@ final class JPRM_Importer {
 				delete_post_meta( $post_id, 'jprm_price_amount' );
 				delete_post_meta( $post_id, 'jprm_price_label_mode' );
 				delete_post_meta( $post_id, 'jprm_price_label_ref' );
+			}
+
+			/**
+			 * NEW: ensure Owner Menu + Section Order on all attached sections.
+			 * - Owner = first Menu term in the row (by exact name match)
+			 * - Order = sequential per Owner Menu, only assigned if missing
+			 */
+			$owner_menu_id = self::first_menu_id_from_names( $new['menu_terms'] );
+			if ( $owner_menu_id ) {
+				$attached_sections = wp_get_object_terms( $post_id, 'jprm_section', [ 'fields' => 'ids' ] );
+				if ( is_array( $attached_sections ) && ! is_wp_error( $attached_sections ) ) {
+					foreach ( $attached_sections as $sid ) {
+						self::ensure_section_owner_and_order( (int) $sid, $owner_menu_id );
+					}
+				}
 			}
 		}
 
@@ -618,5 +640,78 @@ final class JPRM_Importer {
 			];
 		}
 		return [ 'mode' => 'multi', 'rows' => $out ];
+	}
+
+	/* ---------------- Owner + Order helpers ---------------- */
+
+	/**
+	 * Resolve first menu ID by exact term name list; returns 0 if none found.
+	 */
+	private static function first_menu_id_from_names( array $names ): int {
+		foreach ( $names as $name ) {
+			if ( $name === '' ) { continue; }
+			$t = get_term_by( 'name', $name, 'jprm_menu' );
+			if ( $t && ! is_wp_error( $t ) ) {
+				return (int) $t->term_id;
+			}
+		}
+		return 0;
+	}
+
+	/**
+	 * Ensure a section has its owner menu set (if missing) and a sequential order (if missing).
+	 */
+	private static function ensure_section_owner_and_order( int $section_term_id, int $menu_term_id ) : void {
+		if ( $section_term_id <= 0 || $menu_term_id <= 0 ) { return; }
+
+		$owner = get_term_meta( $section_term_id, '_jprm_menu_term_id', true );
+		if ( ! $owner ) {
+			update_term_meta( $section_term_id, '_jprm_menu_term_id', $menu_term_id );
+		}
+
+		$order_raw = get_term_meta( $section_term_id, '_jprm_section_order', true );
+		$order     = is_numeric( $order_raw ) ? (int) $order_raw : 0;
+
+		if ( $order <= 0 ) {
+			$next = self::next_order_for_menu( $menu_term_id );
+			update_term_meta( $section_term_id, '_jprm_section_order', $next );
+		}
+	}
+
+	/**
+	 * Get the next sequential order number for a menu_id, seeding from current max once per run.
+	 */
+	private static function next_order_for_menu( int $menu_term_id ) : int {
+		if ( $menu_term_id <= 0 ) { return 1; }
+
+		if ( ! isset( self::$section_order_seq[ $menu_term_id ] ) ) {
+			$max = 0;
+
+			// Try to fetch the highest existing order for this menu owner quickly
+			$args = [
+				'taxonomy'   => 'jprm_section',
+				'hide_empty' => false,
+				'number'     => 1,
+				'meta_query' => [
+					[
+						'key'   => '_jprm_menu_term_id',
+						'value' => (string) $menu_term_id,
+					],
+				],
+				'meta_key'   => '_jprm_section_order',
+				'orderby'    => 'meta_value_num',
+				'order'      => 'DESC',
+			];
+			$terms = get_terms( $args );
+			if ( is_array( $terms ) && ! empty( $terms ) && ! is_wp_error( $terms ) ) {
+				$max = (int) get_term_meta( (int) $terms[0]->term_id, '_jprm_section_order', true );
+			}
+
+			self::$section_order_seq[ $menu_term_id ] = max( 0, $max ) + 1;
+		}
+
+		$next = self::$section_order_seq[ $menu_term_id ];
+		self::$section_order_seq[ $menu_term_id ] = $next + 1;
+		return $next;
 	}
 }
