@@ -6,16 +6,6 @@
         <label for="jprm-menu-select"><?php esc_html_e('Select Menu:', 'jprm'); ?></label>
         <select id="jprm-menu-select"></select>
         <button class="button button-secondary" id="jprm-refresh"><?php esc_html_e('Refresh', 'jprm'); ?></button>
-<form id="jprm-reseq-form" method="post" action="<?php echo esc_url( admin_url('admin-post.php') ); ?>" style="display:inline-flex;gap:6px;align-items:center;margin-left:8px;">
-    <?php wp_nonce_field( \JelloPoint\RestaurantMenu\Admin\Menu_Builder::NONCE_RESEQ ); ?>
-    <input type="hidden" name="action" value="<?php echo esc_attr( \JelloPoint\RestaurantMenu\Admin\Menu_Builder::ACTION_RESEQ ); ?>">
-    <label for="jprm-reseq-dir" style="margin-left:6px;"><?php esc_html_e('Resequence:', 'jprm'); ?></label>
-    <select name="dir" id="jprm-reseq-dir">
-        <option value="ASC"><?php esc_html_e('ASC', 'jprm'); ?></option>
-        <option value="DESC"><?php esc_html_e('DESC', 'jprm'); ?></option>
-    </select>
-    <button class="button" type="submit"><?php esc_html_e('Apply', 'jprm'); ?></button>
-</form>
 
         <!-- Toggle (top) -->
         <button class="button jprm-toggle-all" data-collapsed="0">
@@ -40,41 +30,6 @@
                         <?php esc_html_e('Collapse all', 'jprm'); ?>
                     </button>
                 </div>
-                <form method="post"
-      action="<?php echo esc_url( admin_url('admin-post.php') ); ?>"
-      class="jprm-resequence-form"
-      style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-    <?php wp_nonce_field( 'jprm_resequence_items', '_jprm_resort_nonce' ); ?>
-    <input type="hidden" name="action" value="jprm_resequence_items">
-    <input type="hidden" name="menu_id" id="jprm-resequence-menu-id" value="">
-    <strong><?php esc_html_e('Resequence all items in all sections:', 'jprm'); ?></strong>
-    <button class="button" name="direction" value="ASC"  type="submit"><?php esc_html_e('ASC',  'jprm'); ?></button>
-    <button class="button" name="direction" value="DESC" type="submit"><?php esc_html_e('DESC', 'jprm'); ?></button>
-    <span class="description" style="opacity:.75;">
-        <?php esc_html_e('One-time operation — rewrites menu_order.', 'jprm'); ?>
-    </span>
-</form>
-<form method="post" action="<?php echo esc_url( admin_url('admin-post.php') ); ?>" style="display:inline-flex;gap:6px;align-items:center;margin-left:8px;">
-    <?php wp_nonce_field( \JelloPoint\RestaurantMenu\Admin\Menu_Builder::NONCE_RESEQ ); ?>
-    <input type="hidden" name="action" value="<?php echo esc_attr( \JelloPoint\RestaurantMenu\Admin\Menu_Builder::ACTION_RESEQ ); ?>">
-    <input type="hidden" name="menu_id" id="jprm-reseq-menu-id" value="">
-    <label for="jprm-reseq-dir" style="margin-left:6px;"><?php esc_html_e('Resequence:', 'jprm'); ?></label>
-    <select name="dir" id="jprm-reseq-dir">
-        <option value="ASC"><?php esc_html_e('ASC', 'jprm'); ?></option>
-        <option value="DESC"><?php esc_html_e('DESC', 'jprm'); ?></option>
-    </select>
-    <button class="button" type="submit"><?php esc_html_e('Apply', 'jprm'); ?></button>
-</form>
-<script>
-document.addEventListener('DOMContentLoaded', function(){
-    // mirror the current top-left <select id="jprm-menu-select"> value into the hidden input
-    var sel = document.getElementById('jprm-menu-select');
-    var hid = document.getElementById('jprm-reseq-menu-id');
-    function sync(){ if (sel && hid) hid.value = sel.value || ''; }
-    if (sel) { sel.addEventListener('change', sync); sync(); }
-});
-</script>
-
             </div>
         </div>
 
@@ -117,16 +72,3 @@ document.addEventListener('DOMContentLoaded', function(){
         </div>
     </div>
 </div>
-<script>
-(function(){
-  const sel = document.getElementById('jprm-menu-select');
-  const hid = document.getElementById('jprm-resequence-menu-id');
-  function sync(){ if (sel && hid) hid.value = sel.value || ''; }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', sync, {once:true});
-  } else {
-    sync();
-  }
-  if (sel) sel.addEventListener('change', sync);
-})();
-</script>
