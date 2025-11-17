@@ -66,6 +66,51 @@ trait Restaurant_Menu_Controls {
 		foreach ( $terms as $t ) { $out[ (string) $t->term_id ] = $t->name; }
 		return $out;
 	}
+/** Build select options for Sections: [term_id => "Parent › Child"] */
+private function jprm_get_sections_options(): array {
+    $out = [];
+    // Get ALL sections (we’re not filtering by Owner Menu here).
+    $terms = \get_terms([
+        'taxonomy'   => 'jprm_section',
+        'hide_empty' => false,
+        'orderby'    => 'name',
+        'order'      => 'ASC',
+    ]);
+    if ( \is_wp_error( $terms ) || ! \is_array( $terms ) ) {
+        return $out;
+    }
+
+    // Build a quick id->term map and parent->children map to format a path label.
+    $by_id = [];
+    $kids  = [];
+    foreach ( $terms as $t ) {
+        $by_id[ (int) $t->term_id ] = $t;
+        $p = (int) $t->parent;
+        if ( ! isset( $kids[$p] ) ) $kids[$p] = [];
+        $kids[$p][] = (int) $t->term_id;
+    }
+
+    // Helper to build "Parent › Child › Sub" labels
+    $make_label = function( \WP_Term $term ) use ( $by_id ): string {
+        $parts = [ $term->name ];
+        $p = (int) $term->parent;
+        $guard = 0;
+        while ( $p && isset( $by_id[$p] ) && $guard < 10 ) {
+            \array_unshift( $parts, $by_id[$p]->name );
+            $p = (int) $by_id[$p]->parent;
+            $guard++;
+        }
+        return \implode( ' › ', $parts );
+    };
+
+    foreach ( $terms as $t ) {
+        $out[ (int) $t->term_id ] = $make_label( $t );
+    }
+
+    // Sort labels naturally for nicer UX
+    \natcasesort( $out );
+    return $out;
+}
 
 	/**
 	 * Preferred provider for "scoped + tree-indented" section options for a given Menu.
