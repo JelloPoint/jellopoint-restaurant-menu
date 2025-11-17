@@ -65,8 +65,6 @@ final class JPRM_Importer {
 			$report['errors'][] = 'No items found in file.';
 			return $report;
 		}
-		
-		self::$section_order_seq = [];
 
 		foreach ( $items as $row ) {
 			$r = self::process_item( $row, $dry_run, $create_missing_terms, $ignore_ids );
@@ -350,23 +348,13 @@ final class JPRM_Importer {
 				// Link each NEW section to the first available menu
 				$owner_menu_id = $menu_ids ? (int) reset( $menu_ids ) : 0;
 				if ( $owner_menu_id ) {
-    				foreach ( $sect_ids as $sid ) {
-        			self::ensure_section_owner_and_order( (int) $sid, $owner_menu_id );
-    				}
+					foreach ( $sect_ids as $sid ) {
+						if ( ! get_term_meta( $sid, '_jprm_menu_term_id', true ) ) {
+							update_term_meta( $sid, '_jprm_menu_term_id', $owner_menu_id );
+						}
+					}
 				}
 			}
-} else {
-    // Even if we're not creating terms, ensure owner + order if missing
-    $menu_ids = self::term_names_to_ids( 'jprm_menu',    $new['menu_terms'] );
-    $sect_ids = self::term_names_to_ids( 'jprm_section', $new['sect_terms'] );
-
-    $owner_menu_id = $menu_ids ? (int) reset( $menu_ids ) : 0;
-    if ( $owner_menu_id ) {
-        foreach ( $sect_ids as $sid ) {
-            self::ensure_section_owner_and_order( (int) $sid, $owner_menu_id );
-        }
-    }
-}
 
 			// Assign terms by name
 			self::assign_terms_if_changed( $post_id, 'jprm_menu',    $new['menu_terms'] );
@@ -458,8 +446,6 @@ final class JPRM_Importer {
 			$title, $price_mode, $price_summary, $new, $new_terms_created, $error
 		);
 	}
-
-
 
 	private static function result_row( $old_id, $new_id, $title, $mode, $price_summary, $new, $new_terms_created, $error ) : array {
 		return [
@@ -633,50 +619,4 @@ final class JPRM_Importer {
 		}
 		return [ 'mode' => 'multi', 'rows' => $out ];
 	}
-	/** Per-run counters: next order number per menu */
-private static array $section_order_seq = []; // [ menu_term_id => next_int ]
-
-/**
- * Map exact term NAMES to IDs for a taxonomy (no guessing, no creation).
- */
-private static function term_names_to_ids( string $tax, array $names ): array {
-    $ids = [];
-    foreach ( $names as $name ) {
-        if ( $name === '' ) continue;
-        $t = get_term_by( 'name', $name, $tax );
-        if ( $t && ! is_wp_error( $t ) ) {
-            $ids[] = (int) $t->term_id;
-        }
-    }
-    return array_values( array_unique( $ids ) );
-}
-
-/**
- * Ensure section owner and order are set.
- * - Owner: _jprm_menu_term_id = $menu_term_id (if empty or different)
- * - Order: if _jprm_section_order is empty, assign the next sequence for this menu
- */
-private static function ensure_section_owner_and_order( int $section_term_id, int $menu_term_id ) : void {
-    if ( $menu_term_id <= 0 || $section_term_id <= 0 ) return;
-
-    // Owner
-    $current_owner = (int) get_term_meta( $section_term_id, '_jprm_menu_term_id', true );
-    if ( $current_owner !== $menu_term_id ) {
-        update_term_meta( $section_term_id, '_jprm_menu_term_id', $menu_term_id );
-    }
-
-    // Order (only if missing)
-    $ord_raw = get_term_meta( $section_term_id, '_jprm_section_order', true );
-    $has_ord = ( $ord_raw !== '' && $ord_raw !== null );
-
-    if ( ! $has_ord ) {
-        if ( ! isset( self::$section_order_seq[ $menu_term_id ] ) ) {
-            self::$section_order_seq[ $menu_term_id ] = 1;
-        }
-        $ord = (int) self::$section_order_seq[ $menu_term_id ];
-        update_term_meta( $section_term_id, '_jprm_section_order', $ord );
-        self::$section_order_seq[ $menu_term_id ] = $ord + 1;
-    }
-}
-
 }
