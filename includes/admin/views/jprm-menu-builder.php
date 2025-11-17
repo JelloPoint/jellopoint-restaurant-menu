@@ -6,6 +6,16 @@
         <label for="jprm-menu-select"><?php esc_html_e('Select Menu:', 'jprm'); ?></label>
         <select id="jprm-menu-select"></select>
         <button class="button button-secondary" id="jprm-refresh"><?php esc_html_e('Refresh', 'jprm'); ?></button>
+<form id="jprm-reseq-form" method="post" action="<?php echo esc_url( admin_url('admin-post.php') ); ?>" style="display:inline-flex;gap:6px;align-items:center;margin-left:8px;">
+    <?php wp_nonce_field( \JelloPoint\RestaurantMenu\Admin\Menu_Builder::NONCE_RESEQ ); ?>
+    <input type="hidden" name="action" value="<?php echo esc_attr( \JelloPoint\RestaurantMenu\Admin\Menu_Builder::ACTION_RESEQ ); ?>">
+    <label for="jprm-reseq-dir" style="margin-left:6px;"><?php esc_html_e('Resequence:', 'jprm'); ?></label>
+    <select name="dir" id="jprm-reseq-dir">
+        <option value="ASC"><?php esc_html_e('ASC', 'jprm'); ?></option>
+        <option value="DESC"><?php esc_html_e('DESC', 'jprm'); ?></option>
+    </select>
+    <button class="button" type="submit"><?php esc_html_e('Apply', 'jprm'); ?></button>
+</form>
 
         <!-- Toggle (top) -->
         <button class="button jprm-toggle-all" data-collapsed="0">
