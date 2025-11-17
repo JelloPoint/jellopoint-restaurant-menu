@@ -44,6 +44,26 @@
         <?php esc_html_e('One-time operation — rewrites menu_order.', 'jprm'); ?>
     </span>
 </form>
+<form method="post" action="<?php echo esc_url( admin_url('admin-post.php') ); ?>" style="display:inline-flex;gap:6px;align-items:center;margin-left:8px;">
+    <?php wp_nonce_field( \JelloPoint\RestaurantMenu\Admin\Menu_Builder::NONCE_RESEQ ); ?>
+    <input type="hidden" name="action" value="<?php echo esc_attr( \JelloPoint\RestaurantMenu\Admin\Menu_Builder::ACTION_RESEQ ); ?>">
+    <input type="hidden" name="menu_id" id="jprm-reseq-menu-id" value="">
+    <label for="jprm-reseq-dir" style="margin-left:6px;"><?php esc_html_e('Resequence:', 'jprm'); ?></label>
+    <select name="dir" id="jprm-reseq-dir">
+        <option value="ASC"><?php esc_html_e('ASC', 'jprm'); ?></option>
+        <option value="DESC"><?php esc_html_e('DESC', 'jprm'); ?></option>
+    </select>
+    <button class="button" type="submit"><?php esc_html_e('Apply', 'jprm'); ?></button>
+</form>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    // mirror the current top-left <select id="jprm-menu-select"> value into the hidden input
+    var sel = document.getElementById('jprm-menu-select');
+    var hid = document.getElementById('jprm-reseq-menu-id');
+    function sync(){ if (sel && hid) hid.value = sel.value || ''; }
+    if (sel) { sel.addEventListener('change', sync); sync(); }
+});
+</script>
 
             </div>
         </div>
