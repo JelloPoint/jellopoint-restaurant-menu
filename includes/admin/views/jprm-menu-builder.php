@@ -30,6 +30,21 @@
                         <?php esc_html_e('Collapse all', 'jprm'); ?>
                     </button>
                 </div>
+                <form method="post"
+      action="<?php echo esc_url( admin_url('admin-post.php') ); ?>"
+      class="jprm-resequence-form"
+      style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    <?php wp_nonce_field( 'jprm_resequence_items', '_jprm_resort_nonce' ); ?>
+    <input type="hidden" name="action" value="jprm_resequence_items">
+    <input type="hidden" name="menu_id" id="jprm-resequence-menu-id" value="">
+    <strong><?php esc_html_e('Resequence all items in all sections:', 'jprm'); ?></strong>
+    <button class="button" name="direction" value="ASC"  type="submit"><?php esc_html_e('ASC',  'jprm'); ?></button>
+    <button class="button" name="direction" value="DESC" type="submit"><?php esc_html_e('DESC', 'jprm'); ?></button>
+    <span class="description" style="opacity:.75;">
+        <?php esc_html_e('One-time operation — rewrites menu_order.', 'jprm'); ?>
+    </span>
+</form>
+
             </div>
         </div>
 
@@ -72,3 +87,16 @@
         </div>
     </div>
 </div>
+<script>
+(function(){
+  const sel = document.getElementById('jprm-menu-select');
+  const hid = document.getElementById('jprm-resequence-menu-id');
+  function sync(){ if (sel && hid) hid.value = sel.value || ''; }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', sync, {once:true});
+  } else {
+    sync();
+  }
+  if (sel) sel.addEventListener('change', sync);
+})();
+</script>
