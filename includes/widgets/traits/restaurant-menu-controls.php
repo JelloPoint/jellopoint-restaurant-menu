@@ -66,51 +66,51 @@ trait Restaurant_Menu_Controls {
 		foreach ( $terms as $t ) { $out[ (string) $t->term_id ] = $t->name; }
 		return $out;
 	}
-/** Build select options for Sections: [term_id => "Parent › Child"] */
-private function jprm_get_sections_options(): array {
-    $out = [];
-    // Get ALL sections (we’re not filtering by Owner Menu here).
-    $terms = \get_terms([
-        'taxonomy'   => 'jprm_section',
-        'hide_empty' => false,
-        'orderby'    => 'name',
-        'order'      => 'ASC',
-    ]);
-    if ( \is_wp_error( $terms ) || ! \is_array( $terms ) ) {
-        return $out;
-    }
+	/** Build select options for Sections: [term_id => "Parent › Child"] */
+	private function jprm_get_sections_options(): array {
+		$out = [];
+		// Get ALL sections (we’re not filtering by Owner Menu here).
+		$terms = \get_terms([
+			'taxonomy'   => 'jprm_section',
+			'hide_empty' => false,
+			'orderby'    => 'name',
+			'order'      => 'ASC',
+		]);
+		if ( \is_wp_error( $terms ) || ! \is_array( $terms ) ) {
+			return $out;
+		}
 
-    // Build a quick id->term map and parent->children map to format a path label.
-    $by_id = [];
-    $kids  = [];
-    foreach ( $terms as $t ) {
-        $by_id[ (int) $t->term_id ] = $t;
-        $p = (int) $t->parent;
-        if ( ! isset( $kids[$p] ) ) $kids[$p] = [];
-        $kids[$p][] = (int) $t->term_id;
-    }
+		// Build a quick id->term map and parent->children map to format a path label.
+		$by_id = [];
+		$kids  = [];
+		foreach ( $terms as $t ) {
+			$by_id[ (int) $t->term_id ] = $t;
+			$p = (int) $t->parent;
+			if ( ! isset( $kids[$p] ) ) $kids[$p] = [];
+			$kids[$p][] = (int) $t->term_id;
+		}
 
-    // Helper to build "Parent › Child › Sub" labels
-    $make_label = function( \WP_Term $term ) use ( $by_id ): string {
-        $parts = [ $term->name ];
-        $p = (int) $term->parent;
-        $guard = 0;
-        while ( $p && isset( $by_id[$p] ) && $guard < 10 ) {
-            \array_unshift( $parts, $by_id[$p]->name );
-            $p = (int) $by_id[$p]->parent;
-            $guard++;
-        }
-        return \implode( ' › ', $parts );
-    };
+		// Helper to build "Parent › Child › Sub" labels
+		$make_label = function( \WP_Term $term ) use ( $by_id ): string {
+			$parts = [ $term->name ];
+			$p = (int) $term->parent;
+			$guard = 0;
+			while ( $p && isset( $by_id[$p] ) && $guard < 10 ) {
+				\array_unshift( $parts, $by_id[$p]->name );
+				$p = (int) $by_id[$p]->parent;
+				$guard++;
+			}
+			return \implode( ' › ', $parts );
+		};
 
-    foreach ( $terms as $t ) {
-        $out[ (int) $t->term_id ] = $make_label( $t );
-    }
+		foreach ( $terms as $t ) {
+			$out[ (int) $t->term_id ] = $make_label( $t );
+		}
 
-    // Sort labels naturally for nicer UX
-    \natcasesort( $out );
-    return $out;
-}
+		// Sort labels naturally for nicer UX
+		\natcasesort( $out );
+		return $out;
+	}
 
 	/**
 	 * Preferred provider for "scoped + tree-indented" section options for a given Menu.
@@ -214,52 +214,38 @@ private function jprm_get_sections_options(): array {
 			'condition' => [ 'data_mode' => 'dynamic' ],
 		]);
 
-		// --- Per-section overrides (optional) -------------------------------------
-		$rep = new \Elementor\Repeater();
+		// --- Per-section overrides (ASC/DESC) -------------------------------
+$this->add_control( 'item_order_per_section_hr', [
+    'type' => \Elementor\Controls_Manager::DIVIDER,
+]);
 
-		// IMPORTANT: use the same section selector control you used in labels overrides.
-		// If you had something like 'section_id' SELECT2 populated with jprm_section terms,
-		// reuse that here 1:1:
-		$rep->add_control( 'section_id', [
-			'label'   => __( 'Section', 'jprm' ),
-			'type'    => \Elementor\Controls_Manager::SELECT2,
-			'options' => $this->jprm_get_sections_options(), // <- same helper you used before
-			'multiple'=> false,
-		]);
+$rep = new \Elementor\Repeater();
 
-		$rep->add_control( 'orderby', [
-			'label'   => __( 'Order By', 'jprm' ),
-			'type'    => \Elementor\Controls_Manager::SELECT,
-			'default' => 'menu_order',
-			'options' => [
-				'menu_order' => __( 'Order (menu order)', 'jprm' ),
-				'title'      => __( 'Title', 'jprm' ),
-				'price'      => __( 'Price', 'jprm' ),
-			],
-		]);
+$rep->add_control( 'section_id', [
+    'label'       => __( 'Section', 'jprm' ),
+    'type'        => \Elementor\Controls_Manager::SELECT2,
+    'options'     => $this->jprm_get_sections_options(), // helper you added earlier
+    'multiple'    => false,
+    'label_block' => true,
+]);
 
-		$rep->add_control( 'order', [
-			'label'   => __( 'Direction', 'jprm' ),
-			'type'    => \Elementor\Controls_Manager::SELECT,
-			'default' => 'ASC',
-			'options' => [
-				'ASC'  => __( 'Ascending', 'jprm' ),
-				'DESC' => __( 'Descending', 'jprm' ),
-			],
-		]);
+$rep->add_control( 'order_dir', [
+    'label'   => __( 'Order', 'jprm' ),
+    'type'    => \Elementor\Controls_Manager::SELECT,
+    'default' => 'ASC',
+    'options' => [
+        'ASC'  => __( 'Ascending', 'jprm' ),
+        'DESC' => __( 'Descending', 'jprm' ),
+    ],
+]);
 
-		$this->add_control( 'items_order_overrides', [
-			'label'       => __( 'Per-Section Item Order', 'jprm' ),
-			'type'        => \Elementor\Controls_Manager::REPEATER,
-			'fields'      => $rep->get_controls(),
-			'title_field' => function( $row ){
-				$sec = isset($row['section_id']) ? (int)$row['section_id'] : 0;
-				$ob  = $row['orderby'] ?? 'menu_order';
-				$od  = $row['order'] ?? 'ASC';
-				return sprintf( __( 'Section #%d — %s %s', 'jprm' ), $sec, strtoupper($ob), strtoupper($od) );
-			},
-			'condition'   => [ 'data_mode' => 'dynamic' ],
-		]);
+$this->add_control( 'item_order_per_section', [
+    'label'       => __( 'Per-Section Ordering', 'jprm' ),
+    'type'        => \Elementor\Controls_Manager::REPEATER,
+    'fields'      => $rep->get_controls(),
+    'title_field' => '{{{ order_dir }}} — Section #{{{ section_id }}}',
+    'description' => __( 'Add entries to override the global item order direction for specific sections.', 'jprm' ),
+]);
 
 
 		// Static mode controls
