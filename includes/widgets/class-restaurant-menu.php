@@ -151,6 +151,7 @@ final class Restaurant_Menu extends Widget_Base {
         self::ensure_menu_meta_helper();
 
         $s = $this->get_settings_for_display();
+error_log( 'JPRM items_order overrides raw: ' . print_r( $s['items_order_overrides'] ?? null, true ) );
 
         // Static mode (unchanged)
         $mode = isset( $s['data_mode'] ) ? (string) $s['data_mode'] : null;
