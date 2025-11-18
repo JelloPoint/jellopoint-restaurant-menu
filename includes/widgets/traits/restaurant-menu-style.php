@@ -95,7 +95,7 @@ trait Restaurant_Menu_Style {
 			],
 		] );
 		
-		/*$this->add_group_control(
+		$this->add_group_control(
 			\Elementor\Group_Control_Border::get_type(),
 			[
 				'name' => 'menu-column-wrapper',
@@ -103,7 +103,7 @@ trait Restaurant_Menu_Style {
 				'{{WRAPPER}} .jp-menu--col',
 			],
 			]
-		);*/
+		);
 		$this->end_controls_section();
 
 		/* ===== Menu Title  & Description (scoped to meta only) ===== */
@@ -988,7 +988,7 @@ $this->add_responsive_control(
 );
 
 // === Leader (Inline template) ===============================================
-$this->add_control( 'inline_leader_enable', [
+/*$this->add_control( 'inline_leader_enable', [
     'label'        => __( 'Leader (Title → Price)', 'jprm' ),
     'type'         => \Elementor\Controls_Manager::SWITCHER,
     'return_value' => 'yes',
@@ -1002,7 +1002,7 @@ $this->add_control( 'inline_leader_enable', [
         '{{WRAPPER}} .jp-layout-inline, {{WRAPPER}} .jp-inline' => '--jprm-leader-on: {{VALUE}};',
     ],
     'condition'    => [ 'labels_layout' => 'inline' ],
-]);
+]);*/
 
 $this->add_control( 'inline_leader_hr', [
     'type'      => \Elementor\Controls_Manager::DIVIDER,
