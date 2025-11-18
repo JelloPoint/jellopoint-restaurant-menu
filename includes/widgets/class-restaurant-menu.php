@@ -221,7 +221,6 @@ final class Restaurant_Menu extends Widget_Base {
         foreach ( $items as $post ) {
             $post_id = (int) $post->ID;
 
-            // ensure price config exists (kept from your current logic)
             $cfg = function_exists( 'jprm_read_price_config' ) ? jprm_read_price_config( $post_id ) : [];
             if ( empty( $cfg ) ) continue;
 
@@ -243,16 +242,57 @@ final class Restaurant_Menu extends Widget_Base {
         $global_ob = isset( $s['items_orderby'] ) ? (string)$s['items_orderby'] : 'menu_order';
         $global_od = isset( $s['items_order'] )   ? strtoupper((string)$s['items_order']) : 'ASC';
 
+        // Read per-section rows from whichever key the trait uses.
+        $per_section_rows = [];
+        foreach ( [ 'items_order_overrides', 'items_order_sections', 'items_order_section_overrides' ] as $key ) {
+            if ( ! empty( $s[ $key ] ) && is_array( $s[ $key ] ) ) {
+                $per_section_rows = $s[ $key ];
+                break;
+            }
+        }
+
         // Build quick override map: [ section_id => ['orderby'=>'...','order'=>'ASC|DESC'] ]
         $ov_map = [];
-        if ( ! empty( $s['items_order_overrides'] ) && is_array( $s['items_order_overrides'] ) ) {
-            foreach ( $s['items_order_overrides'] as $ov ) {
-                $sid = isset($ov['section_id']) ? (int)$ov['section_id'] : 0;
+        if ( ! empty( $per_section_rows ) && is_array( $per_section_rows ) ) {
+            foreach ( $per_section_rows as $ov ) {
+                if ( ! is_array( $ov ) ) continue;
+
+                // Section id field may be named a bit differently, be tolerant.
+                $sid = 0;
+                foreach ( [ 'section_id', 'section', 'section_term' ] as $k ) {
+                    if ( isset( $ov[ $k ] ) && $ov[ $k ] !== '' ) {
+                        $sid = (int) $ov[ $k ];
+                        break;
+                    }
+                }
                 if ( $sid <= 0 ) continue;
-                $ob = isset($ov['orderby']) ? (string)$ov['orderby'] : $global_ob;
-                $od = isset($ov['order'])   ? strtoupper((string)$ov['order']) : $global_od;
-                $ov_map[$sid] = ['orderby'=>$ob, 'order'=>$od];
+
+                // Orderby could be 'orderby' or 'order_by'
+                $ob = $global_ob;
+                if ( isset( $ov['orderby'] ) && $ov['orderby'] !== '' ) {
+                    $ob = (string) $ov['orderby'];
+                } elseif ( isset( $ov['order_by'] ) && $ov['order_by'] !== '' ) {
+                    $ob = (string) $ov['order_by'];
+                }
+
+                // Direction could be 'order' or 'direction'
+                $od = $global_od;
+                if ( isset( $ov['order'] ) && $ov['order'] !== '' ) {
+                    $od = strtoupper( (string) $ov['order'] );
+                } elseif ( isset( $ov['direction'] ) && $ov['direction'] !== '' ) {
+                    $od = strtoupper( (string) $ov['direction'] );
+                }
+
+                $ov_map[ $sid ] = [
+                    'orderby' => $ob,
+                    'order'   => $od,
+                ];
             }
+        }
+
+        // Tiny debug hook: visible in view-source so you can confirm overrides are seen.
+        if ( ! empty( $ov_map ) ) {
+            echo "\n<!-- jprm items_order_overrides: " . esc_html( wp_json_encode( $ov_map ) ) . " -->\n";
         }
 
         foreach ( $sections_data as $tid => &$bucket ) {
