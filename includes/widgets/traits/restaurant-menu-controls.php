@@ -217,16 +217,15 @@ trait Restaurant_Menu_Controls {
 // -------------------------------------------------------------------------
 // Item order – per Section (optional overrides)
 // -------------------------------------------------------------------------
+
 $section_order_repeater = new \Elementor\Repeater();
 
 $section_order_repeater->add_control( 'section_id', [
-    'label'       => __( 'Section ID', 'jprm' ),
-    'type'        => \Elementor\Controls_Manager::TEXT,
+    'label'       => __( 'Section', 'jprm' ),
+    'type'        => \Elementor\Controls_Manager::SELECT2,
+    'options'     => $this->jprm_get_sections_options(), // uses helper on the widget class
+    'multiple'    => false,
     'label_block' => true,
-    'description' => __(
-        'Enter the numeric Section (jprm_section term) ID this override applies to.',
-        'jprm'
-    ),
 ]);
 
 $section_order_repeater->add_control( 'orderby', [
@@ -254,9 +253,9 @@ $this->add_control( 'items_order_overrides', [
     'label'       => __( 'Item order per Section', 'jprm' ),
     'type'        => \Elementor\Controls_Manager::REPEATER,
     'fields'      => $section_order_repeater->get_controls(),
-    'title_field' => __( 'Section ID:', 'jprm' ) . ' {{{ section_id }}}',
+    'title_field' => '{{{ section_id }}} — {{{ order }}} / {{{ orderby }}}',
     'description' => __(
-        'Optional: override the global item order for specific Sections by ID.',
+        'Optional: override the global item order (by title / price / menu order) for specific Sections.',
         'jprm'
     ),
     'condition'   => [
