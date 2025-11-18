@@ -214,38 +214,56 @@ trait Restaurant_Menu_Controls {
 			'condition' => [ 'data_mode' => 'dynamic' ],
 		]);
 
-		// --- Per-section overrides (ASC/DESC) -------------------------------
-$this->add_control( 'item_order_per_section_hr', [
-    'type' => \Elementor\Controls_Manager::DIVIDER,
-]);
+// -------------------------------------------------------------------------
+// Item order – per Section (optional overrides)
+// -------------------------------------------------------------------------
+$section_order_repeater = new \Elementor\Repeater();
 
-$rep = new \Elementor\Repeater();
-
-$rep->add_control( 'section_id', [
-    'label'       => __( 'Section', 'jprm' ),
-    'type'        => \Elementor\Controls_Manager::SELECT2,
-    'options'     => $this->jprm_get_sections_options(), // helper you added earlier
-    'multiple'    => false,
+$section_order_repeater->add_control( 'section_id', [
+    'label'       => __( 'Section ID', 'jprm' ),
+    'type'        => \Elementor\Controls_Manager::TEXT,
     'label_block' => true,
+    'description' => __(
+        'Enter the numeric Section (jprm_section term) ID this override applies to.',
+        'jprm'
+    ),
 ]);
 
-$rep->add_control( 'order_dir', [
-    'label'   => __( 'Order', 'jprm' ),
+$section_order_repeater->add_control( 'orderby', [
+    'label'   => __( 'Order items by', 'jprm' ),
     'type'    => \Elementor\Controls_Manager::SELECT,
-    'default' => 'ASC',
+    'default' => 'menu_order',
     'options' => [
-        'ASC'  => __( 'Ascending', 'jprm' ),
-        'DESC' => __( 'Descending', 'jprm' ),
+        'menu_order' => __( 'Manual order (menu_order)', 'jprm' ),
+        'title'      => __( 'Title', 'jprm' ),
+        'price'      => __( 'Price (effective)', 'jprm' ),
     ],
 ]);
 
-$this->add_control( 'item_order_per_section', [
-    'label'       => __( 'Per-Section Ordering', 'jprm' ),
-    'type'        => \Elementor\Controls_Manager::REPEATER,
-    'fields'      => $rep->get_controls(),
-    'title_field' => '{{{ order_dir }}} — Section #{{{ section_id }}}',
-    'description' => __( 'Add entries to override the global item order direction for specific sections.', 'jprm' ),
+$section_order_repeater->add_control( 'order', [
+    'label'   => __( 'Direction', 'jprm' ),
+    'type'    => \Elementor\Controls_Manager::SELECT,
+    'default' => 'ASC',
+    'options' => [
+        'ASC'  => __( 'Ascending (A → Z / low → high)', 'jprm' ),
+        'DESC' => __( 'Descending (Z → A / high → low)', 'jprm' ),
+    ],
 ]);
+
+$this->add_control( 'items_order_overrides', [
+    'label'       => __( 'Item order per Section', 'jprm' ),
+    'type'        => \Elementor\Controls_Manager::REPEATER,
+    'fields'      => $section_order_repeater->get_controls(),
+    'title_field' => __( 'Section ID:', 'jprm' ) . ' {{{ section_id }}}',
+    'description' => __(
+        'Optional: override the global item order for specific Sections by ID.',
+        'jprm'
+    ),
+    'condition'   => [
+        'data_mode' => 'dynamic',
+    ],
+]);
+
 
 
 		// Static mode controls
