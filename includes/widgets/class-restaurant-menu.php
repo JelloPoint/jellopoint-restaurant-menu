@@ -113,7 +113,7 @@ final class Restaurant_Menu extends Widget_Base {
      * Build a simple [term_id => "#ID — Name"] options array for all Sections.
      * Used by the per-section item order repeater (Elementor SELECT2).
      */
-    public function jprm_get_sections_options() : array {
+    /*public function jprm_get_sections_options() : array {
         $terms = get_terms( [
             'taxonomy'   => 'jprm_section',
             'hide_empty' => false,
@@ -133,7 +133,7 @@ final class Restaurant_Menu extends Widget_Base {
         }
 
         return $out;
-    }
+    }*/
 
     /** Return a numeric price used only for sorting (single or first multi row). */
     private static function jprm_effective_price_number( int $post_id ) : float {
