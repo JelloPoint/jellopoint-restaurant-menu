@@ -95,7 +95,7 @@ trait Restaurant_Menu_Style {
 			],
 		] );
 		
-		$this->add_group_control(
+		/*$this->add_group_control(
 			\Elementor\Group_Control_Border::get_type(),
 			[
 				'name' => 'menu-column-wrapper',
@@ -103,7 +103,7 @@ trait Restaurant_Menu_Style {
 				'{{WRAPPER}} .jp-menu--col',
 			],
 			]
-		);
+		);*/
 		$this->end_controls_section();
 
 		/* ===== Menu Title  & Description (scoped to meta only) ===== */
