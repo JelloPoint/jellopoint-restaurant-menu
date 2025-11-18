@@ -100,7 +100,7 @@ trait Restaurant_Menu_Style {
 			[
 				'name' => 'menu-column-wrapper',
 				'selectors' => [
-				'{{WRAPPER}} .jp-menu--col',
+				'.jp-menu--col',
 			],
 			]
 		);
