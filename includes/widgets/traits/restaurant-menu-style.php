@@ -13,7 +13,7 @@ trait Restaurant_Menu_Style {
 		$this->start_controls_section(
 			'jprm_wrapper_menu',
 			[
-				'label' => __( 'Menu Wrapper', 'jellopoint-restaurant-menu' ),
+				'label' => __( 'Menu & Section Styling', 'jellopoint-restaurant-menu' ),
 				'tab'   => Controls_Manager::TAB_STYLE,
 			]
 		);
@@ -52,10 +52,59 @@ trait Restaurant_Menu_Style {
 				'{{WRAPPER}} .jp-menu-grid--cols-3' => 'background-color: {{VALUE}};',
 			],
 		] );
+
 		$this->add_group_control(
 			\Elementor\Group_Control_Border::get_type(),
 			[
 				'name' => 'border-wrapper',
+				'selectors' => [
+				'{{WRAPPER}} .jp-menu-grid--cols-1',
+				'{{WRAPPER}} .jp-menu-grid--cols-2',
+				'{{WRAPPER}} .jp-menu-grid--cols-3',
+			],
+			]
+		);
+
+				$this->add_responsive_control(
+			'jprm_menu_menu_column_margin',
+			[
+				'label'      => __( 'Margin', 'jellopoint-restaurant-menu' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => [ 'px', 'em', '%' ],
+				'selectors'  => [
+					'{{WRAPPER}} .jp-menu-grid--cols-1' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+					'{{WRAPPER}} .jp-menu-grid--cols-2' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+					'{{WRAPPER}} .jp-menu-grid--cols-3' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				],
+			]
+		);
+		$this->add_responsive_control(
+			'jprm_menu_column_padding',
+			[
+				'label'      => __( 'Padding', 'jellopoint-restaurant-menu' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => [ 'px', 'em', '%' ],
+				'selectors'  => [
+					'{{WRAPPER}} .jp-menu-grid--cols-3' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+					'{{WRAPPER}} .jp-menu-grid--cols-2' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+					'{{WRAPPER}} .jp-menu-grid--cols-1' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				],
+			]
+		);
+			$this->add_control( 'jprm_menu_column_background', [
+			'label'     => __( 'Background Color', 'jellopoint-restaurant-menu' ),
+			'type'      => Controls_Manager::COLOR,
+			'selectors' => [
+				'{{WRAPPER}} .jp-menu-grid--cols-1' => 'background-color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu-grid--cols-2' => 'background-color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu-grid--cols-3' => 'background-color: {{VALUE}};',
+			],
+		] );
+		
+		$this->add_group_control(
+			\Elementor\Group_Control_Border::get_type(),
+			[
+				'name' => 'menu-column-wrapper',
 				'selectors' => [
 				'{{WRAPPER}} .jp-menu-grid--cols-1',
 				'{{WRAPPER}} .jp-menu-grid--cols-2',
