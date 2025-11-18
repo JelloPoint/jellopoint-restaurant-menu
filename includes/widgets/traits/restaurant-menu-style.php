@@ -83,9 +83,7 @@ trait Restaurant_Menu_Style {
 				'type'       => Controls_Manager::DIMENSIONS,
 				'size_units' => [ 'px', 'em', '%' ],
 				'selectors'  => [
-					'{{WRAPPER}} .jp-menu-grid--cols-3' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-					'{{WRAPPER}} .jp-menu-grid--cols-2' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-					'{{WRAPPER}} .jp-menu-grid--cols-1' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+					'{{WRAPPER}} .jp-menu--col' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 				],
 			]
 		);
@@ -93,9 +91,7 @@ trait Restaurant_Menu_Style {
 			'label'     => __( 'Background Color', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::COLOR,
 			'selectors' => [
-				'{{WRAPPER}} .jp-menu-grid--cols-1' => 'background-color: {{VALUE}};',
-				'{{WRAPPER}} .jp-menu-grid--cols-2' => 'background-color: {{VALUE}};',
-				'{{WRAPPER}} .jp-menu-grid--cols-3' => 'background-color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu--col' => 'background-color: {{VALUE}};',
 			],
 		] );
 		
@@ -104,9 +100,7 @@ trait Restaurant_Menu_Style {
 			[
 				'name' => 'menu-column-wrapper',
 				'selectors' => [
-				'{{WRAPPER}} .jp-menu-grid--cols-1',
-				'{{WRAPPER}} .jp-menu-grid--cols-2',
-				'{{WRAPPER}} .jp-menu-grid--cols-3',
+				'{{WRAPPER}} .jp-menu--col',
 			],
 			]
 		);
