@@ -99,10 +99,9 @@ trait Restaurant_Menu_Style {
 			\Elementor\Group_Control_Border::get_type(),
 			[
 				'name' => 'menu-column-wrapper',
-				'selectors' => [
-				'{{WRAPPER}} .jp-menu--col',
-			],
+				 'selector' => '{{WRAPPER}} .jp-menu--col',
 			]
+			
 		);
 		$this->end_controls_section();
 
