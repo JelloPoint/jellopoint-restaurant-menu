@@ -81,14 +81,6 @@ if ( is_admin() ) {
 	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-sections-ux.php';
 	\JelloPoint\RestaurantMenu\Admin\Sections_UX::init();
 
-	// Debug (admin-only tools)
-	// require_once JPRM_PLUGIN_PATH . 'includes/debug/class-inspector.php';
-
-	// Optional debug addon if present
-	/*if ( file_exists( JPRM_PLUGIN_PATH . 'includes/debug/inspector-badges.php' ) ) {
-		require_once JPRM_PLUGIN_PATH . 'includes/debug/inspector-badges.php';
-	}*/
-
 	// includes/admin/class-admin-import-export.php
 	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-import-export.php';
 	\JelloPoint\RestaurantMenu\Admin\JPRM_Admin_Import_Export::bootstrap();
@@ -112,7 +104,7 @@ add_action( 'rest_api_init', function () {
 function jprm_register_assets() {
 	wp_register_style(
 		'jprm-menu',
-		JPRM_PLUGIN_URL . 'includes/render/css/menu.css',
+		JPRM_PLUGIN_URL . 'assets/css/menu.css',
 		[],
 		JPRM_VERSION
 	);
@@ -122,7 +114,7 @@ add_action( 'wp_enqueue_scripts', function () {
 	// Register the handle the widget declares in get_style_depends()
 	wp_register_style(
 		'jprm-menu',
-		plugins_url( 'includes/render/css/menu.css', __FILE__ ),
+		plugins_url( 'assets/css/menu.css', __FILE__ ),
 		[],
 		'1.0'
 	);
@@ -134,7 +126,7 @@ add_action(
 	'elementor/editor/after_enqueue_styles',
 	function () {
 		if ( ! wp_style_is( 'jprm-menu', 'registered' ) ) {
-			wp_register_style( 'jprm-menu', JPRM_PLUGIN_URL . 'includes/render/css/menu.css', [], JPRM_VERSION );
+			wp_register_style( 'jprm-menu', JPRM_PLUGIN_URL . 'assets/css/menu.css', [], JPRM_VERSION );
 		}
 		wp_enqueue_style( 'jprm-menu' );
 	},

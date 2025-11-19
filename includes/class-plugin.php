@@ -106,11 +106,11 @@ class Plugin {
 	public static function register_assets() : void {
 		// Register the widget stylesheet so Elementor can enqueue it via get_style_depends().
 		if ( ! wp_style_is( 'jprm-menu', 'registered' ) ) {
-			// Absolute path to includes/render/css/menu.css relative to this file.
-			$abs_css = __DIR__ . '/render/css/menu.css';
+			// Absolute path to assets/css/menu.css relative to this file.
+			$abs_css = __DIR__ . '/assets/menu.css';
 			// URL built relative to this file (this file is in /includes/), so we pass __FILE__
-			// and a relative path from /includes/ to /includes/render/css/menu.css.
-			$url_css = plugins_url( 'render/css/menu.css', __FILE__ );
+			// and a relative path from /includes/ to /assets/css/menu.css.
+			$url_css = plugins_url( 'assets/css/menu.css', __FILE__ );
 
 			$ver = defined( 'JPRM_PLUGIN_VERSION' ) ? JPRM_PLUGIN_VERSION : null;
 
