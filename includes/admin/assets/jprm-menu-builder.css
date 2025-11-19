@@ -46,3 +46,25 @@
 
 /* Small toggle */
 .jprm-toggle.button.button-small{ line-height:20px; height:24px; padding:0 6px; }
+
+/* Builder notices (top + bottom) */
+.jprm-menu-builder-notice {
+  display: none;
+  margin: 12px 0;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #46b450;
+  background: #f1f8f4;
+  color: #124117;
+  font-size: 13px;
+}
+
+.jprm-menu-builder-notice--visible {
+  display: block;
+}
+
+.jprm-menu-builder-notice--error {
+  border-color: #dc3232;
+  background: #fbeaea;
+  color: #7a0000;
+}
