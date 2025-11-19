@@ -81,7 +81,11 @@ if ( is_admin() ) {
 	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-jprm-sections-ux.php';
 	\JelloPoint\RestaurantMenu\Admin\Sections_UX::init();
 
-	    // includes/admin/class-admin-import-export.php
+    // includes/admin/class-admin-bulk-price-labels.php
+    require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-bulk-price-labels.php';
+    \JelloPoint\RestaurantMenu\Admin\JPRM_Admin_Bulk_Price_Labels::bootstrap();
+
+    // includes/admin/class-admin-import-export.php
     require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-import-export.php';
     \JelloPoint\RestaurantMenu\Admin\JPRM_Admin_Import_Export::bootstrap();
 
