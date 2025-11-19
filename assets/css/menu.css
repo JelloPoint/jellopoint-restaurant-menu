@@ -212,6 +212,15 @@
   font-size: 0.95em;
   opacity: 0.8;
 }
+/* Make header + items look like one continuous section box */
+.jp-menu__section-header + .jp-menu__section {
+  margin-top: 0;        /* no gap between them */
+  border-top: none;     /* avoid double border between header and items */
+}
+
+.jp-menu__section-header {
+  border-bottom: none;  /* header gets top/left/right; bottom comes from items */
+}
 
 /* =====================================================================
    Info blocks
