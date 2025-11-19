@@ -510,3 +510,20 @@
 .jp-menu__item {
     margin-bottom: 0.2em;   /* tweak this to taste – larger value = more space */
 }
+/* --- Mobile text wrapping & spacing ------------------------------------ */
+@media (max-width: 768px) {
+
+  /* Make rows behave more like normal blocks on small screens */
+  .jp-menu__row {
+    display: block;              /* kill inline-flex on mobile */
+    flex-wrap: nowrap;           /* just in case */
+    align-items: stretch;
+  }
+
+  /* Ensure any text inside items has decent line-height */
+  .jp-menu__item,
+  .jp-menu__item * {
+    line-height: 1.5 !important; /* bump if still too tight */
+    white-space: normal !important;
+  }
+}
