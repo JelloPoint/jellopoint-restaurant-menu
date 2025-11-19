@@ -4,7 +4,7 @@
 .jp-menu > li::marker { content: ''; } /* kill stubborn bullets */
 /* No bullets for meta/global rows like "Menu Crabbetje" */
 .jp-menu__meta,
-.jp-menu__meta.jp-menu__meta--global {
+.jp-menu__meta .jp-menu__meta--global {
     list-style: none;
     list-style-type: none;
     margin: 0;
