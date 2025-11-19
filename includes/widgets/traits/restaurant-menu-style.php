@@ -121,77 +121,78 @@ trait Restaurant_Menu_Style {
 			]
 			
 		);
-		/* SECTIONS */
-		$this->add_control(
-			'jprm_menu_sections_heading',
-			[
-				'label'     => __( 'Menu Sections', 'jellopoint-restaurant-menu' ),
-				'type'      => Controls_Manager::HEADING,
-				'separator' => 'none',
-			]
-		);
+/* SECTIONS */
+$this->add_control(
+	'jprm_menu_sections_heading',
+	[
+		'label'     => __( 'Menu Sections', 'jellopoint-restaurant-menu' ),
+		'type'      => Controls_Manager::HEADING,
+		'separator' => 'none',
+	]
+);
 
-		/**
-		 * Outer spacing between section blocks (around the whole box).
-		 * We put this on the HEADER li, because it is the first element
-		 * of each section pair (header + items).
-		 */
-		$this->add_responsive_control(
-			'jprm_menu_section_margin',
-			[
-				'label'      => __( 'Margin (outside box)', 'jellopoint-restaurant-menu' ),
-				'type'       => Controls_Manager::DIMENSIONS,
-				'size_units' => [ 'px', 'em', '%' ],
-				'selectors'  => [
-					'{{WRAPPER}} .jp-menu__section-header' =>
-						'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-				],
-			]
-		);
+/**
+ * Outer spacing between section blocks
+ * (distance between the red boxes in your screenshot).
+ */
+$this->add_responsive_control(
+	'jprm_menu_section_margin',
+	[
+		'label'      => __( 'Margin (outside box)', 'jellopoint-restaurant-menu' ),
+		'type'       => Controls_Manager::DIMENSIONS,
+		'size_units' => [ 'px', 'em', '%' ],
+		'selectors'  => [
+			// apply to the items wrapper; header will "come along"
+			'{{WRAPPER}} .jp-menu__section' =>
+				'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+		],
+	]
+);
 
-		/**
-		 * Inner padding inside the section box (header + items).
-		 */
-		$this->add_responsive_control(
-			'jprm_menu_section_padding',
-			[
-				'label'      => __( 'Padding (inside box)', 'jellopoint-restaurant-menu' ),
-				'type'       => Controls_Manager::DIMENSIONS,
-				'size_units' => [ 'px', 'em', '%' ],
-				'selectors'  => [
-					'{{WRAPPER}} .jp-menu__section-header, {{WRAPPER}} .jp-menu__section' =>
-						'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-				],
-			]
-		);
+/**
+ * Inner padding inside the section box
+ * (space between border and text).
+ */
+$this->add_responsive_control(
+	'jprm_menu_section_padding',
+	[
+		'label'      => __( 'Padding (inside box)', 'jellopoint-restaurant-menu' ),
+		'type'       => Controls_Manager::DIMENSIONS,
+		'size_units' => [ 'px', 'em', '%' ],
+		'selectors'  => [
+			// apply to BOTH header and items so they share the same box
+			'{{WRAPPER}} .jp-menu__section-header, {{WRAPPER}} .jp-menu__section' =>
+				'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+		],
+	]
+);
 
-		/**
-		 * Background color for the whole section (header + items).
-		 */
-		$this->add_control(
-			'jprm_menu_section_background',
-			[
-				'label'     => __( 'Background Color', 'jellopoint-restaurant-menu' ),
-				'type'      => Controls_Manager::COLOR,
-				'selectors' => [
-					'{{WRAPPER}} .jp-menu__section-header, {{WRAPPER}} .jp-menu__section' =>
-						'background-color: {{VALUE}};',
-				],
-			]
-		);
+/**
+ * Background color for the whole section box.
+ */
+$this->add_control(
+	'jprm_menu_section_background',
+	[
+		'label'     => __( 'Background Color', 'jellopoint-restaurant-menu' ),
+		'type'      => Controls_Manager::COLOR,
+		'selectors' => [
+			'{{WRAPPER}} .jp-menu__section-header, {{WRAPPER}} .jp-menu__section' =>
+				'background-color: {{VALUE}};',
+		],
+	]
+);
 
-		/**
-		 * Border for the whole section (header + items).
-		 */
-		$this->add_group_control(
-			\Elementor\Group_Control_Border::get_type(),
-			[
-				'name'     => 'jprm_menu_section_border',
-				'label'    => __( 'Border', 'jellopoint-restaurant-menu' ),
-				'selector' => '{{WRAPPER}} .jp-menu__section-header, {{WRAPPER}} .jp-menu__section',
-			]
-		);
-
+/**
+ * Border for the whole section box.
+ */
+$this->add_group_control(
+	\Elementor\Group_Control_Border::get_type(),
+	[
+		'name'     => 'jprm_menu_section_border',
+		'label'    => __( 'Border', 'jellopoint-restaurant-menu' ),
+		'selector' => '{{WRAPPER}} .jp-menu__section-header, {{WRAPPER}} .jp-menu__section',
+	]
+);
 
 		$this->end_controls_section();
 
