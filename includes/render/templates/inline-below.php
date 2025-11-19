@@ -4,12 +4,12 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 /**
  * Inline-Below (per section): one horizontal line of label/price pairs
  * placed FULL-WIDTH directly under the title/description.
+ * Now outputs ONLY the inner wrapper — parent <li> is provided by menu.php.
+ *
  * Expects $_section_ctx = [
- *   'term','items','label_presentation','label_map','currency_opts','inline_separator'
- *   'show_badges','badges_position','badges_presentation'
- *   // Extras from menu.php:
- *   'section_level' => int (0 = main, 1+ = sub),
- *   'section_id'    => int (term_id)
+ *   'term','items','label_presentation','label_map','currency_opts','inline_separator',
+ *   'show_badges','badges_position','badges_presentation',
+ *   'section_level','section_id'
  * ]
  */
 
@@ -26,16 +26,16 @@ $badges_enabled      = ((string)($sctx['show_badges'] ?? 'yes') === 'yes');
 $badges_position     = (string)($sctx['badges_position'] ?? 'after');        // 'before'|'after'
 $badges_presentation = (string)($sctx['badges_presentation'] ?? 'icon_text');// 'icon'|'text'|'icon_text'
 
-// Level / ID (for styling hooks)
-$section_level = (int)($sctx['section_level'] ?? 0);
-$section_id    = (int)($sctx['section_id'] ?? 0);
-
 // Elementor editor preview: show a dot if separator empty
 $is_editor = false;
 if ( class_exists('\Elementor\Plugin') ) {
-    try { $is_editor = \Elementor\Plugin::$instance->editor->is_edit_mode(); } catch (\Throwable $e) {}
+	try { 
+		$is_editor = \Elementor\Plugin::$instance->editor->is_edit_mode();
+	} catch (\Throwable $e) {}
 }
-if ( $is_editor && $sep === '' ) { $sep = '·'; }
+if ( $is_editor && $sep === '' ) { 
+	$sep = '·'; 
+}
 
 if (empty($items)) return;
 
@@ -55,7 +55,6 @@ if (!function_exists('jprm_label_chip_inline_below')) {
 	function jprm_label_chip_inline_below(array $meta, string $presentation): string {
 		$text = trim((string)($meta['text'] ?? ''));
 
-		// Icon pick + colorize (inline svg/img → cleaned | url .svg → mask | raster → <img>)
 		$ico = '';
 		if (!empty($meta['icon_html'])) {
 			$ico = jprm_sanitize_single_icon((string)$meta['icon_html']);
@@ -67,10 +66,8 @@ if (!function_exists('jprm_label_chip_inline_below')) {
 		);
 
 		switch ($presentation) {
-			case 'icon':
-				return $ico !== '' ? $ico : esc_html($text);
-			case 'text':
-				return esc_html($text);
+			case 'icon': return $ico !== '' ? $ico : esc_html($text);
+			case 'text': return esc_html($text);
 			case 'icon_text':
 			default:
 				if ($ico !== '' && $text !== '') {
@@ -81,13 +78,30 @@ if (!function_exists('jprm_label_chip_inline_below')) {
 	}
 }
 
-echo '<li class="jp-inline-below jp-menu__section jp-menu__section--level-' . (int)$section_level . '" data-section-id="' . (int)$section_id . '">';
+/**
+ * NEW STRUCTURE:
+ * menu.php now outputs:
+ *
+ * <li class="jp-menu__section jp-menu__section-box …">
+ *     <div class="jp-menu__section-header">…</div>
+ *     <div class="jp-inline-below">
+ *         [THIS FILE'S CONTENT]
+ *     </div>
+ * </li>
+ *
+ * So we DO NOT open <li> here.
+ */
+
+echo '<div class="jp-inline-below">';
 
 foreach ($items as $post) {
 	$pid   = (int)$post->ID;
 	$title = get_the_title($pid);
 	$desc  = get_post_meta($pid, 'jprm_desc', true);
-	$rows  = function_exists('jprm_get_pricegroup_data') ? jprm_get_pricegroup_data($pid, $label_map, $currency_opts) : [];
+
+	$rows = function_exists('jprm_get_pricegroup_data')
+		? jprm_get_pricegroup_data($pid, $label_map, $currency_opts)
+		: [];
 
 	// Pre-render badges for this item
 	$badges_html = '';
@@ -97,51 +111,57 @@ foreach ($items as $post) {
 
 	echo '<div class="jp-menu__item"><div class="jp-menu__inner">';
 
-	// Content (title + desc)
+	// ---- Content (title + desc) ----
 	echo '<div class="jp-menu__content">';
 		if ($title !== '') {
 			echo '<div class="jp-menu__titlewrap">';
-				if ($badges_position === 'before' && $badges_html !== '') echo $badges_html; // phpcs:ignore
-				echo '<span class="jp-menu__title">' . esc_html($title) . '</span>';
-				if ($badges_position !== 'before' && $badges_html !== '') echo $badges_html; // phpcs:ignore
+				if ($badges_position === 'before' && $badges_html !== '') echo $badges_html;
+				echo '<span class="jp-menu__title">'.esc_html($title).'</span>';
+				if ($badges_position !== 'before' && $badges_html !== '') echo $badges_html;
 			echo '</div>';
 		}
-		if (is_string($desc) && $desc !== '') echo '<div class="jp-menu__desc">' . esc_html($desc) . '</div>';
+		if (is_string($desc) && $desc !== '') {
+			echo '<div class="jp-menu__desc">'.esc_html($desc).'</div>';
+		}
 	echo '</div>';
 
-	// Full-width row below content
+	// ---- Full-width line of chips below ----
 	echo '<div class="jp-menu__pricegroup jp-menu__pricegroup--below">';
 		echo '<div class="jp-inline-below__line">';
 
 			$pairs = [];
 
-			// Count priced rows
-			$__priced_total = 0;
+			// Count priced rows for separator logic
+			$priced_total = 0;
 			foreach ($rows as $r) {
-				if (isset($r['formatted']) && (string)$r['formatted'] !== '') $__priced_total++;
+				if (!empty($r['formatted'])) $priced_total++;
 			}
 
-			$__priced_printed = 0;
+			$printed = 0;
 			foreach ($rows as $r) {
 				$price = (string)($r['formatted'] ?? '');
 				$lbl   = [
 					'text'      => (string)($r['label_text'] ?? ''),
 					'icon_html' => (string)($r['icon_html'] ?? ''),
-					'icon_url'  => (string)($r['icon_url'] ?? ''),
+					'icon_url'  => (string)($r['icon_url']  ?? ''),
 				];
 
-				$chip = '<span class="jp-chip">'. jprm_label_chip_inline_below($lbl, $label_presentation) .'</span>';
+				$chip_html = '<span class="jp-chip">'. jprm_label_chip_inline_below($lbl, $label_presentation) .'</span>';
 
 				if ($price !== '') {
-					$__priced_printed++;
-					$show_sep_here = ($sep !== '' && $__priced_printed < $__priced_total);
-					$pairs[] = '<span class="jp-chipline jp-chipline--priced">'
-						. $chip
+					$printed++;
+					$show_sep = ($sep !== '' && $printed < $priced_total);
+					$pairs[]  =
+						'<span class="jp-chipline jp-chipline--priced">'
+						. $chip_html
 						. '<span class="jp-price">'. $price .'</span>'
-						. ( $show_sep_here ? '<span class="jp-sep">'. esc_html($sep) .'</span>' : '' )
+						. ( $show_sep ? '<span class="jp-sep">'.esc_html($sep).'</span>' : '' )
 						. '</span>';
 				} else {
-					$pairs[] = '<span class="jp-chipline jp-chipline--noprice">'. $chip .'</span>';
+					$pairs[] =
+						'<span class="jp-chipline jp-chipline--noprice">'
+						. $chip_html
+						. '</span>';
 				}
 			}
 
@@ -153,4 +173,4 @@ foreach ($items as $post) {
 	echo '</div></div>'; // .jp-menu__inner / .jp-menu__item
 }
 
-echo '</li>';
+echo '</div>'; // .jp-inline-below

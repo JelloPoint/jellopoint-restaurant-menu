@@ -29,7 +29,7 @@ class Menu_Builder {
         add_submenu_page(
             self::PARENT_SLUG,                          // parent: Jellopoint (already exists)
             __( 'Menu Builder', 'jprm' ),
-            __( 'Menu Builder (beta)', 'jprm' ),
+            __( 'Menu Builder', 'jprm' ),
             'edit_posts',
             self::SLUG,
             [ __CLASS__, 'render' ],
