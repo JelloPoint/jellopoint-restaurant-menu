@@ -257,6 +257,34 @@ trait Restaurant_Menu_Style {
 				],
 			]
 		);
+        $this->add_responsive_control(
+            'jprm_item_line_height',
+            [
+                'label'      => __( 'Line Height', 'jellopoint-restaurant-menu' ),
+                'type'       => Controls_Manager::SLIDER,
+                'size_units' => [ 'em', 'px' ],
+                'range'      => [
+                    'em' => [
+                        'min'  => 1,
+                        'max'  => 2,
+                        'step' => 0.05,
+                    ],
+                    'px' => [
+                        'min'  => 14,
+                        'max'  => 40,
+                        'step' => 1,
+                    ],
+                ],
+                'selectors'  => [
+                    // Normal and inline layouts
+                    '{{WRAPPER}} .jp-menu__item, {{WRAPPER}} .jp-menu__item *' =>
+                        'line-height: {{SIZE}}{{UNIT}};',
+                    // Matrix cells
+                    '{{WRAPPER}} .jp-matrix__cell--item, {{WRAPPER}} .jp-matrix__cell--item *' =>
+                        'line-height: {{SIZE}}{{UNIT}};',
+                ],
+            ]
+        );
 
 		$this->end_controls_section();
 		// === Main Section Heading (Style Tab) ===
