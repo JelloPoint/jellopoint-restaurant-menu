@@ -148,7 +148,7 @@ trait Restaurant_Menu_Style {
 				'type'       => Controls_Manager::DIMENSIONS,
 				'size_units' => [ 'px', 'em', '%' ],
 				'selectors'  => [
-					'{{WRAPPER}} .jp-menu--col' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+					'{{WRAPPER}} .jp-menu__section' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 				],
 			]
 		);
@@ -156,7 +156,7 @@ trait Restaurant_Menu_Style {
 			'label'     => __( 'Background Color', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::COLOR,
 			'selectors' => [
-				'{{WRAPPER}} .jp-menu--col' => 'background-color: {{VALUE}};',
+				'{{WRAPPER}} .jp-menu__section' => 'background-color: {{VALUE}};',
 			],
 		] );
 		
@@ -164,7 +164,7 @@ trait Restaurant_Menu_Style {
 			\Elementor\Group_Control_Border::get_type(),
 			[
 				'name' => 'menu-section-wrapper',
-				 'selector' => '{{WRAPPER}} .jp-menu--col',
+				 'selector' => '{{WRAPPER}} .jp-menu__section',
 			]
 			
 		);
