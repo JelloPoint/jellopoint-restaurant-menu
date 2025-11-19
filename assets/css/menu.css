@@ -508,5 +508,5 @@
 }
 /* Space between menu items */
 .jp-menu__item {
-    margin-bottom: 0.5em;   /* tweak this to taste – larger value = more space */
+    margin-bottom: 0.2em;   /* tweak this to taste – larger value = more space */
 }
