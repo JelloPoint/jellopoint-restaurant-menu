@@ -962,21 +962,35 @@ trait Restaurant_Menu_Style {
 			]
 		);
 
-		// Labels → Icon Size — FORCE override (works in Matrix header/rows and inline)
+		// Labels → Icon Size — apply to IMG, SVG and mask span
 		$this->add_responsive_control(
 			'jprm_label_icon_size',
 			[
 				'label'      => __( 'Icon Size', 'jellopoint-restaurant-menu' ),
 				'type'       => Controls_Manager::SLIDER,
 				'size_units' => [ 'px' ],
-				'range'      => [ 'px' => [ 'min' => 12, 'max' => 64, 'step' => 1 ] ],
+				'range'      => [
+					'px' => [
+						'min'  => 12,
+						'max'  => 64,
+						'step' => 1,
+					],
+				],
 				'selectors'  => [
-					// Override HTML width/height attributes and any theme max-width
-					'{{WRAPPER}} img.jp-menu__icon' => 'width: {{SIZE}}{{UNIT}} !important; height: auto !important; max-width: none !important;',
+					// Plain <img class="jp-menu__icon">
+					'{{WRAPPER}} .jp-menu__label img.jp-menu__icon' =>
+						'width: {{SIZE}}{{UNIT}} !important; height: {{SIZE}}{{UNIT}} !important; max-width: none !important;',
+
+					// Inline SVG icons inside labels
+					'{{WRAPPER}} .jp-menu__label svg' =>
+						'width: {{SIZE}}{{UNIT}} !important; height: {{SIZE}}{{UNIT}} !important;',
+
+					// Masked icon span from jprm_colorize_icon()
+					'{{WRAPPER}} .jp-menu__label .jp-label__icon' =>
+						'width: {{SIZE}}{{UNIT}} !important; height: {{SIZE}}{{UNIT}} !important; flex: 0 0 auto;',
 				],
 			]
 		);
-
 
 		$this->add_responsive_control(
 			'jprm_label_icon_gap',
