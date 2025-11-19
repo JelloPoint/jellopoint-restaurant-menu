@@ -6,7 +6,38 @@
   const INDENT = 28, MAX_DEPTH = 6;
   let drag = null;
 
-  function toast(msg){ window.alert(msg); } // simple + reliable
+   function toast(msg, type){
+    const isError = (type === 'error');
+    const $boxes = $('.jprm-menu-builder-notice');
+
+    $boxes.each(function(){
+      const $box = $(this);
+
+      // Update text and base style
+      $box
+        .text(msg)
+        .removeClass('jprm-menu-builder-notice--error')
+        .addClass('jprm-menu-builder-notice--visible');
+
+      if (isError) {
+        $box.addClass('jprm-menu-builder-notice--error');
+      }
+
+      // Clear any previous hide-timer
+      const prev = $box.data('jprmTimeout');
+      if (prev) {
+        clearTimeout(prev);
+      }
+
+      // Auto-hide after 4s
+      const timeout = setTimeout(function(){
+        $box.removeClass('jprm-menu-builder-notice--visible');
+      }, 4000);
+
+      $box.data('jprmTimeout', timeout);
+    });
+  }
+
 
   function apiFailToMessage(xhr){
     try {
@@ -353,7 +384,7 @@
       .always(()=>setLoading(false));
   });
 
-     $('#jprm-save').on('click',function(){
+  $('#jprm-save').on('click',function(){
     if(!state.currentMenu) return toast('Select a Menu first.');
 
     const tree = buildTreeFromDOM();
@@ -363,11 +394,11 @@
     apiPost('menu-builder/sections/order',{tree,menu_id:state.currentMenu})
       .then(()=>apiPost('menu-builder/items/order',{menu_id:state.currentMenu,items:itemsPayload}))
       .then(function(res){
-        const msg = res && res.msg ? res.msg : 'Menu layout saved.';
-        toast(msg);
+        const msg = (res && res.msg) ? res.msg : 'Menu layout saved.';
+        toast(msg); // info style
         return chainLoadAndRender(true);
       })
-      .fail(x=>toast(apiFailToMessage(x)))
+      .fail(x=>toast(apiFailToMessage(x), 'error'))
       .always(()=>setLoading(false));
   });
 

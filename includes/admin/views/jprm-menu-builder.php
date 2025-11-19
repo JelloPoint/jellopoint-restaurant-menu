@@ -2,6 +2,8 @@
 <div class="wrap jprm-menu-builder-wrap">
     <h1><?php esc_html_e('Menu Builder', 'jprm'); ?></h1>
 
+    <div class="jprm-menu-builder-notice jprm-menu-builder-notice--hidden jprm-menu-builder-notice--top"></div>
+
     <div class="jprm-toolbar">
         <label for="jprm-menu-select"><?php esc_html_e('Select Menu:', 'jprm'); ?></label>
         <select id="jprm-menu-select"></select>
@@ -71,4 +73,5 @@
             </div>
         </div>
     </div>
+    <div class="jprm-menu-builder-notice jprm-menu-builder-notice--hidden jprm-menu-builder-notice--bottom"></div>
 </div>
