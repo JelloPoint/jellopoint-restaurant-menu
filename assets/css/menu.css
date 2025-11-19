@@ -491,3 +491,22 @@
 
 /* When leader is logically off, keep a 0-size placeholder so grid stays stable */
 .jp-layout-inline .jp-leader.jp-leader--off{ border:0; width:0; margin:0; }
+
+/* General line-height so text lines don't sit on top of each other */
+.jp-menu__item,
+.jp-menu__label,
+.jp-menu__desc {
+    line-height: 1.4;
+}
+
+/* Mobile: allow rows to wrap nicely and start at the top */
+@media (max-width: 768px) {
+    .jp-menu__row {
+        flex-wrap: wrap;
+        align-items: flex-start;
+    }
+}
+/* Space between menu items */
+.jp-menu__item {
+    margin-bottom: 0.5em;   /* tweak this to taste – larger value = more space */
+}
