@@ -6,9 +6,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 /**
  * Bulk Price Labels tool.
  *
- * First step: register a Tools → Bulk Price Labels screen under the
- * core WordPress "Tools" menu. The actual bulk-assignment UI will be
- * added in a later iteration.
+ * Admin page shell under the JelloPoint parent menu.
+ * The actual listing + bulk actions will be added in a follow-up step.
  */
 final class JPRM_Admin_Bulk_Price_Labels {
 
@@ -26,27 +25,26 @@ final class JPRM_Admin_Bulk_Price_Labels {
             return;
         }
 
-        // Register late, after core menus are ready.
-        add_action( 'admin_menu', [ __CLASS__, 'register_menu' ], 99 );
+        // Register after the JelloPoint parent menu exists.
+        add_action( 'admin_menu', [ __CLASS__, 'register_menu' ], 30 );
 
         // Assets only on our own screen.
         add_action( 'admin_enqueue_scripts', [ __CLASS__, 'enqueue_assets' ] );
     }
 
     /**
-     * Register the Tools → Bulk Price Labels screen.
-     *
-     * We attach to the core Tools menu (tools.php) so the user gets a
-     * dedicated "Tools" section where we can later also place the importer.
+     * Register the JelloPoint → Bulk Price Labels screen.
      */
     public static function register_menu(): void {
         if ( ! current_user_can( self::CAPABILITY ) ) {
             return;
         }
 
-        // Core Tools menu slug is "tools.php".
+        // Parent is the JelloPoint top-level menu.
+        $parent_slug = Admin_Menu::PARENT_SLUG; // "jellopoint"
+
         add_submenu_page(
-            'tools.php',
+            $parent_slug,
             __( 'Bulk Price Labels', 'jellopoint-restaurant-menu' ),
             __( 'Bulk Price Labels', 'jellopoint-restaurant-menu' ),
             self::CAPABILITY,
@@ -59,8 +57,9 @@ final class JPRM_Admin_Bulk_Price_Labels {
      * Enqueue minimal styling for our screen only (optional, very light).
      */
     public static function enqueue_assets( string $hook_suffix ): void {
-        // Our screen id is usually "tools_page_{PAGE_SLUG}".
-        $expected = 'tools_page_' . self::PAGE_SLUG;
+        // For add_submenu_page( 'jellopoint', ..., 'jprm-bulk-price-labels', ... )
+        // the screen id becomes "jellopoint_page_jprm-bulk-price-labels".
+        $expected = Admin_Menu::PARENT_SLUG . '_page_' . self::PAGE_SLUG;
         if ( $hook_suffix !== $expected ) {
             return;
         }
@@ -122,7 +121,7 @@ final class JPRM_Admin_Bulk_Price_Labels {
                 <p><strong><?php esc_html_e( 'Bulk editor shell is ready.', 'jellopoint-restaurant-menu' ); ?></strong></p>
                 <p>
                     <?php esc_html_e(
-                        'The menu entry and page skeleton are in place. In the next step we will wire up the actual listing table, filters, and mass-update actions.',
+                        'The menu entry and page skeleton are in place. Next we will wire up the actual listing table, filters, and mass-update actions.',
                         'jellopoint-restaurant-menu'
                     ); ?>
                 </p>
