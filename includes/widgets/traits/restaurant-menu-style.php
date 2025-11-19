@@ -143,7 +143,7 @@ $this->add_responsive_control(
 		'size_units' => [ 'px', 'em', '%' ],
 		'selectors'  => [
 			// apply to the items wrapper; header will "come along"
-			'{{WRAPPER}} .jp-menu__section' =>
+			'{{WRAPPER}} .jp-menu__section-box' =>
 				'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		],
 	]
@@ -161,7 +161,7 @@ $this->add_responsive_control(
 		'size_units' => [ 'px', 'em', '%' ],
 		'selectors'  => [
 			// apply to BOTH header and items so they share the same box
-			'{{WRAPPER}} .jp-menu__section-header, {{WRAPPER}} .jp-menu__section' =>
+			'{{WRAPPER}} .jp-menu__section-box' =>
 				'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		],
 	]
@@ -176,7 +176,7 @@ $this->add_control(
 		'label'     => __( 'Background Color', 'jellopoint-restaurant-menu' ),
 		'type'      => Controls_Manager::COLOR,
 		'selectors' => [
-			'{{WRAPPER}} .jp-menu__section-header, {{WRAPPER}} .jp-menu__section' =>
+			'{{WRAPPER}} .jp-menu__section-box' =>
 				'background-color: {{VALUE}};',
 		],
 	]
@@ -190,7 +190,7 @@ $this->add_group_control(
 	[
 		'name'     => 'jprm_menu_section_border',
 		'label'    => __( 'Border', 'jellopoint-restaurant-menu' ),
-		'selector' => '{{WRAPPER}} .jp-menu__section-header, {{WRAPPER}} .jp-menu__section',
+		'selector' => '{{WRAPPER}} .jp-menu__section-box',
 	]
 );
 
