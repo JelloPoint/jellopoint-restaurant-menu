@@ -1,39 +1,115 @@
-/* JPRM Menu – reset */
-.jp-menu { margin: 0; padding: 0; list-style: none; }
-.jp-menu li { list-style: none !important; margin: 0; padding: 0; }
-.jp-menu > li::marker { content: ''; } /* kill stubborn bullets */
+/* =====================================================================
+   JPRM Menu – base reset
+   ===================================================================== */
+
+.jp-menu {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.jp-menu li {
+  list-style: none !important;
+  margin: 0;
+  padding: 0;
+}
+
+/* Kill stubborn bullets from some themes */
+.jp-menu > li::marker {
+  content: '';
+}
+
 /* No bullets for meta/global rows like "Menu Crabbetje" */
 .jp-menu__meta,
-.jp-menu__meta .jp-menu__meta--global {
-    list-style: none;
-    list-style-type: none;
-    margin: 0;
-    padding: 0;
+.jp-menu__meta--global {
+  list-style: none;
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
 }
-/* Structure */
-.jp-menu__item { margin: 0 0 .9rem 0; }
-.jp-menu__inner { display: grid; grid-template-columns: 1fr auto; gap: .4rem .8rem; align-items: start; }
-.jp-menu__content { min-width: 0; }
-.jp-menu__title { margin: 0; }
-.jp-menu__desc { opacity: .85; }
 
-/* Price group */
-.jp-menu__pricegroup { display: flex; flex-direction: column; gap: .25rem; text-align: right; }
+/* General line-height so text lines don't sit on top of each other
+   (Elementor line-height control overrides this via more specific selector) */
+.jp-menu__item,
+.jp-menu__label,
+.jp-menu__desc {
+  line-height: 1.4;
+}
 
-/* One price line (price+currency wrapper) */
+/* Space between menu items */
+.jp-menu__item {
+  margin: 0 0 0.2em 0;   /* tweak this in CSS if needed; Elementor controls line-height */
+}
+
+/* =====================================================================
+   Base item layout (content + prices)
+   ===================================================================== */
+
+.jp-menu__inner {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.4rem 0.8rem;
+  align-items: start;
+}
+
+.jp-menu__content {
+  min-width: 0;
+}
+
+.jp-menu__title {
+  margin: 0;
+}
+
+.jp-menu__desc {
+  opacity: 0.85;
+}
+
+/* Price group / stack of price rows */
+.jp-menu__pricegroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  text-align: right;
+}
+
+/* One price line (price + currency wrapper) */
 .jp-menu__price {
   display: inline-flex;
   align-items: center;
-  gap: 0;                    /* spacing controlled via classes below */
   justify-content: flex-end;
+  gap: 0;                 /* spacing handled via modifiers below */
   line-height: 1.2;
 }
 
 /* Amount text */
-.jp-menu__amount { font-weight: 600; white-space: nowrap; }
+.jp-menu__amount {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Horizontal layout for label + price rows */
+.jp-menu__pricegroup .jp-menu__row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  flex-wrap: nowrap;
+}
+
+.jp-menu__pricegroup .jp-menu__price,
+.jp-menu__pricegroup .jp-menu__label {
+  display: inline-flex;
+  align-items: center;
+}
 
 /* Label + icon */
-.jp-menu__label { display: inline-flex; gap: .35em; align-items: center; white-space: nowrap; opacity: .95; }
+.jp-menu__label {
+  display: inline-flex;
+  gap: 0.35em;
+  align-items: center;
+  white-space: nowrap;
+  opacity: 0.95;
+}
+
 .jp-menu__icon {
   width: 1.1em !important;
   height: 1.1em !important;
@@ -44,21 +120,26 @@
   display: inline-block;
   border-radius: 2px;
 }
+
 /* If WP injects width/height attributes, force them down */
-.jp-menu__icon[width], .jp-menu__icon[height] { width: 1.1em !important; height: 1.1em !important; }
+.jp-menu__icon[width],
+.jp-menu__icon[height] {
+  width: 1.1em !important;
+  height: 1.1em !important;
+}
 
-/* Horizontal layout for label + price rows */
-.jp-menu__pricegroup .jp-menu__row { display: inline-flex; align-items: center; gap: .35em; flex-wrap: nowrap; }
-.jp-menu__pricegroup .jp-menu__price,
-.jp-menu__pricegroup .jp-menu__label { display: inline-flex; align-items: center; }
+/* =====================================================================
+   Currency order + spacing (class-driven, no entities)
+   ===================================================================== */
 
-/* Currency order + spacing (class-driven, no entities) */
 /* Before symbol */
 .jp-menu__price.jp-currency-pos-before .jp-menu__currency { order: 0; }
 .jp-menu__price.jp-currency-pos-before .jp-menu__amount   { order: 1; }
+
 /* After symbol */
 .jp-menu__price.jp-currency-pos-after  .jp-menu__amount   { order: 0; }
 .jp-menu__price.jp-currency-pos-after  .jp-menu__currency { order: 1; }
+
 /* Spacing sizes */
 .jp-menu__price.jp-currency-pos-before.jp-currency-sp-none   .jp-menu__currency { margin-right: 0; }
 .jp-menu__price.jp-currency-pos-before.jp-currency-sp-thin   .jp-menu__currency { margin-right: .15em; }
@@ -69,10 +150,11 @@
 .jp-menu__price.jp-currency-pos-after.jp-currency-sp-normal  .jp-menu__currency { margin-left: .3em; }
 
 /* =====================================================================
-   Multi-column wrapper (UNIFIED, variable-driven)
-   PHP outputs:
-     <div class="jp-menu-grid jp-menu-grid--cols-3" style="--jp-cols:3">
+   Multi-column wrapper (grid)
    ===================================================================== */
+/* PHP outputs:
+   <div class="jp-menu-grid jp-menu-grid--cols-3" style="--jp-cols:3"> */
+
 .jp-menu-grid {
   display: grid !important;
   grid-template-columns: repeat(var(--jp-cols, 1), minmax(0, 1fr));
@@ -88,6 +170,7 @@
 @media (max-width: 992px) {
   .jp-menu-grid { --jp-cols: min(var(--jp-cols, 1), 2); }
 }
+
 @media (max-width: 768px) {
   .jp-menu-grid { --jp-cols: 1; }
 }
@@ -109,78 +192,141 @@
   break-inside: avoid;
 }
 
-/* Section headers inside columns */
-.jp-menu__section-header { margin: 0 0 6px 0; padding: 0; }
-.jp-section__title { margin: 0 0 2px 0; font-size: 1.05em; line-height: 1.2; }
-.jp-section__desc  { margin: 0 0 8px 0; font-size: 0.95em; opacity: 0.8; }
+/* =====================================================================
+   Section headers
+   ===================================================================== */
 
-/* Info blocks */
-.jp-infoblocks { display: flex; gap: .5rem; flex-wrap: wrap; margin: .75rem 0; }
-.jp-infoblock { padding: .4em .7em; border-radius: .35em; font-size: .95em; line-height: 1.2; }
+.jp-menu__section-header {
+  margin: 0 0 6px 0;
+  padding: 0;
+}
+
+.jp-section__title {
+  margin: 0 0 2px 0;
+  font-size: 1.05em;
+  line-height: 1.2;
+}
+
+.jp-section__desc {
+  margin: 0 0 8px 0;
+  font-size: 0.95em;
+  opacity: 0.8;
+}
+
+/* =====================================================================
+   Info blocks
+   ===================================================================== */
+
+.jp-infoblocks {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0.75rem 0;
+}
+
+.jp-infoblock {
+  padding: 0.4em 0.7em;
+  border-radius: 0.35em;
+  font-size: 0.95em;
+  line-height: 1.2;
+}
+
 .jp-infoblock--subtle { background: #f6f7f7; border: 1px solid #dcdcde; }
 .jp-infoblock--accent { background: #eef6ff; border: 1px solid #b9d7ff; }
 .jp-infoblock--note   { background: #fff7e6; border: 1px solid #f1cf8a; }
-.jp-infoblock__img { max-width: 100%; height: auto; display: block; }
-.jp-infoblock .jp-button { display: inline-block; text-decoration: none; padding: .45em .8em; border-radius: .35em; border: 1px solid #2271b1; }
 
-/* Badges: keep icons small and inline */
-.jp-menu__badges { display: inline-flex; gap: .35em; align-items: center; }
-.jp-badge { display: inline-flex; align-items: center; gap: .35em; }
+.jp-infoblock__img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
 
-.jp-badge__icon,
-.jp-badge__icon img {
-  width: 16px !important;
-  height: 16px !important;
-  max-width: 16px !important;
-  max-height: 16px !important;
+.jp-infoblock .jp-button {
   display: inline-block;
-  object-fit: contain;
-  vertical-align: -0.2em;
-  border-radius: 2px;
+  text-decoration: none;
+  padding: 0.45em 0.8em;
+  border-radius: 0.35em;
+  border: 1px solid #2271b1;
 }
 
-/* Title line: title + badges stay on one line */
-.jp-menu__titleline{
-  display:flex;
-  align-items:center;
-  gap:.35em;
-  flex-wrap:wrap; /* allows wrap only if very narrow */
-}
-.jp-menu__titleline .jp-menu__title{
-  margin:0;            /* kill block margins */
-  line-height:1.2;
+/* Ensure full width for Info Blocks background color */
+.jprm-infoblock {
+  width: 100%;
 }
 
-/* Badges inline next to the title */
-.jp-menu__badges{
-  display:inline-flex;
-  align-items:center;
-  gap:.35em;
+/* =====================================================================
+   Badges (dietary etc.)
+   ===================================================================== */
+
+.jp-menu__titlewrap {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
 }
 
-/* Badge icon sizing (matches our earlier patch) */
-.jp-badge{ display:inline-flex; align-items:center; gap:.35em; }
-.jp-badge__icon, .jp-badge__icon img{
-  width:16px !important;
-  height:16px !important;
-  max-width:16px !important;
-  max-height:16px !important;
-  display:inline-block;
-  object-fit:contain;
-  vertical-align:-0.2em;
-  border-radius:2px;
+.jp-menu__badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
-/* === Matrix layout (structural only; no visual styling) === */
+.jp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  line-height: 1;
+}
+
+.jp-badge__icon {
+  display: inline-block;
+  height: 1em;
+  width: auto;
+}
+
+.jp-badge__label {
+  display: inline-block;
+}
+
+/* Masks (color via currentColor) */
+.jp-icon-mask,
+.jp-badge__icon--mask,
+.jp-label__icon--mask {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background-color: currentColor;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+/* Inline SVGs: force to currentColor */
+.jp-badge__svg,
+.jp-label__svg,
+.jp-menu__label svg {
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* =====================================================================
+   Matrix layout (structural only)
+   ===================================================================== */
+
 .jp-menu__matrix,
 .jp-menu__matrix > li {
   list-style: none;
   margin: 0;
   padding: 0;
 }
-.jp-menu__matrix { padding-inline-start: 0; }
 
-.jp-matrix{
+.jp-menu__matrix {
+  padding-inline-start: 0;
+}
+
+.jp-matrix {
   display: grid;
   grid-auto-rows: auto;
   /* 1st column flexible for titles; then N auto-sized value columns */
@@ -188,61 +334,63 @@
   column-gap: 1.25rem;
   row-gap: 0;
 }
-.jp-matrix__row{ display: contents; }
-.jp-matrix__cell{ display: block; }
-.jp-matrix__cell--value{ text-align: left; }
 
-/* Ensure full width for Info Blocks background color */
-.jprm-infoblock{ width: 100%; }
+.jp-matrix__row {
+  display: contents;
+}
 
-/* Default Inline: vertical stack at right (kept) */
-.jp-menu__inner { display:grid; grid-template-columns: 1fr auto; gap:.4rem .8rem; }
-.jp-menu__pricegroup { display:flex; flex-direction:column; gap:.25rem; text-align:right; }
-.jp-menu__pricegroup .jp-menu__row { display:flex; align-items:center; gap:.35em; }
+.jp-matrix__cell {
+  display: block;
+}
 
-/* Separators: off by default; on only in Inline-Below */
-.jp-chip-sep { display:none; }
-.jp-menu__inner.jp--inline-below .jp-chip-sep { display:inline-block; opacity:.75; }
+.jp-matrix__cell--value {
+  text-align: left;
+}
 
-/* Make the price row items share a baseline: labels/icons centered with price */
-.jp-price-row { display: flex; align-items: center; gap: .35em; }
+.jp-matrix .jp-matrix__cell--head .jp-menu__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+}
 
-/* Labels themselves: icon + text centered */
-.jp-menu__label { display: inline-flex; align-items: center; gap: .35em; }
-.jp-menu__icon { display: inline-block; vertical-align: middle; }  /* works for <img> icons */
+/* =====================================================================
+   Inline-Below layout
+   ===================================================================== */
 
-/* Matrix headers also use labels: center them too */
-.jp-matrix .jp-matrix__cell--head .jp-menu__label { display: inline-flex; align-items: center; gap: .35em; }
+/* separator chips globally hidden; enabled only for inline-below layout */
+.jp-chip-sep {
+  display: none;
+}
 
-/* =========================
-   INLINE-BELOW (clean rules)
-   ========================= */
+.jp-menu__inner.jp--inline-below .jp-chip-sep {
+  display: inline-block;
+  opacity: 0.75;
+}
 
-/* container that holds all label/price pairs */
+/* Container that holds all label/price pairs */
 .jp-menu__pricegroup--below .jp-inline-below__line {
   display: flex;
   flex-wrap: wrap;
-  /* space BETWEEN pairs (row gap, column gap) */
-  gap: 0.35rem 1rem;
+  gap: 0.35rem 1rem;  /* row gap, column gap */
   align-items: center;
   margin-top: 0.25rem;
 }
 
-/* a single tuple (label, price, optional sep) */
+/* A single tuple (label, price, optional sep) */
 .jp-menu__pricegroup--below .jp-chipline {
   display: inline-flex;
   align-items: center;
   gap: 0;
 }
 
-/* label chip: make icon + text align nicely */
+/* Label chip: make icon + text align nicely */
 .jp-menu__pricegroup--below .jp-chip .jp-menu__label {
   display: inline-flex;
   align-items: center;
-  gap: .35em;
+  gap: 0.35em;
 }
 
-/* price: ALWAYS provide default space after label, even if no separator */
+/* Price: always provide default space after label, even if no separator */
 .jp-menu__pricegroup--below .jp-chipline .jp-price {
   display: inline-flex;
   align-items: center;
@@ -250,56 +398,60 @@
   margin-left: 0.25em;
 }
 
-/* separator */
+/* Separator */
 .jp-menu__pricegroup--below .jp-chipline .jp-sep {
   display: inline-flex;
   align-items: center;
   line-height: 1;
-  opacity: .75;
-  padding-left: .45em;
+  opacity: 0.75;
+  padding-left: 0.45em;
   padding-right: 0;
 }
 
-/* never show a separator for no-price rows */
-.jp-menu__pricegroup--below .jp-chipline--noprice .jp-sep { display: none !important; }
+/* Never show a separator for no-price rows */
+.jp-menu__pricegroup--below .jp-chipline--noprice .jp-sep {
+  display: none !important;
+}
 
-/* belt-and-suspenders: kill any trailing padding/margin on last child */
+/* Belt-and-suspenders: kill any trailing padding/margin on last child */
 .jp-menu__pricegroup--below .jp-chipline > :last-child {
   margin-right: 0 !important;
   padding-right: 0 !important;
 }
 
-/* keep icon elements from baseline wobble in some themes */
+/* Keep icon elements from baseline wobble in some themes */
 .jp-menu__pricegroup--below .jp-menu__icon {
   display: inline-block;
   vertical-align: middle;
 }
 
-/* =========================
-   INLINE-BELOW — force stack
-   ========================= */
+/* Force stack for inline-below layout */
 .jp-inline-below .jp-menu__inner {
   display: grid;
   grid-template-columns: 1fr;  /* single column */
   align-items: start;
   gap: 0.25rem;
 }
+
 .jp-inline-below .jp-menu__content,
 .jp-inline-below .jp-menu__pricegroup--below {
   grid-column: 1 / -1;         /* full width */
 }
 
-/* Defensive fallback if no .jp-inline-below wrapper is present. */
+/* Defensive fallback if no .jp-inline-below wrapper is present */
 .jp-menu__pricegroup--below {
   display: block;
   width: 100%;
   flex: 0 0 100%;
 }
-.jp-menu__content { flex: 0 0 100%; }
 
-/* =========================
+.jp-menu__content {
+  flex: 0 0 100%;
+}
+
+/* =====================================================================
    Label Position (Inline + Inline-Below)
-   ========================= */
+   ===================================================================== */
 
 /* Ensure rows are flex so we can re-order children */
 .jprm-labelpos-left  .jp-inline .jp-price-row,
@@ -316,23 +468,47 @@
 
 /* ---------- LEFT: chip(1) → price(2) → sep(3) ---------- */
 .jprm-labelpos-left  .jp-inline .jp-price-row .jp-chip,
-.jprm-labelpos-left  .jp-menu__pricegroup--below .jp-chipline .jp-chip  { order: 1; margin-left: 0; }
+.jprm-labelpos-left  .jp-menu__pricegroup--below .jp-chipline .jp-chip  {
+  order: 1;
+  margin-left: 0;
+}
 
 .jprm-labelpos-left  .jp-inline .jp-price-row .jp-price,
-.jprm-labelpos-left  .jp-menu__pricegroup--below .jp-chipline .jp-price { order: 2; margin-left: .45em; line-height: 1; }
+.jprm-labelpos-left  .jp-menu__pricegroup--below .jp-chipline .jp-price {
+  order: 2;
+  margin-left: 0.45em;
+  line-height: 1;
+}
 
 .jprm-labelpos-left  .jp-inline .jp-price-row .jp-sep,
-.jprm-labelpos-left  .jp-menu__pricegroup--below .jp-chipline .jp-sep   { order: 3; padding-left: .45em; padding-right: 0; line-height: 1; }
+.jprm-labelpos-left  .jp-menu__pricegroup--below .jp-chipline .jp-sep   {
+  order: 3;
+  padding-left: 0.45em;
+  padding-right: 0;
+  line-height: 1;
+}
 
 /* ---------- RIGHT: price(1) → chip(2) → sep(3) ---------- */
 .jprm-labelpos-right .jp-inline .jp-price-row .jp-price,
-.jprm-labelpos-right .jp-menu__pricegroup--below .jp-chipline .jp-price { order: 1; margin-left: 0; line-height: 1; }
+.jprm-labelpos-right .jp-menu__pricegroup--below .jp-chipline .jp-price {
+  order: 1;
+  margin-left: 0;
+  line-height: 1;
+}
 
 .jprm-labelpos-right .jp-inline .jp-price-row .jp-chip,
-.jprm-labelpos-right .jp-menu__pricegroup--below .jp-chipline .jp-chip  { order: 2; margin-left: .45em; }
+.jprm-labelpos-right .jp-menu__pricegroup--below .jp-chipline .jp-chip  {
+  order: 2;
+  margin-left: 0.45em;
+}
 
 .jprm-labelpos-right .jp-inline .jp-price-row .jp-sep,
-.jprm-labelpos-right .jp-menu__pricegroup--below .jp-chipline .jp-sep   { order: 3; padding-left: .45em; padding-right: 0; line-height: 1; }
+.jprm-labelpos-right .jp-menu__pricegroup--below .jp-chipline .jp-sep   {
+  order: 3;
+  padding-left: 0.45em;
+  padding-right: 0;
+  line-height: 1;
+}
 
 /* Never show separator on no-price rows */
 .jprm-labelpos-left  .jp-inline .jp-price-row.jp-chipline--noprice .jp-sep,
@@ -342,175 +518,96 @@
   display: none !important;
 }
 
-/* BADGES FIX */
-.jp-menu__titlewrap { display: inline-flex; align-items: baseline; gap: .35rem; }
-.jp-menu__badges    { display: inline-flex; align-items: center; gap: .35rem; }
-.jp-badge           { display: inline-flex; align-items: center; gap: .25rem; line-height: 1; }
-.jp-badge__icon     { display: inline-block; height: 1em; width: auto; }
-.jp-badge__label    { display: inline-block; }
+/* =====================================================================
+   Inline layout (leaders etc.)
+   ===================================================================== */
 
-/* Masks (color via currentColor) */
-.jp-icon-mask,
-.jp-badge__icon--mask,
-.jp-label__icon--mask{
-  display:inline-block;
-  width:1em; height:1em;
-  background-color: currentColor;
-  -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;
-  -webkit-mask-size:contain;     mask-size:contain;
-  -webkit-mask-position:center;  mask-position:center;
+/* Base row that holds title + leader + pricegroup on a single baseline */
+.jp-layout-inline .jp-menu__inner {
+  display: block;
 }
 
-/* Inline SVGs: force to currentColor */
-.jp-badge__svg,
-.jp-label__svg,
-.jp-menu__label svg{
-  fill: currentColor !important;
-  stroke: currentColor !important;
-}
-
-/* LEADER STYLING */
-/* === Inline leader — consume Elementor variables === */
-/* Put this near your existing inline layout rules */
-
-.jp-layout-inline .jp-menu__inner{
-  display:flex;
-  align-items:baseline;
-  gap:.5rem;
-}
-
-.jp-layout-inline .jp-menu__content{ flex:0 1 auto; min-width:0; }
-.jp-layout-inline .jp-menu__pricegroup{ flex:0 0 auto; }
-
-/* The leader expands between content and price */
-.jp-layout-inline .jp-leader{
-  flex:1 1 auto;
-  min-width:1rem;
-
-  /* use the Elementor-driven variables */
-  margin:0 var(--jprm-leader-gap, .5rem);
-  border-bottom-width: var(--jprm-leader-weight, 1px);
-  border-bottom-color: var(--jprm-leader-color, currentColor);
-
-  /* default fallback; overridden by the data-style rules below */
-  border-bottom-style: dotted;
-
-  /* keeps the line visually centered on text baseline */
-  align-self:center;
-  transform: translateY(-0.1em);
-}
-
-/* Style coming from the data-style attribute that inline.php renders */
-.jp-layout-inline .jp-leader[data-style="dotted"]{ border-bottom-style:dotted; }
-.jp-layout-inline .jp-leader[data-style="dashed"]{ border-bottom-style:dashed; }
-.jp-layout-inline .jp-leader[data-style="solid"] { border-bottom-style:solid; }
-
-/*EXTRA TWEAK*/
-/* === Inline layout baseline fix ======================================= */
-.jp-layout-inline .jp-menu__inner{ display:block; }
-
-/* Row that holds title + leader + pricegroup on a single baseline */
-.jp-layout-inline .jp-row--titleline{
-  display:flex;
-  align-items:baseline; /* <- key for clean alignment */
-  gap:.5rem;
-}
-
-/* Title block can wrap; leader will still align to its first line */
-.jp-layout-inline .jp-menu__content{ flex:0 1 auto; min-width:0; }
-.jp-layout-inline .jp-menu__titlewrap{ display:inline-flex; align-items:baseline; gap:.35rem; }
-
-/* Price group stays compact on the right */
-.jp-layout-inline .jp-menu__pricegroup{
-  flex:0 0 auto;
-  display:flex;
-  flex-direction:column;
-  gap:.25rem;
-}
-
-/* Leader expands between content and price */
-.jp-layout-inline .jp-leader{
-  flex:1 1 auto;
-  min-width:1rem;
-  margin:0 var(--jprm-leader-gap, .5rem);
-
-  border-bottom-width: var(--jprm-leader-weight, 1px);
-  border-bottom-color: var(--jprm-leader-color, currentColor);
-  border-bottom-style: dotted; /* fallback; overridden by data-style below */
-
-  /* fine-tune vertical feel if needed from Style tab */
-  transform: translateY(var(--jprm-leader-offset, 0));
-}
-
-/* Map data-style to actual line style */
-.jp-layout-inline .jp-leader[data-style="dotted"]{ border-bottom-style:dotted; }
-.jp-layout-inline .jp-leader[data-style="dashed"]{ border-bottom-style:dashed; }
-.jp-layout-inline .jp-leader[data-style="solid"] { border-bottom-style:solid; }
-
-/* ===== Inline grid to keep description under title, prices on the right ===== */
-.jp-layout-inline .jp-grid--inline{
-  display:grid;
+/* Grid wrapper for inline layout:
+   title | leader | prices on row 1,
+   description | (spacer) | prices on row 2 */
+.jp-layout-inline .jp-grid--inline {
+  display: grid;
   grid-template-columns: auto 1fr auto; /* title | leader | prices */
-  grid-template-rows: auto auto;        /* row1: title/leader/prices ; row2: desc / (spacer) / prices */
-  column-gap:.5rem;
-  row-gap:.25rem;
-  align-items:first baseline; /* modern browsers; falls back to baseline */
+  grid-template-rows: auto auto;        /* row1: title/leader/prices ; row2: desc/(spacer)/prices */
+  column-gap: 0.5rem;
+  row-gap: 0.25rem;
+  align-items: first baseline;
 }
 
 /* Place items into the grid cells */
-.jp-layout-inline .jp-left-title{ grid-column:1; grid-row:1; min-width:0; }
-.jp-layout-inline .jp-left-desc { grid-column:1; grid-row:2; }
-.jp-layout-inline .jp-leader    { grid-column:2; grid-row:1; align-self:baseline; }
-.jp-layout-inline .jp-right-pricegroup{
-  grid-column:3;
-  grid-row:1 / span 2; /* prices occupy both rows */
-  display:flex;
-  flex-direction:column;
-  align-items:flex-end;
-  gap:.25rem;
+.jp-layout-inline .jp-left-title {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
 }
 
-/* Title area details */
-.jp-layout-inline .jp-menu__titlewrap{ display:inline-flex; align-items:baseline; gap:.35rem; }
+.jp-layout-inline .jp-left-desc {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.jp-layout-inline .jp-leader {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: baseline;
+}
+
+.jp-layout-inline .jp-right-pricegroup {
+  grid-column: 3;
+  grid-row: 1 / span 2; /* prices occupy both rows */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+/* Title + badges */
+.jp-layout-inline .jp-menu__titlewrap {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
 
 /* Price rows baseline tidy */
-.jp-layout-inline .jp-price-row{ display:inline-flex; align-items:baseline; gap:.35rem; }
+.jp-layout-inline .jp-price-row {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
 
-/* --- Leader styling driven by Elementor variables --- */
-.jp-layout-inline .jp-leader{
-  min-width:1rem;
+/* Leader styling driven by Elementor variables */
+.jp-layout-inline .jp-leader {
+  flex: 1 1 auto;
+  min-width: 1rem;
   border-bottom-width: var(--jprm-leader-weight, 1px);
   border-bottom-color: var(--jprm-leader-color, currentColor);
   border-bottom-style: dotted; /* fallback; overridden below */
-  margin: 0 var(--jprm-leader-gap, .5rem);
+  margin: 0 var(--jprm-leader-gap, 0.5rem);
   transform: translateY(var(--jprm-leader-offset, 0));
 }
-.jp-layout-inline .jp-leader[data-style="dotted"]{ border-bottom-style:dotted; }
-.jp-layout-inline .jp-leader[data-style="dashed"]{ border-bottom-style:dashed; }
-.jp-layout-inline .jp-leader[data-style="solid"] { border-bottom-style:solid; }
+
+.jp-layout-inline .jp-leader[data-style="dotted"] { border-bottom-style: dotted; }
+.jp-layout-inline .jp-leader[data-style="dashed"] { border-bottom-style: dashed; }
+.jp-layout-inline .jp-leader[data-style="solid"]  { border-bottom-style: solid; }
 
 /* When leader is logically off, keep a 0-size placeholder so grid stays stable */
-.jp-layout-inline .jp-leader.jp-leader--off{ border:0; width:0; margin:0; }
-
-/* General line-height so text lines don't sit on top of each other */
-.jp-menu__item,
-.jp-menu__label,
-.jp-menu__desc {
-    line-height: 1.4;
+.jp-layout-inline .jp-leader.jp-leader--off {
+  border: 0;
+  width: 0;
+  margin: 0;
 }
 
-/* Mobile: allow rows to wrap nicely and start at the top */
-@media (max-width: 768px) {
-    .jp-menu__row {
-        flex-wrap: wrap;
-        align-items: flex-start;
-    }
-}
-/* Space between menu items */
-.jp-menu__item {
-    margin-bottom: 0.2em;   /* tweak this to taste – larger value = more space */
-}
-/* --- Mobile text wrapping & spacing ------------------------------------ */
+/* =====================================================================
+   Mobile tweaks
+   ===================================================================== */
+
+/* Mobile: allow rows to wrap nicely and start at the top,
+   and ensure long text wraps normally. */
 @media (max-width: 768px) {
 
   .jp-menu__row {
