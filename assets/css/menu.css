@@ -2,7 +2,14 @@
 .jp-menu { margin: 0; padding: 0; list-style: none; }
 .jp-menu li { list-style: none !important; margin: 0; padding: 0; }
 .jp-menu > li::marker { content: ''; } /* kill stubborn bullets */
-
+/* No bullets for meta/global rows like "Menu Crabbetje" */
+.jp-menu__meta,
+.jp-menu__meta.jp-menu__meta--global {
+    list-style: none;
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+}
 /* Structure */
 .jp-menu__item { margin: 0 0 .9rem 0; }
 .jp-menu__inner { display: grid; grid-template-columns: 1fr auto; gap: .4rem .8rem; align-items: start; }
