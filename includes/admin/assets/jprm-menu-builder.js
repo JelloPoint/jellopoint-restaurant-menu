@@ -353,7 +353,7 @@
       .always(()=>setLoading(false));
   });
 
-   $('#jprm-save').on('click',function(){
+     $('#jprm-save').on('click',function(){
     if(!state.currentMenu) return toast('Select a Menu first.');
 
     const tree = buildTreeFromDOM();
@@ -362,10 +362,15 @@
     setLoading(true);
     apiPost('menu-builder/sections/order',{tree,menu_id:state.currentMenu})
       .then(()=>apiPost('menu-builder/items/order',{menu_id:state.currentMenu,items:itemsPayload}))
-      .then(()=>chainLoadAndRender(true))
+      .then(function(res){
+        const msg = res && res.msg ? res.msg : 'Menu layout saved.';
+        toast(msg);
+        return chainLoadAndRender(true);
+      })
       .fail(x=>toast(apiFailToMessage(x)))
       .always(()=>setLoading(false));
   });
+
 
   $(document).on('change','#jprm-unassigned-all',function(){ $('#jprm-unassigned-list input[type="checkbox"]').prop('checked', $(this).is(':checked')); });
   $('#jprm-assign-item').on('click',function(){

@@ -362,48 +362,92 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $touched ) ] );
 		return rest_ensure_response( [ 'items' => $out ] );
 	}
 
-	public function save_items_order( $request ) {
-$menu_id = (int) $request['menu_id'];
-$items   = (array) $request['items']; // [{id,section_id,order}]
+public function save_items_order( $request ) {
+	$menu_id = (int) $request['menu_id'];
+	$items   = (array) $request['items']; // [{id,section_id,order}]
 
-if ( $menu_id <= 0 || ! is_array( $items ) ) {
-	return new \WP_Error( 'jprm_bad_params', __( 'menu_id and items are required.', 'jprm' ), [ 'status' => 400 ] );
-}
-
-$changed_posts = [];
-
-foreach ( $items as $row ) {
-	$pid        = (int) ( $row['id'] ?? 0 );
-	$section_id = (int) ( $row['section_id'] ?? 0 );
-	$order      = (int) ( $row['order'] ?? 0 );
-	if ( ! $pid || ! $section_id ) continue;
-
-	// Guard: section must belong to the menu
-	$owner = (int) get_term_meta( $section_id, self::META_MENU_OWNER, true );
-	if ( $owner !== $menu_id ) {
+	if ( $menu_id <= 0 || ! is_array( $items ) ) {
 		return new \WP_Error(
-			'jprm_cross_menu',
-			__( 'Cannot assign item to a section owned by another Menu.', 'jprm' ),
+			'jprm_bad_params',
+			__( 'menu_id and items are required.', 'jprm' ),
 			[ 'status' => 400 ]
 		);
 	}
 
-	// Assign section (single) and stamp the menu taxonomy (additive)
-	wp_set_post_terms( $pid, [ $section_id ], self::TAX_SECTION, false );
-	wp_set_post_terms( $pid, [ $menu_id ],   self::TAX_MENU,    true );
+	// Group items per section first
+	$by_section = [];
 
-	update_post_meta( $pid, self::META_ITEM_ORDER, $order );
-	$changed_posts[] = $pid;
-}
+	foreach ( $items as $row ) {
+		$pid        = (int) ( $row['id'] ?? 0 );
+		$section_id = (int) ( $row['section_id'] ?? 0 );
+		$order      = (int) ( $row['order'] ?? 0 );
 
-// Targeted cache clear for changed posts
-foreach ( array_unique( $changed_posts ) as $p ) {
-	clean_post_cache( $p );
-}
+		if ( ! $pid || ! $section_id ) {
+			continue;
+		}
 
-return rest_ensure_response( [ 'ok' => true, 'count' => count( $changed_posts ) ] );
+		// Guard: section must belong to the menu
+		$owner = (int) get_term_meta( $section_id, self::META_MENU_OWNER, true );
+		if ( $owner !== $menu_id ) {
+			return new \WP_Error(
+				'jprm_cross_menu',
+				__( 'Cannot assign item to a section owned by another Menu.', 'jprm' ),
+				[ 'status' => 400 ]
+			);
+		}
 
+		$by_section[ $section_id ][] = [
+			'id'    => $pid,
+			'order' => $order,
+		];
 	}
+
+	$changed_posts = [];
+
+	// Within each section, rewrite to a dense 0..N-1 order range
+	foreach ( $by_section as $section_id => $rows ) {
+		usort(
+			$rows,
+			static function( $a, $b ) {
+				return (int) ( $a['order'] ?? 0 ) <=> (int) ( $b['order'] ?? 0 );
+			}
+		);
+
+		$seq = -1;
+
+		foreach ( $rows as $row ) {
+			$pid = (int) ( $row['id'] ?? 0 );
+			if ( ! $pid ) {
+				continue;
+			}
+			if ( ! current_user_can( 'edit_post', $pid ) ) {
+				continue;
+			}
+
+			$seq++;
+
+			// Assign section (single) and stamp the menu taxonomy (additive)
+			wp_set_post_terms( $pid, [ $section_id ], self::TAX_SECTION, false );
+			wp_set_post_terms( $pid, [ $menu_id ], self::TAX_MENU, true );
+
+			// Guard-rail: always store a numeric order 0..N-1
+			update_post_meta( $pid, self::META_ITEM_ORDER, $seq );
+			$changed_posts[] = $pid;
+		}
+	}
+
+	// Targeted cache clear for changed posts
+	foreach ( array_unique( $changed_posts ) as $p ) {
+		clean_post_cache( $p );
+	}
+
+	return rest_ensure_response( [
+		'ok'    => true,
+		'count' => count( $changed_posts ),
+		'msg'   => __( 'Menu layout saved.', 'jprm' ),
+	] );
+}
+
 
 	public function assign_items_batch( $request ) {
 		$menu_id    = (int) $request['menu_id'];
