@@ -962,6 +962,7 @@ trait Restaurant_Menu_Style {
 			]
 		);
 
+		// Labels → Icon Size — FORCE override (works in Matrix header/rows and inline)
 		$this->add_responsive_control(
 			'jprm_label_icon_size',
 			[
@@ -970,11 +971,12 @@ trait Restaurant_Menu_Style {
 				'size_units' => [ 'px' ],
 				'range'      => [ 'px' => [ 'min' => 12, 'max' => 64, 'step' => 1 ] ],
 				'selectors'  => [
-					'{{WRAPPER}} img.jp-menu__icon' =>
-						'width: {{SIZE}}{{UNIT}} !important; height: auto !important; max-width: none !important;',
+					// Override HTML width/height attributes and any theme max-width
+					'{{WRAPPER}} img.jp-menu__icon' => 'width: {{SIZE}}{{UNIT}} !important; height: auto !important; max-width: none !important;',
 				],
 			]
 		);
+
 
 		$this->add_responsive_control(
 			'jprm_label_icon_gap',
