@@ -346,8 +346,16 @@ error_log( 'JPRM items_order overrides raw: ' . print_r( $s['items_order_overrid
 
                     case 'menu_order':
                     default:
-                        $am = (int) get_post_field( 'menu_order', $aid );
-                        $bm = (int) get_post_field( 'menu_order', $bid );
+                        // Prefer Menu Builder ordering: per-section order meta.
+                        $meta_key = '_jprm_order_in_section';
+
+                        $ameta = get_post_meta( $aid, $meta_key, true );
+                        $bmeta = get_post_meta( $bid, $meta_key, true );
+
+                        // If builder meta exists, use it; otherwise fall back to core menu_order.
+                        $am = ( $ameta !== '' ) ? (int) $ameta : (int) get_post_field( 'menu_order', $aid );
+                        $bm = ( $bmeta !== '' ) ? (int) $bmeta : (int) get_post_field( 'menu_order', $bid );
+
                         $cmp = $am <=> $bm;
                         break;
                 }
