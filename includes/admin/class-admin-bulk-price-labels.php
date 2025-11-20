@@ -4,7 +4,7 @@ namespace JelloPoint\RestaurantMenu\Admin;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
- * Bulk Price Labels Tool — flat view + bulk edit.
+ * Bulk Price Labels Tool — flat view + bulk edit + dry run.
  *
  * - Filters: Menu + Section, with Section depending on Menu.
  * - Uses real label registry from jprm_price_labels_v2.
@@ -12,8 +12,9 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * - Renders ONE table row per price:
  *      [x] | Menu | Section | Item | Price Index | Amount | Label
  * - Bulk actions:
- *      - Set label (pick existing pl-*bl_ from registry)
+ *      - Set label (pick existing pl-*/lbl_* from registry)
  *      - Clear label
+ * - Dry run checkbox (default ON): preview only, no DB writes.
  *
  * Writes back into:
  * - jprm_price (array)
@@ -112,6 +113,14 @@ final class JPRM_Admin_Bulk_Price_Labels {
 			.jprm-bulk-price-labels-wrap .jprm-bulk-actions select {
 				max-width: 260px;
 			}
+			.jprm-bulk-price-labels-wrap .jprm-bulk-actions .jprm-dryrun-toggle {
+				margin-left: auto;
+				display: flex;
+				align-items: center;
+				gap: 0.35em;
+				font-size: 12px;
+				color: #444;
+			}
 		';
 
 		wp_register_style( $handle, false, [], '1.0.0' );
@@ -130,7 +139,6 @@ final class JPRM_Admin_Bulk_Price_Labels {
 
 					if (menuSel) {
 						menuSel.addEventListener("change", function(){
-							// Reset section when menu changes.
 							if (sectSel) { sectSel.value = "0"; }
 							form.submit();
 						});
@@ -400,13 +408,17 @@ final class JPRM_Admin_Bulk_Price_Labels {
 
 	/**
 	 * Bulk actions bar (top + bottom).
+	 * Top and bottom use different field names, like WP list tables (action/action2).
 	 */
 	private static function render_bulk_actions_bar( string $position, array $labels_index ): void {
+		$is_top          = ( 'top' === $position );
+		$action_name     = $is_top ? 'jprm_bulk_action' : 'jprm_bulk_action2';
+		$target_label_name = $is_top ? 'jprm_target_label_ref' : 'jprm_target_label_ref2';
 		?>
 		<div class="jprm-bulk-actions jprm-bulk-actions-<?php echo esc_attr( $position ); ?>">
 			<strong><?php esc_html_e( 'Bulk action:', 'jellopoint-restaurant-menu' ); ?></strong>
 
-			<select name="jprm_bulk_action">
+			<select name="<?php echo esc_attr( $action_name ); ?>">
 				<option value=""><?php esc_html_e( '— Select —', 'jellopoint-restaurant-menu' ); ?></option>
 				<option value="set_label"><?php esc_html_e( 'Set label (ref)', 'jellopoint-restaurant-menu' ); ?></option>
 				<option value="clear_label"><?php esc_html_e( 'Clear label', 'jellopoint-restaurant-menu' ); ?></option>
@@ -414,7 +426,7 @@ final class JPRM_Admin_Bulk_Price_Labels {
 
 			<span>
 				<?php esc_html_e( 'Target label:', 'jellopoint-restaurant-menu' ); ?>
-				<select name="jprm_target_label_ref">
+				<select name="<?php echo esc_attr( $target_label_name ); ?>">
 					<option value=""><?php esc_html_e( '— Select label —', 'jellopoint-restaurant-menu' ); ?></option>
 					<?php foreach ( $labels_index as $id => $data ) : ?>
 						<option value="<?php echo esc_attr( $id ); ?>">
@@ -427,6 +439,15 @@ final class JPRM_Admin_Bulk_Price_Labels {
 				</select>
 			</span>
 
+			<?php if ( $is_top ) : ?>
+				<span class="jprm-dryrun-toggle">
+					<label>
+						<input type="checkbox" name="jprm_dry_run" value="1" checked="checked" />
+						<?php esc_html_e( 'Dry run (preview only, no changes saved)', 'jellopoint-restaurant-menu' ); ?>
+					</label>
+				</span>
+			<?php endif; ?>
+
 			<button type="submit" class="button button-primary" name="jprm_bulk_apply" value="1">
 				<?php esc_html_e( 'Apply', 'jellopoint-restaurant-menu' ); ?>
 			</button>
@@ -435,7 +456,7 @@ final class JPRM_Admin_Bulk_Price_Labels {
 	}
 
 	/**
-	 * Handle bulk action POST and write back to meta.
+	 * Handle bulk action POST and write back to meta (or preview only).
 	 */
 	private static function handle_bulk_action( array $labels_index ): void {
 		if ( empty( $_POST['jprm_bulk_apply'] ) ) {
@@ -467,15 +488,27 @@ final class JPRM_Admin_Bulk_Price_Labels {
 			return;
 		}
 
-		$action = isset( $_POST['jprm_bulk_action'] )
+		// Like WP: action (top) and action2 (bottom).
+		$action_primary   = isset( $_POST['jprm_bulk_action'] )
 			? sanitize_text_field( wp_unslash( $_POST['jprm_bulk_action'] ) )
 			: '';
+		$action_secondary = isset( $_POST['jprm_bulk_action2'] )
+			? sanitize_text_field( wp_unslash( $_POST['jprm_bulk_action2'] ) )
+			: '';
+
+		$use_secondary = false;
+		if ( '' === $action_primary && '' !== $action_secondary ) {
+			$action        = $action_secondary;
+			$use_secondary = true;
+		} else {
+			$action = $action_primary;
+		}
 
 		$rows = isset( $_POST['jprm_rows'] ) && is_array( $_POST['jprm_rows'] )
 			? array_map( 'sanitize_text_field', wp_unslash( $_POST['jprm_rows'] ) )
 			: [];
 
-		if ( $action === '' ) {
+		if ( '' === $action ) {
 			add_settings_error(
 				'jprm_bulk_price_labels',
 				'jprm_bulk_price_labels_no_action',
@@ -495,14 +528,25 @@ final class JPRM_Admin_Bulk_Price_Labels {
 			return;
 		}
 
+		$dry_run = ! empty( $_POST['jprm_dry_run'] );
+
 		$target_label_ref = null;
 
 		if ( 'set_label' === $action ) {
-			$raw_target = isset( $_POST['jprm_target_label_ref'] )
+			$raw_target_primary   = isset( $_POST['jprm_target_label_ref'] )
 				? sanitize_text_field( wp_unslash( $_POST['jprm_target_label_ref'] ) )
 				: '';
+			$raw_target_secondary = isset( $_POST['jprm_target_label_ref2'] )
+				? sanitize_text_field( wp_unslash( $_POST['jprm_target_label_ref2'] ) )
+				: '';
 
-			if ( $raw_target === '' ) {
+			if ( $use_secondary ) {
+				$raw_target = $raw_target_secondary;
+			} else {
+				$raw_target = $raw_target_primary;
+			}
+
+			if ( '' === $raw_target ) {
 				add_settings_error(
 					'jprm_bulk_price_labels',
 					'jprm_bulk_price_labels_no_target',
@@ -564,7 +608,8 @@ final class JPRM_Admin_Bulk_Price_Labels {
 				$indices,
 				$action,
 				$target_label_ref,
-				$labels_index
+				$labels_index,
+				$dry_run
 			);
 		}
 
@@ -576,16 +621,29 @@ final class JPRM_Admin_Bulk_Price_Labels {
 				'error'
 			);
 		} else {
-			/* translators: %d: number of price rows changed */
-			$message = sprintf(
-				_n(
-					'Updated labels on %d price row.',
-					'Updated labels on %d price rows.',
-					$total_changed,
-					'jellopoint-restaurant-menu'
-				),
-				$total_changed
-			);
+			if ( $dry_run ) {
+				/* translators: %d: number of price rows that would change */
+				$message = sprintf(
+					_n(
+						'Preview: %d price row would be updated (no changes saved).',
+						'Preview: %d price rows would be updated (no changes saved).',
+						$total_changed,
+						'jellopoint-restaurant-menu'
+					),
+					$total_changed
+				);
+			} else {
+				/* translators: %d: number of price rows changed */
+				$message = sprintf(
+					_n(
+						'Updated labels on %d price row.',
+						'Updated labels on %d price rows.',
+						$total_changed,
+						'jellopoint-restaurant-menu'
+					),
+					$total_changed
+				);
+			}
 
 			add_settings_error(
 				'jprm_bulk_price_labels',
@@ -599,6 +657,8 @@ final class JPRM_Admin_Bulk_Price_Labels {
 	/**
 	 * Apply bulk action to one post (one or more indices).
 	 *
+	 * If $dry_run is true, only counts changes; DB is untouched.
+	 *
 	 * Returns the number of rows that were actually changed.
 	 */
 	private static function apply_bulk_to_post(
@@ -606,7 +666,8 @@ final class JPRM_Admin_Bulk_Price_Labels {
 		array $indices,
 		string $action,
 		?string $target_label_ref,
-		array $labels_index
+		array $labels_index,
+		bool $dry_run
 	): int {
 		$changed = 0;
 
@@ -705,19 +766,21 @@ final class JPRM_Admin_Bulk_Price_Labels {
 
 			$changed = 1;
 
-			// Persist struct as array (WordPress will serialize).
-			update_post_meta( $post_id, 'jprm_price', $struct );
+			if ( ! $dry_run ) {
+				// Persist struct as array (WordPress will serialize).
+				update_post_meta( $post_id, 'jprm_price', $struct );
 
-			// Sync helper meta.
-			$amount_str = (string) ( $struct['price'] ?? '' );
-			update_post_meta( $post_id, 'jprm_price_mode', 'single' );
-			update_post_meta( $post_id, 'jprm_price_amount', $amount_str );
+				// Sync helper meta.
+				$amount_str = (string) ( $struct['price'] ?? '' );
+				update_post_meta( $post_id, 'jprm_price_mode', 'single' );
+				update_post_meta( $post_id, 'jprm_price_amount', $amount_str );
 
-			if ( 'set_label' === $action && null !== $target_label_ref ) {
-				update_post_meta( $post_id, 'jprm_price_label_mode', 'ref' );
-				update_post_meta( $post_id, 'jprm_price_label_ref', $target_label_ref );
-			} else {
-				delete_post_meta( $post_id, 'jprm_price_label_ref' );
+				if ( 'set_label' === $action && null !== $target_label_ref ) {
+					update_post_meta( $post_id, 'jprm_price_label_mode', 'ref' );
+					update_post_meta( $post_id, 'jprm_price_label_ref', $target_label_ref );
+				} else {
+					delete_post_meta( $post_id, 'jprm_price_label_ref' );
+				}
 			}
 
 			return $changed;
@@ -749,29 +812,31 @@ final class JPRM_Admin_Bulk_Price_Labels {
 				return 0;
 			}
 
-			update_post_meta( $post_id, 'jprm_price', $struct );
+			if ( ! $dry_run ) {
+				update_post_meta( $post_id, 'jprm_price', $struct );
 
-			// Rebuild jprm_prices from rows.
-			$out_prices = [];
-			foreach ( $struct['rows'] as $row ) {
-				if ( ! is_array( $row ) ) {
-					continue;
+				// Rebuild jprm_prices from rows.
+				$out_prices = [];
+				foreach ( $struct['rows'] as $row ) {
+					if ( ! is_array( $row ) ) {
+						continue;
+					}
+					$amount = (string) ( $row['value'] ?? $row['amount'] ?? '' );
+					$amount = trim( $amount );
+					if ( '' === $amount ) {
+						continue;
+					}
+					$out_prices[] = [
+						'amount'    => $amount,
+						'label_ref' => isset( $row['label_ref'] ) ? (string) $row['label_ref'] : '',
+					];
 				}
-				$amount = (string) ( $row['value'] ?? $row['amount'] ?? '' );
-				$amount = trim( $amount );
-				if ( '' === $amount ) {
-					continue;
-				}
-				$out_prices[] = [
-					'amount'    => $amount,
-					'label_ref' => isset( $row['label_ref'] ) ? (string) $row['label_ref'] : '',
-				];
+
+				update_post_meta( $post_id, 'jprm_price_mode', 'multi' );
+				update_post_meta( $post_id, 'jprm_prices', $out_prices );
+				delete_post_meta( $post_id, 'jprm_price_amount' );
+				delete_post_meta( $post_id, 'jprm_price_label_ref' );
 			}
-
-			update_post_meta( $post_id, 'jprm_price_mode', 'multi' );
-			update_post_meta( $post_id, 'jprm_prices', $out_prices );
-			delete_post_meta( $post_id, 'jprm_price_amount' );
-			delete_post_meta( $post_id, 'jprm_price_label_ref' );
 
 			return $changed;
 		}
