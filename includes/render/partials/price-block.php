@@ -327,6 +327,41 @@ if ( ! empty( $rows ) ) {
 	}
 	unset( $r );
 }
+		        /* ============================================================
+         * GLOBAL LABEL ORDER SORTING (FINAL authoritative ordering)
+         * ============================================================
+         * This ensures:
+         * - Matrix layout follows label order
+         * - Inline layout follows label order
+         * - Inline-below follows label order
+         * - Editors do NOT determine ordering anymore
+         */
+
+        if ( ! empty( $rows ) && class_exists( '\JPRM_Labels_Store' ) ) {
+
+            $labels = \JPRM_Labels_Store::all();
+
+            // Build map: label_text → order
+            $order_map = [];
+            foreach ( $labels as $lbl ) {
+                $text = strtolower( trim( (string) $lbl['label'] ?? '' ) );
+                if ( $text !== '' ) {
+                    $order_map[$text] = (int) $lbl['order'];
+                }
+            }
+
+            // Sort rows by global label order
+            usort( $rows, function( $a, $b ) use ( $order_map ) {
+
+                $ta = strtolower( trim( (string) ($a['label_text'] ?? '') ) );
+                $tb = strtolower( trim( (string) ($b['label_text'] ?? '') ) );
+
+                $oa = $order_map[$ta] ?? 99999; // items without label → bottom
+                $ob = $order_map[$tb] ?? 99999;
+
+                return $oa <=> $ob;
+            });
+        }
 
 		$rows = apply_filters( 'jprm_get_pricegroup_data', $rows, $post_id, $label_map, $currency_opts );
 
