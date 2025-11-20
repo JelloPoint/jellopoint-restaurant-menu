@@ -239,9 +239,9 @@ final class JPRM_Admin_Bulk_Price_Labels {
                         $menu_terms    = wp_get_object_terms( $pid, 'jprm_menu', [ 'fields' => 'names' ] );
                         $section_terms = wp_get_object_terms( $pid, 'jprm_section', [ 'fields' => 'names' ] );
 
-                        $rows = function_exists( 'jprm_get_pricegroup_data' )
-                            ? jprm_get_pricegroup_data( $pid, [], [] )
-                            : [];
+                        // Use the storage layer directly – no currency or label map needed here.
+                        $rows = \JelloPoint\RestaurantMenu\Storage\Price_Repository::load_for_post( $pid );
+
                 ?>
 
                     <tr>
@@ -254,22 +254,29 @@ final class JPRM_Admin_Bulk_Price_Labels {
                         <td><?php echo esc_html( implode( ', ', (array) $menu_terms ) ); ?></td>
                         <td><?php echo esc_html( implode( ', ', (array) $section_terms ) ); ?></td>
                         <td>
-                            <?php if ( ! empty( $rows ) ) : ?>
-                                <ul>
-                                    <?php foreach ( $rows as $pr ) : ?>
-                                        <li>
-                                            <?php
-                                            $t = $pr['label_text'] ?? '';
-                                            $p = $pr['formatted']  ?? '';
-                                            echo esc_html( $t ? "$t: $p" : $p );
-                                            ?>
-                                        </li>
-                                    <?php endforeach; ?>
-                                </ul>
-                            <?php else : ?>
-                                <em>No prices</em>
-                            <?php endif; ?>
-                        </td>
+                        <?php if ( ! empty( $rows ) ) : ?>
+                            <ul>
+                                <?php foreach ( $rows as $pr ) : ?>
+                                    <li>
+                                        <?php
+                                        $label = isset( $pr['label_text'] ) ? (string) $pr['label_text'] : '';
+                                        $price = isset( $pr['price_raw'] )  ? (string) $pr['price_raw']  : '';
+
+                                        // If for some reason price_raw is empty but another field exists:
+                                        if ( $price === '' && isset( $pr['price'] ) ) {
+                                            $price = (string) $pr['price'];
+                                        }
+
+                                        echo esc_html( $label !== '' ? "{$label}: {$price}" : $price );
+                                        ?>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php else : ?>
+                            <em><?php esc_html_e( 'No prices', 'jellopoint-restaurant-menu' ); ?></em>
+                        <?php endif; ?>
+                    </td>
+
                     </tr>
 
                 <?php
