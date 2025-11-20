@@ -332,43 +332,43 @@ class JPRM_Labels_Store {
     }
 
     /** 
- * Sorts an array of price rows (single or multi) according to
- * the global label ordering from jprm_price_labels_v2.
- *
- * $rows must be an array of arrays containing 'label_ref'.
- * Returns the same array sorted.
- */
-public static function sort_price_rows_by_label_order( array $rows ) : array {
-    if ( empty( $rows ) ) {
+     * Sorts an array of price rows (single or multi) according to
+     * the global label ordering from jprm_price_labels_v2.
+     *
+     * $rows must be an array of arrays containing 'label_ref'.
+     * Returns the same array sorted.
+     */
+    public static function sort_price_rows_by_label_order( array $rows ) : array {
+        if ( empty( $rows ) ) {
+            return $rows;
+        }
+
+        // Get global label order once
+        $labels = self::all();
+        $order_map = [];
+        $i = 0;
+        foreach ( $labels as $lbl ) {
+            $id = isset($lbl['id']) ? (string)$lbl['id'] : '';
+            if ( $id !== '' ) {
+                $order_map[ $id ] = $i;
+                $i++;
+            }
+        }
+
+        // Sort by order map
+        usort( $rows, function( $a, $b ) use ( $order_map ) {
+
+            $ra = $a['label_ref'] ?? '';
+            $rb = $b['label_ref'] ?? '';
+
+            $oa = $order_map[$ra] ?? 999999;
+            $ob = $order_map[$rb] ?? 999999;
+
+            return $oa <=> $ob;
+        });
+
         return $rows;
     }
-
-    // Get global label order once
-    $labels = self::all();
-    $order_map = [];
-    $i = 0;
-    foreach ( $labels as $lbl ) {
-        $id = isset($lbl['id']) ? (string)$lbl['id'] : '';
-        if ( $id !== '' ) {
-            $order_map[ $id ] = $i;
-            $i++;
-        }
-    }
-
-    // Sort by order map
-    usort( $rows, function( $a, $b ) use ( $order_map ) {
-
-        $ra = $a['label_ref'] ?? '';
-        $rb = $b['label_ref'] ?? '';
-
-        $oa = $order_map[$ra] ?? 999999;
-        $ob = $order_map[$rb] ?? 999999;
-
-        return $oa <=> $ob;
-    });
-
-    return $rows;
-}
 
     /* ================= Internals ================= */
     protected static function sanitize_row( array $row ) : array {
