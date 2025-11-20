@@ -130,53 +130,262 @@ final class JPRM_Admin_Bulk_Price_Labels {
     /**
      * Render the admin page.
      */
-    public static function render_page(): void {
-        if ( ! current_user_can( self::CAPABILITY ) ) {
-            wp_die( esc_html__( 'You do not have permission to access this page.', 'jellopoint-restaurant-menu' ) );
-        }
+/**
+ * Render the admin page.
+ *
+ * First step: debug/confirm that items show up and that
+ * sections depend on the chosen menu.
+ */
+public static function render_page(): void {
+	if ( ! current_user_can( self::CAPABILITY ) ) {
+		wp_die( esc_html__( 'You do not have permission to access this page.', 'jellopoint-restaurant-menu' ) );
+	}
 
-        // Handle bulk submission (safe preview – no DB writes yet).
-        self::handle_bulk_action();
+	// ---- Read filters from URL ------------------------------------------
+	$current_menu    = isset( $_GET['filter_menu'] )    ? (int) $_GET['filter_menu']    : 0; // phpcs:ignore
+	$current_section = isset( $_GET['filter_section'] ) ? (int) $_GET['filter_section'] : 0; // phpcs:ignore
 
-        // Collect filters.
-        $filters = self::get_filters_from_request();
+	// ---- Fetch all menus for the dropdown -------------------------------
+	$menus = get_terms( [
+		'taxonomy'   => 'jprm_menu',
+		'hide_empty' => false,
+	] );
 
-        // Fetch flat price rows according to filters.
-        $rows = self::get_flat_price_rows( $filters );
+	if ( is_wp_error( $menus ) ) {
+		$menus = [];
+	}
 
-        ?>
-        <div class="wrap jprm-bulk-price-labels-wrap">
-            <h1><?php esc_html_e( 'Bulk Price Labels', 'jellopoint-restaurant-menu' ); ?></h1>
+	// ======================================================================
+	// 1) Build a "base" query to discover sections for the selected menu
+	// ======================================================================
 
-            <div class="jprm-intro">
-                <p>
-                    <?php esc_html_e(
-                        'This tool lists each price row (including multiple prices per item) so you can select them and assign labels in bulk.',
-                        'jellopoint-restaurant-menu'
-                    ); ?>
-                </p>
-                <p>
-                    <?php esc_html_e(
-                        'Use the filters to narrow down menus, sections or items. Then select the price rows you want to adjust and choose a label in the bulk actions area.',
-                        'jellopoint-restaurant-menu'
-                    ); ?>
-                </p>
-            </div>
+	$base_tax_query = [];
 
-            <?php self::render_filters( $filters ); ?>
+	if ( $current_menu > 0 ) {
+		$base_tax_query[] = [
+			'taxonomy' => 'jprm_menu',
+			'field'    => 'term_id',
+			'terms'    => [ $current_menu ],
+		];
+	}
 
-            <form method="post">
-                <?php wp_nonce_field( 'jprm_bulk_price_labels', 'jprm_bulk_price_labels_nonce' ); ?>
+	$base_args = [
+		'post_type'      => 'jprm_menu_item',
+		'post_status'    => [ 'publish', 'draft', 'pending' ],
+		'posts_per_page' => -1,
+		'orderby'        => 'title',
+		'order'          => 'ASC',
+	];
 
-                <?php self::render_bulk_actions_top(); ?>
+	if ( ! empty( $base_tax_query ) ) {
+		$base_args['tax_query'] = $base_tax_query;
+	}
 
-                <?php self::render_rows_table( $rows ); ?>
+	$base_query = new \WP_Query( $base_args );
 
-                <?php self::render_bulk_actions_bottom(); ?>
-            </form>
-        </div>
-        <?php
-    }
+	// Discover the section terms actually used by these items.
+	$sections_for_menu = [];
+	if ( $base_query->have_posts() ) {
+		$post_ids = wp_list_pluck( $base_query->posts, 'ID' );
+		$sections_for_menu = wp_get_object_terms( $post_ids, 'jprm_section', [
+			'fields'     => 'all',
+			'hide_empty' => false,
+		] );
+
+		if ( is_wp_error( $sections_for_menu ) ) {
+			$sections_for_menu = [];
+		}
+	}
+	wp_reset_postdata();
+
+	// ======================================================================
+	// 2) Build the Section dropdown options
+	// ======================================================================
+
+	if ( $current_menu > 0 ) {
+		// Only sections that actually occur in items for the selected menu.
+		$sections = $sections_for_menu;
+	} else {
+		// No menu filter yet → show all sections.
+		$sections = get_terms( [
+			'taxonomy'   => 'jprm_section',
+			'hide_empty' => false,
+		] );
+		if ( is_wp_error( $sections ) ) {
+			$sections = [];
+		}
+	}
+
+	// ======================================================================
+	// 3) Build the MAIN query for the table (menu + optional section)
+	// ======================================================================
+
+	$tax_query = [];
+
+	if ( $current_menu > 0 ) {
+		$tax_query[] = [
+			'taxonomy' => 'jprm_menu',
+			'field'    => 'term_id',
+			'terms'    => [ $current_menu ],
+		];
+	}
+
+	if ( $current_section > 0 ) {
+		$tax_query[] = [
+			'taxonomy' => 'jprm_section',
+			'field'    => 'term_id',
+			'terms'    => [ $current_section ],
+		];
+	}
+
+	$items_args = [
+		'post_type'      => 'jprm_menu_item',
+		'post_status'    => [ 'publish', 'draft', 'pending' ],
+		'posts_per_page' => -1,
+		'orderby'        => 'title',
+		'order'          => 'ASC',
+	];
+
+	if ( ! empty( $tax_query ) ) {
+		// If both menu + section are set, WP will AND them by default.
+		$items_args['tax_query'] = $tax_query;
+	}
+
+	$items_query = new \WP_Query( $items_args );
+
+	// ======================================================================
+	// 4) Render page
+	// ======================================================================
+
+	?>
+	<div class="wrap jprm-bulk-price-labels-wrap">
+		<h1 class="wp-heading-inline">
+			<?php esc_html_e( 'Bulk Price Labels', 'jellopoint-restaurant-menu' ); ?>
+		</h1>
+
+		<hr class="wp-header-end" />
+
+		<form method="get">
+			<input type="hidden" name="page" value="<?php echo esc_attr( self::PAGE_SLUG ); ?>" />
+
+			<div class="tablenav top">
+				<div class="alignleft actions">
+					<!-- Menu filter -->
+					<label for="jprm-filter-menu" class="screen-reader-text">
+						<?php esc_html_e( 'Filter by Menu', 'jellopoint-restaurant-menu' ); ?>
+					</label>
+					<select name="filter_menu" id="jprm-filter-menu">
+						<option value="0"><?php esc_html_e( 'All Menus', 'jellopoint-restaurant-menu' ); ?></option>
+						<?php foreach ( $menus as $menu_term ) : ?>
+							<option value="<?php echo (int) $menu_term->term_id; ?>" <?php selected( $current_menu, (int) $menu_term->term_id ); ?>>
+								<?php echo esc_html( $menu_term->name ); ?>
+							</option>
+						<?php endforeach; ?>
+					</select>
+
+					<!-- Section filter (depends on menu) -->
+					<label for="jprm-filter-section" class="screen-reader-text">
+						<?php esc_html_e( 'Filter by Section', 'jellopoint-restaurant-menu' ); ?>
+					</label>
+					<select name="filter_section" id="jprm-filter-section">
+						<option value="0">
+							<?php
+							echo $current_menu > 0
+								? esc_html__( 'All Sections for this Menu', 'jellopoint-restaurant-menu' )
+								: esc_html__( 'All Sections', 'jellopoint-restaurant-menu' );
+							?>
+						</option>
+						<?php foreach ( $sections as $sect_term ) : ?>
+							<option value="<?php echo (int) $sect_term->term_id; ?>" <?php selected( $current_section, (int) $sect_term->term_id ); ?>>
+								<?php echo esc_html( $sect_term->name ); ?>
+							</option>
+						<?php endforeach; ?>
+					</select>
+
+					<?php submit_button( __( 'Filter', 'jellopoint-restaurant-menu' ), 'secondary', '', false ); ?>
+				</div>
+				<div class="clear"></div>
+			</div>
+		</form>
+
+		<table class="wp-list-table widefat fixed striped">
+			<thead>
+				<tr>
+					<th><?php esc_html_e( 'Item', 'jellopoint-restaurant-menu' ); ?></th>
+					<th><?php esc_html_e( 'Menu', 'jellopoint-restaurant-menu' ); ?></th>
+					<th><?php esc_html_e( 'Section', 'jellopoint-restaurant-menu' ); ?></th>
+					<th><?php esc_html_e( 'Prices', 'jellopoint-restaurant-menu' ); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+			<?php if ( $items_query->have_posts() ) : ?>
+				<?php
+				while ( $items_query->have_posts() ) :
+					$items_query->the_post();
+					$pid   = get_the_ID();
+					$title = get_the_title();
+
+					$item_menus    = wp_get_object_terms( $pid, 'jprm_menu', [ 'fields' => 'names' ] );
+					$item_sections = wp_get_object_terms( $pid, 'jprm_section', [ 'fields' => 'names' ] );
+
+					$rows = function_exists( 'jprm_get_pricegroup_data' )
+						? jprm_get_pricegroup_data( $pid, [], [] )
+						: [];
+					?>
+					<tr>
+						<td>
+							<strong><?php echo esc_html( $title ); ?></strong>
+							<div class="row-actions">
+								<a href="<?php echo esc_url( get_edit_post_link( $pid ) ); ?>">
+									<?php esc_html_e( 'Edit Item', 'jellopoint-restaurant-menu' ); ?>
+								</a>
+							</div>
+						</td>
+						<td>
+							<?php echo esc_html( implode( ', ', (array) $item_menus ) ); ?>
+						</td>
+						<td>
+							<?php echo esc_html( implode( ', ', (array) $item_sections ) ); ?>
+						</td>
+						<td>
+							<?php if ( ! empty( $rows ) ) : ?>
+								<ul class="jprm-bulk-price-labels-prices">
+									<?php foreach ( $rows as $row ) : ?>
+										<li>
+											<?php
+											$lbl_text = isset( $row['label_text'] ) ? (string) $row['label_text'] : '';
+											$price    = isset( $row['formatted'] ) ? (string) $row['formatted'] : '';
+											if ( $lbl_text !== '' ) {
+												echo esc_html( $lbl_text . ': ' . $price );
+											} else {
+												echo esc_html( $price );
+											}
+											?>
+										</li>
+									<?php endforeach; ?>
+								</ul>
+							<?php else : ?>
+								<em><?php esc_html_e( 'No prices', 'jellopoint-restaurant-menu' ); ?></em>
+							<?php endif; ?>
+						</td>
+					</tr>
+				<?php endwhile; ?>
+			<?php else : ?>
+				<tr>
+					<td colspan="4">
+						<?php esc_html_e( 'No items match the current filters.', 'jellopoint-restaurant-menu' ); ?>
+					</td>
+				</tr>
+			<?php endif; ?>
+			</tbody>
+		</table>
+
+	</div>
+	<?php
+
+	wp_reset_postdata();
+}
+
 
     /**
      * Read filter values from $_GET.
