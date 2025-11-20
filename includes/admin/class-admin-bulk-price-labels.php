@@ -416,34 +416,94 @@ final class JPRM_Admin_Bulk_Price_Labels {
 	}
 
 	/**
-	 * Read jprm_price meta and normalize into an array of rows:
+	 * Read price meta and normalize into an array of rows:
 	 * [
 	 *   ['value' => '6.25', 'label_ref' => 'pl-1'],
 	 *   ...
 	 * ]
+	 *
+	 * Supports:
+	 * - jprm_price: { "mode":"multi","rows":[{"value":"..","label_ref":"pl-1"},...] }
+	 * - jprm_price: { "mode":"single","value":".." , "label_ref":".." }
+	 * - Fallback to jprm_prices: [{"amount":"..","label_mode":"ref","label_ref":"pl-1"},...]
 	 */
 	private static function get_price_rows_for_post( int $post_id ): array {
 		$rows = [];
 
+		// --- 1) Try jprm_price (new structure) -------------------------
 		$raw = get_post_meta( $post_id, 'jprm_price', true );
-		if ( ! is_string( $raw ) || $raw === '' ) {
+		if ( is_string( $raw ) && $raw !== '' ) {
+			$data = json_decode( $raw, true );
+
+			if ( is_array( $data ) ) {
+				// Multi mode: rows[]
+				if ( isset( $data['rows'] ) && is_array( $data['rows'] ) ) {
+					foreach ( $data['rows'] as $row ) {
+						$value = '';
+						if ( isset( $row['value'] ) ) {
+							$value = (string) $row['value'];
+						} elseif ( isset( $row['amount'] ) ) {
+							$value = (string) $row['amount'];
+						}
+
+						$label_ref = isset( $row['label_ref'] ) ? (string) $row['label_ref'] : '';
+
+						// We keep rows even if value or label_ref is empty; this is a bulk tool.
+						$rows[] = [
+							'value'     => $value,
+							'label_ref' => $label_ref,
+						];
+					}
+				}
+				// Single mode: value at root, optional label_ref at root.
+				elseif ( isset( $data['value'] ) || isset( $data['amount'] ) ) {
+					$value = isset( $data['value'] ) ? (string) $data['value'] : (string) ( $data['amount'] ?? '' );
+					$label_ref = isset( $data['label_ref'] ) ? (string) $data['label_ref'] : '';
+
+					if ( $value !== '' ) {
+						$rows[] = [
+							'value'     => $value,
+							'label_ref' => $label_ref,
+						];
+					}
+				}
+			}
+		}
+
+		// If we have anything, stop here.
+		if ( ! empty( $rows ) ) {
 			return $rows;
 		}
 
-		$data = json_decode( $raw, true );
-		if ( ! is_array( $data ) ) {
-			return $rows;
-		}
+		// --- 2) Fallback: jprm_prices (editor meta) --------------------
+		$raw2 = get_post_meta( $post_id, 'jprm_prices', true );
+		if ( is_string( $raw2 ) && $raw2 !== '' ) {
+			$data2 = json_decode( $raw2, true );
+			if ( is_array( $data2 ) ) {
+				foreach ( $data2 as $row ) {
+					$value = '';
+					if ( isset( $row['amount'] ) ) {
+						$value = (string) $row['amount'];
+					} elseif ( isset( $row['value'] ) ) {
+						$value = (string) $row['value'];
+					}
 
-		if ( ! isset( $data['rows'] ) || ! is_array( $data['rows'] ) ) {
-			return $rows;
-		}
+					$label_ref = '';
+					if ( isset( $row['label_mode'] ) && $row['label_mode'] === 'ref' && isset( $row['label_ref'] ) ) {
+						$label_ref = (string) $row['label_ref'];
+					}
 
-		foreach ( $data['rows'] as $row ) {
-			$rows[] = [
-				'value'     => isset( $row['value'] )     ? (string) $row['value']     : '',
-				'label_ref' => isset( $row['label_ref'] ) ? (string) $row['label_ref'] : '',
-			];
+					if ( $value === '' && $label_ref === '' ) {
+						// Completely empty row, skip.
+						continue;
+					}
+
+					$rows[] = [
+						'value'     => $value,
+						'label_ref' => $label_ref,
+					];
+				}
+			}
 		}
 
 		return $rows;
@@ -490,7 +550,7 @@ final class JPRM_Admin_Bulk_Price_Labels {
 
 			$price_rows = self::get_price_rows_for_post( $pid );
 			if ( empty( $price_rows ) ) {
-				continue;
+				continue; // item truly has no price data at all.
 			}
 
 			foreach ( $price_rows as $idx => $pr ) {
@@ -753,8 +813,8 @@ final class JPRM_Admin_Bulk_Price_Labels {
 			if ( count( $parts ) !== 2 ) {
 				continue;
 			}
-			$pid  = (int) $parts[0];
-			$idx  = (int) $parts[1];
+			$pid = (int) $parts[0];
+			$idx = (int) $parts[1];
 			if ( $pid <= 0 || $idx < 0 ) {
 				continue;
 			}
@@ -774,7 +834,7 @@ final class JPRM_Admin_Bulk_Price_Labels {
 			return;
 		}
 
-		$total_rows   = 0;
+		$total_rows    = 0;
 		$preview_lines = [];
 
 		foreach ( $changes_by_post as $pid => $indices ) {
@@ -887,10 +947,10 @@ final class JPRM_Admin_Bulk_Price_Labels {
 		}
 
 		add_settings_error(
-		 'jprm_bulk_price_labels',
-		 'jprm_bulk_price_labels_result',
-		 $msg,
-		 'updated'
+			'jprm_bulk_price_labels',
+			'jprm_bulk_price_labels_result',
+			$msg,
+			'updated'
 		);
 	}
 }
