@@ -410,9 +410,13 @@ final class JPRM_Admin_Bulk_Price_Labels {
 	 * Bulk actions bar (top + bottom).
 	 * Top and bottom use different field names, like WP list tables (action/action2).
 	 */
+		/**
+	 * Bulk actions bar (top + bottom).
+	 * Top and bottom use different field names, like WP list tables (action/action2).
+	 */
 	private static function render_bulk_actions_bar( string $position, array $labels_index ): void {
-		$is_top          = ( 'top' === $position );
-		$action_name     = $is_top ? 'jprm_bulk_action' : 'jprm_bulk_action2';
+		$is_top            = ( 'top' === $position );
+		$action_name       = $is_top ? 'jprm_bulk_action' : 'jprm_bulk_action2';
 		$target_label_name = $is_top ? 'jprm_target_label_ref' : 'jprm_target_label_ref2';
 		?>
 		<div class="jprm-bulk-actions jprm-bulk-actions-<?php echo esc_attr( $position ); ?>">
@@ -440,26 +444,33 @@ final class JPRM_Admin_Bulk_Price_Labels {
 			</span>
 
 			<?php if ( $is_top ) : ?>
-				<span class="jprm-dryrun-toggle">
-					<label>
-						<input type="checkbox" name="jprm_dry_run" value="1" checked="checked" />
-						<?php esc_html_e( 'Dry run (preview only, no changes saved)', 'jellopoint-restaurant-menu' ); ?>
-					</label>
-				</span>
+				<!-- Grey preview (dry-run) button -->
+				<button type="submit"
+						class="button"
+						name="jprm_bulk_preview"
+						value="1">
+					<?php esc_html_e( 'Preview (dry run)', 'jellopoint-restaurant-menu' ); ?>
+				</button>
 			<?php endif; ?>
 
-			<button type="submit" class="button button-primary" name="jprm_bulk_apply" value="1">
+			<!-- Blue primary Apply button -->
+			<button type="submit"
+					class="button button-primary"
+					name="jprm_bulk_apply"
+					value="1">
 				<?php esc_html_e( 'Apply', 'jellopoint-restaurant-menu' ); ?>
 			</button>
 		</div>
 		<?php
 	}
 
-	/**
+
+		/**
 	 * Handle bulk action POST and write back to meta (or preview only).
 	 */
 	private static function handle_bulk_action( array $labels_index ): void {
-		if ( empty( $_POST['jprm_bulk_apply'] ) ) {
+		// Fire when either Apply OR Preview button was used.
+		if ( empty( $_POST['jprm_bulk_apply'] ) && empty( $_POST['jprm_bulk_preview'] ) ) {
 			return;
 		}
 
@@ -487,6 +498,10 @@ final class JPRM_Admin_Bulk_Price_Labels {
 			);
 			return;
 		}
+
+		// Determine whether this is a preview (dry run) or a real apply.
+		$is_preview = ! empty( $_POST['jprm_bulk_preview'] );
+		$dry_run    = $is_preview;
 
 		// Like WP: action (top) and action2 (bottom).
 		$action_primary   = isset( $_POST['jprm_bulk_action'] )
@@ -527,8 +542,6 @@ final class JPRM_Admin_Bulk_Price_Labels {
 			);
 			return;
 		}
-
-		$dry_run = ! empty( $_POST['jprm_dry_run'] );
 
 		$target_label_ref = null;
 
@@ -653,6 +666,7 @@ final class JPRM_Admin_Bulk_Price_Labels {
 			);
 		}
 	}
+
 
 	/**
 	 * Apply bulk action to one post (one or more indices).
