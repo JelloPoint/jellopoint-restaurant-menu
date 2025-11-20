@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * - Renders ONE table row per price:
  *      [x] | Menu | Section | Item | Price Index | Amount | Label
  * - Bulk actions:
- *      - Set label (pick existing pl-*/lbl_* from registry)
+ *      - Set label (pick existing pl-*lbl_* from registry)
  *      - Clear label
  * - Dry run checkbox (default ON): preview only, no DB writes.
  *
