@@ -177,6 +177,7 @@
 .jp-matrix{
   display: grid;
   grid-auto-rows: auto;
+  /* Let the title column shrink on small screens so the grid never overflows */
   grid-template-columns: minmax(0, 1fr) repeat(var(--jp-matrix-cols, 1), auto);
   column-gap: 1.25rem;
   row-gap: 0;
@@ -194,66 +195,40 @@
   gap:.35em;
 }
 
-/* Mobile: behave more like inline (no overflowing grid) – FRONT-END */
+/* -------- MOBILE: stack rows vertically, no overflow -------- */
 @media (max-width: 767px) {
 
+  /* kill grid, make block list */
   .jp-matrix{
     display:block;
     width:100%;
   }
 
+  /* each item row becomes a vertical block */
   .jp-matrix__row{
-    display:flex;
-    flex-wrap:wrap;
-    align-items:baseline;
-    column-gap:0;
-    row-gap:0.1rem;
+    display:block;
+    margin-bottom:.5rem;
   }
 
-  /* hide header row completely on mobile */
+  /* title/desc take full width */
+  .jp-matrix__cell--item{
+    display:block;
+    margin-bottom:.15rem;
+  }
+
+  /* each price on its own line, indented */
+  .jp-matrix__cell--value{
+    display:block;
+    text-align:left;
+    margin-left:1.5rem;
+    margin-bottom:.1rem;
+    white-space:normal;
+  }
+
+  /* hide header row completely */
   .jp-matrix__row--header{
     display:none;
   }
-
-  /* title/desc: full width */
-  .jp-matrix__cell--item{
-    flex:1 1 100%;
-    margin-bottom:0.1rem;
-  }
-
-  /* price cells inline after title */
-  .jp-matrix__cell--value{
-    flex:0 0 auto;
-    text-align:left;
-    margin-right:0.75rem;
-    white-space:nowrap;
-  }
-}
-
-/* Mobile: same behaviour inside Elementor editor preview */
-body.elementor-editor-active.elementor-device-mobile .jp-matrix{
-  display:block;
-  width:100%;
-}
-body.elementor-editor-active.elementor-device-mobile .jp-matrix__row{
-  display:flex;
-  flex-wrap:wrap;
-  align-items:baseline;
-  column-gap:0;
-  row-gap:0.1rem;
-}
-body.elementor-editor-active.elementor-device-mobile .jp-matrix__row--header{
-  display:none;
-}
-body.elementor-editor-active.elementor-device-mobile .jp-matrix__cell--item{
-  flex:1 1 100%;
-  margin-bottom:0.1rem;
-}
-body.elementor-editor-active.elementor-device-mobile .jp-matrix__cell--value{
-  flex:0 0 auto;
-  text-align:left;
-  margin-right:0.75rem;
-  white-space:nowrap;
 }
 
 /* Ensure full width for Info Blocks background color */
