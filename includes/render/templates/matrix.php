@@ -91,80 +91,118 @@ if ( ! function_exists( 'jprm_matrix_header_cell' ) ) {
  * Returns ['cols'=>map, 'order'=>keys in order].
  */
 if ( ! function_exists( 'jprm_matrix_collect_columns' ) ) {
-	function jprm_matrix_collect_columns( array $items, array $label_map, array $currency_opts ) : array {
-		$cols = [];
+    /**
+     * Collect columns in this order:
+     *  1) Global label registry (Labels screen) in its saved order
+     *  2) Any extra labels discovered in content (not in registry)
+     *  3) Position columns for unlabeled prices: p:0, p:1, ...
+     *
+     * Keys for labeled columns are always: "t:" . md5(label_text)
+     */
+    function jprm_matrix_collect_columns( array $items, array $label_map, array $currency_opts ) : array {
+        $cols = [];
 
-		// Seed with configured labels
-		foreach ( $label_map as $lid => $meta ) {
-			$cols[ (string) $lid ] = [
-				'text'      => (string) ( $meta['title'] ?? ( $meta['text'] ?? '' ) ),
-				'icon_html' => (string) ( $meta['icon_html'] ?? '' ),
-				'icon_url'  => (string) ( $meta['icon_url']  ?? '' ),
-				'_seed'     => true,
-			];
-		}
+        // 1) Seed from global label registry (in the order from the Labels screen)
+        foreach ( $label_map as $meta ) {
+            // $label_map is JPRM_Labels_Store::all()
+            if ( empty( $meta['active'] ) ) {
+                continue;
+            }
 
-		// Track max count of unlabeled rows found across items
-		$max_unlabeled = 0;
+            $txt = isset( $meta['label'] ) ? trim( (string) $meta['label'] ) : '';
+            if ( $txt === '' ) {
+                continue;
+            }
 
-		// Discover from content
-		foreach ( $items as $post ) {
-			$pid  = (int) $post->ID;
-			$rows = function_exists( 'jprm_get_pricegroup_data' )
-				? jprm_get_pricegroup_data( $pid, $label_map, $currency_opts )
-				: [];
+            $key = 't:' . md5( $txt );
+            if ( isset( $cols[ $key ] ) ) {
+                continue;
+            }
 
-			$unlabeled_count_for_item = 0;
+            $icon_html = '';
+            if ( ! empty( $meta['icon_id'] ) ) {
+                $img = wp_get_attachment_image(
+                    (int) $meta['icon_id'],
+                    [ 24, 24 ],
+                    false,
+                    [ 'class' => 'jp-menu__icon' ]
+                );
+                if ( is_string( $img ) ) {
+                    $icon_html = $img;
+                }
+            }
 
-			foreach ( $rows as $r ) {
-				$lid = isset( $r['label_id'] )   ? (int) $r['label_id']   : 0;
-				$txt = isset( $r['label_text'] ) ? trim( (string) $r['label_text'] ) : '';
+            $cols[ $key ] = [
+                'text'      => $txt,
+                'icon_html' => $icon_html,
+                'icon_url'  => '',
+                '_seed'     => true,
+            ];
+        }
 
-				if ( $lid > 0 || $txt !== '' ) {
-					// Labeled row → build key from id OR text
-					$key = $lid > 0 ? (string) $lid : 't:' . md5( $txt );
-					if ( ! isset( $cols[ $key ] ) ) {
-						$cols[ $key ] = [
-							'text'      => $txt,
-							'icon_html' => (string) ( $r['icon_html'] ?? '' ),
-							'icon_url'  => (string) ( $r['icon_url']  ?? '' ),
-						];
-					}
-				} else {
-					// Unlabeled row → count for position columns
-					$unlabeled_count_for_item++;
-				}
-			}
+        // 2) Discover extra label texts from content (labels not in registry)
+        $max_unlabeled = 0;
 
-			if ( $unlabeled_count_for_item > $max_unlabeled ) {
-				$max_unlabeled = $unlabeled_count_for_item;
-			}
-		}
+        foreach ( $items as $post ) {
+            $pid  = (int) $post->ID;
+            $rows = function_exists( 'jprm_get_pricegroup_data' )
+                ? jprm_get_pricegroup_data( $pid, $label_map, $currency_opts )
+                : [];
 
-		// Add position columns p:0..p:(max-1) with empty header meta (NBSP will be rendered)
-		if ( $max_unlabeled > 0 ) {
-			for ( $i = 0; $i < $max_unlabeled; $i++ ) {
-				$key = 'p:' . $i;
-				if ( ! isset( $cols[ $key ] ) ) {
-					$cols[ $key ] = [
-						'text'      => '',
-						'icon_html' => '',
-						'icon_url'  => '',
-						'_pos'      => $i,
-					];
-				}
-			}
-		}
+            $unlabeled_for_item = 0;
 
-		// Preserve insertion order (labels first as seeded, then discovered, then positions)
-		$order = array_keys( $cols );
+            foreach ( $rows as $r ) {
+                $txt = isset( $r['label_text'] ) ? trim( (string) $r['label_text'] ) : '';
 
-		return [
-			'cols'  => $cols,
-			'order' => $order,
-		];
-	}
+                if ( $txt !== '' ) {
+                    // Labeled row → text-based key
+                    $key = 't:' . md5( $txt );
+                    if ( ! isset( $cols[ $key ] ) ) {
+                        $cols[ $key ] = [
+                            'text'      => $txt,
+                            'icon_html' => (string) ( $r['icon_html'] ?? '' ),
+                            'icon_url'  => (string) ( $r['icon_url']  ?? '' ),
+                        ];
+                    }
+                } else {
+                    // Truly unlabeled → counts towards positional columns
+                    $unlabeled_for_item++;
+                }
+            }
+
+            if ( $unlabeled_for_item > $max_unlabeled ) {
+                $max_unlabeled = $unlabeled_for_item;
+            }
+        }
+
+        // 3) Position columns p:0..p:(max-1) with empty header meta (NBSP will be rendered)
+        if ( $max_unlabeled > 0 ) {
+            for ( $i = 0; $i < $max_unlabeled; $i++ ) {
+                $key = 'p:' . $i;
+                if ( ! isset( $cols[ $key ] ) ) {
+                    $cols[ $key ] = [
+                        'text'      => '',
+                        'icon_html' => '',
+                        'icon_url'  => '',
+                        '_pos'      => $i,
+                    ];
+                }
+            }
+        }
+
+        // Insertion order of $cols now matches:
+        //   1) Label screen order
+        //   2) Extra labels discovered
+        //   3) Position columns
+        $order = array_keys( $cols );
+
+        return [
+            'cols'  => $cols,
+            'order' => $order,
+        ];
+    }
 }
+
 
 /**
  * Find the formatted value for a given column key.
@@ -172,38 +210,47 @@ if ( ! function_exists( 'jprm_matrix_collect_columns' ) ) {
  *  - position columns (p:N): take the Nth unlabeled row's formatted price
  */
 if ( ! function_exists( 'jprm_matrix_find_cell' ) ) {
-	function jprm_matrix_find_cell( array $rows, string $col_key ) : ?string {
-		// Position-based?
-		if ( strpos( $col_key, 'p:' ) === 0 ) {
-			$idx  = (int) substr( $col_key, 2 );
-			$seen = 0;
-			foreach ( $rows as $r ) {
-				$lid = isset( $r['label_id'] )   ? (int) $r['label_id']   : 0;
-				$txt = isset( $r['label_text'] ) ? trim( (string) $r['label_text'] ) : '';
-				if ( $lid <= 0 && $txt === '' ) {
-					if ( $seen === $idx ) {
-						$fmt = (string) ( $r['formatted'] ?? '' );
-						return $fmt !== '' ? $fmt : null;
-					}
-					$seen++;
-				}
-			}
-			return null;
-		}
+    /**
+     * Find the formatted value for a given column key.
+     *  - labeled columns: key is "t:md5(label_text)"
+     *  - position columns (p:N): take the Nth unlabeled row's formatted price
+     */
+    function jprm_matrix_find_cell( array $rows, string $col_key ) : ?string {
+        // Position-based column? (unlabeled prices)
+        if ( strpos( $col_key, 'p:' ) === 0 ) {
+            $idx  = (int) substr( $col_key, 2 );
+            $seen = 0;
+            foreach ( $rows as $r ) {
+                $txt = isset( $r['label_text'] ) ? trim( (string) $r['label_text'] ) : '';
+                if ( $txt === '' ) {
+                    if ( $seen === $idx ) {
+                        $fmt = (string) ( $r['formatted'] ?? '' );
+                        return $fmt !== '' ? $fmt : null;
+                    }
+                    $seen++;
+                }
+            }
+            return null;
+        }
 
-		// Labeled: match by id or text-hash
-		foreach ( $rows as $r ) {
-			$lid = isset( $r['label_id'] )   ? (int) $r['label_id']   : 0;
-			$txt = isset( $r['label_text'] ) ? (string) $r['label_text'] : '';
-			$key = $lid > 0 ? (string) $lid : ( $txt !== '' ? 't:' . md5( $txt ) : '' );
-			if ( $key !== '' && $key === $col_key ) {
-				$fmt = (string) ( $r['formatted'] ?? '' );
-				return $fmt !== '' ? $fmt : null;
-			}
-		}
-		return null;
-	}
+        // Labeled columns: we always key by text: "t:md5(label_text)"
+        foreach ( $rows as $r ) {
+            $txt = isset( $r['label_text'] ) ? trim( (string) $r['label_text'] ) : '';
+            if ( $txt === '' ) {
+                continue;
+            }
+
+            $key = 't:' . md5( $txt );
+            if ( $key === $col_key ) {
+                $fmt = (string) ( $r['formatted'] ?? '' );
+                return $fmt !== '' ? $fmt : null;
+            }
+        }
+
+        return null;
+    }
 }
+
 
 /**
  * Filter to active columns: keep any column that has at least one value
