@@ -185,8 +185,7 @@
 }
 
 .jp-matrix__row{ display: contents; }
-.jp-matrix__cell{ display: block;
-background-color: #a68af1 !important; }
+.jp-matrix__cell{ display: block; }
 .jp-matrix__cell--value{ text-align: left; }
 
 /* Matrix headers use label styling */
