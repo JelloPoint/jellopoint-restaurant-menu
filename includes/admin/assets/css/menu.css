@@ -177,11 +177,15 @@
 .jp-matrix{
   display: grid;
   grid-auto-rows: auto;
-  /* 1st column flexible for titles; then N auto-sized value columns */
-  grid-template-columns: minmax(12rem, 1fr) repeat(var(--jp-matrix-cols, 1), auto);
+
+  /* Let the title column shrink on small screens so the grid never overflows */
+  grid-template-columns: minmax(0, 1fr) repeat(var(--jp-matrix-cols, 1), auto);
+
   column-gap: 1.25rem;
   row-gap: 0;
+  max-width: 100%;
 }
+
 .jp-matrix__row{ display: contents; }
 .jp-matrix__cell{ display: block; }
 .jp-matrix__cell--value{ text-align: left; }
