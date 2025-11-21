@@ -58,32 +58,14 @@ $label_map          = is_array( $ctx['label_map']     ?? null ) ? $ctx['label_ma
 $currency_opts      = is_array( $ctx['currency_opts'] ?? null ) ? $ctx['currency_opts'] : [];
 $ib_map             = is_array( $ctx['ib_map']        ?? null ) ? $ctx['ib_map']        : [];
 
-/* ==========================================================
-   RESPONSIVE GLOBAL LAYOUT (from widget ctx)
-   ========================================================== */
-
-$device         = (string) ( $ctx['device']         ?? 'desktop' );
-$layout_desktop = (string) ( $ctx['layout_desktop'] ?? 'inline' );
-$layout_tablet  = (string) ( $ctx['layout_tablet']  ?? $layout_desktop );
-$layout_mobile  = (string) ( $ctx['layout_mobile']  ?? $layout_tablet );
-
 /**
- * Global layout for current device *before* section overrides.
+ * IMPORTANT: global_labels_layout is now decided entirely in the widget
+ * (class-restaurant-menu.php::render) based on Desktop/Tablet/Mobile controls.
+ * This template just uses it as the base layout.
  */
-switch ( $device ) {
-	case 'tablet':
-		$global_labels_layout = $layout_tablet;
-		break;
-	case 'mobile':
-		$global_labels_layout = $layout_mobile;
-		break;
-	case 'desktop':
-	default:
-		$global_labels_layout = $layout_desktop;
-		break;
-}
+$global_labels_layout     = (string) ( $ctx['global_labels_layout'] ?? 'inline' );
 
-$section_layouts = is_array( $ctx['section_layouts'] ?? null ) ? $ctx['section_layouts'] : [];
+$section_layouts          = is_array( $ctx['section_layouts'] ?? null ) ? $ctx['section_layouts'] : [];
 
 $global_matrix_placeholder = (string) ( $ctx['labels_matrix_placeholder'] ?? '' );
 $global_inline_separator   = (string) ( $ctx['inline_separator']          ?? '' );
@@ -142,48 +124,6 @@ $__resolve_section_level = function( $section_term ) : int {
 $__parent_id_of = function( $term ) : int {
 	if ( ! $term ) return 0;
 	return is_object( $term ) ? (int) ( $term->parent ?? 0 ) : (int) ( $term['parent'] ?? 0 );
-};
-
-/**
- * Given a logical layout (inline / inline_below / matrix) and
- * the current device, decide the *effective* layout:
- *
- * - Desktop: use as-is.
- * - Tablet/Mobile:
- *     - if layout === 'matrix' → use global layout for that device
- *     - otherwise              → use layout as-is.
- */
-$__effective_layout_for_device = function( string $logical_layout ) use (
-	$device,
-	$layout_desktop,
-	$layout_tablet,
-	$layout_mobile
-) : string {
-
-	$logical_layout = in_array( $logical_layout, [ 'inline', 'inline_below', 'matrix' ], true )
-		? $logical_layout
-		: 'inline';
-
-	$global_for_device = $layout_desktop;
-	if ( $device === 'tablet' ) {
-		$global_for_device = $layout_tablet;
-	} elseif ( $device === 'mobile' ) {
-		$global_for_device = $layout_mobile;
-	}
-
-	// Desktop: honour section layout as-is.
-	if ( $device === 'desktop' ) {
-		return $logical_layout;
-	}
-
-	// Tablet / Mobile: matrix falls back to the global device layout.
-	if ( $logical_layout === 'matrix' ) {
-		return in_array( $global_for_device, [ 'inline', 'inline_below', 'matrix' ], true )
-			? $global_for_device
-			: 'inline';
-	}
-
-	return $logical_layout;
 };
 
 /* ---------- build registry + children (preserve order; synthesize ancestors) ---------- */
@@ -342,8 +282,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 	$show_badges, $badges_position, $badges_presentation,
 	$show_main_sections, $show_main_even_if_empty,
 	$inline_leader_enable, $inline_leader_char, $inline_leader_style,
-	$__resolve_section_level, $ib_map,
-	$__effective_layout_for_device
+	$__resolve_section_level, $ib_map
 ) : void {
 
 	if ( empty( $registry[ $tid ] ) ) {
@@ -357,7 +296,8 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 	$has_items    = ! empty( $items );
 	$has_children = ! empty( $children_map[ $tid ] );
 
-	// ------- Resolve effective layout/values with inheritance (logical) -------
+	// ------- Resolve effective layout/values with inheritance -------
+
 	$sec             = $section_layouts[ $tid ] ?? [];
 	$own_layout      = isset( $sec['layout'] ) && $sec['layout'] !== '' ? (string) $sec['layout'] : null;
 	$own_placeholder = array_key_exists( 'placeholder', $sec ) && $sec['placeholder'] !== '' ? (string) $sec['placeholder'] : null;
@@ -367,10 +307,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 	$eff_placeholder = $own_placeholder ?? ( $inherit['placeholder'] ?? ( $global_matrix_placeholder !== '' ? $global_matrix_placeholder : $global_placeholder_legacy ) );
 	$eff_separator   = $own_separator   ?? ( $inherit['separator']   ?? $computed_global_inline_separator );
 
-	// Adapt logical layout to the current device (matrix → device default on tablet/mobile)
-	$eff_layout_for_device = $__effective_layout_for_device( $eff_layout );
-
-	// Bundle to pass to children (inherit logical layout, not the device-specific one)
+	// Bundle to pass to children
 	$child_inherit = [
 		'layout'      => $eff_layout,
 		'placeholder' => $eff_placeholder,
@@ -439,9 +376,9 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 		echo $header_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 
 		// ------- Include layout if there are items ------- //
+		$base = __DIR__;
 		if ( ! empty( $items ) ) {
-			$base = __DIR__;
-			switch ( $eff_layout_for_device ) {
+			switch ( $eff_layout ) {
 				case 'matrix':
 					$file = $base . '/matrix.php';
 					break;
@@ -451,7 +388,6 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 				case 'inline':
 				default:
 					$file = $base . '/inline.php';
-					break;
 			}
 
 			if ( file_exists( $file ) ) {
@@ -487,7 +423,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 		echo '</li>';
 	}
 
-	// ------- Render children (inherit logical layout) ------- //
+	// ------- Render children (inherit effective layout) ------- //
 	if ( ! empty( $children_map[ $tid ] ) ) {
 		foreach ( $children_map[ $tid ] as $child_tid ) {
 			$__render_section( (int) $child_tid, $child_inherit );
