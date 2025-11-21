@@ -232,6 +232,65 @@ if ( ! function_exists( 'jprm_matrix_filter_active_columns' ) ) {
 $collect   = jprm_matrix_collect_columns( $items, $label_map, $currency_opts );
 $cols      = $collect['cols'];
 $col_keys  = jprm_matrix_filter_active_columns( $items, $collect['order'], $label_map, $currency_opts );
+
+/**
+ * REORDER HEADER COLUMNS TO FOLLOW PRICE LABELS ORDER
+ * This makes Matrix follow the same order as:
+ *   Settings → Price Labels (JPRM_Labels_Store::all())
+ */
+if ( ! empty( $col_keys ) && class_exists( '\JPRM_Labels_Store' ) && method_exists( '\JPRM_Labels_Store', 'all' ) ) {
+	$labels       = \JPRM_Labels_Store::all();
+	$labels_order = [];
+
+	// Build map: normalized label text => position in labels UI
+	foreach ( $labels as $idx => $lbl ) {
+		$name = '';
+		if ( isset( $lbl['label'] ) && $lbl['label'] !== '' ) {
+			$name = (string) $lbl['label'];
+		} elseif ( isset( $lbl['label_text'] ) ) {
+			$name = (string) $lbl['label_text'];
+		}
+		$name_norm = trim( strtolower( wp_strip_all_tags( $name ) ) );
+		if ( $name_norm !== '' && ! isset( $labels_order[ $name_norm ] ) ) {
+			$labels_order[ $name_norm ] = (int) $idx;
+		}
+	}
+
+	usort(
+		$col_keys,
+		function ( string $a, string $b ) use ( $cols, $labels_order ) {
+			// Position columns (p:N) always last, in numeric order
+			$is_pos_a = ( strpos( $a, 'p:' ) === 0 );
+			$is_pos_b = ( strpos( $b, 'p:' ) === 0 );
+			if ( $is_pos_a && $is_pos_b ) {
+				return ( (int) substr( $a, 2 ) ) <=> ( (int) substr( $b, 2 ) );
+			}
+			if ( $is_pos_a !== $is_pos_b ) {
+				return $is_pos_a ? 1 : -1; // labeled first, unlabeled (position) last
+			}
+
+			$ta = '';
+			if ( isset( $cols[ $a ]['text'] ) ) {
+				$ta = trim( strtolower( wp_strip_all_tags( (string) $cols[ $a ]['text'] ) ) );
+			}
+			$tb = '';
+			if ( isset( $cols[ $b ]['text'] ) ) {
+				$tb = trim( strtolower( wp_strip_all_tags( (string) $cols[ $b ]['text'] ) ) );
+			}
+
+			$oa = $labels_order[ $ta ] ?? PHP_INT_MAX;
+			$ob = $labels_order[ $tb ] ?? PHP_INT_MAX;
+
+			if ( $oa !== $ob ) {
+				return $oa <=> $ob; // primary: price labels order
+			}
+
+			// Fallback: alphabetical by label text
+			return strcmp( $ta, $tb );
+		}
+	);
+}
+
 $col_count = max( 1, count( $col_keys ) );
 
 /**
