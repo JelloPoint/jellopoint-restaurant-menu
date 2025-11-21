@@ -444,133 +444,179 @@ $this->add_control( 'items_order_overrides', [
 
 		$this->end_controls_section();
 
-		/* --- Labels Layout ------------------------------------------------------ */
-		$this->start_controls_section(
-			'jprm_section_labels_layout',
-			[ 'label' => __( 'Labels Layout', 'jellopoint-restaurant-menu' ) ]
-		);
+/* --- Labels Layout ------------------------------------------------------ */
+$this->start_controls_section(
+	'jprm_section_labels_layout',
+	[ 'label' => __( 'Labels Layout', 'jellopoint-restaurant-menu' ) ]
+);
 
-		/* Global layout */
-		$this->add_control( 'labels_layout', [
-			'label'   => __( 'Default layout', 'jellopoint-restaurant-menu' ),
-			'type'    => Controls_Manager::SELECT,
-			'default' => 'inline',
-			'options' => [
-				'inline'       => __( 'Inline',  'jellopoint-restaurant-menu' ),
-				'inline_below' => __( 'Inline Below',  'jellopoint-restaurant-menu' ),
-				'matrix'       => __( 'Matrix',  'jellopoint-restaurant-menu' ),
-			],
-		] );
+/**
+ * Desktop (base) layout
+ * This is what you have now – used as the default for all devices.
+ */
+$this->add_control( 'labels_layout', [
+	'label'   => __( 'Desktop layout', 'jellopoint-restaurant-menu' ),
+	'type'    => Controls_Manager::SELECT,
+	'default' => 'inline',
+	'options' => [
+		'inline'       => __( 'Inline',        'jellopoint-restaurant-menu' ),
+		'inline_below' => __( 'Inline Below',  'jellopoint-restaurant-menu' ),
+		'matrix'       => __( 'Matrix',        'jellopoint-restaurant-menu' ),
+	],
+	'description' => __( 'Base layout used on desktop. Tablet and mobile can override this below.', 'jellopoint-restaurant-menu' ),
+] );
 
-		// Toggle: show a separator (Inline Below only)
-		$this->add_control( 'inline_below_sep_enable', [
-			'label'        => __( 'Show Separator (Inline Below)', 'jellopoint-restaurant-menu' ),
-			'type'         => Controls_Manager::SWITCHER,
-			'return_value' => 'on',
-			'default'      => '',
-			'condition'    => [ 'labels_layout' => 'inline_below' ],
-			'prefix_class' => 'jprm-sep--',
-			'render_type'  => 'template',
-		]);
+/**
+ * OPTIONAL override for tablet.
+ * Empty string = inherit from Desktop.
+ */
+$this->add_control( 'labels_layout_tablet', [
+	'label'   => __( 'Tablet layout (optional)', 'jellopoint-restaurant-menu' ),
+	'type'    => Controls_Manager::SELECT,
+	'default' => '',
+	'options' => [
+		''            => __( 'Same as Desktop',  'jellopoint-restaurant-menu' ),
+		'inline'       => __( 'Inline',          'jellopoint-restaurant-menu' ),
+		'inline_below' => __( 'Inline Below',    'jellopoint-restaurant-menu' ),
+		'matrix'       => __( 'Matrix',          'jellopoint-restaurant-menu' ),
+	],
+	'description' => __( 'Choose a different layout for tablet if needed. Leave empty to inherit the Desktop layout.', 'jellopoint-restaurant-menu' ),
+] );
 
-		// Content
-		$this->add_control( 'inline_below_sep_content', [
-			'label'       => __( 'Separator Content', 'jellopoint-restaurant-menu' ),
-			'type'        => Controls_Manager::TEXT,
-			'default'     => '•',
-			'placeholder' => '• | · / or',
-			'condition'   => [
-				'labels_layout'           => 'inline_below',
-				'inline_below_sep_enable' => 'on',
-			],
-			'selectors'   => [
-				'{{WRAPPER}}'                             => '--jprm-inline-sep:"{{VALUE}}";',
-				'{{WRAPPER}} .elementor-widget-container' => '--jprm-inline-sep:"{{VALUE}}";',
-			],
-			'render_type' => 'template',
-		]);
+/**
+ * OPTIONAL override for mobile.
+ * Empty string = inherit from Tablet (if set) or Desktop.
+ * This is what you’ll use for: Desktop = Matrix, Mobile = Inline / Inline Below.
+ */
+$this->add_control( 'labels_layout_mobile', [
+	'label'   => __( 'Mobile layout (optional)', 'jellopoint-restaurant-menu' ),
+	'type'    => Controls_Manager::SELECT,
+	'default' => '',
+	'options' => [
+		''            => __( 'Same as Tablet / Desktop', 'jellopoint-restaurant-menu' ),
+		'inline'       => __( 'Inline',                  'jellopoint-restaurant-menu' ),
+		'inline_below' => __( 'Inline Below',            'jellopoint-restaurant-menu' ),
+		'matrix'       => __( 'Matrix',                  'jellopoint-restaurant-menu' ),
+	],
+	'description' => __( 'Set a dedicated layout for small screens. Typical use: Desktop = Matrix, Mobile = Inline or Inline Below.', 'jellopoint-restaurant-menu' ),
+] );
 
-		// Spacing
-		$this->add_responsive_control( 'inline_below_sep_gap', [
-			'label'      => __( 'Separator Spacing', 'jellopoint-restaurant-menu' ),
-			'type'       => Controls_Manager::SLIDER,
-			'size_units' => [ 'px', 'em', 'rem' ],
-			'range'      => [ 'px' => [ 'min' => 0, 'max' => 24 ], 'em' => [ 'min' => 0, 'max' => 2 ] ],
-			'default'    => [ 'size' => 0.6, 'unit' => 'rem' ],
-			'condition'  => [
-				'labels_layout'           => 'inline_below',
-				'inline_below_sep_enable' => 'on',
-			],
-			'selectors'  => [
-				'{{WRAPPER}}'                             => '--jprm-inline-sep-gap: {{SIZE}}{{UNIT}};',
-				'{{WRAPPER}} .elementor-widget-container' => '--jprm-inline-sep-gap: {{SIZE}}{{UNIT}};',
-			],
-			'render_type' => 'template',
-		]);
+/* Toggle: show a separator (Inline Below only – still driven by Desktop choice) */
+$this->add_control( 'inline_below_sep_enable', [
+	'label'        => __( 'Show Separator (Inline Below)', 'jellopoint-restaurant-menu' ),
+	'type'         => Controls_Manager::SWITCHER,
+	'return_value' => 'on',
+	'default'      => '',
+	'condition'    => [ 'labels_layout' => 'inline_below' ],
+	'prefix_class' => 'jprm-sep--',
+	'render_type'  => 'template',
+] );
 
-		$this->add_control(
-			'labels_matrix_placeholder', [
-				'label'       => __( 'Matrix Placeholder', 'jellopoint-restaurant-menu' ),
-				'type'        => \Elementor\Controls_Manager::TEXT,
-				'default'     => '',
-				'placeholder' => '—',
-				'description' => __( 'Shown in Matrix cells when a price is missing. Leave empty for a blank cell.', 'jellopoint-restaurant-menu' ),
-				'condition'   => [ 'labels_layout' => 'matrix' ],
-		] );
+/* Content */
+$this->add_control( 'inline_below_sep_content', [
+	'label'       => __( 'Separator Content', 'jellopoint-restaurant-menu' ),
+	'type'        => Controls_Manager::TEXT,
+	'default'     => '•',
+	'placeholder' => '• | · / or',
+	'condition'   => [
+		'labels_layout'           => 'inline_below',
+		'inline_below_sep_enable' => 'on',
+	],
+	'selectors'   => [
+		'{{WRAPPER}}'                             => '--jprm-inline-sep:"{{VALUE}}";',
+		'{{WRAPPER}} .elementor-widget-container' => '--jprm-inline-sep:"{{VALUE}}";',
+	],
+	'render_type' => 'template',
+] );
 
-		// === Section Overrides (ALWAYS VISIBLE; supports Inline / Inline Below / Matrix)
-		$this->add_control( 'matrix_overrides_heading', [
-			'type'      => Controls_Manager::HEADING,
-			'label'     => __( 'Section Overrides', 'jellopoint-restaurant-menu' ),
-			'separator' => 'before',
-		] );
+/* Spacing */
+$this->add_responsive_control( 'inline_below_sep_gap', [
+	'label'      => __( 'Separator Spacing', 'jellopoint-restaurant-menu' ),
+	'type'       => Controls_Manager::SLIDER,
+	'size_units' => [ 'px', 'em', 'rem' ],
+	'range'      => [
+		'px' => [ 'min' => 0, 'max' => 24 ],
+		'em' => [ 'min' => 0, 'max' => 2 ],
+	],
+	'default'    => [ 'size' => 0.6, 'unit' => 'rem' ],
+	'condition'  => [
+		'labels_layout'           => 'inline_below',
+		'inline_below_sep_enable' => 'on',
+	],
+	'selectors'  => [
+		'{{WRAPPER}}'                             => '--jprm-inline-sep-gap: {{SIZE}}{{UNIT}};',
+		'{{WRAPPER}} .elementor-widget-container' => '--jprm-inline-sep-gap: {{SIZE}}{{UNIT}};',
+	],
+	'render_type' => 'template',
+] );
 
-		$rep_ov = new Repeater();
+/* Global Matrix placeholder (desktop base) */
+$this->add_control(
+	'labels_matrix_placeholder',
+	[
+		'label'       => __( 'Matrix Placeholder', 'jellopoint-restaurant-menu' ),
+		'type'        => \Elementor\Controls_Manager::TEXT,
+		'default'     => '',
+		'placeholder' => '—',
+		'description' => __( 'Shown in Matrix cells when a price is missing. Leave empty for a blank cell.', 'jellopoint-restaurant-menu' ),
+		'condition'   => [ 'labels_layout' => 'matrix' ],
+	]
+);
 
-		$rep_ov->add_control( 'section_id', [
-			'label'   => __( 'Section', 'jellopoint-restaurant-menu' ),
-			'type'    => Controls_Manager::SELECT,
-			'options' => $_scoped_sections,
-			'classes'  => 'jprm-scope-target',
-			'default'      => '',
-		] );
+/* === Section Overrides (same as before) ================================ */
+$this->add_control( 'matrix_overrides_heading', [
+	'type'      => Controls_Manager::HEADING,
+	'label'     => __( 'Section Overrides', 'jellopoint-restaurant-menu' ),
+	'separator' => 'before',
+] );
 
-		$rep_ov->add_control( 'layout', [
-			'label'   => __( 'Layout', 'jellopoint-restaurant-menu' ),
-			'type'    => Controls_Manager::SELECT,
-			'default' => 'inline',
-			'options' => [
-				'inline'       => __( 'Inline',        'jellopoint-restaurant-menu' ),
-				'inline_below' => __( 'Inline Below',  'jellopoint-restaurant-menu' ),
-				'matrix'       => __( 'Matrix',        'jellopoint-restaurant-menu' ),
-			],
-		] );
+$rep_ov = new Repeater();
 
-		$rep_ov->add_control( 'separator', [
-			'label'       => __( 'Separator (Inline Below only)', 'jellopoint-restaurant-menu' ),
-			'type'        => Controls_Manager::TEXT,
-			'placeholder' => '•',
-			'condition'   => [ 'layout' => 'inline_below' ],
-		] );
+$rep_ov->add_control( 'section_id', [
+	'label'    => __( 'Section', 'jellopoint-restaurant-menu' ),
+	'type'     => Controls_Manager::SELECT,
+	'options'  => $_scoped_sections,
+	'classes'  => 'jprm-scope-target',
+	'default'  => '',
+] );
 
-		$rep_ov->add_control( 'placeholder', [
-			'label'       => __( 'Placeholder (Matrix only)', 'jellopoint-restaurant-menu' ),
-			'type'        => Controls_Manager::TEXT,
-			'placeholder' => '—',
-			'condition'   => [ 'layout' => 'matrix' ],
-		] );
+$rep_ov->add_control( 'layout', [
+	'label'   => __( 'Layout', 'jellopoint-restaurant-menu' ),
+	'type'    => Controls_Manager::SELECT,
+	'default' => 'inline',
+	'options' => [
+		'inline'       => __( 'Inline',       'jellopoint-restaurant-menu' ),
+		'inline_below' => __( 'Inline Below', 'jellopoint-restaurant-menu' ),
+		'matrix'       => __( 'Matrix',       'jellopoint-restaurant-menu' ),
+	],
+] );
 
-		$this->add_control( 'labels_layout_overrides', [
-			'label'         => __( 'Per-Section Overrides', 'jellopoint-restaurant-menu' ),
-			'type'          => Controls_Manager::REPEATER,
-			'fields'        => $rep_ov->get_controls(),
-			'title_field'   => '{{{ section_id }}} → {{{ layout }}}',
-			'default'       => [],
-			'prevent_empty' => false,
-			'description'   => __( 'Sections list is scoped to the selected Menu. Change Menu and reopen the widget to refresh the list.', 'jellopoint-restaurant-menu' ),
-		] );
+$rep_ov->add_control( 'separator', [
+	'label'       => __( 'Separator (Inline Below only)', 'jellopoint-restaurant-menu' ),
+	'type'        => Controls_Manager::TEXT,
+	'placeholder' => '•',
+	'condition'   => [ 'layout' => 'inline_below' ],
+] );
 
-		$this->end_controls_section();
+$rep_ov->add_control( 'placeholder', [
+	'label'       => __( 'Placeholder (Matrix only)', 'jellopoint-restaurant-menu' ),
+	'type'        => Controls_Manager::TEXT,
+	'placeholder' => '—',
+	'condition'   => [ 'layout' => 'matrix' ],
+] );
+
+$this->add_control( 'labels_layout_overrides', [
+	'label'         => __( 'Per-Section Overrides', 'jellopoint-restaurant-menu' ),
+	'type'          => Controls_Manager::REPEATER,
+	'fields'        => $rep_ov->get_controls(),
+	'title_field'   => '{{{ section_id }}} → {{{ layout }}}',
+	'default'       => [],
+	'prevent_empty' => false,
+	'description'   => __( 'Sections list is scoped to the selected Menu. Change Menu and reopen the widget to refresh the list.', 'jellopoint-restaurant-menu' ),
+] );
+
+$this->end_controls_section();
+
 
 		/* --- Badges ------------------------------------------------------------- */
 		$this->start_controls_section(
