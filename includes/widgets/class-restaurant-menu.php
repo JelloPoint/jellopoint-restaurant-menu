@@ -493,17 +493,10 @@ error_log( 'JPRM items_order overrides raw: ' . print_r( $s['items_order_overrid
             // Legacy placeholder (still read by template inheritance)
             'global_placeholder'    => $global_placeholder,
 
-            $ctx['labels_matrix_layout_desktop'] = isset( $settings['labels_matrix_layout_desktop'] )
-            ? (string) $settings['labels_matrix_layout_desktop']
-            : 'matrix';
+            'labels_matrix_layout_desktop' => $settings['labels_matrix_layout_desktop'] ?? 'matrix',
+            'labels_matrix_layout_tablet'  => $settings['labels_matrix_layout_tablet']  ?? 'inline_below',
+            'labels_matrix_layout_mobile'  => $settings['labels_matrix_layout_mobile']  ?? 'inline_below',
 
-            $ctx['labels_matrix_layout_tablet']  = isset( $settings['labels_matrix_layout_tablet'] )
-            ? (string) $settings['labels_matrix_layout_tablet']
-            : 'inline_below';
-
-            $ctx['labels_matrix_layout_mobile']  = isset( $settings['labels_matrix_layout_mobile'] )
-            ? (string) $settings['labels_matrix_layout_mobile']
-            : 'inline_below';
         ];
 
         // Optional helpers
