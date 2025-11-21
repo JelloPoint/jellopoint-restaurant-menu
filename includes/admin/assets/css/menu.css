@@ -484,3 +484,57 @@
 
 /* When leader is logically off, keep a 0-size placeholder so grid stays stable */
 .jp-layout-inline .jp-leader.jp-leader--off{ border:0; width:0; margin:0; }
+
+
+/*ADDED FOR MATRIX MOBILE LAYOUT */
+/* === JPRM Matrix – base safeguard === */
+.jp-matrix {
+    max-width: 100%;
+}
+
+/* === JPRM Matrix – mobile layout ========================================= */
+@media (max-width: 767px) {
+
+    /* Stack rows, kill the table-like header */
+    .jp-matrix {
+        display: block;
+    }
+
+    .jp-matrix__row {
+        display: block;
+    }
+
+    .jp-matrix__row--header {
+        display: none;
+    }
+
+    /* First cell: item title + badges full-width */
+    .jp-matrix__cell--item {
+        width: 100%;
+        box-sizing: border-box;
+        margin-bottom: 0.25rem;
+    }
+
+    /* Value cells: label left, price right on each line */
+    .jp-matrix__cell--value {
+        display: flex;
+        width: 100%;
+        box-sizing: border-box;
+        justify-content: space-between;
+        align-items: baseline;
+        padding: 0.1rem 0;
+    }
+
+    /* Use the label text we injected via data-label-text */
+    .jp-matrix__cell--value::before {
+        content: attr(data-label-text);
+        font-weight: 600;
+        margin-right: 0.5rem;
+        /* inherits font-size from parent, so it works with your typography controls */
+    }
+
+    /* Make placeholder a bit subtle but still visible */
+    .jp-matrix__cell--value .jp-matrix__placeholder {
+        opacity: 0.5;
+    }
+}
