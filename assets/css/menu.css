@@ -527,9 +527,3 @@
 
 /* When leader is logically off, keep a 0-size placeholder so grid stays stable */
 .jp-layout-inline .jp-leader.jp-leader--off{ border:0; width:0; margin:0; }
-
-
-/* CACHE TEST */
-body { 
-  background-color: #FFF !important;
- }
