@@ -538,3 +538,48 @@
         opacity: 0.5;
     }
 }
+/* ============================================================
+ * Matrix layout – mobile stacking
+ * ============================================================ */
+@media (max-width: 768px) {
+
+	/* Stop acting like a big multi-column grid on mobile */
+	.jp-matrix {
+		display: block;
+		width: 100%;
+		overflow-x: visible;
+	}
+
+	/* Each row becomes its own 2-column grid:
+	 *   row 1: item (spans both columns)
+	 *   row 2+: prices (up to 2 per line, more wrap to next line)
+	 */
+	.jp-matrix__row {
+		display: grid;
+		grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.9fr);
+		column-gap: 0.75rem;
+		row-gap: 0.15rem;
+	}
+
+	/* Don’t show the header row with column titles on very small screens */
+	.jp-matrix__row--header {
+		display: none;
+	}
+
+	/* Item cell: always full width on its own line */
+	.jp-matrix__cell--item {
+		grid-column: 1 / -1;
+		padding-right: 0;
+	}
+
+	/* Price cells: align right, wrap to the next line if there are many */
+	.jp-matrix__cell--value {
+		text-align: right;
+		white-space: nowrap;
+	}
+
+	/* Optional: make long item titles wrap nicely */
+	.jp-matrix__cell--item .jp-menu__title {
+		white-space: normal;
+	}
+}
