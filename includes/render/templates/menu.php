@@ -59,7 +59,65 @@ $currency_opts      = is_array( $ctx['currency_opts'] ?? null ) ? $ctx['currency
 $ib_map             = is_array( $ctx['ib_map']        ?? null ) ? $ctx['ib_map']        : [];
 
 $global_labels_layout     = (string) ( $ctx['global_labels_layout'] ?? 'inline' );
-$section_layouts          = is_array( $ctx['section_layouts'] ?? null ) ? $ctx['section_layouts'] : [];
+/* ==========================================================
+   RESPONSIVE LAYOUT RESOLUTION
+   ========================================================== */
+
+/*
+Widget provides:
+  labels_layout_desktop
+  labels_layout_tablet
+  labels_layout_mobile
+
+Values are: inline | inline_below | matrix
+*/
+
+$layout_desktop = isset($ctx['labels_layout_desktop']) ? (string)$ctx['labels_layout_desktop'] : 'inline';
+$layout_tablet  = isset($ctx['labels_layout_tablet'])  ? (string)$ctx['labels_layout_tablet']  : $layout_desktop;
+$layout_mobile  = isset($ctx['labels_layout_mobile'])  ? (string)$ctx['labels_layout_mobile']  : $layout_tablet;
+
+/*
+Simple detection:
+ - Elementor editor → use Elementor breakpoints
+ - Frontend        → use window width (via CSS body classes)
+*/
+
+$is_mobile = false;
+$is_tablet = false;
+
+/* Elementor Editor */
+if ( defined('ELEMENTOR_VERSION') && \Elementor\Plugin::$instance->editor->is_edit_mode() ) {
+
+    $bp_md = \Elementor\Core\Responsive\Responsive::get_breakpoints()['md']; // usually 1024
+    $bp_sm = \Elementor\Core\Responsive\Responsive::get_breakpoints()['sm']; // usually 767
+
+    if ($ctx['viewport_width'] <= $bp_sm) {
+        $is_mobile = true;
+    } elseif ($ctx['viewport_width'] <= $bp_md) {
+        $is_tablet = true;
+    }
+
+/* Frontend */
+} else {
+    $body_classes = $ctx['body_classes'] ?? '';
+
+    if (strpos($body_classes, 'elementor-device-mobile') !== false) {
+        $is_mobile = true;
+    } elseif (strpos($body_classes, 'elementor-device-tablet') !== false) {
+        $is_tablet = true;
+    }
+}
+
+/* Compute global layout */
+if ($is_mobile) {
+    $global_labels_layout = $layout_mobile;
+} elseif ($is_tablet) {
+    $global_labels_layout = $layout_tablet;
+} else {
+    $global_labels_layout = $layout_desktop;
+}
+
+$section_layouts = is_array( $ctx['section_layouts'] ?? null ) ? $ctx['section_layouts'] : [];
 
 $global_matrix_placeholder = (string) ( $ctx['labels_matrix_placeholder'] ?? '' );
 $global_inline_separator   = (string) ( $ctx['inline_separator']          ?? '' );
@@ -342,7 +400,18 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 	$own_placeholder = array_key_exists( 'placeholder', $sec ) && $sec['placeholder'] !== '' ? (string) $sec['placeholder'] : null;
 	$own_separator   = array_key_exists( 'separator', $sec )   && $sec['separator']   !== '' ? (string) $sec['separator']   : null;
 
-	$eff_layout      = $own_layout      ?? ( $inherit['layout']      ?? $global_labels_layout );
+	$device = $ctx['device'] ?? 'desktop';
+
+	$global = [
+		'desktop' => $ctx['layout_desktop'] ?? 'inline',
+		'tablet'  => $ctx['layout_tablet']  ?: ($ctx['layout_desktop'] ?? 'inline'),
+		'mobile'  => $ctx['layout_mobile']  ?: ($ctx['layout_desktop'] ?? 'inline'),
+	];
+
+	$global_labels_layout = $global[ $device ] ?? 'inline';
+
+	// inheritance stays unchanged
+	$eff_layout = $own_layout ?? ( $inherit['layout'] ?? $global_labels_layout );
 	$eff_placeholder = $own_placeholder ?? ( $inherit['placeholder'] ?? ( $global_matrix_placeholder !== '' ? $global_matrix_placeholder : $global_placeholder_legacy ) );
 	$eff_separator   = $own_separator   ?? ( $inherit['separator']   ?? $computed_global_inline_separator );
 

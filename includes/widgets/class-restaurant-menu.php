@@ -109,31 +109,6 @@ final class Restaurant_Menu extends Widget_Base {
 
         return $terms;
     }
-    /**
-     * Build a simple [term_id => "#ID — Name"] options array for all Sections.
-     * Used by the per-section item order repeater (Elementor SELECT2).
-     */
-    /*public function jprm_get_sections_options() : array {
-        $terms = get_terms( [
-            'taxonomy'   => 'jprm_section',
-            'hide_empty' => false,
-            'orderby'    => 'name',
-            'order'      => 'ASC',
-        ] );
-
-        if ( is_wp_error( $terms ) || empty( $terms ) ) {
-            return [];
-        }
-
-        $out = [];
-        foreach ( $terms as $term ) {
-            $id   = (int) $term->term_id;
-            $name = (string) $term->name;
-            $out[ $id ] = sprintf( '#%d — %s', $id, $name );
-        }
-
-        return $out;
-    }*/
 
     /** Return a numeric price used only for sorting (single or first multi row). */
     private static function jprm_effective_price_number( int $post_id ) : float {
@@ -176,7 +151,30 @@ final class Restaurant_Menu extends Widget_Base {
         self::ensure_menu_meta_helper();
 
         $s = $this->get_settings_for_display();
-error_log( 'JPRM items_order overrides raw: ' . print_r( $s['items_order_overrides'] ?? null, true ) );
+
+        /* ============================================================
+         * RESPONSIVE VIEWPORT RESOLUTION (Elementor + Frontend)
+         * ============================================================
+         */
+        $device = 'desktop';
+
+        // Elementor editor preview uses ?elementor_device_mode=...
+        if ( isset( $_GET['elementor_device_mode'] ) ) {
+            $mode = sanitize_text_field( wp_unslash( $_GET['elementor_device_mode'] ) );
+            if ( in_array( $mode, [ 'desktop', 'tablet', 'mobile' ], true ) ) {
+                $device = $mode;
+            }
+        } else {
+            // Frontend: Elementor adds body classes like elementor-device-mobile
+            $body_classes = get_body_class();
+            if ( in_array( 'elementor-device-mobile', $body_classes, true ) ) {
+                $device = 'mobile';
+            } elseif ( in_array( 'elementor-device-tablet', $body_classes, true ) ) {
+                $device = 'tablet';
+            } else {
+                $device = 'desktop';
+            }
+        }
 
         // Static mode (unchanged)
         $mode = isset( $s['data_mode'] ) ? (string) $s['data_mode'] : null;
@@ -201,6 +199,7 @@ error_log( 'JPRM items_order overrides raw: ' . print_r( $s['items_order_overrid
 
         $inline_leader_enable = ( !empty($s['inline_leader_enable']) && $s['inline_leader_enable'] === 'yes' ) ? 'yes' : 'no';
         $inline_leader_style  = (string) ( $s['inline_leader_style'] ?? 'dotted' );
+        $inline_leader_char   = (string) ( $s['inline_leader_char']  ?? '' );
 
         $currency_opts = [
             'show'     => ( isset( $s['jprm_curr_show'] ) && $s['jprm_curr_show'] === 'yes' ),
@@ -403,9 +402,24 @@ error_log( 'JPRM items_order overrides raw: ' . print_r( $s['items_order_overrid
         $ib_rows = ( isset( $s['info_blocks'] ) && is_array( $s['info_blocks'] ) ) ? $s['info_blocks'] : [];
         $ib_map  = function_exists('jprm_infoblocks_partition_by_position') ? jprm_infoblocks_partition_by_position( $ib_rows ) : [];
 
-        // Labels Layout (global + per-section overrides)
-        $global_labels_layout = isset( $s['labels_layout'] ) ? (string) $s['labels_layout'] : 'inline';
-        $global_placeholder   = isset( $s['labels_matrix_placeholder'] ) ? (string) $s['labels_matrix_placeholder'] : '—';
+        // ===============================
+        // Labels Layout (responsive)
+        // ===============================
+        $layout_desktop = isset( $s['labels_layout_desktop'] ) && $s['labels_layout_desktop'] !== ''
+            ? (string) $s['labels_layout_desktop']
+            : 'inline';
+
+        $layout_tablet  = isset( $s['labels_layout_tablet'] ) && $s['labels_layout_tablet'] !== ''
+            ? (string) $s['labels_layout_tablet']
+            : $layout_desktop;
+
+        $layout_mobile  = isset( $s['labels_layout_mobile'] ) && $s['labels_layout_mobile'] !== ''
+            ? (string) $s['labels_layout_mobile']
+            : $layout_desktop;
+
+        $global_placeholder = isset( $s['labels_matrix_placeholder'] )
+            ? (string) $s['labels_matrix_placeholder']
+            : '—';
 
         // Per-section layout extras (Matrix placeholder / Inline-below separator)
         $section_layouts = [];
@@ -470,18 +484,25 @@ error_log( 'JPRM items_order overrides raw: ' . print_r( $s['items_order_overrid
             // Leader
             'inline_leader_enable' => $inline_leader_enable,
             'inline_leader_style'  => $inline_leader_style,
+            'inline_leader_char'   => $inline_leader_char,
 
             // Info Blocks
             'ib_map'              => $ib_map,
 
-            // Layout overrides
+            // Layout overrides (per-section)
             'section_layouts'     => $section_layouts,
 
-            // Global layout prefs
-            'global_labels_layout'      => $global_labels_layout,
+            // Global layout prefs (responsive)
+            'device'         => $device,
+            'layout_desktop' => $layout_desktop,
+            'layout_tablet'  => $layout_tablet,
+            'layout_mobile'  => $layout_mobile,
+
+            // Global placeholder + matrix placeholder
             'labels_matrix_placeholder' => isset( $s['labels_matrix_placeholder'] )
                 ? html_entity_decode( (string) $s['labels_matrix_placeholder'], ENT_QUOTES )
                 : '',
+            'global_placeholder'        => $global_placeholder,
 
             // Inline-below separator from Content tab
             'inline_below_separator' => (
@@ -489,14 +510,6 @@ error_log( 'JPRM items_order overrides raw: ' . print_r( $s['items_order_overrid
             )
                 ? (string) ( $s['inline_below_sep_content'] ?? '' )
                 : '',
-
-            // Legacy placeholder (still read by template inheritance)
-            'global_placeholder'    => $global_placeholder,
-
-            'labels_matrix_layout_desktop' => $settings['labels_matrix_layout_desktop'] ?? 'matrix',
-            'labels_matrix_layout_tablet'  => $settings['labels_matrix_layout_tablet']  ?? 'inline_below',
-            'labels_matrix_layout_mobile'  => $settings['labels_matrix_layout_mobile']  ?? 'inline_below',
-
         ];
 
         // Optional helpers
