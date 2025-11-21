@@ -560,7 +560,7 @@ $this->add_control( 'items_order_overrides', [
 			'condition'   => [ 'layout' => 'matrix' ],
 		] );
 
-		$this->add_control( 'labels_layout_overrides', [
+		$this->add_responsive_control( 'labels_layout_overrides', [
 			'label'         => __( 'Per-Section Overrides', 'jellopoint-restaurant-menu' ),
 			'type'          => Controls_Manager::REPEATER,
 			'fields'        => $rep_ov->get_controls(),
