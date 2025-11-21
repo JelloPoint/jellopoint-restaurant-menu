@@ -594,7 +594,7 @@ $rep_ov->add_control( 'layout', [
 $rep_ov->add_control( 'separator', [
 	'label'       => __( 'Separator (Inline Below only)', 'jellopoint-restaurant-menu' ),
 	'type'        => Controls_Manager::TEXT,
-	'placeholder' => '•',
+	'placeholder' => ' ',
 	'condition'   => [ 'layout' => 'inline_below' ],
 ] );
 
