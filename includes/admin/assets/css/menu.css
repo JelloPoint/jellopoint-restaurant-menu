@@ -164,7 +164,7 @@
   border-radius:2px;
 }
 
-/* === Matrix layout (structural only; no visual styling) === */
+/* === Matrix layout (structural + responsive) === */
 .jp-menu__matrix,
 .jp-menu__matrix > li {
   list-style: none;
@@ -173,6 +173,7 @@
 }
 .jp-menu__matrix { padding-inline-start: 0; }
 
+/* Desktop / tablet default: real matrix grid */
 .jp-matrix{
   display: grid;
   grid-auto-rows: auto;
@@ -184,6 +185,49 @@
 .jp-matrix__row{ display: contents; }
 .jp-matrix__cell{ display: block; }
 .jp-matrix__cell--value{ text-align: left; }
+
+/* Matrix headers use label styling */
+.jp-matrix .jp-matrix__cell--head .jp-menu__label{
+  display:inline-flex;
+  align-items:center;
+  gap:.35em;
+}
+
+/* Mobile: behave more like inline (no overflowing grid) */
+@media (max-width: 767px) {
+
+  .jp-matrix{
+    display:block;   /* kill grid */
+    width:100%;
+  }
+
+  .jp-matrix__row{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:baseline;
+    column-gap:0;
+    row-gap:0.1rem;
+  }
+
+  /* hide header row completely on mobile */
+  .jp-matrix__row--header{
+    display:none;
+  }
+
+  /* title/desc: full width */
+  .jp-matrix__cell--item{
+    flex:1 1 100%;
+    margin-bottom:0.1rem;
+  }
+
+  /* price cells inline after title */
+  .jp-matrix__cell--value{
+    flex:0 0 auto;
+    text-align:left;
+    margin-right:0.75rem;
+    white-space:nowrap;
+  }
+}
 
 /* Ensure full width for Info Blocks background color */
 .jprm-infoblock{ width: 100%; }
@@ -203,9 +247,6 @@
 /* Labels themselves: icon + text centered */
 .jp-menu__label { display: inline-flex; align-items: center; gap: .35em; }
 .jp-menu__icon { display: inline-block; vertical-align: middle; }  /* works for <img> icons */
-
-/* Matrix headers also use labels: center them too */
-.jp-matrix .jp-matrix__cell--head .jp-menu__label { display: inline-flex; align-items: center; gap: .35em; }
 
 /* =========================
    INLINE-BELOW (clean rules)
@@ -484,102 +525,3 @@
 
 /* When leader is logically off, keep a 0-size placeholder so grid stays stable */
 .jp-layout-inline .jp-leader.jp-leader--off{ border:0; width:0; margin:0; }
-
-
-/*ADDED FOR MATRIX MOBILE LAYOUT */
-/* === JPRM Matrix – base safeguard === */
-.jp-matrix {
-    max-width: 100%;
-}
-
-/* === JPRM Matrix – mobile layout ========================================= */
-@media (max-width: 767px) {
-
-    /* Stack rows, kill the table-like header */
-    .jp-matrix {
-        display: block;
-    }
-
-    .jp-matrix__row {
-        display: block;
-    }
-
-    .jp-matrix__row--header {
-        display: none;
-    }
-
-    /* First cell: item title + badges full-width */
-    .jp-matrix__cell--item {
-        width: 100%;
-        box-sizing: border-box;
-        margin-bottom: 0.25rem;
-    }
-
-    /* Value cells: label left, price right on each line */
-    .jp-matrix__cell--value {
-        display: flex;
-        width: 100%;
-        box-sizing: border-box;
-        justify-content: space-between;
-        align-items: baseline;
-        padding: 0.1rem 0;
-    }
-
-    /* Use the label text we injected via data-label-text */
-    .jp-matrix__cell--value::before {
-        content: attr(data-label-text);
-        font-weight: 600;
-        margin-right: 0.5rem;
-        /* inherits font-size from parent, so it works with your typography controls */
-    }
-
-    /* Make placeholder a bit subtle but still visible */
-    .jp-matrix__cell--value .jp-matrix__placeholder {
-        opacity: 0.5;
-    }
-}
-/* ============================================================
- * Matrix layout – mobile stacking
- * ============================================================ */
-@media (max-width: 768px) {
-
-	/* Stop acting like a big multi-column grid on mobile */
-	.jp-matrix {
-		display: block;
-		width: 100%;
-		overflow-x: visible;
-	}
-
-	/* Each row becomes its own 2-column grid:
-	 *   row 1: item (spans both columns)
-	 *   row 2+: prices (up to 2 per line, more wrap to next line)
-	 */
-	.jp-matrix__row {
-		display: grid;
-		grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.9fr);
-		column-gap: 0.75rem;
-		row-gap: 0.15rem;
-	}
-
-	/* Don’t show the header row with column titles on very small screens */
-	.jp-matrix__row--header {
-		display: none;
-	}
-
-	/* Item cell: always full width on its own line */
-	.jp-matrix__cell--item {
-		grid-column: 1 / -1;
-		padding-right: 0;
-	}
-
-	/* Price cells: align right, wrap to the next line if there are many */
-	.jp-matrix__cell--value {
-		text-align: right;
-		white-space: nowrap;
-	}
-
-	/* Optional: make long item titles wrap nicely */
-	.jp-matrix__cell--item .jp-menu__title {
-		white-space: normal;
-	}
-}
