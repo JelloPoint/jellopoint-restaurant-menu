@@ -407,7 +407,7 @@ $this->add_control( 'items_order_overrides', [
 			'separator' => 'before',
 		] );
 
-		$this->add_control( 'label_presentation', [
+		$this->add_responsive_control( 'label_presentation', [
 			'label'   => __( 'Label Presentation', 'jellopoint-restaurant-menu' ),
 			'type'    => Controls_Manager::SELECT,
 			'default' => 'icon_text',
