@@ -617,4 +617,28 @@
   }
 }
 
+/* =========================================
+   Elementor editor – verberg 'grijze' varianten
+   ========================================= */
+
+/* In desktop preview: verberg blokken die hidden-desktop zijn
+   (tablet/mobile varianten) */
+body.elementor-editor-active.elementor-device-desktop 
+  .jprm-layout-variant.elementor-hidden-desktop {
+  display: none !important;
+}
+
+/* In tablet preview: verberg blokken die hidden-tablet zijn */
+body.elementor-editor-active.elementor-device-tablet 
+  .jprm-layout-variant.elementor-hidden-tablet {
+  display: none !important;
+}
+
+/* In mobile preview: verberg blokken die hidden-mobile zijn */
+body.elementor-editor-active.elementor-device-mobile 
+  .jprm-layout-variant.elementor-hidden-mobile {
+  display: none !important;
+}
+
+
 
