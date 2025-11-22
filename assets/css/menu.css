@@ -621,7 +621,7 @@
    Elementor editor – verberg 'grijze' varianten
    ========================================= */
 
-body.elementor-editor-active.elementor-device-desktop .elementor-hidden-desktop {
+body.elementor-editor-active .elementor-hidden-desktop {
   display: none !important;;
 }
 
