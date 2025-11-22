@@ -466,52 +466,28 @@ $this->add_control( 'labels_layout', [
 ] );
 
 /**
- * TABLET override (optional)
- * Empty string = inherit from Desktop.
+ * HOW tablet & mobile should behave
+ *
+ *  - inline       → always Inline on tablet+mobile
+ *  - inline_below → always Inline Below on tablet+mobile
+ *  - per_section  → follow the section layout (Matrix / Inline / Inline Below)
  */
-$this->add_control( 'labels_layout_tablet', [
-	'label'   => __( 'Tablet layout (optional)', 'jellopoint-restaurant-menu' ),
-	'type'    => Controls_Manager::SELECT,
-	'default' => '',
-	'options' => [
-		''            => __( 'Same as Desktop',  'jellopoint-restaurant-menu' ),
-		'inline'       => __( 'Inline',          'jellopoint-restaurant-menu' ),
-		'inline_below' => __( 'Inline Below',    'jellopoint-restaurant-menu' ),
-		'matrix'       => __( 'Matrix',          'jellopoint-restaurant-menu' ),
-	],
-	'description' => __( 'Choose a different layout for tablet if needed. Leave empty to inherit the Desktop layout.', 'jellopoint-restaurant-menu' ),
+$this->add_control( 'labels_mobile_behaviour', [
+    'label'   => __( 'Tablet & Mobile behaviour', 'jellopoint-restaurant-menu' ),
+    'type'    => Controls_Manager::SELECT,
+    'default' => 'inline_below', // sensible default
+    'options' => [
+        'inline'       => __( 'Inline',               'jellopoint-restaurant-menu' ),
+        'inline_below' => __( 'Inline Below',         'jellopoint-restaurant-menu' ),
+        'per_section'  => __( 'Per Section Layouts',  'jellopoint-restaurant-menu' ),
+    ],
+    'description' => __(
+        'Choose how Matrix sections behave on smaller screens. '
+        . '“Per Section Layouts” keeps Matrix on mobile; the others force a single layout everywhere.',
+        'jellopoint-restaurant-menu'
+    ),
 ] );
 
-/**
- * MOBILE override (optional)
- * Empty string = inherit from Tablet (if set) or Desktop.
- */
-$this->add_control( 'labels_layout_mobile', [
-	'label'   => __( 'Mobile layout (optional)', 'jellopoint-restaurant-menu' ),
-	'type'    => Controls_Manager::SELECT,
-	'default' => '',
-	'options' => [
-		''            => __( 'Same as Tablet / Desktop', 'jellopoint-restaurant-menu' ),
-		'inline'       => __( 'Inline',                  'jellopoint-restaurant-menu' ),
-		'inline_below' => __( 'Inline Below',            'jellopoint-restaurant-menu' ),
-		'matrix'       => __( 'Matrix',                  'jellopoint-restaurant-menu' ),
-	],
-	'description' => __( 'Set a dedicated layout for small screens. Typical use: Desktop = Matrix, Mobile = Inline or Inline Below.', 'jellopoint-restaurant-menu' ),
-] );
-
-/**
- * STRATEGY: how mobile/tablet treat per-section overrides
- */
-$this->add_control( 'labels_layout_mobile_strategy', [
-	'label'   => __( 'Mobile/Tablet behaviour', 'jellopoint-restaurant-menu' ),
-	'type'    => Controls_Manager::SELECT,
-	'default' => 'force_global',
-	'options' => [
-		'force_global'     => __( 'Use ONE layout for all sections', 'jellopoint-restaurant-menu' ),
-		'respect_overrides'=> __( 'Allow per-section layouts (advanced)', 'jellopoint-restaurant-menu' ),
-	],
-	'description' => __( 'Recommended: “Use ONE layout” so the menu looks consistent on mobile/tablet.', 'jellopoint-restaurant-menu' ),
-] );
 
 /* Toggle: show a separator (Inline Below only – tied to DESKTOP choice) */
 $this->add_control( 'inline_below_sep_enable', [
