@@ -444,15 +444,14 @@ $this->add_control( 'items_order_overrides', [
 
 		$this->end_controls_section();
 
-/* --- Labels Layout ------------------------------------------------------ */
+//* --- Labels Layout ------------------------------------------------------ */
 $this->start_controls_section(
 	'jprm_section_labels_layout',
 	[ 'label' => __( 'Labels Layout', 'jellopoint-restaurant-menu' ) ]
 );
 
 /**
- * Desktop (base) layout
- * This is what you have now – used as the default for all devices.
+ * DESKTOP layout (base)
  */
 $this->add_control( 'labels_layout', [
 	'label'   => __( 'Desktop layout', 'jellopoint-restaurant-menu' ),
@@ -467,7 +466,7 @@ $this->add_control( 'labels_layout', [
 ] );
 
 /**
- * OPTIONAL override for tablet.
+ * TABLET override (optional)
  * Empty string = inherit from Desktop.
  */
 $this->add_control( 'labels_layout_tablet', [
@@ -484,9 +483,8 @@ $this->add_control( 'labels_layout_tablet', [
 ] );
 
 /**
- * OPTIONAL override for mobile.
+ * MOBILE override (optional)
  * Empty string = inherit from Tablet (if set) or Desktop.
- * This is what you’ll use for: Desktop = Matrix, Mobile = Inline / Inline Below.
  */
 $this->add_control( 'labels_layout_mobile', [
 	'label'   => __( 'Mobile layout (optional)', 'jellopoint-restaurant-menu' ),
@@ -501,7 +499,21 @@ $this->add_control( 'labels_layout_mobile', [
 	'description' => __( 'Set a dedicated layout for small screens. Typical use: Desktop = Matrix, Mobile = Inline or Inline Below.', 'jellopoint-restaurant-menu' ),
 ] );
 
-/* Toggle: show a separator (Inline Below only – still driven by Desktop choice) */
+/**
+ * STRATEGY: how mobile/tablet treat per-section overrides
+ */
+$this->add_control( 'labels_layout_mobile_strategy', [
+	'label'   => __( 'Mobile/Tablet behaviour', 'jellopoint-restaurant-menu' ),
+	'type'    => Controls_Manager::SELECT,
+	'default' => 'force_global',
+	'options' => [
+		'force_global'     => __( 'Use ONE layout for all sections', 'jellopoint-restaurant-menu' ),
+		'respect_overrides'=> __( 'Allow per-section layouts (advanced)', 'jellopoint-restaurant-menu' ),
+	],
+	'description' => __( 'Recommended: “Use ONE layout” so the menu looks consistent on mobile/tablet.', 'jellopoint-restaurant-menu' ),
+] );
+
+/* Toggle: show a separator (Inline Below only – tied to DESKTOP choice) */
 $this->add_control( 'inline_below_sep_enable', [
 	'label'        => __( 'Show Separator (Inline Below)', 'jellopoint-restaurant-menu' ),
 	'type'         => Controls_Manager::SWITCHER,
@@ -616,6 +628,7 @@ $this->add_control( 'labels_layout_overrides', [
 ] );
 
 $this->end_controls_section();
+
 
 
 		/* --- Badges ------------------------------------------------------------- */
