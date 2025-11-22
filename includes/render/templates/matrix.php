@@ -88,25 +88,16 @@ if ( ! function_exists( 'jprm_matrix_header_cell' ) ) {
  *  - Known labels in $label_map
  *  - Labels discovered in items (label_id or label_text)
  *  - PLUS position-based columns for unlabeled prices (ONLY when NO labels exist)
- * Returns ['cols'=>map, 'order'=>keys in order].
+ * Returns ['cols'=>map, 'order'=>keys in order, 'has_any_label'=>bool].
  */
 if ( ! function_exists( 'jprm_matrix_collect_columns' ) ) {
-	/**
-	 * Collect columns in this order:
-	 *  1) Global label registry (Labels screen) in its saved order
-	 *  2) Any extra labels discovered in content (not in registry)
-	 *  3) Position columns for unlabeled prices: p:0, p:1, ... (ONLY if no labels used)
-	 *
-	 * Keys for labeled columns are always: "t:" . md5(label_text)
-	 */
 	function jprm_matrix_collect_columns( array $items, array $label_map, array $currency_opts ) : array {
-		$cols             = [];
-		$has_any_label    = false; // <- NEW: track if we ever see a label
-		$max_unlabeled    = 0;
+		$cols          = [];
+		$has_any_label = false; // NEW: track whether any label exists in this section
+		$max_unlabeled = 0;
 
 		// 1) Seed from global label registry (in the order from the Labels screen)
 		foreach ( $label_map as $meta ) {
-			// $label_map is JPRM_Labels_Store::all()
 			if ( empty( $meta['active'] ) ) {
 				continue;
 			}
@@ -181,7 +172,7 @@ if ( ! function_exists( 'jprm_matrix_collect_columns' ) ) {
 		/**
 		 * 3) Position columns p:0..p:(max-1) with empty header meta
 		 *
-		 * IMPORTANT CHANGE:
+		 * IMPORTANT:
 		 * We ONLY create positional columns if **no labels are used at all**
 		 * in this section. This avoids extra columns when you mix
 		 * labeled and unlabeled rows.
@@ -200,15 +191,12 @@ if ( ! function_exists( 'jprm_matrix_collect_columns' ) ) {
 			}
 		}
 
-		// Insertion order of $cols now matches:
-		//   1) Label screen order
-		//   2) Extra labels discovered
-		//   3) Position columns (only when no labels exist)
 		$order = array_keys( $cols );
 
 		return [
-			'cols'  => $cols,
-			'order' => $order,
+			'cols'          => $cols,
+			'order'         => $order,
+			'has_any_label' => $has_any_label,
 		];
 	}
 }
@@ -220,11 +208,6 @@ if ( ! function_exists( 'jprm_matrix_collect_columns' ) ) {
  *  - position columns (p:N): take the Nth unlabeled row's formatted price
  */
 if ( ! function_exists( 'jprm_matrix_find_cell' ) ) {
-	/**
-	 * Find the formatted value for a given column key.
-	 *  - labeled columns: key is "t:md5(label_text)"
-	 *  - position columns (p:N): take the Nth unlabeled row's formatted price
-	 */
 	function jprm_matrix_find_cell( array $rows, string $col_key ) : ?string {
 		// Position-based column? (unlabeled prices)
 		if ( strpos( $col_key, 'p:' ) === 0 ) {
@@ -286,9 +269,10 @@ if ( ! function_exists( 'jprm_matrix_filter_active_columns' ) ) {
 }
 
 /* grid build */
-$collect   = jprm_matrix_collect_columns( $items, $label_map, $currency_opts );
-$cols      = $collect['cols'];
-$col_keys  = jprm_matrix_filter_active_columns( $items, $collect['order'], $label_map, $currency_opts );
+$collect        = jprm_matrix_collect_columns( $items, $label_map, $currency_opts );
+$cols           = $collect['cols'];
+$col_keys       = jprm_matrix_filter_active_columns( $items, $collect['order'], $label_map, $currency_opts );
+$has_any_label  = ! empty( $collect['has_any_label'] ); // NEW: we use this below
 
 /**
  * REORDER HEADER COLUMNS TO FOLLOW PRICE LABELS ORDER
@@ -385,9 +369,23 @@ foreach ( $items as $post ) {
 		? jprm_get_pricegroup_data( $pid, $label_map, $currency_opts )
 		: [];
 
+	// Collect unlabeled rows for this item (only relevant if the section uses labels)
+	$unlabeled_prices = [];
+	if ( $has_any_label && ! empty( $rows ) ) {
+		foreach ( $rows as $r ) {
+			$txt = isset( $r['label_text'] ) ? trim( (string) $r['label_text'] ) : '';
+			if ( $txt === '' ) {
+				$fmt = (string) ( $r['formatted'] ?? '' );
+				if ( $fmt !== '' ) {
+					$unlabeled_prices[] = $fmt;
+				}
+			}
+		}
+	}
+
 	echo '<div class="jp-matrix__row" data-post-id="' . esc_attr( (string) $pid ) . '">';
 
-		// First cell: item title + badges + desc
+		// First cell: item title + badges + desc + unlabeled price warnings
 		echo '<div class="jp-matrix__cell jp-matrix__cell--item">';
 
 			// BADGES: pre-render per item
@@ -412,9 +410,23 @@ foreach ( $items as $post ) {
 				echo '<div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
 			}
 
+			// Inline warnings for unlabeled prices (in mixed-label sections)
+			if ( $has_any_label && ! empty( $unlabeled_prices ) ) {
+				echo '<div class="jp-matrix__unlabeled">';
+				foreach ( $unlabeled_prices as $fmt ) {
+					echo '<span class="jp-matrix__unlabeled-price" title="' .
+						esc_attr__( 'Price without label – configure a Price Label for this column.', 'jellopoint-restaurant-menu' ) .
+						'">';
+						echo esc_html( $fmt );
+						echo ' <span class="jp-matrix__unlabeled-warning">!</span>';
+					echo '</span>';
+				}
+				echo '</div>';
+			}
+
 		echo '</div>';
 
-		// Value cells
+		// Value cells for labeled / positional columns
 		foreach ( $col_keys as $k ) {
 			$val = $rows ? jprm_matrix_find_cell( $rows, $k ) : null;
 			if ( $val === null || $val === '' ) {

@@ -600,3 +600,27 @@
     white-space: normal;          /* allow wrapping */
   }
 }
+
+/* UNLABELED MATRIX PRICES */
+.jp-matrix__unlabeled {
+  margin-top: 0.15rem;
+  font-size: 0.9em;
+  opacity: .8;
+}
+
+.jp-matrix__unlabeled-price {
+  display: inline-flex;
+  align-items: center;
+  gap: .25em;
+  margin-right: .75em;
+}
+
+.jp-matrix__unlabeled-warning {
+  display: inline-block;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0 0.3em;
+  font-size: 0.75em;
+  border: 1px solid currentColor;
+}
+
