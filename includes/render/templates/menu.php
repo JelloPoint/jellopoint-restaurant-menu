@@ -58,14 +58,15 @@ $label_map          = is_array( $ctx['label_map']     ?? null ) ? $ctx['label_ma
 $currency_opts      = is_array( $ctx['currency_opts'] ?? null ) ? $ctx['currency_opts'] : [];
 $ib_map             = is_array( $ctx['ib_map']        ?? null ) ? $ctx['ib_map']        : [];
 
-/**
- * IMPORTANT: global_labels_layout is now decided entirely in the widget
- * (class-restaurant-menu.php::render) based on Desktop/Tablet/Mobile controls.
- * This template just uses it as the base layout.
- */
-$global_labels_layout     = (string) ( $ctx['global_labels_layout'] ?? 'inline' );
+/* Global desktop layout (base for inheritance) */
+$layout_desktop  = (string) ( $ctx['layout_desktop']  ?? 'inline' );
+$layout_tablet   = (string) ( $ctx['layout_tablet']   ?? $layout_desktop );
+$layout_mobile   = (string) ( $ctx['layout_mobile']   ?? $layout_tablet );
+$layout_strategy = (string) ( $ctx['layout_strategy'] ?? 'force_global' );
 
-$section_layouts          = is_array( $ctx['section_layouts'] ?? null ) ? $ctx['section_layouts'] : [];
+$global_labels_layout = $layout_desktop; // base for desktop inheritance
+
+$section_layouts = is_array( $ctx['section_layouts'] ?? null ) ? $ctx['section_layouts'] : [];
 
 $global_matrix_placeholder = (string) ( $ctx['labels_matrix_placeholder'] ?? '' );
 $global_inline_separator   = (string) ( $ctx['inline_separator']          ?? '' );
@@ -282,7 +283,8 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 	$show_badges, $badges_position, $badges_presentation,
 	$show_main_sections, $show_main_even_if_empty,
 	$inline_leader_enable, $inline_leader_char, $inline_leader_style,
-	$__resolve_section_level, $ib_map
+	$__resolve_section_level, $ib_map,
+	$layout_desktop, $layout_tablet, $layout_mobile, $layout_strategy
 ) : void {
 
 	if ( empty( $registry[ $tid ] ) ) {
@@ -296,18 +298,18 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 	$has_items    = ! empty( $items );
 	$has_children = ! empty( $children_map[ $tid ] );
 
-	// ------- Resolve effective layout/values with inheritance -------
-
+	// ------- Resolve effective layout/values with inheritance (DESKTOP) -------
 	$sec             = $section_layouts[ $tid ] ?? [];
 	$own_layout      = isset( $sec['layout'] ) && $sec['layout'] !== '' ? (string) $sec['layout'] : null;
 	$own_placeholder = array_key_exists( 'placeholder', $sec ) && $sec['placeholder'] !== '' ? (string) $sec['placeholder'] : null;
 	$own_separator   = array_key_exists( 'separator', $sec )   && $sec['separator']   !== '' ? (string) $sec['separator']   : null;
 
-	$eff_layout      = $own_layout      ?? ( $inherit['layout']      ?? $global_labels_layout );
+	// Desktop effective layout (this is where per-section overrides apply)
+	$eff_layout      = $own_layout      ?? ( $inherit['layout']      ?? $layout_desktop );
 	$eff_placeholder = $own_placeholder ?? ( $inherit['placeholder'] ?? ( $global_matrix_placeholder !== '' ? $global_matrix_placeholder : $global_placeholder_legacy ) );
 	$eff_separator   = $own_separator   ?? ( $inherit['separator']   ?? $computed_global_inline_separator );
 
-	// Bundle to pass to children
+	// Bundle to pass to children (DESKTOP inheritance)
 	$child_inherit = [
 		'layout'      => $eff_layout,
 		'placeholder' => $eff_placeholder,
@@ -377,53 +379,164 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 
 		// ------- Include layout if there are items ------- //
 		$base = __DIR__;
+
 		if ( ! empty( $items ) ) {
-			switch ( $eff_layout ) {
-				case 'matrix':
-					$file = $base . '/matrix.php';
-					break;
-				case 'inline_below':
-					$file = $base . '/inline-below.php';
-					break;
-				case 'inline':
-				default:
-					$file = $base . '/inline.php';
+
+			// --- Decide layouts per device for THIS section ---
+			if ( $layout_strategy === 'force_global' ) {
+				// Desktop: per-section; Tablet/Mobile: forced global layouts
+				$section_desktop_layout = $eff_layout;
+				$section_tablet_layout  = $layout_tablet;
+				$section_mobile_layout  = $layout_mobile;
+			} else {
+				// respect_overrides: same layout on all devices, based on desktop effective layout
+				$section_desktop_layout = $eff_layout;
+				$section_tablet_layout  = $eff_layout;
+				$section_mobile_layout  = $eff_layout;
 			}
 
-			if ( file_exists( $file ) ) {
-				$_section_ctx = [
-					'term'                 => $term,
-					'items'                => $items,
-					'label_presentation'   => $label_presentation,
-					'label_position'       => $label_position,
-					'label_map'            => $label_map,
-					'currency_opts'        => $currency_opts,
-					// badges
-					'show_badges'          => $show_badges ? 'yes' : 'no',
-					'badges_position'      => $badges_position,
-					'badges_presentation'  => $badges_presentation,
-					// effective per-layout extras
-					'matrix_placeholder'   => $eff_placeholder,
-					'inline_separator'     => $eff_separator,
-					// inline leader (only used by inline.php)
-					'inline_leader_enable' => $inline_leader_enable,
-					'inline_leader_char'   => $inline_leader_char,
-					'inline_leader_style'  => $inline_leader_style,
-					// extras
-					'section_level'        => $level,
-					'section_id'           => $tid,
-				];
-				include $file;
-				unset( $_section_ctx );
+			$ld = $section_desktop_layout;
+			$lt = $section_tablet_layout;
+			$lm = $section_mobile_layout;
+
+			// If all 3 are identical, render ONCE (no grey overlays).
+			if ( $ld === $lt && $ld === $lm ) {
+				$layout_to_use = $ld;
+
+				switch ( $layout_to_use ) {
+					case 'matrix':
+						$file = $base . '/matrix.php';
+						break;
+					case 'inline_below':
+						$file = $base . '/inline-below.php';
+						break;
+					case 'inline':
+					default:
+						$file = $base . '/inline.php';
+				}
+
+				if ( file_exists( $file ) ) {
+					$_section_ctx = [
+						'term'                 => $term,
+						'items'                => $items,
+						'label_presentation'   => $label_presentation,
+						'label_position'       => $label_position,
+						'label_map'            => $label_map,
+						'currency_opts'        => $currency_opts,
+						// badges
+						'show_badges'          => $show_badges ? 'yes' : 'no',
+						'badges_position'      => $badges_position,
+						'badges_presentation'  => $badges_presentation,
+						// effective per-layout extras
+						'matrix_placeholder'   => $eff_placeholder,
+						'inline_separator'     => $eff_separator,
+						// inline leader (only used by inline.php)
+						'inline_leader_enable' => $inline_leader_enable,
+						'inline_leader_char'   => $inline_leader_char,
+						'inline_leader_style'  => $inline_leader_style,
+						// extras
+						'section_level'        => $level,
+						'section_id'           => $tid,
+					];
+					include $file;
+					unset( $_section_ctx );
+				} else {
+					echo '<div class="jp-menu__error">Missing layout template: ' . esc_html( basename( $file ) ) . '</div>';
+				}
+
 			} else {
-				echo '<div class="jp-menu__error">Missing layout template: ' . esc_html( basename( $file ) ) . '</div>';
+				// === Device-specific variants ===
+				$variants = [];
+
+				// Desktop only variant
+				$variants[] = [
+					'layout' => $ld,
+					'class'  => 'elementor-hidden-tablet elementor-hidden-mobile',
+				];
+
+				// Tablet + mobile combined if equal and different from desktop
+				if ( $lt === $lm && $lt !== $ld ) {
+					$variants[] = [
+						'layout' => $lt,
+						'class'  => 'elementor-hidden-desktop', // visible tablet + mobile
+					];
+				} else {
+					// Tablet-only (if different from desktop)
+					if ( $lt !== $ld ) {
+						$variants[] = [
+							'layout' => $lt,
+							'class'  => 'elementor-hidden-desktop elementor-hidden-mobile',
+						];
+					}
+					// Mobile-only (if different from desktop)
+					if ( $lm !== $ld ) {
+						$variants[] = [
+							'layout' => $lm,
+							'class'  => 'elementor-hidden-desktop elementor-hidden-tablet',
+						];
+					}
+				}
+
+				// Render each variant block.
+				foreach ( $variants as $variant ) {
+					$layout = $variant['layout'];
+					switch ( $layout ) {
+						case 'matrix':
+							$file = $base . '/matrix.php';
+							break;
+						case 'inline_below':
+							$file = $base . '/inline-below.php';
+							break;
+						case 'inline':
+						default:
+							$file = $base . '/inline.php';
+					}
+					if ( ! file_exists( $file ) ) {
+						continue;
+					}
+
+					$extra_class  = trim( (string) $variant['class'] );
+					$layout_class = 'jprm-layout-variant jprm-layout-' . $layout;
+					if ( $extra_class !== '' ) {
+						$layout_class .= ' ' . $extra_class;
+					}
+
+					echo '<div class="' . esc_attr( $layout_class ) . '">';
+
+					$_section_ctx = [
+						'term'                 => $term,
+						'items'                => $items,
+						'label_presentation'   => $label_presentation,
+						'label_position'       => $label_position,
+						'label_map'            => $label_map,
+						'currency_opts'        => $currency_opts,
+						// badges
+						'show_badges'          => $show_badges ? 'yes' : 'no',
+						'badges_position'      => $badges_position,
+						'badges_presentation'  => $badges_presentation,
+						// effective per-layout extras
+						'matrix_placeholder'   => $eff_placeholder,
+						'inline_separator'     => $eff_separator,
+						// inline leader (only used by inline.php)
+						'inline_leader_enable' => $inline_leader_enable,
+						'inline_leader_char'   => $inline_leader_char,
+						'inline_leader_style'  => $inline_leader_style,
+						// extras
+						'section_level'        => $level,
+						'section_id'           => $tid,
+					];
+					include $file;
+					unset( $_section_ctx );
+
+					echo '</div>';
+				}
 			}
 		}
 
 		echo '</li>';
 	}
 
-	// ------- Render children (inherit effective layout) ------- //
+	// ------- Render children (inherit desktop effective layout) ------- //
 	if ( ! empty( $children_map[ $tid ] ) ) {
 		foreach ( $children_map[ $tid ] as $child_tid ) {
 			$__render_section( (int) $child_tid, $child_inherit );
