@@ -583,23 +583,6 @@
     display: block;
   }
 }
-/* =========================
-   INLINE – mobile wrapping fix
-   ========================= */
-@media (max-width: 767px) {
-  /* Let the grid rows grow naturally instead of baseline tricks */
-  .jp-layout-inline .jp-grid--inline{
-    align-items: flex-start;      /* instead of first baseline */
-  }
-
-  /* Make sure title area can wrap and doesn't fight for width */
-  .jp-layout-inline .jp-left-title{
-    min-width: 0;
-  }
-  .jp-layout-inline .jp-menu__title{
-    white-space: normal;          /* allow wrapping */
-  }
-}
 
 /* UNLABELED MATRIX PRICES */
 .jp-matrix__unlabeled {
@@ -629,7 +612,7 @@
 @media (max-width: 767px) {
   .jp-menu__title {
     white-space: normal !important;  /* override any nowrap */
-    line-height: 1.3;                /* give lines room */
+    line-height: 1.3 !important;                /* give lines room */
     word-break: break-word;          /* long words won't overflow */
   }
 }
