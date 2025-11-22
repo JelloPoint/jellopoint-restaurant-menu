@@ -381,25 +381,45 @@ final class Restaurant_Menu extends Widget_Base {
 
         // ====== GLOBAL LABEL LAYOUTS PER DEVICE =========================
 
-        // Desktop base
+        // Desktop base (always from main control)
         $layout_desktop = isset( $s['labels_layout'] ) ? (string) $s['labels_layout'] : 'inline';
-
-        // Tablet override (optional)
-        $layout_tablet  = isset( $s['labels_layout_tablet'] ) ? (string) $s['labels_layout_tablet'] : '';
-        if ( $layout_tablet === '' ) {
-            $layout_tablet = $layout_desktop;
+        if ( ! in_array( $layout_desktop, [ 'inline', 'inline_below', 'matrix' ], true ) ) {
+            $layout_desktop = 'inline';
         }
 
-        // Mobile override (optional)
-        $layout_mobile  = isset( $s['labels_layout_mobile'] ) ? (string) $s['labels_layout_mobile'] : '';
-        if ( $layout_mobile === '' ) {
-            $layout_mobile = $layout_tablet;
+        // Behaviour for tablet & mobile:
+        //  - inline       → always Inline on tablet+mobile
+        //  - inline_below → always Inline Below on tablet+mobile
+        //  - per_section  → follow the per-section desktop layout (Matrix / Inline / Inline Below)
+        $behaviour = isset( $s['labels_mobile_behaviour'] )
+            ? (string) $s['labels_mobile_behaviour']
+            : 'inline_below';
+
+        if ( ! in_array( $behaviour, [ 'inline', 'inline_below', 'per_section' ], true ) ) {
+            $behaviour = 'inline_below';
         }
 
-        // Strategy: how mobile/tablet treat per-section overrides
-        $layout_strategy = isset( $s['labels_layout_mobile_strategy'] )
-            ? (string) $s['labels_layout_mobile_strategy']
-            : 'force_global';
+        switch ( $behaviour ) {
+            case 'inline':
+                $layout_tablet   = 'inline';
+                $layout_mobile   = 'inline';
+                $layout_strategy = 'force_global';
+                break;
+
+            case 'inline_below':
+                $layout_tablet   = 'inline_below';
+                $layout_mobile   = 'inline_below';
+                $layout_strategy = 'force_global';
+                break;
+
+            case 'per_section':
+            default:
+                // Tablet & mobile follow each section's effective desktop layout.
+                $layout_tablet   = $layout_desktop;
+                $layout_mobile   = $layout_desktop;
+                $layout_strategy = 'respect_overrides';
+                break;
+        }
 
         // Global placeholder defaults (desktop base)
         $global_matrix_placeholder = isset( $s['labels_matrix_placeholder'] )
