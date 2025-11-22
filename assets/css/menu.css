@@ -617,12 +617,6 @@
   }
 }
 
-/* =========================================
-   Elementor editor – verberg 'grijze' varianten
-   ========================================= */
 
-body.elementor-editor-active .elementor-hidden-desktop {
-  display: none !important;;
-}
 
 
