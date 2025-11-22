@@ -623,4 +623,15 @@
   font-size: 0.75em;
   border: 1px solid currentColor;
 }
+/* =========================
+   MOBILE – force title wrapping
+   ========================= */
+@media (max-width: 767px) {
+  .jp-menu__title {
+    white-space: normal !important;  /* override any nowrap */
+    line-height: 1.3;                /* give lines room */
+    word-break: break-word;          /* long words won't overflow */
+  }
+}
+
 
