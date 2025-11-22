@@ -527,3 +527,59 @@
 
 /* When leader is logically off, keep a 0-size placeholder so grid stays stable */
 .jp-layout-inline .jp-leader.jp-leader--off{ border:0; width:0; margin:0; }
+/* Mobile behaviour for Matrix
+   - No grid
+   - Title full-width, wrapping
+   - Prices inline below
+*/
+@media (max-width: 767px) {
+
+  /* Kill the grid itself */
+  .jp-matrix {
+    display: block;
+    width: 100%;
+  }
+
+  /* Each logical row becomes a simple block */
+  .jp-matrix__row {
+    display: block;
+    padding: 0.25rem 0;
+  }
+
+  /* Hide the matrix header row completely on mobile */
+  .jp-matrix__row--header {
+    display: none !important;
+  }
+
+  /* Item cell: title + desc on their own line(s) */
+  .jp-matrix__cell--item {
+    margin-bottom: 0.15rem;
+  }
+
+  .jp-matrix__cell--item .jp-menu__titleline,
+  .jp-matrix__cell--item .jp-menu__titlewrap {
+    display: block;
+  }
+
+  .jp-matrix__cell--item .jp-menu__title {
+    display: block;
+    width: 100%;
+    white-space: normal;      /* allow wrapping */
+  }
+
+  /* Prices: inline chips under the title, no overflow */
+  .jp-matrix__cell--value {
+    display: inline-flex;
+    align-items: center;
+    text-align: left;
+    margin-right: 0.75rem;
+    margin-bottom: 0.1rem;
+    white-space: nowrap;
+  }
+
+  /* Make sure any inline-layout specific grids don't mess up inside matrix */
+  .jp-matrix .jp-grid--inline,
+  .jp-matrix .jp-row--titleline {
+    display: block;
+  }
+}
