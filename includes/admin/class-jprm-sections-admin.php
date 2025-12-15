@@ -303,6 +303,7 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 			if ( $po ) $owner = $po;
 		}
 		if ( $owner > 0 ) update_term_meta( $term_id, self::META_MENU_OWNER, $owner );
+		if ( $owner > 0 ) self::ensure_section_order( (int) $term_id, (int) $owner );
 	}
 
 	public static function save_on_edit( $term_id, $tt_id ) {
@@ -323,8 +324,89 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 			update_term_meta( $term_id, self::META_MENU_OWNER, $final );
 			self::cascade_children( $term_id, $final );
 		}
+		if ( $final > 0 ) self::ensure_section_order( (int) $term_id, (int) $final );
 	}
 
+	/**
+	 * Ensure a section has an order value for its owning menu.
+	 * Without _jprm_section_order set, get_terms() queries that sort by meta_key
+	 * will EXCLUDE the term (inner join), causing it to disappear from Menu Builder / Elementor.
+	 */
+	private static function ensure_section_order( int $term_id, int $owner_menu_id ) : void {
+		if ( $term_id <= 0 || $owner_menu_id <= 0 ) return;
+
+		$existing = get_term_meta( $term_id, self::META_SECTION_ORDER, true );
+		if ( $existing !== '' && $existing !== null ) return;
+
+		$next = self::next_section_order_for_menu( $owner_menu_id );
+		update_term_meta( $term_id, self::META_SECTION_ORDER, $next );
+
+		// Best-effort cache clear for this term.
+		clean_term_cache( [ $term_id ], self::TAX_SECTION );
+	}
+
+	/**
+	 * Get the next sequential order number for sections belonging to a Menu.
+	 */
+	private static function next_section_order_for_menu( int $owner_menu_id ) : int {
+		global $wpdb;
+
+		$meta_owner = self::META_MENU_OWNER;
+		$meta_order = self::META_SECTION_ORDER;
+
+		// Max existing order for this menu (terms without order meta are ignored here by design).
+		$max = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT MAX(CAST(tm_sort.meta_value AS UNSIGNED))
+				 FROM {$wpdb->termmeta} tm_sort
+				 INNER JOIN {$wpdb->termmeta} tm_owner
+				   ON tm_owner.term_id = tm_sort.term_id
+				  AND tm_owner.meta_key = %s
+				 WHERE tm_sort.meta_key = %s
+				   AND tm_owner.meta_value = %s",
+				$meta_owner,
+				$meta_order,
+				(string) $owner_menu_id
+			)
+		);
+
+		$max_i = (int) $max;
+		return ( $max_i > 0 ) ? ( $max_i + 1 ) : 1;
+	}
+	/**
+	 * Backfill missing _jprm_section_order values for all sections owned by a menu.
+	 * This fixes already-created sections that show "—" in the Order column and are
+	 * invisible to queries that use meta_key ordering (Menu Builder / Elementor).
+	 */
+	private static function backfill_missing_orders_for_menu( int $owner_menu_id ) : void {
+		if ( $owner_menu_id <= 0 ) return;
+
+		$terms = get_terms( [
+			'taxonomy'   => self::TAX_SECTION,
+			'hide_empty' => false,
+			'fields'     => 'ids',
+			'meta_query' => [
+				[ 'key' => self::META_MENU_OWNER, 'value' => (string) $owner_menu_id ],
+			],
+		] );
+
+		if ( is_wp_error( $terms ) || empty( $terms ) ) return;
+
+		$next = self::next_section_order_for_menu( $owner_menu_id );
+
+		foreach ( $terms as $tid ) {
+			$tid = (int) $tid;
+			if ( $tid <= 0 ) continue;
+
+			$existing = get_term_meta( $tid, self::META_SECTION_ORDER, true );
+			if ( $existing !== '' && $existing !== null ) continue;
+
+			update_term_meta( $tid, self::META_SECTION_ORDER, $next );
+			$next++;
+		}
+
+		clean_term_cache( array_map( 'intval', (array) $terms ), self::TAX_SECTION );
+	}
 	private static function cascade_children( int $parent_id, int $owner_menu_id ) : void {
 		$children = get_terms( [
 			'taxonomy'   => self::TAX_SECTION,
@@ -387,6 +469,7 @@ public static function hook_terms_order_and_filter() : void {
 
 		// Build <option>s server-side for the self-healing injector
 		$selected = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
+		if ( $selected > 0 ) self::backfill_missing_orders_for_menu( (int) $selected );
 		$menus    = get_terms( [
 			'taxonomy'   => self::TAX_MENU,
 			'hide_empty' => false,
