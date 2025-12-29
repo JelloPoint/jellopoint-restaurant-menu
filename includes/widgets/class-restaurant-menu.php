@@ -468,7 +468,7 @@ final class Restaurant_Menu extends Widget_Base {
         // Build ctx for template
         $ctx = [
             // Multi-column
-            'layout_columns'              => isset($s['layout_columns']) ? (string)$s['layout_columns'] : ( isset($s['columns']) ? (string)$s['columns'] : '1' ),
+           'layout_columns' => $columns,
             'layout_split_mode'           => $split_mode,
             'layout_split_after_section'  => $split_after_1,
             'layout_split_after_section2' => $split_after_2,
