@@ -191,9 +191,6 @@ final class Restaurant_Menu extends Widget_Base {
         if ( $columns === '' || $columns === '0' ) {
             $columns = '2'; // match your control default
         }
-        if ( current_user_can( 'manage_options' ) ) {
-    echo "\n<!-- JP DEBUG columns resolved: " . esc_html( $columns ) . " -->\n";
-}
         $split_mode    = isset( $s['layout_split_mode'] ) ? (string) $s['layout_split_mode'] : 'auto';
         $split_after_1 = isset( $s['layout_split_after_section'] )  ? (int) $s['layout_split_after_section']  : 0;
         $split_after_2 = isset( $s['layout_split_after_section2'] ) ? (int) $s['layout_split_after_section2'] : 0;
