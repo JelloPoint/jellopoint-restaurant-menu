@@ -156,7 +156,7 @@ final class Restaurant_Menu extends Widget_Base {
 
         /* ===== DEBUG layout_columns (TEMP) ===== */
 if ( current_user_can( 'manage_options' ) ) {
-    echo "\n<!-- JP DEBUG START -->\n";
+    echo "\n<!-- JP DEBUG  START -->\n";
     echo "<!-- raw layout_columns: " . esc_html( wp_json_encode( $s['layout_columns'] ?? null ) ) . " -->\n";
     echo "<!-- raw layout_columns type: " . esc_html( gettype( $s['layout_columns'] ?? null ) ) . " -->\n";
     echo "<!-- JP DEBUG END -->\n";
