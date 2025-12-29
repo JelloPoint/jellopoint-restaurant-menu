@@ -154,6 +154,16 @@ final class Restaurant_Menu extends Widget_Base {
         $s   = $this->get_settings_for_display();
         $raw = $this->get_settings();
 
+        /* ===== DEBUG layout_columns (TEMP) ===== */
+if ( current_user_can( 'manage_options' ) ) {
+    echo "\n<!-- JP DEBUG START -->\n";
+    echo "<!-- raw layout_columns: " . esc_html( wp_json_encode( $s['layout_columns'] ?? null ) ) . " -->\n";
+    echo "<!-- raw layout_columns type: " . esc_html( gettype( $s['layout_columns'] ?? null ) ) . " -->\n";
+    echo "<!-- JP DEBUG END -->\n";
+}
+/* ===== END DEBUG ===== */
+
+
         // Static mode (unchanged)
         $mode = isset( $s['data_mode'] ) ? (string) $s['data_mode'] : null;
         if ( 'static' === $mode || ( null === $mode && ! empty( $s['items'] ) ) ) {
@@ -185,8 +195,25 @@ final class Restaurant_Menu extends Widget_Base {
             'spacing'  => (string) ( $s['jprm_curr_spacing']  ?? 'thin' ),
         ];
 
-        // Multi-column layout (content tab)
-        $columns       = isset( $s['layout_columns'] ) ? (string) $s['layout_columns'] : '1';
+       // Multi-column layout (content tab) - resolve responsive SELECT safely
+        $columns_raw = $s['layout_columns'] ?? '1';
+
+        // Elementor responsive controls can return arrays (or unexpected shapes) on frontend.
+        if ( is_array( $columns_raw ) ) {
+            // Common responsive format: ['desktop' => '2', 'tablet' => '2', 'mobile' => '1']
+            if ( isset( $columns_raw['desktop'] ) && $columns_raw['desktop'] !== '' ) {
+                $columns_raw = $columns_raw['desktop'];
+            // Some controls store ['size'=>2,'unit'=>'px'] (not expected for SELECT but safe)
+            } elseif ( isset( $columns_raw['size'] ) && $columns_raw['size'] !== '' ) {
+                $columns_raw = $columns_raw['size'];
+            } else {
+                $columns_raw = '1';
+            }
+        }
+
+        $columns = (int) $columns_raw;
+        $columns = max( 1, min( 3, $columns ) );
+
         $split_mode    = isset( $s['layout_split_mode'] ) ? (string) $s['layout_split_mode'] : 'auto';
         $split_after_1 = isset( $s['layout_split_after_section'] )  ? (int) $s['layout_split_after_section']  : 0;
         $split_after_2 = isset( $s['layout_split_after_section2'] ) ? (int) $s['layout_split_after_section2'] : 0;
@@ -461,7 +488,7 @@ final class Restaurant_Menu extends Widget_Base {
         // Build ctx for template
         $ctx = [
             // Multi-column
-            'layout_columns'              => isset($s['layout_columns']) ? (string)$s['layout_columns'] : ( isset($s['columns']) ? (string)$s['columns'] : '1' ),
+           'layout_columns' => $columns,
             'layout_split_mode'           => $split_mode,
             'layout_split_after_section'  => $split_after_1,
             'layout_split_after_section2' => $split_after_2,
