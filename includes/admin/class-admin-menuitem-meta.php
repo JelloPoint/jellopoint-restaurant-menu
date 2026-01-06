@@ -15,6 +15,10 @@ class JPRM_Admin_MenuItem_Meta {
 		add_action('admin_head',               [__CLASS__, 'hide_core_editor']);
 	}
 
+	/**
+	 * Keep the core WP editor hidden for this CPT (your plugin uses metaboxes).
+	 * This does NOT affect the wp_editor() we render below.
+	 */
 	public static function hide_core_editor(){
 		$screen = function_exists('get_current_screen') ? get_current_screen() : null;
 		if ($screen && $screen->post_type === 'jprm_menu_item'){
@@ -29,8 +33,13 @@ class JPRM_Admin_MenuItem_Meta {
 		wp_enqueue_script('jquery');
 		if (function_exists('wp_enqueue_media')) wp_enqueue_media();
 
+		// Ensure WP editor assets are available for the metabox wp_editor().
+		if ( function_exists('wp_enqueue_editor') ) {
+			wp_enqueue_editor();
+		}
+
 		// hard stop any legacy/conflicting enqueues
-		foreach (['jprm-menu-item-meta','jprm_admin_menuitem','jprm-admin','jprm-metabox'] as $h){
+		foreach (['jprm-menu-item-meta','jprm_admin_menuitem','jprm_admin_menuitem_meta','jprm_admin_menuitem','jprm-admin','jprm-metabox'] as $h){
 			if (wp_script_is($h,'enqueued'))   wp_dequeue_script($h);
 			if (wp_script_is($h,'registered')) wp_deregister_script($h);
 		}
@@ -49,37 +58,31 @@ class JPRM_Admin_MenuItem_Meta {
 	public static function render_desc($post){
 		wp_nonce_field('jprm_meta','jprm_meta_nonce');
 
-		$desc   = get_post_meta($post->ID,'jprm_desc',true);
-		$format = (string) get_post_meta($post->ID,'jprm_desc_format',true);
+		$desc = get_post_meta($post->ID,'jprm_desc',true);
+		if ( ! is_string($desc) ) $desc = '';
 
-		// Backwards compatible default: formatted/html
-		if ( $format !== 'plain' && $format !== 'formatted' ) {
-			$format = 'formatted';
-		}
+		echo '<div style="margin-top:6px;">';
 
-		echo '<table class="form-table"><tbody>';
+		// WP default-like editor (Visual/Text tabs, toolbar, etc.)
+		wp_editor(
+			$desc,
+			'jprm_desc', // editor ID
+			[
+				'textarea_name' => 'jprm_desc',
+				'textarea_rows' => 6,
+				'media_buttons' => false,   // set true if you want "Add Media" inside the metabox
+				'teeny'         => false,
+				'tinymce'       => true,
+				'quicktags'     => true,
+				'wpautop'       => true,
+			]
+		);
 
-		// Format toggle
-		echo '<tr><th style="width:140px;"><label>'.esc_html__('Description Mode','jellopoint-restaurant-menu').'</label></th><td>';
-			echo '<fieldset>';
-				echo '<label style="margin-right:14px;">';
-					echo '<input type="radio" name="jprm_desc_format" value="formatted" '.checked($format,'formatted',false).' /> ';
-					echo esc_html__('Formatted (HTML)','jellopoint-restaurant-menu');
-				echo '</label>';
-				echo '<label>';
-					echo '<input type="radio" name="jprm_desc_format" value="plain" '.checked($format,'plain',false).' /> ';
-					echo esc_html__('Plain text','jellopoint-restaurant-menu');
-				echo '</label>';
-				echo '<p class="description" style="margin-top:6px;">';
-					echo esc_html__('Formatted allows basic HTML like <br>, <strong>, <em>, lists and links. Plain text will display exactly as typed (HTML will not render).','jellopoint-restaurant-menu');
-				echo '</p>';
-			echo '</fieldset>';
-		echo '</td></tr>';
+		echo '<p class="description" style="margin:8px 0 0;">'
+			. esc_html__('You can use formatting like the normal WordPress editor (paragraphs, bold, links, etc.).', 'jellopoint-restaurant-menu')
+			. '</p>';
 
-		// Description textarea
-		echo '<tr><th style="width:140px;"><label for="jprm_desc">'.esc_html__('Short Description','jellopoint-restaurant-menu').'</label></th><td>';
-		printf('<textarea id="jprm_desc" name="jprm_desc" rows="3" style="width:100%%;">%s</textarea>', esc_textarea($desc));
-		echo '</td></tr></tbody></table>';
+		echo '</div>';
 	}
 
 	public static function render_pricing($post){
@@ -125,7 +128,6 @@ class JPRM_Admin_MenuItem_Meta {
 
 		/* --- styles --- */
 		echo '<style>
-		/* Give the table more room: shrink left labels column */
 		#jprm_price_meta .form-table th { width: 120px; }
 
 		.jprm-inline{display:inline-flex;gap:8px;align-items:center;flex-wrap:nowrap}
@@ -135,12 +137,10 @@ class JPRM_Admin_MenuItem_Meta {
 		.jprm-pill{padding:2px 8px;cursor:pointer;background:#f6f7f7;border-right:1px solid #ccd0d4;user-select:none}
 		.jprm-pill:last-child{border-right:none}.jprm-pill.active{background:#2271b1;color:#fff}
 
-		/* TABLE: responsive (auto) with stable columns via <colgroup> */
 		#jprm2-prices-wrap{overflow-x:auto}
 		#jprm2-prices-table{table-layout:auto;width:100%;border-collapse:collapse}
 		#jprm2-prices-table th,#jprm2-prices-table td{vertical-align:middle;box-sizing:border-box}
 
-		/* Label cell must not spill into Amount */
 		#jprm2-prices-table td.label-td{overflow:hidden;position:relative;min-width:0}
 		.label-td .label-row{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;min-width:0}
 		.label-td .jprm-mode-switch{flex:0 0 auto}
@@ -148,15 +148,12 @@ class JPRM_Admin_MenuItem_Meta {
 		.label-td .inline-field select.label-ref{max-width:160px;flex:0 0 auto}
 		.label-td .inline-field input.label-custom{width:120px;max-width:140px;flex:0 0 auto}
 
-		/* Amount input steady */
 		#jprm2-prices-table input.amount{width:8em!important}
 
-		/* Icon inline */
 		#jprm2-prices-table td.jprm-icon-cell{vertical-align:middle}
 		.jprm-icon-inline{display:inline-flex;align-items:center;gap:8px}
 		#jprm2-prices-table .jprm-row-icon-clear{margin:0}
 
-		/* Mode visibility */
 		.label-td[data-mode="ref"]  input.label-custom{display:none!important}
 		.label-td[data-mode="custom"] select.label-ref{display:none!important}
 		</style>';
@@ -197,12 +194,12 @@ class JPRM_Admin_MenuItem_Meta {
 		?>
 		<table class="widefat fixed striped" id="jprm2-prices-table">
 			<colgroup>
-				<col style="width:32px"><!-- enable -->
-				<col><!-- label flexes -->
-				<col style="width:8.5em"><!-- amount -->
-				<col style="width:80px"><!-- icon -->
-				<col style="width:56px"><!-- hide -->
-				<col style="width:56px"><!-- actions -->
+				<col style="width:32px">
+				<col>
+				<col style="width:8.5em">
+				<col style="width:80px">
+				<col style="width:56px">
+				<col style="width:56px">
 			</colgroup>
 			<thead>
 			<tr>
@@ -476,9 +473,6 @@ class JPRM_Admin_MenuItem_Meta {
 			checked($vis,true,false), esc_html__('Show this item on the site','jellopoint-restaurant-menu'));
 		echo '</td></tr>';
 
-		// echo '<tr><th><label>'.esc_html__('Badge Text','jellopoint-restaurant-menu').'</label></th><td>';
-		// printf('<input type="text" name="jprm_badge" value="%s" class="regular-text" placeholder="%s" />',
-		//	esc_attr($badge), esc_attr__('e.g. Chef’s choice','jellopoint-restaurant-menu'));
 		 echo '</td></tr></tbody></table>';
 	}
 
@@ -488,20 +482,12 @@ class JPRM_Admin_MenuItem_Meta {
 		if ( defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) return;
 		if ( ! current_user_can('edit_post',$post_id) ) return;
 
-		// --- Description + mode ---
-		$format = isset($_POST['jprm_desc_format']) ? sanitize_key($_POST['jprm_desc_format']) : 'formatted';
-		if ( $format !== 'plain' && $format !== 'formatted' ) $format = 'formatted';
-		update_post_meta($post_id,'jprm_desc_format', $format);
-
+		// WYSIWYG content: unslash then allow safe HTML
 		$raw_desc = wp_unslash($_POST['jprm_desc'] ?? '');
-		if ( $format === 'plain' ) {
-			// Plain text: keep as text only; no HTML rendering on frontend.
-			$clean = sanitize_textarea_field( $raw_desc );
-		} else {
-			// Formatted: allow safe HTML.
-			$clean = wp_kses_post( $raw_desc );
-		}
-		update_post_meta($post_id,'jprm_desc', $clean);
+		update_post_meta($post_id,'jprm_desc', wp_kses_post($raw_desc));
+
+		// Clean up legacy toggle meta if it exists (safe no-op if not present)
+		delete_post_meta($post_id,'jprm_desc_format');
 
 		update_post_meta($post_id,'jprm_badge', sanitize_text_field($_POST['jprm_badge'] ?? ''));
 		update_post_meta($post_id,'jprm_visible', (isset($_POST['jprm_visible']) && $_POST['jprm_visible']==='yes')?'yes':'no');
