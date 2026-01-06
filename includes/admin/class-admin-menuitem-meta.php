@@ -48,8 +48,35 @@ class JPRM_Admin_MenuItem_Meta {
 	/* ------------------------------- sections ------------------------------ */
 	public static function render_desc($post){
 		wp_nonce_field('jprm_meta','jprm_meta_nonce');
-		$desc = get_post_meta($post->ID,'jprm_desc',true);
+
+		$desc   = get_post_meta($post->ID,'jprm_desc',true);
+		$format = (string) get_post_meta($post->ID,'jprm_desc_format',true);
+
+		// Backwards compatible default: formatted/html
+		if ( $format !== 'plain' && $format !== 'formatted' ) {
+			$format = 'formatted';
+		}
+
 		echo '<table class="form-table"><tbody>';
+
+		// Format toggle
+		echo '<tr><th style="width:140px;"><label>'.esc_html__('Description Mode','jellopoint-restaurant-menu').'</label></th><td>';
+			echo '<fieldset>';
+				echo '<label style="margin-right:14px;">';
+					echo '<input type="radio" name="jprm_desc_format" value="formatted" '.checked($format,'formatted',false).' /> ';
+					echo esc_html__('Formatted (HTML)','jellopoint-restaurant-menu');
+				echo '</label>';
+				echo '<label>';
+					echo '<input type="radio" name="jprm_desc_format" value="plain" '.checked($format,'plain',false).' /> ';
+					echo esc_html__('Plain text','jellopoint-restaurant-menu');
+				echo '</label>';
+				echo '<p class="description" style="margin-top:6px;">';
+					echo esc_html__('Formatted allows basic HTML like <br>, <strong>, <em>, lists and links. Plain text will display exactly as typed (HTML will not render).','jellopoint-restaurant-menu');
+				echo '</p>';
+			echo '</fieldset>';
+		echo '</td></tr>';
+
+		// Description textarea
 		echo '<tr><th style="width:140px;"><label for="jprm_desc">'.esc_html__('Short Description','jellopoint-restaurant-menu').'</label></th><td>';
 		printf('<textarea id="jprm_desc" name="jprm_desc" rows="3" style="width:100%%;">%s</textarea>', esc_textarea($desc));
 		echo '</td></tr></tbody></table>';
@@ -349,7 +376,7 @@ class JPRM_Admin_MenuItem_Meta {
 		  function attachRowHandlers($tr){
 			$tr.off('click'+NS,'.jprm-pill').on('click'+NS,'.jprm-pill',function(){setRowMode($tr,$(this).data('mode'));});
 			$tr.off('change'+NS,'select.label-ref').on('change'+NS,'select.label-ref',function(){
-			  var url=$(this).find('option:selected').data('icon')||''; 
+			  var url=$(this).find('option:selected').data('icon')||'';
 			  if(url) $tr.find('.jprm-row-icon-preview').html('<img src="'+url+'" width="24" />'); else $tr.find('.jprm-row-icon-preview').html('');
 			  collect();
 			});
@@ -424,8 +451,6 @@ class JPRM_Admin_MenuItem_Meta {
 			$('<td/>',{'style':'text-align:center;'}).append($('<button/>',{type:'button','class':'button-link jprm-row-remove','aria-label':'Remove row'}).append($('<span/>',{'class':'dashicons dashicons-trash'}))).appendTo($tr);
 
 			$('#jprm2-prices-table tbody').append($tr);
-			attachRowHandlers($tr);
-			setRowMode($tr,'ref');
 			collect();
 		  });
 
@@ -463,9 +488,21 @@ class JPRM_Admin_MenuItem_Meta {
 		if ( defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) return;
 		if ( ! current_user_can('edit_post',$post_id) ) return;
 
-		$raw_desc = wp_unslash( $_POST['jprm_desc'] ?? '' );
-		update_post_meta( $post_id, 'jprm_desc', wp_kses_post( $raw_desc ) );
-		update_post_meta($post_id,'jprm_desc',  wp_kses_post($_POST['jprm_desc'] ?? ''));
+		// --- Description + mode ---
+		$format = isset($_POST['jprm_desc_format']) ? sanitize_key($_POST['jprm_desc_format']) : 'formatted';
+		if ( $format !== 'plain' && $format !== 'formatted' ) $format = 'formatted';
+		update_post_meta($post_id,'jprm_desc_format', $format);
+
+		$raw_desc = wp_unslash($_POST['jprm_desc'] ?? '');
+		if ( $format === 'plain' ) {
+			// Plain text: keep as text only; no HTML rendering on frontend.
+			$clean = sanitize_textarea_field( $raw_desc );
+		} else {
+			// Formatted: allow safe HTML.
+			$clean = wp_kses_post( $raw_desc );
+		}
+		update_post_meta($post_id,'jprm_desc', $clean);
+
 		update_post_meta($post_id,'jprm_badge', sanitize_text_field($_POST['jprm_badge'] ?? ''));
 		update_post_meta($post_id,'jprm_visible', (isset($_POST['jprm_visible']) && $_POST['jprm_visible']==='yes')?'yes':'no');
 
