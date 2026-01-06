@@ -15,6 +15,19 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  *     but not to siblings.
  */
 
+/**
+ * Safe HTML renderer for taxonomy descriptions (menu/section):
+ * - allows safe tags (wp_kses_post)
+ * - turns line breaks into paragraphs (<p>) and <br> (wpautop)
+ */
+if ( ! function_exists( 'jprm_render_rich_text' ) ) {
+	function jprm_render_rich_text( string $text ) : string {
+		$text = trim( $text );
+		if ( $text === '' ) return '';
+		return wpautop( wp_kses_post( $text ) );
+	}
+}
+
 if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
 	function jprm_render_menu_meta( $menu_term, bool $show_title, bool $show_desc, string $scope = 'global' ) : string {
 		if ( ! $menu_term ) return '';
@@ -28,7 +41,7 @@ if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
 				$out .= '<h2 class="jp-menu__title">' . esc_html( $title ) . '</h2>';
 			}
 			if ( $show_desc && $desc !== '' ) {
-				$out .= '<div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
+				$out .= '<div class="jp-menu__desc">' . jprm_render_rich_text( $desc ) . '</div>';
 			}
 			$out .= '</li>';
 		}
@@ -339,7 +352,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 					$header_html .= '<h3 class="jp-section__title">' . esc_html( $title ) . '</h3>';
 				}
 				if ( $show_section_desc && $desc !== '' ) {
-					$header_html .= '<div class="jp-section__desc">' . esc_html( $desc ) . '</div>';
+					$header_html .= '<div class="jp-section__desc">' . jprm_render_rich_text( $desc ) . '</div>';
 				}
 				$header_html .= '</div>';
 			}
@@ -351,7 +364,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 					$header_html .= '<h4 class="jp-section__title">' . esc_html( $title ) . '</h4>';
 				}
 				if ( $show_section_desc && $desc !== '' ) {
-					$header_html .= '<div class="jp-section__desc">' . esc_html( $desc ) . '</div>';
+					$header_html .= '<div class="jp-section__desc">' . jprm_render_rich_text( $desc ) . '</div>';
 				}
 				$header_html .= '</div>';
 			}
