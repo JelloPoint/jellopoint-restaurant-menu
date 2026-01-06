@@ -357,7 +357,7 @@ foreach ( $items as $post ) {
 			}
 
 			if ( is_string( $desc ) && $desc !== '' ) {
-				echo '<div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
+				echo '<div class="jp-menu__desc">' . wpautop( wp_kses_post( $desc ) ) . '</div>';
 			}
 
 			// Unlabeled prices warning block
