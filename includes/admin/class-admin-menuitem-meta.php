@@ -463,6 +463,8 @@ class JPRM_Admin_MenuItem_Meta {
 		if ( defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) return;
 		if ( ! current_user_can('edit_post',$post_id) ) return;
 
+		$raw_desc = wp_unslash( $_POST['jprm_desc'] ?? '' );
+		update_post_meta( $post_id, 'jprm_desc', wp_kses_post( $raw_desc ) );
 		update_post_meta($post_id,'jprm_desc',  wp_kses_post($_POST['jprm_desc'] ?? ''));
 		update_post_meta($post_id,'jprm_badge', sanitize_text_field($_POST['jprm_badge'] ?? ''));
 		update_post_meta($post_id,'jprm_visible', (isset($_POST['jprm_visible']) && $_POST['jprm_visible']==='yes')?'yes':'no');
