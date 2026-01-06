@@ -178,7 +178,7 @@ foreach ( $items as $post ) {
 		// LEFT column, row 2: Description (under title)
 		echo '<div class="jp-left-desc">';
 			if ( is_string( $desc ) && $desc !== '' ) {
-				echo '<div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
+				echo '<div class="jp-menu__desc">' . wpautop( wp_kses_post( $desc ) ) . '</div>';
 			}
 		echo '</div>';
 
