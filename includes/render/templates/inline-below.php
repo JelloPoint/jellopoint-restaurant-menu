@@ -120,9 +120,9 @@ foreach ($items as $post) {
 				if ($badges_position !== 'before' && $badges_html !== '') echo $badges_html;
 			echo '</div>';
 		}
-		if (is_string($desc) && $desc !== '') {
-			echo '<div class="jp-menu__desc">'.esc_html($desc).'</div>';
-		}
+		if ( is_string( $desc ) && $desc !== '' ) {
+				echo '<div class="jp-menu__desc">' . wpautop( wp_kses_post( $desc ) ) . '</div>';
+			}
 	echo '</div>';
 
 	// ---- Full-width line of chips below ----
