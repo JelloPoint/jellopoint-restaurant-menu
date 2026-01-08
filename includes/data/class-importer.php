@@ -264,14 +264,21 @@ final class JPRM_Importer {
 	private static function process_item( array $it, bool $dry, bool $create_terms, bool $ignore_ids ): array {
 		// Row-level validation bubble-up
 		if ( isset( $it['_row_error'] ) && $it['_row_error'] !== '' ) {
+			$new_payload = [
+				'menu_terms' => [],
+				'sect_terms' => [],
+				'badges'     => [],
+				'prices'     => [],
+			];
 			return self::result_row(
-				$it['post_id'] ?? 0, 0,
+				$it['post_id'] ?? 0,
+				0,
 				(string) ( $it['post_title'] ?? '' ),
-				'skipped', '', '', [
-					'menu_terms' => [], 'sect_terms' => [], 'badges' => [], 'prices' => []
-				],
-				['menus'=>[],'sections'=>[]],
-				(string) $it['_row_error'
+				'skipped',
+				'',
+				$new_payload,
+				[ 'menus' => [], 'sections' => [] ],
+				(string) $it['_row_error']
 			);
 		}
 
@@ -525,7 +532,7 @@ final class JPRM_Importer {
 		];
 	}
 
-	/* ---------------------------- Helpers -------------------------- */
+	/* --------------------------- Helpers -------------------------- */
 
 	private static function terms_as_names( int $post_id, string $taxonomy ): array {
 		$terms = wp_get_object_terms( $post_id, $taxonomy, [ 'fields' => 'names' ] );
