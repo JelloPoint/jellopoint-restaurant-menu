@@ -525,7 +525,7 @@ final class JPRM_Importer {
 		];
 	}
 
-	/* --------------------------- Helpers -------------------------- */
+	/* ---------------------------- Helpers -------------------------- */
 
 	private static function terms_as_names( int $post_id, string $taxonomy ): array {
 		$terms = wp_get_object_terms( $post_id, $taxonomy, [ 'fields' => 'names' ] );
