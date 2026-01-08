@@ -113,43 +113,55 @@ final class JPRM_Importer {
 
 	/**
 	 * STRICT CSV parser: only fixed headers accepted, no synonyms.
+	 *
+	 * NOTE: This parser supports quoted fields that contain newlines (common for multi-line descriptions).
 	 */
 	private static function parse_csv_strict( string $raw, array &$report ): array {
-		$lines = preg_split( '/\r\n|\n|\r/', $raw );
-		if ( ! $lines ) { $report['errors'][] = 'Empty CSV.'; return []; }
+		// We cannot safely split by "\n" because CSV fields may contain newlines inside quotes.
+		// Use fgetcsv on an in-memory stream instead.
+		$fp = fopen( 'php://temp', 'r+' );
+		if ( ! $fp ) { $report['errors'][] = 'Could not open temp stream for CSV.'; return []; }
 
-		// Strip BOM if present
-		if ( isset( $lines[0] ) ) {
-			$lines[0] = preg_replace('/^\xEF\xBB\xBF/', '', $lines[0]);
-		}
+		// Strip UTF-8 BOM if present
+		$raw = preg_replace( '/^\xEF\xBB\xBF/', '', $raw );
 
-		$first     = $lines[0] ?? '';
+		fwrite( $fp, $raw );
+		rewind( $fp );
+
+		// Read header physical line (safe assumption: headers do not contain embedded newlines)
+		$first = fgets( $fp );
+		if ( $first === false ) { $report['errors'][] = 'Empty CSV.'; fclose($fp); return []; }
+
 		$delimiter = ( substr_count( $first, ';' ) >= substr_count( $first, ',' ) ) ? ';' : ',';
 
-		$headers = str_getcsv( $first, $delimiter );
+		// Parse headers using the chosen delimiter
+		$headers = str_getcsv( rtrim( $first, "\r\n" ), $delimiter );
 
 		// Required header set (case-sensitive)
-		$required = [
-			'post_id','post_title','post_status','description','menus','sections','Price_Single','Price_Multiple'
-		];
+		$required = [ 'post_id','post_title','post_status','description','menus','sections','Price_Single','Price_Multiple' ];
 		$missing  = array_diff( $required, $headers );
 		if ( $missing ) {
 			$report['errors'][] = 'CSV missing required header(s): ' . implode(', ', $missing);
+			fclose($fp);
 			return [];
 		}
 
 		$map  = array_flip( $headers );
 		$rows = [];
 
-		for ( $i = 1; $i < count( $lines ); $i++ ) {
-			if ( trim( $lines[$i] ) === '' ) continue;
-			$vals = str_getcsv( $lines[$i], $delimiter );
+		// Continue reading remaining rows with fgetcsv (supports quoted newlines correctly)
+		while ( ( $vals = fgetcsv( $fp, 0, $delimiter ) ) !== false ) {
+			// Skip empty lines
+			if ( $vals === [ null ] ) { continue; }
+			if ( count( $vals ) === 1 && trim( (string) $vals[0] ) === '' ) { continue; }
 
 			// Build associative row by headers exactly
 			$row = array_fill_keys( $headers, '' );
 			foreach ( $headers as $h ) {
 				$idx = $map[$h] ?? null;
-				if ( $idx !== null && isset( $vals[$idx] ) ) { $row[$h] = $vals[$idx]; }
+				if ( $idx !== null && isset( $vals[$idx] ) ) {
+					$row[$h] = is_string( $vals[$idx] ) ? $vals[$idx] : (string) $vals[$idx];
+				}
 			}
 
 			$post_id     = isset($row['post_id']) && $row['post_id'] !== '' ? (int) $row['post_id'] : 0;
@@ -236,6 +248,7 @@ final class JPRM_Importer {
 			];
 		}
 
+		fclose( $fp );
 		return $rows;
 	}
 
@@ -258,7 +271,7 @@ final class JPRM_Importer {
 					'menu_terms' => [], 'sect_terms' => [], 'badges' => [], 'prices' => []
 				],
 				['menus'=>[],'sections'=>[]],
-				(string) $it['_row_error']
+				(string) $it['_row_error'
 			);
 		}
 
@@ -343,7 +356,18 @@ final class JPRM_Importer {
 					'post_status' => $new['post_status'],
 				], true );
 				if ( is_wp_error( $post_id ) ) {
-					return self::result_row( $existing_id, 0, $title, 'skipped', $price_mode, $price_summary, $new, $new_terms_created, 'Insert failed: ' . $post_id->get_error_message() );
+					// IMPORTANT: keep argument order consistent with result_row() signature
+					// result_row( old_id, new_id, title, mode, price_summary, new_payload, new_terms_created, error )
+					return self::result_row(
+						$existing_id,
+						0,
+						$title,
+						$price_mode,
+						$price_summary,
+						$new,
+						$new_terms_created,
+						'Insert failed: ' . $post_id->get_error_message()
+					);
 				}
 			}
 
@@ -470,6 +494,22 @@ final class JPRM_Importer {
 	}
 
 	private static function result_row( $old_id, $new_id, $title, $mode, $price_summary, $new, $new_terms_created, $error ) : array {
+		// Defensive: never fatally error when an upstream caller passes an unexpected type.
+		if ( ! is_array( $new ) ) {
+			$new = [
+				'menu_terms' => [],
+				'sect_terms' => [],
+				'badges'     => [],
+				'prices'     => [],
+			];
+		}
+		$new = array_merge( [
+			'menu_terms' => [],
+			'sect_terms' => [],
+			'badges'     => [],
+			'prices'     => [],
+		], $new );
+
 		return [
 			'post_id_old'       => $old_id,
 			'post_id_new'       => $new_id,
@@ -477,9 +517,9 @@ final class JPRM_Importer {
 			'action'            => ( $new_id && $old_id && $new_id === $old_id ) ? 'updated' : ( $new_id ? 'created' : 'skipped' ),
 			'mode'              => $mode,
 			'price_summary'     => $price_summary,
-			'menus'             => $new['menu_terms'],
-			'sections'          => $new['sect_terms'],
-			'badges'            => $new['badges'],
+			'menus'             => is_array( $new['menu_terms'] ) ? $new['menu_terms'] : [],
+			'sections'          => is_array( $new['sect_terms'] ) ? $new['sect_terms'] : [],
+			'badges'            => is_array( $new['badges'] ) ? $new['badges'] : [],
 			'new_terms_created' => $new_terms_created,
 			'error'             => $error,
 		];
@@ -518,200 +558,134 @@ final class JPRM_Importer {
 		$ids = [];
 		foreach ( $names as $name ) {
 			if ( $name === '' ) continue;
-			$t = get_term_by( 'name', $name, $tax );
-			if ( ! $t || is_wp_error( $t ) ) {
-				$ins = wp_insert_term( $name, $tax );
-				if ( ! is_wp_error( $ins ) && ! empty( $ins['term_id'] ) ) {
-					$ids[] = (int) $ins['term_id'];
-				}
-			} else {
-				$ids[] = (int) $t->term_id;
+			$term = get_term_by( 'name', $name, $tax );
+			if ( $term && ! is_wp_error( $term ) ) { $ids[] = (int) $term->term_id; continue; }
+			$r = wp_insert_term( $name, $tax );
+			if ( is_array( $r ) && isset( $r['term_id'] ) ) {
+				$ids[] = (int) $r['term_id'];
 			}
 		}
-		return array_values( array_unique( $ids ) );
+		return array_values( array_unique( array_filter( $ids ) ) );
 	}
 
-	private static function assign_terms_if_changed( int $post_id, string $tax, array $target_names ): void {
-		$current = self::terms_as_names( $post_id, $tax );
-		$cn = $current; sort( $cn );
-		$tn = $target_names; sort( $tn );
-		if ( $cn === $tn ) { return; }
+	private static function assign_terms_if_changed( int $post_id, string $tax, array $names ): void {
+		$curr = wp_get_object_terms( $post_id, $tax, [ 'fields' => 'names' ] );
+		$curr = ( is_wp_error( $curr ) || ! is_array( $curr ) ) ? [] : array_values( $curr );
+		sort( $curr );
+		$want = array_values( array_filter( $names ) );
+		sort( $want );
+		if ( $curr === $want ) return;
 
 		$ids = [];
-		foreach ( $target_names as $name ) {
-			$term = get_term_by( 'name', $name, $tax );
-			if ( $term && ! is_wp_error( $term ) ) {
-				$ids[] = (int) $term->term_id;
-			}
+		foreach ( $want as $name ) {
+			$t = get_term_by( 'name', $name, $tax );
+			if ( $t && ! is_wp_error( $t ) ) $ids[] = (int) $t->term_id;
 		}
 		wp_set_object_terms( $post_id, $ids, $tax, false );
 	}
 
 	private static function build_prices_payload( int $post_id, string $mode ): array {
-		$mode = $mode ?: 'single';
+		$mode = ( $mode === 'multi' ) ? 'multi' : 'single';
 
 		if ( $mode === 'single' ) {
-			$amount_raw  = (string) get_post_meta( $post_id, 'jprm_price_amount', true );
-			$label_mode  = (string) get_post_meta( $post_id, 'jprm_price_label_mode', true );
-			$label_ref   = (string) get_post_meta( $post_id, 'jprm_price_label_ref', true );
-
 			return [
 				'mode'          => 'single',
-				'amount_raw'    => $amount_raw,
+				'amount_raw'    => (string) get_post_meta( $post_id, 'jprm_price_amount', true ),
 				'amount_number' => null,
-				'label_mode'    => $label_mode,
-				'label_ref'     => $label_ref,
+				'label_mode'    => 'ref',
+				'label_ref'     => (string) get_post_meta( $post_id, 'jprm_price_label_ref', true ),
 			];
 		}
 
-		$rows = [];
-		$raw_prices = get_post_meta( $post_id, 'jprm_prices', true );
-		if ( is_array( $raw_prices ) ) {
-			$rows = $raw_prices;
-		} else {
-			$raw_price = get_post_meta( $post_id, 'jprm_price', true );
-			if ( is_array( $raw_price ) && isset( $raw_price['rows'] ) && is_array( $raw_price['rows'] ) ) {
-				$rows = $raw_price['rows'];
-			}
-		}
-
-		// Canonicalize strictly: keep provided strings; only keep needed keys.
-		return [
-			'mode' => 'multi',
-			'rows' => self::canonicalize_rows_strict( $rows ),
-		];
+		$rows = get_post_meta( $post_id, 'jprm_prices', true );
+		if ( ! is_array( $rows ) ) $rows = [];
+		return [ 'mode' => 'multi', 'rows' => $rows ];
 	}
 
 	private static function canonicalize_rows_strict( array $rows ): array {
-		$norm = [];
+		$out = [];
 		foreach ( $rows as $r ) {
-			$a = is_array( $r ) ? $r : (array) $r;
-			$norm[] = [
-				'label_ref' => isset($a['label_ref']) ? (string)$a['label_ref'] : '',
-				'amount'    => isset($a['amount'])    ? (string)$a['amount']    : (string)($a['value'] ?? ''),
+			if ( ! is_array( $r ) ) continue;
+			$amount = isset( $r['amount'] ) ? (string) $r['amount'] : '';
+			if ( $amount === '' ) continue;
+
+			$out[] = [
+				'enabled'      => true,
+				'label_mode'   => 'ref',
+				'label_ref'    => isset( $r['label_ref'] ) ? (string) $r['label_ref'] : '',
+				'label_custom' => '',
+				'icon_id'      => isset( $r['icon_id'] ) ? (int) $r['icon_id'] : 0,
+				'amount'       => $amount,
+				'hide_icon'    => ! empty( $r['hide_icon'] ),
 			];
 		}
-		// No sorting, keep given order.
-		return array_values( $norm );
+		return array_values( $out );
 	}
 
 	private static function diff_any( array $old, array $new ): array {
-		$c = [
-			'post_title'  => ( self::eqs($old['post_title'])  !== self::eqs($new['post_title']) ),
-			'post_status' => ( self::eqs($old['post_status']) !== self::eqs($new['post_status']) ),
-			'desc'        => ( self::eqs($old['desc'])        !== self::eqs($new['desc']) ),
-			'menu_terms'  => ( self::sorted($old['menu_terms']) !== self::sorted($new['menu_terms']) ),
-			'sect_terms'  => ( self::sorted($old['sect_terms']) !== self::sorted($new['sect_terms']) ),
-			'badges'      => ( self::sorted($old['badges'])     !== self::sorted($new['badges']) ),
-			'prices'      => ( self::normalize_prices_for_compare($old['prices']) !== self::normalize_prices_for_compare($new['prices']) ),
+		$diff = [
+			'post_title'   => ( $old['post_title'] ?? '' ) !== ( $new['post_title'] ?? '' ),
+			'post_status'  => ( $old['post_status'] ?? '' ) !== ( $new['post_status'] ?? '' ),
+			'desc'         => ( $old['desc'] ?? '' ) !== ( $new['desc'] ?? '' ),
+			'menu_terms'   => (array) ( $old['menu_terms'] ?? [] ) !== (array) ( $new['menu_terms'] ?? [] ),
+			'sect_terms'   => (array) ( $old['sect_terms'] ?? [] ) !== (array) ( $new['sect_terms'] ?? [] ),
+			'badges'       => (array) ( $old['badges'] ?? [] ) !== (array) ( $new['badges'] ?? [] ),
+			'prices'       => (array) ( $old['prices'] ?? [] ) !== (array) ( $new['prices'] ?? [] ),
 		];
-		$c['any'] = (bool) array_sum( array_map( fn($v) => $v ? 1 : 0, $c ) );
-		return $c;
+		$diff['any'] = in_array( true, $diff, true );
+		return $diff;
 	}
 
-	private static function eqs( $s ): string {
-		return trim( is_string( $s ) ? $s : (string) $s );
-	}
-
-	private static function sorted( $a ): array {
-		$a = is_array( $a ) ? $a : [];
-		$a = array_values( $a );
-		sort( $a );
-		return $a;
-	}
-
-	// For comparison only; keep strings as-is.
-	private static function normalize_prices_for_compare( $p ): array {
-		if ( ! is_array( $p ) ) return [];
-		if ( ( $p['mode'] ?? '' ) === 'single' ) {
-			return [
-				'mode'       => 'single',
-				'amount_raw' => self::eqs( $p['amount_raw'] ?? '' ),
-				'label_mode' => 'ref',
-				'label_ref'  => '',
-			];
-		}
-		$rows = isset( $p['rows'] ) && is_array( $p['rows'] ) ? $p['rows'] : [];
-		$out  = [];
-		foreach ( $rows as $r ) {
-			$out[] = [
-				'label_ref' => self::eqs( (string) ( $r['label_ref'] ?? '' ) ),
-				'amount'    => self::eqs( (string) ( $r['amount'] ?? ( $r['value'] ?? '' ) ) ),
-			];
-		}
-		return [ 'mode' => 'multi', 'rows' => $out ];
-	}
-
-	/* ---------------- Owner + Order helpers ---------------- */
-
-	/**
-	 * Resolve first menu ID by exact term name list; returns 0 if none found.
-	 */
-	private static function first_menu_id_from_names( array $names ): int {
-		foreach ( $names as $name ) {
-			if ( $name === '' ) { continue; }
+	private static function first_menu_id_from_names( array $menu_names ): int {
+		foreach ( $menu_names as $name ) {
+			$name = (string) $name;
+			if ( $name === '' ) continue;
 			$t = get_term_by( 'name', $name, 'jprm_menu' );
-			if ( $t && ! is_wp_error( $t ) ) {
-				return (int) $t->term_id;
-			}
+			if ( $t && ! is_wp_error( $t ) ) return (int) $t->term_id;
 		}
 		return 0;
 	}
 
-	/**
-	 * Ensure a section has its owner menu set (if missing) and a sequential order (if missing).
-	 */
-	private static function ensure_section_owner_and_order( int $section_term_id, int $menu_term_id ) : void {
-		if ( $section_term_id <= 0 || $menu_term_id <= 0 ) { return; }
+	private static function ensure_section_owner_and_order( int $section_term_id, int $owner_menu_term_id ): void {
+		if ( $section_term_id <= 0 || $owner_menu_term_id <= 0 ) return;
 
-		$owner = get_term_meta( $section_term_id, '_jprm_menu_term_id', true );
-		if ( ! $owner ) {
-			update_term_meta( $section_term_id, '_jprm_menu_term_id', $menu_term_id );
+		// Owner
+		$curr_owner = (int) get_term_meta( $section_term_id, '_jprm_menu_term_id', true );
+		if ( ! $curr_owner ) {
+			update_term_meta( $section_term_id, '_jprm_menu_term_id', $owner_menu_term_id );
 		}
 
-		$order_raw = get_term_meta( $section_term_id, '_jprm_section_order', true );
-		$order     = is_numeric( $order_raw ) ? (int) $order_raw : 0;
-
-		if ( $order <= 0 ) {
-			$next = self::next_order_for_menu( $menu_term_id );
+		// Order
+		$curr_order = get_term_meta( $section_term_id, '_jprm_section_order', true );
+		if ( $curr_order === '' || $curr_order === null ) {
+			if ( ! isset( self::$section_order_seq[ $owner_menu_term_id ] ) ) {
+				self::$section_order_seq[ $owner_menu_term_id ] = self::max_section_order_for_menu( $owner_menu_term_id ) + 1;
+			}
+			$next = (int) self::$section_order_seq[ $owner_menu_term_id ];
 			update_term_meta( $section_term_id, '_jprm_section_order', $next );
+			self::$section_order_seq[ $owner_menu_term_id ] = $next + 1;
 		}
 	}
 
-	/**
-	 * Get the next sequential order number for a menu_id, seeding from current max once per run.
-	 */
-	private static function next_order_for_menu( int $menu_term_id ) : int {
-		if ( $menu_term_id <= 0 ) { return 1; }
+	private static function max_section_order_for_menu( int $menu_term_id ): int {
+		$max = 0;
+		$terms = get_terms( [
+			'taxonomy'   => 'jprm_section',
+			'hide_empty' => false,
+			'fields'     => 'ids',
+		] );
 
-		if ( ! isset( self::$section_order_seq[ $menu_term_id ] ) ) {
-			$max = 0;
+		if ( is_wp_error( $terms ) || ! is_array( $terms ) ) return 0;
 
-			// Try to fetch the highest existing order for this menu owner quickly
-			$args = [
-				'taxonomy'   => 'jprm_section',
-				'hide_empty' => false,
-				'number'     => 1,
-				'meta_query' => [
-					[
-						'key'   => '_jprm_menu_term_id',
-						'value' => (string) $menu_term_id,
-					],
-				],
-				'meta_key'   => '_jprm_section_order',
-				'orderby'    => 'meta_value_num',
-				'order'      => 'DESC',
-			];
-			$terms = get_terms( $args );
-			if ( is_array( $terms ) && ! empty( $terms ) && ! is_wp_error( $terms ) ) {
-				$max = (int) get_term_meta( (int) $terms[0]->term_id, '_jprm_section_order', true );
+		foreach ( $terms as $sid ) {
+			$owner = (int) get_term_meta( (int) $sid, '_jprm_menu_term_id', true );
+			if ( $owner !== $menu_term_id ) continue;
+			$o = get_term_meta( (int) $sid, '_jprm_section_order', true );
+			if ( $o !== '' && is_numeric( $o ) ) {
+				$max = max( $max, (int) $o );
 			}
-
-			self::$section_order_seq[ $menu_term_id ] = max( 0, $max ) + 1;
 		}
 
-		$next = self::$section_order_seq[ $menu_term_id ];
-		self::$section_order_seq[ $menu_term_id ] = $next + 1;
-		return $next;
+		return $max;
 	}
 }
