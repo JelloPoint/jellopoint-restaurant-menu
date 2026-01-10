@@ -8,7 +8,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * - Streams JSON or CSV
  * - Includes site_uid in meta
  * - Includes per-item jprm_uid (generated & saved if missing)
- * - Excludes featured image fields as requested previously
+ * - CSV export format is aligned to the "easy import" template:
+ *   post_id;post_title;post_status;description;menus;sections;Price_Single;Price_Multiple
  */
 final class JPRM_Exporter {
 
@@ -16,11 +17,13 @@ final class JPRM_Exporter {
 		$format = isset( $opts['format'] ) && $opts['format'] === 'csv' ? 'csv' : 'json';
 
 		$items = self::collect_items();
+
 		$payload = [
-			'meta' => [
-				'generated_at' => gmdate( 'c' ),
-				'post_type'    => 'jprm_menu_item',
-				'site_uid'     => self::get_site_uid(),
+			'meta'  => [
+				'version'      => defined( 'JPRM_VERSION' ) ? JPRM_VERSION : '',
+				'exported_utc'  => gmdate( 'c' ),
+				'post_type'     => 'jprm_menu_item',
+				'site_uid'      => self::get_site_uid(),
 			],
 			'items' => $items,
 		];
@@ -40,6 +43,8 @@ final class JPRM_Exporter {
 			'posts_per_page' => -1,
 			'fields'         => 'ids',
 			'no_found_rows'  => true,
+			'orderby'        => 'ID',
+			'order'          => 'ASC',
 		] );
 
 		$out = [];
@@ -49,24 +54,27 @@ final class JPRM_Exporter {
 			$mode = (string) get_post_meta( $post_id, 'jprm_price_mode', true );
 			$prices = [];
 			if ( $mode === 'single' || $mode === '' ) {
-				$amount  = (string) get_post_meta( $post_id, 'jprm_price_amount', true );
-				$lmode   = (string) get_post_meta( $post_id, 'jprm_price_label_mode', true );
-				$lref    = (string) get_post_meta( $post_id, 'jprm_price_label_ref', true );
+				$amount_raw = (string) get_post_meta( $post_id, 'jprm_price_amount', true );
+
+				// Some older installs may use a different key.
+				if ( $amount_raw === '' ) {
+					$legacy = get_post_meta( $post_id, 'jprm_price', true );
+					if ( is_array( $legacy ) && isset( $legacy['price'] ) ) {
+						$amount_raw = (string) $legacy['price'];
+					}
+				}
+
 				$prices = [
 					'mode'          => 'single',
-					'amount_raw'    => $amount,
-					'amount_number' => self::to_float_eu_us( $amount ),
-					'label_mode'    => $lmode,
-					'label_ref'     => $lref,
+					'amount_raw'    => $amount_raw,
+					'amount_number' => self::to_float_eu_us( $amount_raw ),
+					'label_mode'    => 'ref',
+					'label_ref'     => (string) get_post_meta( $post_id, 'jprm_price_label_ref', true ),
 				];
 			} else {
-				$rows = [];
-				$mp = get_post_meta( $post_id, 'jprm_prices', true );
-				if ( is_array( $mp ) ) $rows = $mp;
-				else {
-					$p = get_post_meta( $post_id, 'jprm_price', true );
-					if ( is_array( $p ) && isset($p['rows']) && is_array($p['rows']) ) $rows = $p['rows'];
-				}
+				$rows = get_post_meta( $post_id, 'jprm_prices', true );
+				if ( ! is_array( $rows ) ) { $rows = []; }
+
 				$prices = [
 					'mode' => 'multi',
 					'rows' => self::canonicalize_rows( $rows ),
@@ -76,8 +84,8 @@ final class JPRM_Exporter {
 			$out[] = [
 				'post_id'     => (int) $post_id,
 				'uid'         => $uid,
-				'post_title'  => get_the_title( $post_id ),
-				'post_status' => get_post_status( $post_id ) ?: 'draft',
+				'post_title'  => (string) get_the_title( $post_id ),
+				'post_status' => (string) get_post_status( $post_id ),
 				'description' => (string) get_post_meta( $post_id, 'jprm_desc', true ),
 				'tax'         => [
 					'jprm_menu'    => self::terms_as_names( $post_id, 'jprm_menu' ),
@@ -87,6 +95,7 @@ final class JPRM_Exporter {
 				'prices'      => $prices,
 			];
 		}
+
 		return $out;
 	}
 
@@ -95,8 +104,13 @@ final class JPRM_Exporter {
 		header( 'Content-Type: application/json; charset=utf-8' );
 		header( 'Content-Disposition: attachment; filename="jprm-export-' . gmdate('Ymd-His') . '.json"' );
 		echo wp_json_encode( $payload, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT );
+		exit;
 	}
 
+	/**
+	 * CSV export aligned with the "easy import" template:
+	 * post_id;post_title;post_status;description;menus;sections;Price_Single;Price_Multiple
+	 */
 	private static function stream_csv( array $payload ): void {
 		nocache_headers();
 		header( 'Content-Type: text/csv; charset=utf-8' );
@@ -108,33 +122,56 @@ final class JPRM_Exporter {
 		$del = ';';
 
 		$headers = [
-			'post_id','jprm_uid','post_title','post_status','description','menus','sections','badges','prices_json'
+			'post_id','post_title','post_status','description','menus','sections','Price_Single','Price_Multiple'
 		];
 		fputcsv( $fp, $headers, $del );
 
 		foreach ( (array) $payload['items'] as $it ) {
-			$menus    = implode( '|', (array) ($it['tax']['jprm_menu'] ?? []) );
-			$sections = implode( '|', (array) ($it['tax']['jprm_section'] ?? []) );
-			$badges   = implode( '|', (array) ($it['badges'] ?? []) );
-			$pricesj  = wp_json_encode( $it['prices'], JSON_UNESCAPED_UNICODE );
+			$menus    = implode( '|', (array) ( $it['tax']['jprm_menu'] ?? [] ) );
+			$sections = implode( '|', (array) ( $it['tax']['jprm_section'] ?? [] ) );
+
+			$price_single   = '';
+			$price_multiple = '';
+
+			$prices = is_array( $it['prices'] ?? null ) ? (array) $it['prices'] : [];
+			$mode   = (string) ( $prices['mode'] ?? '' );
+
+			if ( $mode === 'multi' ) {
+				$rows = is_array( $prices['rows'] ?? null ) ? (array) $prices['rows'] : [];
+				$amts = [];
+				foreach ( $rows as $r ) {
+					if ( ! is_array( $r ) ) { continue; }
+					$amt = isset( $r['amount'] ) ? trim( (string) $r['amount'] ) : '';
+					if ( $amt === '' ) { continue; }
+					$amts[] = $amt;
+				}
+				$price_multiple = implode( '*', $amts );
+			} else {
+				// Default to single
+				$price_single = (string) ( $prices['amount_raw'] ?? '' );
+				if ( $price_single === '' ) {
+					// Backwards-compat (if older data uses another key)
+					$price_single = (string) ( $prices['price'] ?? '' );
+				}
+			}
 
 			$row = [
-				(int) ($it['post_id'] ?? 0),
-				(string) ($it['uid'] ?? ''),
-				(string) ($it['post_title'] ?? ''),
-				(string) ($it['post_status'] ?? 'draft'),
-				(string) ($it['description'] ?? ''),
+				(int) ( $it['post_id'] ?? 0 ),
+				(string) ( $it['post_title'] ?? '' ),
+				(string) ( $it['post_status'] ?? 'draft' ),
+				(string) ( $it['description'] ?? '' ),
 				$menus,
 				$sections,
-				$badges,
-				$pricesj,
+				$price_single,
+				$price_multiple,
 			];
 
-			// Escape any delimiter collisions by fputcsv automatically
+			// fputcsv will handle quoting (including embedded newlines in description)
 			fputcsv( $fp, $row, $del );
 		}
 
 		fclose( $fp );
+		exit;
 	}
 
 	/* ---------------- helpers ---------------- */
@@ -152,11 +189,16 @@ final class JPRM_Exporter {
 	}
 
 	private static function get_site_uid(): string {
-		$uid = get_option( 'jprm_site_uid', '' );
-		if ( ! is_string( $uid ) || $uid === '' ) {
-			$uid = function_exists( 'wp_generate_uuid4' ) ? wp_generate_uuid4() : uniqid( 'site_', true );
-			update_option( 'jprm_site_uid', $uid, true );
+		$uid = (string) get_option( 'jprm_site_uid', '' );
+		if ( $uid !== '' ) return $uid;
+
+		if ( function_exists( 'wp_generate_uuid4' ) ) {
+			$uid = wp_generate_uuid4();
+		} else {
+			$uid = uniqid( 'jprm_site_', true );
 		}
+
+		update_option( 'jprm_site_uid', $uid );
 		return $uid;
 	}
 
@@ -178,37 +220,53 @@ final class JPRM_Exporter {
 	private static function canonicalize_rows( array $rows ): array {
 		$out = [];
 		foreach ( $rows as $r ) {
-			$a = is_array( $r ) ? $r : (array) $r;
-			// Keep the keys you use most; exporter can be tolerant
+			if ( ! is_array( $r ) ) continue;
+
+			$enabled = isset( $r['enabled'] ) ? (bool) $r['enabled'] : true;
+			if ( ! $enabled ) continue;
+
+			$amount = isset( $r['amount'] ) ? (string) $r['amount'] : '';
+			$amount = trim( $amount );
+			if ( $amount === '' ) continue;
+
 			$out[] = [
-				'enabled'     => isset($a['enabled']) ? (bool)$a['enabled'] : true,
-				'label_mode'  => (string)($a['label_mode'] ?? 'ref'),
-				'label_ref'   => (string)($a['label_ref'] ?? ''),
-				'label_custom'=> (string)($a['label_custom'] ?? ''),
-				'icon_id'     => (int)($a['icon_id'] ?? 0),
-				'amount'      => (string)($a['amount'] ?? ( $a['value'] ?? ( $a['price'] ?? '' ) ) ),
-				'hide_icon'   => isset($a['hide_icon']) ? (bool)$a['hide_icon'] : false,
+				'enabled'      => true,
+				'label_mode'   => isset( $r['label_mode'] ) ? (string) $r['label_mode'] : 'ref',
+				'label_ref'    => isset( $r['label_ref'] ) ? (string) $r['label_ref'] : '',
+				'label_custom' => isset( $r['label_custom'] ) ? (string) $r['label_custom'] : '',
+				'icon_id'      => isset( $r['icon_id'] ) ? (int) $r['icon_id'] : 0,
+				'amount'       => $amount,
+				'hide_icon'    => ! empty( $r['hide_icon'] ),
 			];
 		}
-		return $out;
+		return array_values( $out );
 	}
 
-	private static function to_float_eu_us( $v ): ?float {
-		if ( is_null( $v ) || $v === '' ) return null;
-		if ( is_numeric( $v ) ) return (float) $v;
-		if ( is_string( $v ) ) {
-			$s = preg_replace( '/[^\d\.,-]/u', '', $v );
-			if ( $s === '' ) return null;
-			if ( strpos( $s, ',' ) !== false && strpos( $s, '.' ) !== false ) {
-				$last_comma = strrpos( $s, ',' );
-				$last_dot   = strrpos( $s, '.' );
-				if ( $last_comma > $last_dot ) { $s = str_replace( '.', '', $s ); $s = str_replace( ',', '.', $s ); }
-				else { $s = str_replace( ',', '', $s ); }
-			} elseif ( strpos( $s, ',' ) !== false ) {
+	private static function to_float_eu_us( $s ): ?float {
+		if ( $s === null ) return null;
+		if ( is_float( $s ) || is_int( $s ) ) return (float) $s;
+		$s = trim( (string) $s );
+		if ( $s === '' ) return null;
+
+		// Remove currency symbols/spaces, keep digits/dot/comma/minus
+		$s = preg_replace( '/[^\d\.,\-]/u', '', $s );
+
+		if ( $s === '' ) return null;
+
+		// If both comma and dot exist, decide decimal separator by last occurrence
+		if ( strpos( $s, ',' ) !== false && strpos( $s, '.' ) !== false ) {
+			$last_comma = strrpos( $s, ',' );
+			$last_dot   = strrpos( $s, '.' );
+			if ( $last_comma > $last_dot ) {
+				$s = str_replace( '.', '', $s );
 				$s = str_replace( ',', '.', $s );
+			} else {
+				$s = str_replace( ',', '', $s );
 			}
-			return is_numeric( $s ) ? (float) $s : null;
+		} elseif ( strpos( $s, ',' ) !== false ) {
+			$s = str_replace( ',', '.', $s );
 		}
-		return null;
+
+		return is_numeric( $s ) ? (float) $s : null;
 	}
 }
