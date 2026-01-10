@@ -6,10 +6,13 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 /**
  * JPRM Exporter
  * - Streams JSON or CSV
- * - Includes site_uid in meta
- * - Includes per-item jprm_uid (generated & saved if missing)
- * - CSV export format is aligned to the "easy import" template:
+ * - CSV export format aligned to the "easy import" template:
  *   post_id;post_title;post_status;description;menus;sections;Price_Single;Price_Multiple
+ *
+ * Important for Excel:
+ * - Add UTF-8 BOM
+ * - Use CRLF line endings for rows
+ * - Normalize embedded description newlines to CRLF so Excel keeps them inside the cell
  */
 final class JPRM_Exporter {
 
@@ -51,12 +54,13 @@ final class JPRM_Exporter {
 		foreach ( (array) $q->posts as $post_id ) {
 			$uid = self::ensure_item_uid( $post_id ); // generate if missing
 
-			$mode = (string) get_post_meta( $post_id, 'jprm_price_mode', true );
+			$mode   = (string) get_post_meta( $post_id, 'jprm_price_mode', true );
 			$prices = [];
+
 			if ( $mode === 'single' || $mode === '' ) {
 				$amount_raw = (string) get_post_meta( $post_id, 'jprm_price_amount', true );
 
-				// Some older installs may use a different key.
+				// Backwards-compat
 				if ( $amount_raw === '' ) {
 					$legacy = get_post_meta( $post_id, 'jprm_price', true );
 					if ( is_array( $legacy ) && isset( $legacy['price'] ) ) {
@@ -118,13 +122,38 @@ final class JPRM_Exporter {
 
 		$fp = fopen( 'php://output', 'w' );
 
-		// Delimiter: semicolon for EU Excel friendliness
+		// Excel friendliness: UTF-8 BOM
+		fwrite( $fp, "\xEF\xBB\xBF" );
+
+		// Delimiter: semicolon (EU Excel)
 		$del = ';';
+
+		// Excel friendliness: CRLF line endings for records
+		$eol = "\r\n";
+		$use_eol_param = false;
+		try {
+			$rf = new \ReflectionFunction( 'fputcsv' );
+			$use_eol_param = ( $rf->getNumberOfParameters() >= 6 );
+		} catch ( \Throwable $t ) {
+			$use_eol_param = false;
+		}
 
 		$headers = [
 			'post_id','post_title','post_status','description','menus','sections','Price_Single','Price_Multiple'
 		];
-		fputcsv( $fp, $headers, $del );
+
+		if ( $use_eol_param ) {
+			fputcsv( $fp, $headers, $del, '"', "\\", $eol );
+		} else {
+			// Fallback (older PHP): write to temp string and force CRLF
+			$tmp = fopen( 'php://temp', 'r+' );
+			fputcsv( $tmp, $headers, $del );
+			rewind( $tmp );
+			$line = stream_get_contents( $tmp );
+			fclose( $tmp );
+			$line = str_replace( "\n", $eol, $line );
+			fwrite( $fp, $line );
+		}
 
 		foreach ( (array) $payload['items'] as $it ) {
 			$menus    = implode( '|', (array) ( $it['tax']['jprm_menu'] ?? [] ) );
@@ -147,27 +176,39 @@ final class JPRM_Exporter {
 				}
 				$price_multiple = implode( '*', $amts );
 			} else {
-				// Default to single
 				$price_single = (string) ( $prices['amount_raw'] ?? '' );
 				if ( $price_single === '' ) {
-					// Backwards-compat (if older data uses another key)
 					$price_single = (string) ( $prices['price'] ?? '' );
 				}
 			}
+
+			// IMPORTANT: normalize embedded newlines to CRLF so Excel keeps the full text in one cell
+			$desc = (string) ( $it['description'] ?? '' );
+			$desc = str_replace( [ "\r\n", "\r" ], "\n", $desc ); // normalize to LF first
+			$desc = str_replace( "\n", $eol, $desc );             // then to CRLF
 
 			$row = [
 				(int) ( $it['post_id'] ?? 0 ),
 				(string) ( $it['post_title'] ?? '' ),
 				(string) ( $it['post_status'] ?? 'draft' ),
-				(string) ( $it['description'] ?? '' ),
+				$desc,
 				$menus,
 				$sections,
 				$price_single,
 				$price_multiple,
 			];
 
-			// fputcsv will handle quoting (including embedded newlines in description)
-			fputcsv( $fp, $row, $del );
+			if ( $use_eol_param ) {
+				fputcsv( $fp, $row, $del, '"', "\\", $eol );
+			} else {
+				$tmp = fopen( 'php://temp', 'r+' );
+				fputcsv( $tmp, $row, $del );
+				rewind( $tmp );
+				$line = stream_get_contents( $tmp );
+				fclose( $tmp );
+				$line = str_replace( "\n", $eol, $line );
+				fwrite( $fp, $line );
+			}
 		}
 
 		fclose( $fp );
@@ -179,6 +220,7 @@ final class JPRM_Exporter {
 	private static function ensure_item_uid( int $post_id ): string {
 		$uid = (string) get_post_meta( $post_id, 'jprm_uid', true );
 		if ( $uid !== '' ) return $uid;
+
 		if ( function_exists( 'wp_generate_uuid4' ) ) {
 			$uid = wp_generate_uuid4();
 		} else {
@@ -245,15 +287,13 @@ final class JPRM_Exporter {
 	private static function to_float_eu_us( $s ): ?float {
 		if ( $s === null ) return null;
 		if ( is_float( $s ) || is_int( $s ) ) return (float) $s;
+
 		$s = trim( (string) $s );
 		if ( $s === '' ) return null;
 
-		// Remove currency symbols/spaces, keep digits/dot/comma/minus
 		$s = preg_replace( '/[^\d\.,\-]/u', '', $s );
-
 		if ( $s === '' ) return null;
 
-		// If both comma and dot exist, decide decimal separator by last occurrence
 		if ( strpos( $s, ',' ) !== false && strpos( $s, '.' ) !== false ) {
 			$last_comma = strrpos( $s, ',' );
 			$last_dot   = strrpos( $s, '.' );
