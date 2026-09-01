@@ -118,7 +118,7 @@ if ( ! function_exists( 'jprm_matrix_collect_columns' ) ) {
 			$cols[ $key ] = [
 				'text'      => $txt,
 				'icon_html' => $icon_html,
-				'icon_url'  => '',
+				'icon_url'  => (string) ( $meta['icon_url'] ?? '' ),
 				'_seed'     => true,
 			];
 			$has_any_label = true;

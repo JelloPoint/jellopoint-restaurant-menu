@@ -171,6 +171,7 @@ if ( ! function_exists( 'jprm_get_pricegroup_data' ) ) {
 				'label_id'   => 0,
 				'label_text' => $text,
 				'icon_html'  => $icon_out,
+				'icon_url'   => (string) ( $res['icon_url'] ?? '' ),
 				'amount'     => $amount,
 				'formatted'  => $formatted,
 			];
@@ -197,6 +198,7 @@ if ( ! function_exists( 'jprm_get_pricegroup_data' ) ) {
 					'label_id'   => 0,
 					'label_text' => $text,
 					'icon_html'  => $icon_out,
+					'icon_url'   => (string) ( $res['icon_url'] ?? '' ),
 					'amount'     => $amount,
 					'formatted'  => $formatted,
 				];
@@ -271,6 +273,7 @@ if ( ! empty( $rows ) ) {
 					'label_id'   => (int) ( $r['label_id']   ?? 0 ),
 					'label_text' => (string) ( $r['label_text'] ?? '' ),
 					'icon_html'  => (string) ( $r['icon_html']  ?? '' ),
+					'icon_url'   => (string) ( $r['icon_url']   ?? '' ),
 					'amount'     => isset( $r['amount'] ) ? ( ( $r['amount'] === null ) ? null : (float) $r['amount'] ) : null,
 					'formatted'  => (string) ( $r['formatted'] ?? '' ),
 				];

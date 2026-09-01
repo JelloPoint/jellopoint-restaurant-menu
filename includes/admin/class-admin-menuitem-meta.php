@@ -107,6 +107,7 @@ class JPRM_Admin_MenuItem_Meta {
 			$label_map[(string)($L['id']??'')] = [
 				'text'    => (string)($L['label'] ?? ''),
 				'icon_id' => isset($L['icon_id']) ? (int)$L['icon_id'] : (isset($L['icon']) ? (int)$L['icon'] : 0),
+				'icon_url' => (string)($L['icon_url'] ?? ''),
 			];
 		}
 		$icon_url = function($id){
@@ -119,7 +120,7 @@ class JPRM_Admin_MenuItem_Meta {
 		$single_opts = '<option value="">'.esc_html__('Select…','jellopoint-restaurant-menu').'</option>';
 		$predef_url = '';
 		foreach ($label_map as $id=>$info){
-			$text=$info['text']?:$id; $iurl=$info['icon_id']?$icon_url($info['icon_id']):''; $sel=selected($lref,$id,false);
+			$text=$info['text']?:$id; $iurl=$info['icon_id']?$icon_url($info['icon_id']):$info['icon_url']; $sel=selected($lref,$id,false);
 			$single_opts.='<option value="'.esc_attr($id).'" '.$sel.' data-icon="'.esc_attr($iurl).'">'.esc_html($text).'</option>';
 			if ($lm==='ref' && $lref===$id) $predef_url=$iurl;
 		}
@@ -225,7 +226,7 @@ class JPRM_Admin_MenuItem_Meta {
 				$row_opts = '<option value="">'.esc_html__('Select…','jellopoint-restaurant-menu').'</option>';
 				$pred_url = '';
 				foreach ($label_map as $id=>$info){
-					$text=$info['text']?:$id; $iurl=$info['icon_id']?$icon_url($info['icon_id']):''; $sel=selected($lrf,$id,false);
+					$text=$info['text']?:$id; $iurl=$info['icon_id']?$icon_url($info['icon_id']):$info['icon_url']; $sel=selected($lrf,$id,false);
 					$row_opts.='<option value="'.esc_attr($id).'" '.$sel.' data-icon="'.esc_attr($iurl).'">'.esc_html($text).'</option>';
 					if ($lmd==='ref' && $lrf===$id) $pred_url=$iurl;
 				}
