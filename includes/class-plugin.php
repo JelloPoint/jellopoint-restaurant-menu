@@ -160,9 +160,7 @@ class Plugin {
 	public static function register_elementor_widget( $widgets_manager ) : void {
 		if ( ! class_exists( '\Elementor\Widget_Base' ) ) return;
 
-		$file = defined( 'JPRM_PLUGIN_DIR' )
-			? trailingslashit( JPRM_PLUGIN_DIR ) . 'includes/widgets/class-restaurant-menu.php'
-			: plugin_dir_path( __DIR__ ) . 'widgets/class-restaurant-menu.php';
+		$file = JPRM_PLUGIN_PATH . 'includes/widgets/class-restaurant-menu.php';
 
 		if ( file_exists( $file ) ) require_once $file;
 
