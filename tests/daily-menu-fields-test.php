@@ -28,6 +28,9 @@ jprm_daily_assert_same( 1, count( $jprm_daily_hooks['edited_jprm_menu'] ?? [] ),
 jprm_daily_assert_same( '2026-09-01', Menus_Admin::sanitize_date( '2026-09-01' ), 'A valid ISO date must be retained.' );
 jprm_daily_assert_same( '', Menus_Admin::sanitize_date( '2026-02-30' ), 'An impossible calendar date must be rejected.' );
 jprm_daily_assert_same( '', Menus_Admin::sanitize_date( '01-09-2026' ), 'A non-ISO date must be rejected.' );
+jprm_daily_assert_same( '2026-09-07', Menus_Admin::sanitize_end_date( '2026-09-01', '2026-09-07', 'range' ), 'A valid inclusive range end date must be retained.' );
+jprm_daily_assert_same( '', Menus_Admin::sanitize_end_date( '2026-09-07', '2026-09-01', 'range' ), 'An end date before the start date must be rejected.' );
+jprm_daily_assert_same( '', Menus_Admin::sanitize_end_date( '2026-09-01', '2026-09-07', 'single' ), 'Single-date menus must not retain a range end date.' );
 jprm_daily_assert_same( '39.50', Menus_Admin::sanitize_price( '39,50' ), 'A decimal comma must normalize to a dot.' );
 jprm_daily_assert_same( '0', Menus_Admin::sanitize_price( '0' ), 'Zero must remain a valid optional price.' );
 jprm_daily_assert_same( '', Menus_Admin::sanitize_price( '€ 39.50' ), 'Currency symbols must be rejected.' );

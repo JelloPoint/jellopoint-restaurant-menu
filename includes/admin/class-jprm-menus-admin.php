@@ -16,6 +16,8 @@ class Menus_Admin {
 	const TAX = 'jprm_menu';
 	const META_IS_DAILY = '_jprm_is_daily_menu';
 	const META_DATE = '_jprm_daily_menu_date';
+	const META_DATE_TYPE = '_jprm_daily_menu_date_type';
+	const META_END_DATE = '_jprm_daily_menu_end_date';
 	const META_FIXED_PRICE = '_jprm_daily_menu_fixed_price';
 	const NONCE_ACTION = 'jprm_save_daily_menu_fields';
 	const NONCE_FIELD = '_jprm_daily_menu_nonce';
@@ -66,9 +68,10 @@ class Menus_Admin {
 				: esc_html__( 'Menu', 'jellopoint-restaurant-menu' );
 		}
 		if ( 'jprm_daily_date' === $column_name ) {
-			return self::is_daily_menu( (int) $term_id )
-				? esc_html( (string) get_term_meta( (int) $term_id, self::META_DATE, true ) )
-				: '';
+			if ( ! self::is_daily_menu( (int) $term_id ) ) { return ''; }
+			$start = (string) get_term_meta( (int) $term_id, self::META_DATE, true );
+			$end = (string) get_term_meta( (int) $term_id, self::META_END_DATE, true );
+			return esc_html( $end !== '' ? $start . ' – ' . $end : $start );
 		}
 		if ( 'jprm_daily_price' === $column_name ) {
 			return self::is_daily_menu( (int) $term_id )
@@ -87,8 +90,16 @@ class Menus_Admin {
 			<p><?php esc_html_e( 'Mark this regular Menu as a date-specific Daily Menu.', 'jellopoint-restaurant-menu' ); ?></p>
 		</div>
 		<div class="form-field jprm-daily-menu-detail">
-			<label for="jprm_daily_menu_date"><?php esc_html_e( 'Date', 'jellopoint-restaurant-menu' ); ?></label>
+			<label for="jprm_daily_menu_date_type"><?php esc_html_e( 'Date Type', 'jellopoint-restaurant-menu' ); ?></label>
+			<select id="jprm_daily_menu_date_type" name="jprm_daily_menu_date_type"><option value="single"><?php esc_html_e( 'Single Date', 'jellopoint-restaurant-menu' ); ?></option><option value="range"><?php esc_html_e( 'Date Range', 'jellopoint-restaurant-menu' ); ?></option></select>
+		</div>
+		<div class="form-field jprm-daily-menu-detail">
+			<label for="jprm_daily_menu_date"><span class="jprm-date-label-single"><?php esc_html_e( 'Date', 'jellopoint-restaurant-menu' ); ?></span><span class="jprm-date-label-range"><?php esc_html_e( 'Start Date', 'jellopoint-restaurant-menu' ); ?></span></label>
 			<input type="date" id="jprm_daily_menu_date" name="jprm_daily_menu_date" value="" />
+		</div>
+		<div class="form-field jprm-daily-menu-detail jprm-daily-menu-end-date">
+			<label for="jprm_daily_menu_end_date"><?php esc_html_e( 'End Date', 'jellopoint-restaurant-menu' ); ?></label>
+			<input type="date" id="jprm_daily_menu_end_date" name="jprm_daily_menu_end_date" value="" />
 		</div>
 		<div class="form-field jprm-daily-menu-detail">
 			<label for="jprm_daily_menu_fixed_price"><?php esc_html_e( 'Fixed Menu Price', 'jellopoint-restaurant-menu' ); ?></label>
@@ -104,6 +115,9 @@ class Menus_Admin {
 		$term_id = isset( $term->term_id ) ? (int) $term->term_id : 0;
 		$enabled = self::is_daily_menu( $term_id );
 		$date = (string) get_term_meta( $term_id, self::META_DATE, true );
+		$date_type = (string) get_term_meta( $term_id, self::META_DATE_TYPE, true );
+		$date_type = 'range' === $date_type ? 'range' : 'single';
+		$end_date = (string) get_term_meta( $term_id, self::META_END_DATE, true );
 		$price = (string) get_term_meta( $term_id, self::META_FIXED_PRICE, true );
 		wp_nonce_field( self::NONCE_ACTION, self::NONCE_FIELD );
 		?>
@@ -112,8 +126,16 @@ class Menus_Admin {
 			<td><label><input type="checkbox" name="jprm_is_daily_menu" value="1" <?php checked( $enabled ); ?> /> <?php esc_html_e( 'This is a Daily Menu', 'jellopoint-restaurant-menu' ); ?></label></td>
 		</tr>
 		<tr class="form-field jprm-daily-menu-detail">
-			<th scope="row"><label for="jprm_daily_menu_date"><?php esc_html_e( 'Date', 'jellopoint-restaurant-menu' ); ?></label></th>
+			<th scope="row"><label for="jprm_daily_menu_date_type"><?php esc_html_e( 'Date Type', 'jellopoint-restaurant-menu' ); ?></label></th>
+			<td><select id="jprm_daily_menu_date_type" name="jprm_daily_menu_date_type"><option value="single" <?php selected( $date_type, 'single' ); ?>><?php esc_html_e( 'Single Date', 'jellopoint-restaurant-menu' ); ?></option><option value="range" <?php selected( $date_type, 'range' ); ?>><?php esc_html_e( 'Date Range', 'jellopoint-restaurant-menu' ); ?></option></select></td>
+		</tr>
+		<tr class="form-field jprm-daily-menu-detail">
+			<th scope="row"><label for="jprm_daily_menu_date"><span class="jprm-date-label-single"><?php esc_html_e( 'Date', 'jellopoint-restaurant-menu' ); ?></span><span class="jprm-date-label-range"><?php esc_html_e( 'Start Date', 'jellopoint-restaurant-menu' ); ?></span></label></th>
 			<td><input type="date" id="jprm_daily_menu_date" name="jprm_daily_menu_date" value="<?php echo esc_attr( $date ); ?>" /></td>
+		</tr>
+		<tr class="form-field jprm-daily-menu-detail jprm-daily-menu-end-date">
+			<th scope="row"><label for="jprm_daily_menu_end_date"><?php esc_html_e( 'End Date', 'jellopoint-restaurant-menu' ); ?></label></th>
+			<td><input type="date" id="jprm_daily_menu_end_date" name="jprm_daily_menu_end_date" value="<?php echo esc_attr( $end_date ); ?>" /></td>
 		</tr>
 		<tr class="form-field jprm-daily-menu-detail">
 			<th scope="row"><label for="jprm_daily_menu_fixed_price"><?php esc_html_e( 'Fixed Menu Price', 'jellopoint-restaurant-menu' ); ?></label></th>
@@ -133,10 +155,14 @@ class Menus_Admin {
 		$term_id = (int) $term_id;
 		$enabled = ! empty( $_POST['jprm_is_daily_menu'] );
 		$date = self::sanitize_date( isset( $_POST['jprm_daily_menu_date'] ) ? wp_unslash( $_POST['jprm_daily_menu_date'] ) : '' );
+		$date_type = isset( $_POST['jprm_daily_menu_date_type'] ) && 'range' === sanitize_key( wp_unslash( $_POST['jprm_daily_menu_date_type'] ) ) ? 'range' : 'single';
+		$end_date = self::sanitize_end_date( $date, isset( $_POST['jprm_daily_menu_end_date'] ) ? wp_unslash( $_POST['jprm_daily_menu_end_date'] ) : '', $date_type );
 		$price = self::sanitize_price( isset( $_POST['jprm_daily_menu_fixed_price'] ) ? wp_unslash( $_POST['jprm_daily_menu_fixed_price'] ) : '' );
 
 		update_term_meta( $term_id, self::META_IS_DAILY, $enabled ? '1' : '0' );
 		self::update_or_delete_meta( $term_id, self::META_DATE, $date );
+		update_term_meta( $term_id, self::META_DATE_TYPE, $date_type );
+		self::update_or_delete_meta( $term_id, self::META_END_DATE, $end_date );
 		self::update_or_delete_meta( $term_id, self::META_FIXED_PRICE, $price );
 	}
 
@@ -158,6 +184,13 @@ class Menus_Admin {
 		return $value;
 	}
 
+	/** Return a valid inclusive range end date, or blank for a single/invalid range. */
+	public static function sanitize_end_date( string $start_date, $end_date, string $date_type ) : string {
+		$end_date = self::sanitize_date( $end_date );
+		if ( 'range' !== $date_type || '' === $start_date || '' === $end_date || $end_date < $start_date ) { return ''; }
+		return $end_date;
+	}
+
 	private static function update_or_delete_meta( int $term_id, string $key, string $value ) : void {
 		if ( '' === $value ) { delete_term_meta( $term_id, $key ); }
 		else { update_term_meta( $term_id, $key, $value ); }
@@ -168,9 +201,23 @@ class Menus_Admin {
 		<script>
 		document.addEventListener('DOMContentLoaded', function(){
 			var toggle = document.querySelector('input[name="jprm_is_daily_menu"]');
+			var type = document.getElementById('jprm_daily_menu_date_type');
+			var start = document.getElementById('jprm_daily_menu_date');
+			var end = document.getElementById('jprm_daily_menu_end_date');
 			if (!toggle) return;
-			function refresh(){ document.querySelectorAll('.jprm-daily-menu-detail').forEach(function(field){ field.style.display = toggle.checked ? '' : 'none'; }); }
-			toggle.addEventListener('change', refresh); refresh();
+			function refresh(){
+				document.querySelectorAll('.jprm-daily-menu-detail').forEach(function(field){ field.style.display = toggle.checked ? '' : 'none'; });
+				var range = type && type.value === 'range';
+				document.querySelectorAll('.jprm-date-label-single').forEach(function(label){ label.style.display = range ? 'none' : ''; });
+				document.querySelectorAll('.jprm-date-label-range').forEach(function(label){ label.style.display = range ? '' : 'none'; });
+				document.querySelectorAll('.jprm-daily-menu-end-date').forEach(function(field){ field.style.display = toggle.checked && range ? '' : 'none'; });
+				if (end) { end.min = start ? start.value : ''; end.required = toggle.checked && range; }
+				if (start) { start.required = toggle.checked; }
+			}
+			toggle.addEventListener('change', refresh);
+			if (type) type.addEventListener('change', refresh);
+			if (start) start.addEventListener('change', refresh);
+			refresh();
 		});
 		</script>
 		<?php
