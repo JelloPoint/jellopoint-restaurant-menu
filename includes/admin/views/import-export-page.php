@@ -2,9 +2,11 @@
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 /** @var string      $export_url */
 /** @var string      $import_url */
+/** @var string      $demo_import_url */
 /** @var string      $nonce_field */
 /** @var array       $messages */
 /** @var array|null  $import_report */
+/** @var array       $demo_summary */
 ?>
 <div class="wrap jprm-ie-wrap">
 	<h1 class="wp-heading-inline"><?php esc_html_e( 'JPRM Import/Export', 'jellopoint-restaurant-menu' ); ?></h1>
@@ -55,6 +57,34 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 					</button>
 					<span class="description"><?php esc_html_e( 'Dry-run simulates changes only — use Import to commit.', 'jellopoint-restaurant-menu' ); ?></span>
 				</p>
+			</form>
+		</section>
+
+		<section class="jprm-card">
+			<h2><?php esc_html_e( 'Import Demo Menu', 'jellopoint-restaurant-menu' ); ?></h2>
+			<p><?php esc_html_e( 'Create a complete example restaurant menu without changing existing menu items.', 'jellopoint-restaurant-menu' ); ?></p>
+			<p>
+				<strong><?php echo esc_html( (string) ( $demo_summary['menu'] ?? '' ) ); ?></strong><br />
+				<?php echo esc_html( implode( ', ', (array) ( $demo_summary['sections'] ?? [] ) ) ); ?><br />
+				<?php
+				printf(
+					esc_html__( '%d example items, including multi-priced wine and beer.', 'jellopoint-restaurant-menu' ),
+					(int) ( $demo_summary['items'] ?? 0 )
+				);
+				?>
+			</p>
+			<form method="post" action="<?php echo esc_url( $demo_import_url ); ?>">
+				<?php echo $nonce_field; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+				<input type="hidden" name="action_type" id="jprm_demo_action_type" value="dry_run" />
+				<p style="display:flex; gap:8px; align-items:center;">
+					<button type="submit" class="button button-primary" onclick="document.getElementById('jprm_demo_action_type').value='import';">
+						<?php esc_html_e( 'Import Demo Menu', 'jellopoint-restaurant-menu' ); ?>
+					</button>
+					<button type="submit" class="button" onclick="document.getElementById('jprm_demo_action_type').value='dry_run';">
+						<?php esc_html_e( 'Preview Demo Import', 'jellopoint-restaurant-menu' ); ?>
+					</button>
+				</p>
+				<p class="description"><?php esc_html_e( 'Importing again will not create duplicates. Conflicting names stop the import before data is changed.', 'jellopoint-restaurant-menu' ); ?></p>
 			</form>
 		</section>
 	</div>
