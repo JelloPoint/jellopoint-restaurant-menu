@@ -6,17 +6,41 @@ on:
     branches: [ main ]
 
 jobs:
+  compatibility:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ['8.2', '8.4']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP ${{ matrix.php-version }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          coverage: none
+
+      - name: Lint PHP
+        run: find . -type f -name '*.php' -not -path './vendor/*' -not -path './node_modules/*' -print0 | xargs -0 -n1 php -l
+
+      - name: Regression tests
+        run: php tests/run.php
+
   build:
+    needs: compatibility
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup PHP 8.2
+      - name: Setup PHP 8.4
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: '8.4'
           coverage: none
           tools: composer
 
@@ -35,13 +59,12 @@ jobs:
             -type f -name '*.php' -print0)
           exit $FAIL
 
-      # PHPCS: blocking; use your ruleset when you’re ready (for now WP Core)
-      - name: PHPCS (blocking)
-        run: vendor/bin/phpcs --standard=WordPress-Core --warning-severity=0 jellopoint-restaurant-menu.php includes/
+      - name: PHP 7.4–8.4 compatibility (blocking)
+        run: composer compat
 
-      # PHPStan: blocking; uses baseline if present
+      # Existing findings are baselined; newly introduced findings remain blocking.
       - name: PHPStan (blocking)
-        run: vendor/bin/phpstan analyse -c phpstan.neon --no-progress
+        run: composer stan
 
       - name: Build ZIP (clean)
         shell: bash

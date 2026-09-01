@@ -1,10 +1,9 @@
 includes:
   - vendor/szepeviktor/phpstan-wordpress/extension.neon
-  # Optional: baseline once you’re ready
-  # - phpstan-baseline.neon
+  - phpstan-baseline.neon
 
 parameters:
-  level: 2            # ← lower during active dev; raise later in Hardening
+  level: 2
   paths: [ . ]
   excludePaths: [ vendor/*, node_modules/*, .github/* ]
 

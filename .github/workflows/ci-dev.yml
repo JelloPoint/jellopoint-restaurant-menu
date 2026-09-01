@@ -14,7 +14,31 @@ permissions:
   contents: write  # needed to create pre-releases
 
 jobs:
+  compatibility:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ['8.2', '8.4']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP ${{ matrix.php-version }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          coverage: none
+
+      - name: Lint PHP
+        run: find . -type f -name '*.php' -not -path './vendor/*' -not -path './node_modules/*' -print0 | xargs -0 -n1 php -l
+
+      - name: Regression tests
+        run: php tests/run.php
+
   build:
+    needs: compatibility
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -26,10 +50,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup PHP 8.2
+      - name: Setup PHP 8.4
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: '8.4'
           coverage: none
           tools: composer
 
@@ -50,6 +74,9 @@ jobs:
             -type d \( -path ./vendor -o -path ./node_modules \) -prune -false -o \
             -type f -name '*.php' -print0)
           exit $FAIL
+
+      - name: PHP 7.4–8.4 compatibility
+        run: composer compat
 
       # PHPCS: non-blocking (errors only), scoped to plugin files for speed
       - name: PHPCS (non-blocking)

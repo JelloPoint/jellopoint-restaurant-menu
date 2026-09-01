@@ -1,0 +1,281 @@
+parameters:
+	ignoreErrors:
+		-
+			message: "#^Call to an undefined method WP_Query\\:\\:have_posts\\(\\)\\.$#"
+			count: 3
+			path: includes/admin/class-admin-bulk-price-labels.php
+
+		-
+			message: "#^Call to an undefined method WP_Query\\:\\:the_post\\(\\)\\.$#"
+			count: 1
+			path: includes/admin/class-admin-bulk-price-labels.php
+
+		-
+			message: "#^Call to an undefined static method JPRM_Labels_Store\\:\\:all\\(\\)\\.$#"
+			count: 1
+			path: includes/admin/class-admin-menuitem-meta.php
+
+		-
+			message: "#^Call to an undefined method WP_Query\\:\\:get\\(\\)\\.$#"
+			count: 2
+			path: includes/admin/class-jprm-menu-item-list.php
+
+		-
+			message: "#^Call to an undefined method WP_Query\\:\\:set\\(\\)\\.$#"
+			count: 1
+			path: includes/admin/class-jprm-menu-item-list.php
+
+		-
+			message: "#^Filter callback return statement is missing\\.$#"
+			count: 1
+			path: includes/admin/class-jprm-menu-item-list.php
+
+		-
+			message: "#^Call to an undefined static method JelloPoint\\\\RestaurantMenu\\\\Storage\\\\Price_Schema\\:\\:normalize_multi\\(\\)\\.$#"
+			count: 1
+			path: includes/admin/save/class-menuitem-v3-writer.php
+
+		-
+			message: "#^Call to an undefined static method JelloPoint\\\\RestaurantMenu\\\\Storage\\\\Price_Schema\\:\\:normalize_single\\(\\)\\.$#"
+			count: 1
+			path: includes/admin/save/class-menuitem-v3-writer.php
+
+		-
+			message: "#^Call to an undefined static method JelloPoint\\\\RestaurantMenu\\\\Storage\\\\Price_Schema\\:\\:sanitize_price_string\\(\\)\\.$#"
+			count: 2
+			path: includes/admin/save/class-menuitem-v3-writer.php
+
+		-
+			message: "#^Function wp_json_encode invoked with 2 parameters, 1 required\\.$#"
+			count: 1
+			path: includes/admin/views/import-export-page.php
+
+		-
+			message: "#^is_wp_error\\(WP_Term\\) will always evaluate to false\\.$#"
+			count: 2
+			path: includes/class-plugin.php
+
+		-
+			message: "#^is_wp_error\\(array\\<int, WP_Term\\>\\) will always evaluate to false\\.$#"
+			count: 1
+			path: includes/class-plugin.php
+
+		-
+			message: "#^Function update_option invoked with 3 parameters, 2 required\\.$#"
+			count: 2
+			path: includes/data/class-badges-store.php
+
+		-
+			message: "#^Function wp_json_encode invoked with 2 parameters, 1 required\\.$#"
+			count: 1
+			path: includes/data/class-exporter.php
+
+		-
+			message: "#^is_wp_error\\(WP_Term\\) will always evaluate to false\\.$#"
+			count: 4
+			path: includes/data/class-importer.php
+
+		-
+			message: "#^is_wp_error\\(array\\<int, int\\>\\) will always evaluate to false\\.$#"
+			count: 1
+			path: includes/data/class-importer.php
+
+		-
+			message: "#^Call to an undefined static method JPRM_Labels_Store\\:\\:boot_admin_ui\\(\\)\\.$#"
+			count: 1
+			path: includes/data/class-labels-store.php
+
+		-
+			message: "#^Function wp_get_attachment_image invoked with 3 parameters, 4 required\\.$#"
+			count: 1
+			path: includes/data/class-labels-store.php
+
+		-
+			message: "#^Call to an undefined static method JelloPoint\\\\RestaurantMenu\\\\Storage\\\\Price_Schema\\:\\:from_post\\(\\)\\.$#"
+			count: 1
+			path: includes/data/class-price-schema.php
+
+		-
+			message: "#^Call to an undefined static method JPRM_Labels_Store\\:\\:all\\(\\)\\.$#"
+			count: 1
+			path: includes/helpers/prices.php
+
+		-
+			message: "#^Call to an undefined static method JPRM_Labels_Store\\:\\:all\\(\\)\\.$#"
+			count: 1
+			path: includes/render/partials/price-block.php
+
+		-
+			message: "#^Call to an undefined static method JPRM_Labels_Store\\:\\:all\\(\\)\\.$#"
+			count: 1
+			path: includes/render/templates/matrix.php
+
+		-
+			message: "#^Anonymous function has an unused use \\$global_labels_layout\\.$#"
+			count: 1
+			path: includes/render/templates/menu.php
+
+		-
+			message: "#^Variable \\$ctx might not be defined\\.$#"
+			count: 6
+			path: includes/render/templates/menu.php
+
+		-
+			message: "#^Call to an undefined static method JelloPoint\\\\RestaurantMenu\\\\Storage\\\\Price_Schema\\:\\:from_post\\(\\)\\.$#"
+			count: 1
+			path: includes/storage/class-price-repository.php
+
+		-
+			message: "#^Access to constant CHOOSE on an unknown class Elementor\\\\Controls_Manager\\.$#"
+			count: 11
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Access to constant COLOR on an unknown class Elementor\\\\Controls_Manager\\.$#"
+			count: 21
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Access to constant COLOR_TEXT on an unknown class Elementor\\\\Core\\\\Kits\\\\Documents\\\\Tabs\\\\Global_Colors\\.$#"
+			count: 2
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Access to constant DIMENSIONS on an unknown class Elementor\\\\Controls_Manager\\.$#"
+			count: 21
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Access to constant DIVIDER on an unknown class Elementor\\\\Controls_Manager\\.$#"
+			count: 1
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Access to constant HEADING on an unknown class Elementor\\\\Controls_Manager\\.$#"
+			count: 17
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Access to constant MEDIA on an unknown class Elementor\\\\Controls_Manager\\.$#"
+			count: 1
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Access to constant NUMBER on an unknown class Elementor\\\\Controls_Manager\\.$#"
+			count: 1
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Access to constant REPEATER on an unknown class Elementor\\\\Controls_Manager\\.$#"
+			count: 3
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Access to constant SELECT on an unknown class Elementor\\\\Controls_Manager\\.$#"
+			count: 21
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Access to constant SELECT2 on an unknown class Elementor\\\\Controls_Manager\\.$#"
+			count: 3
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Access to constant SLIDER on an unknown class Elementor\\\\Controls_Manager\\.$#"
+			count: 22
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Access to constant SWITCHER on an unknown class Elementor\\\\Controls_Manager\\.$#"
+			count: 11
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Access to constant TAB_STYLE on an unknown class Elementor\\\\Controls_Manager\\.$#"
+			count: 9
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Access to constant TEXT on an unknown class Elementor\\\\Controls_Manager\\.$#"
+			count: 6
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Access to constant TYPOGRAPHY_TEXT on an unknown class Elementor\\\\Core\\\\Kits\\\\Documents\\\\Tabs\\\\Global_Typography\\.$#"
+			count: 2
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Call to an undefined method JelloPoint\\\\RestaurantMenu\\\\Widgets\\\\Restaurant_Menu\\:\\:add_control\\(\\)\\.$#"
+			count: 78
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Call to an undefined method JelloPoint\\\\RestaurantMenu\\\\Widgets\\\\Restaurant_Menu\\:\\:add_group_control\\(\\)\\.$#"
+			count: 17
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Call to an undefined method JelloPoint\\\\RestaurantMenu\\\\Widgets\\\\Restaurant_Menu\\:\\:add_responsive_control\\(\\)\\.$#"
+			count: 50
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Call to an undefined method JelloPoint\\\\RestaurantMenu\\\\Widgets\\\\Restaurant_Menu\\:\\:end_controls_section\\(\\)\\.$#"
+			count: 16
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Call to an undefined method JelloPoint\\\\RestaurantMenu\\\\Widgets\\\\Restaurant_Menu\\:\\:get_settings_for_display\\(\\)\\.$#"
+			count: 2
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Call to an undefined method JelloPoint\\\\RestaurantMenu\\\\Widgets\\\\Restaurant_Menu\\:\\:start_controls_section\\(\\)\\.$#"
+			count: 16
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Call to method add_control\\(\\) on an unknown class Elementor\\\\Repeater\\.$#"
+			count: 11
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Call to method get_controls\\(\\) on an unknown class Elementor\\\\Repeater\\.$#"
+			count: 3
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Call to static method get_type\\(\\) on an unknown class Elementor\\\\Group_Control_Border\\.$#"
+			count: 6
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Call to static method get_type\\(\\) on an unknown class Elementor\\\\Group_Control_Box_Shadow\\.$#"
+			count: 1
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Call to static method get_type\\(\\) on an unknown class Elementor\\\\Group_Control_Typography\\.$#"
+			count: 10
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Inner named functions are not supported by PHPStan\\. Consider refactoring to an anonymous function, class method, or a top\\-level\\-defined function\\. See issue \\#165 \\(https\\://github\\.com/phpstan/phpstan/issues/165\\) for more details\\.$#"
+			count: 1
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Instantiated class Elementor\\\\Repeater not found\\.$#"
+			count: 3
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^is_wp_error\\(array\\<int, WP_Term\\>\\) will always evaluate to false\\.$#"
+			count: 1
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Constructor of class WP_Query has an unused parameter \\$args\\.$#"
+			count: 1
+			path: tests/import-export-price-test.php
