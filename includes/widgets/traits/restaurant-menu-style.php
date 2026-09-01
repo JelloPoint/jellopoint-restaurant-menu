@@ -8,6 +8,32 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 trait Restaurant_Menu_Style {
 	protected function register_style_controls() : void {
+		/* ===== Design preset ===== */
+		$this->start_controls_section(
+			'section_design_preset',
+			[
+				'label' => __( 'Design Preset', 'jellopoint-restaurant-menu' ),
+				'tab'   => Controls_Manager::TAB_STYLE,
+			]
+		);
+
+		$this->add_control(
+			'style_preset',
+			[
+				'label'       => __( 'Predefined Style', 'jellopoint-restaurant-menu' ),
+				'type'        => Controls_Manager::SELECT,
+				'default'     => 'default',
+				'options'     => [
+					'default' => __( 'Default / Custom', 'jellopoint-restaurant-menu' ),
+					'classic' => __( 'Classic', 'jellopoint-restaurant-menu' ),
+					'modern'  => __( 'Modern', 'jellopoint-restaurant-menu' ),
+					'elegant' => __( 'Elegant', 'jellopoint-restaurant-menu' ),
+				],
+				'description' => __( 'Choose a starting design. The controls below can still be used to customize it.', 'jellopoint-restaurant-menu' ),
+			]
+		);
+
+		$this->end_controls_section();
 
 		/* ===== Menu Wrapper ===== */
 
