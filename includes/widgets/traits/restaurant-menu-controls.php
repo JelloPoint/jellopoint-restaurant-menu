@@ -131,7 +131,8 @@ trait Restaurant_Menu_Controls {
 	protected function register_controls() {
 
 	/* --- Preload option sources (neutral, unscoped) ----------------------- */
-	$menu_options_all    = $this->get_terms_options( 'jprm_menu' );
+	$menu_options_all    = [ '' => __( '— Select a Menu —', 'jellopoint-restaurant-menu' ) ]
+		+ $this->get_terms_options( 'jprm_menu' );
 	$section_options_all = $this->get_terms_options( 'jprm_section' );
 
 	// IMPORTANT:
@@ -143,23 +144,11 @@ trait Restaurant_Menu_Controls {
 		/* --- Data Source -------------------------------------------------------- */
 		$this->start_controls_section( 'section_source', [ 'label' => __( 'Data Source', 'jellopoint-restaurant-menu' ) ] );
 
-		$this->add_control( 'data_mode', [
-			'label'   => __( 'Source Mode', 'jellopoint-restaurant-menu' ),
-			'type'    => Controls_Manager::CHOOSE,
-			'toggle'  => true,
-			'default' => 'dynamic',
-			'options' => [
-				'dynamic' => [ 'title' => __( 'Dynamic', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-database' ],
-				'static'  => [ 'title' => __( 'Static', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-editor-list-ul' ],
-			],
-		] );
-
 		$this->add_control( 'show_all_when_empty', [
 			'label'        => __( 'Fallback to all items when no Menu/Section', 'jellopoint-restaurant-menu' ),
 			'type'         => Controls_Manager::SWITCHER,
 			'default'      => 'yes',
 			'return_value' => 'yes',
-			'condition'    => [ 'data_mode' => 'dynamic' ],
 		] );
 
 		$this->add_control( 'menus', [
@@ -168,7 +157,6 @@ trait Restaurant_Menu_Controls {
 			'multiple'  => false,
 			'options'   => $menu_options_all,
 			'default'      => '',
-			'condition' => [ 'data_mode' => 'dynamic' ],
 		] );
 
 		$this->add_control( 'sections', [
@@ -177,7 +165,6 @@ trait Restaurant_Menu_Controls {
 			'multiple'  => true,
 			'options'   => $_scoped_sections, // ← scoped to current Menu (tree if helper provides it)
 			'default'   => [],
-			'condition' => [ 'data_mode' => 'dynamic' ],
 		] );
 
 		$this->add_control( 'query_limit', [
@@ -187,7 +174,6 @@ trait Restaurant_Menu_Controls {
 			'step'        => 1,
 			'default'     => 0,
 			'description' => __( '0 = no limit', 'jellopoint-restaurant-menu' ),
-			'condition'   => [ 'data_mode' => 'dynamic' ],
 		] );
 
 		// --- Items ordering (global) ----------------------------------------------
@@ -200,7 +186,6 @@ trait Restaurant_Menu_Controls {
 				'title'      => __( 'Title', 'jprm' ),
 				'price'      => __( 'Price', 'jprm' ), // first/primary price; see renderer notes
 			],
-			'condition' => [ 'data_mode' => 'dynamic' ],
 		]);
 
 		$this->add_control( 'items_order', [
@@ -211,7 +196,6 @@ trait Restaurant_Menu_Controls {
 				'ASC'  => __( 'Ascending', 'jprm' ),
 				'DESC' => __( 'Descending', 'jprm' ),
 			],
-			'condition' => [ 'data_mode' => 'dynamic' ],
 		]);
 
 // -------------------------------------------------------------------------
@@ -258,39 +242,7 @@ $this->add_control( 'items_order_overrides', [
         'Optional: override the global item order (by title / price / menu order) for specific Sections.',
         'jprm'
     ),
-    'condition'   => [
-        'data_mode' => 'dynamic',
-    ],
 ]);
-
-
-
-		// Static mode controls
-		$rep = new Repeater();
-		$rep->add_control( 'item_title', [
-			'label'       => __( 'Title', 'jellopoint-restaurant-menu' ),
-			'type'        => Controls_Manager::TEXT,
-			'label_block' => true,
-		] );
-		$rep->add_control( 'item_description', [
-			'label'       => __( 'Description', 'jellopoint-restaurant-menu' ),
-			'type'        => Controls_Manager::TEXTAREA,
-			'rows'        => 2,
-			'label_block' => true,
-		] );
-		$rep->add_control( 'item_price', [
-			'label' => __( 'Price', 'jellopoint-restaurant-menu' ),
-			'type'  => Controls_Manager::TEXT,
-		] );
-
-		$this->add_control( 'items', [
-			'label'       => __( 'Static Items', 'jellopoint-restaurant-menu' ),
-			'type'        => Controls_Manager::REPEATER,
-			'fields'      => $rep->get_controls(),
-			'default'     => [],
-			'title_field' => '{{{ item_title }}}',
-			'condition'   => [ 'data_mode' => 'static' ],
-		] );
 
 		$this->end_controls_section();
 
@@ -316,14 +268,12 @@ $this->add_control( 'items_order_overrides', [
 			'type'         => Controls_Manager::SWITCHER,
 			'return_value' => 'yes',
 			'default'      => '',
-			'condition'    => [ 'data_mode' => 'dynamic' ],
 		] );
 		$this->add_control( 'show_menu_description', [
 			'label'        => __( 'Menu description', 'jellopoint-restaurant-menu' ),
 			'type'         => Controls_Manager::SWITCHER,
 			'return_value' => 'yes',
 			'default'      => '',
-			'condition'    => [ 'data_mode' => 'dynamic' ],
 		] );
 		$this->add_control( 'menu_title_position', [
 			'label'     => __( 'Menu title position', 'jellopoint-restaurant-menu' ),
@@ -334,7 +284,6 @@ $this->add_control( 'items_order_overrides', [
 				'first_column' => __( 'Above 1st Column', 'jellopoint-restaurant-menu' ),
 			],
 			'condition' => [
-				'data_mode'         => 'dynamic',
 				'show_menu_title!'  => '',
 			],
 		] );
@@ -618,7 +567,6 @@ $this->end_controls_section();
 			'type'         => Controls_Manager::SWITCHER,
 			'return_value' => 'yes',
 			'default'      => 'yes',
-			'condition'    => [ 'data_mode' => 'dynamic' ],
 		] );
 
 		$this->add_control( 'badges_position', [
@@ -630,7 +578,7 @@ $this->end_controls_section();
 			],
 			'default'   => 'after',
 			'toggle'    => false,
-			'condition' => [ 'show_badges' => 'yes', 'data_mode' => 'dynamic' ],
+			'condition' => [ 'show_badges' => 'yes' ],
 		] );
 
 		$this->add_control( 'badges_presentation', [
@@ -642,7 +590,7 @@ $this->end_controls_section();
 				'icon_text' => __( 'Icon + Text', 'jellopoint-restaurant-menu' ),
 			],
 			'default'   => 'icon_text',
-			'condition' => [ 'show_badges' => 'yes', 'data_mode' => 'dynamic' ],
+			'condition' => [ 'show_badges' => 'yes' ],
 		] );
 
 		$this->end_controls_section();
@@ -734,7 +682,6 @@ $this->end_controls_section();
 				'manual' => __( 'Manual (split after section)', 'jellopoint-restaurant-menu' ),
 			],
 			'condition' => [
-				'data_mode'      => 'dynamic',
 				'layout_columns' => [ '2', '3' ],
 			],
 		] );
@@ -746,7 +693,6 @@ $this->end_controls_section();
 			'classes'   => 'jprm-scope-target',
 			'default'   => '',
 			'condition' => [
-				'data_mode'        => 'dynamic',
 				'layout_columns'   => [ '2', '3' ],
 				'layout_split_mode'=> 'manual',
 			],
@@ -760,7 +706,6 @@ $this->end_controls_section();
 			'classes'   => 'jprm-scope-target',
 			'default'   => '',
 			'condition' => [
-				'data_mode'        => 'dynamic',
 				'layout_columns'   => '3',
 				'layout_split_mode'=> 'manual',
 			],
@@ -777,7 +722,6 @@ $this->end_controls_section();
 				'{{WRAPPER}} .jp-menu-grid' => 'gap: {{SIZE}}{{UNIT}};',
 			],
 			'condition' => [
-				'data_mode'      => 'dynamic',
 				'layout_columns' => [ '2', '3' ],
 			],
 		] );

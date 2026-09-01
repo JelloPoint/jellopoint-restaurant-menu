@@ -152,16 +152,7 @@ final class Restaurant_Menu extends Widget_Base {
         self::require_infoblocks_partial_once();
         self::ensure_menu_meta_helper();
 
-        // $s = with computed dynamic values; $raw = raw settings (for optional future use)
-        $s   = $this->get_settings_for_display();
-        $raw = $this->get_settings();
-
-        // Static mode (unchanged)
-        $mode = isset( $s['data_mode'] ) ? (string) $s['data_mode'] : null;
-        if ( 'static' === $mode || ( null === $mode && ! empty( $s['items'] ) ) ) {
-            $this->render_static_list( is_array( $s['items'] ) ? $s['items'] : [] );
-            return;
-        }
+        $s = $this->get_settings_for_display();
 
         $show_all           = ( isset( $s['show_all_when_empty'] ) && 'yes' === $s['show_all_when_empty'] );
         $menu_sel           = $s['menus'] ?? '';
@@ -577,31 +568,4 @@ final class Restaurant_Menu extends Widget_Base {
         return is_array( $q->posts ?? null ) ? $q->posts : [];
     }
 
-    /* =========================
-     * Static renderer
-     * ========================= */
-    protected function render_static_list( array $items ) : void {
-        echo '<ul class="jp-menu">';
-        foreach ( $items as $it ) {
-            $title = $it['item_title'] ?? '';
-            $desc  = $it['item_description'] ?? '';
-            $price = $it['item_price'] ?? '';
-            echo '<li class="jp-menu__item"><div class="jp-menu__inner">';
-            echo '  <div class="jp-menu__content">';
-            echo '    <div class="jp-menu__titleline">';
-            if ( $title !== '' ) echo '      <h4 class="jp-menu__title">' . esc_html( $title ) . '</h4>';
-            echo '    </div>';
-            if ( $desc  !== '' ) echo '    <div class="jp-menu__desc">' . esc_html( $desc ) . '</div>';
-            echo '  </div>';
-            echo '  <div class="jp-menu__pricegroup">';
-            if ( $price !== '' ) {
-                echo '    <div class="jp-menu__price">';
-                echo '      <span class="jp-menu__value jp-col-price">' . esc_html( $price ) . '</span>';
-                echo '    </div>';
-            }
-            echo '  </div>';
-            echo '</div></li>';
-        }
-        echo '</ul>';
-    }
 }
