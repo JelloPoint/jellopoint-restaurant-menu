@@ -53,11 +53,13 @@ if ( ! function_exists( 'jprm_resolve_label' ) ) {
 
 		$label_text = '';
 		$icon_id    = 0;
+		$icon_url   = '';
 
 		if ( $ref !== '' && class_exists( '\JPRM_Labels_Store' ) && method_exists( '\JPRM_Labels_Store', 'resolve' ) ) {
 			$res        = \JPRM_Labels_Store::resolve( $ref );
 			$label_text = (string) ( $res['label_text'] ?? '' );
 			$icon_id    = (int)    ( $res['icon_id']    ?? 0 );
+			$icon_url   = (string) ( $res['icon_url']   ?? '' );
 		} else {
 			// Basic fallback: show the ref as text if no store available
 			$label_text = $ref;
@@ -66,15 +68,16 @@ if ( ! function_exists( 'jprm_resolve_label' ) ) {
 
 		if ( $icon_override > 0 ) {
 			$icon_id = $icon_override;
+			$icon_url = '';
 		}
 
-		return [ 'label_text' => $label_text, 'icon_id' => $icon_id ];
+		return [ 'label_text' => $label_text, 'icon_id' => $icon_id, 'icon_url' => $icon_url ];
 	}
 }
 
 /** Render label HTML according to your classic modes: text | icon | icon_text */
 if ( ! function_exists( 'jprm_label_html' ) ) {
-	function jprm_label_html( string $label_text, int $icon_id, string $presentation, bool $hide_icon ) : string {
+	function jprm_label_html( string $label_text, int $icon_id, string $presentation, bool $hide_icon, string $icon_url = '' ) : string {
 		$label_text = (string) $label_text;
 		$icon_id    = (int) $icon_id;
 
@@ -82,6 +85,11 @@ if ( ! function_exists( 'jprm_label_html' ) ) {
 		if ( ! $hide_icon && $icon_id > 0 ) {
 			$img = wp_get_attachment_image( $icon_id, [24,24], false, [ 'class' => 'jp-menu__icon' ] );
 			if ( is_string( $img ) ) $icon_html = $img;
+		}
+		if ( ! $hide_icon && '' === $icon_html && '' !== $icon_url ) {
+			$icon_html = function_exists( 'jprm_colorize_icon' )
+				? jprm_colorize_icon( '', $icon_url, 'label' )
+				: '<img class="jp-menu__icon" src="' . esc_url( $icon_url ) . '" alt="" />';
 		}
 
 		if ( $presentation === 'icon' ) {
@@ -126,7 +134,10 @@ if ( ! function_exists( 'jprm_get_pricegroup_data' ) ) {
 
 		$rows = [];
 
-		$make_icon_html = function( int $icon_id ) : string {
+		$make_icon_html = function( int $icon_id, string $icon_url = '' ) : string {
+			if ( $icon_id <= 0 && '' !== $icon_url ) {
+				return function_exists( 'jprm_colorize_icon' ) ? jprm_colorize_icon( '', $icon_url, 'label' ) : '<img class="jp-menu__icon" src="' . esc_url( $icon_url ) . '" alt="" />';
+			}
 			if ( $icon_id <= 0 ) return '';
 			$img = wp_get_attachment_image( $icon_id, [24,24], false, [ 'class' => 'jp-menu__icon' ] );
 			return is_string( $img ) ? $img : '';
@@ -150,7 +161,7 @@ if ( ! function_exists( 'jprm_get_pricegroup_data' ) ) {
 
 			$res      = jprm_resolve_label( $ref, $icon_id );
 			$text     = (string) ( $res['label_text'] ?? '' );
-			$icon_out = $hide ? '' : $make_icon_html( (int) ( $res['icon_id'] ?? 0 ) );
+			$icon_out = $hide ? '' : $make_icon_html( (int) ( $res['icon_id'] ?? 0 ), (string) ( $res['icon_url'] ?? '' ) );
 
 			$raw       = (string) $cfg['price'];
 			$amount    = $to_amount( $raw );
@@ -177,7 +188,7 @@ if ( ! function_exists( 'jprm_get_pricegroup_data' ) ) {
 
 				$res      = jprm_resolve_label( $ref, $icon_id );
 				$text     = (string) ( $res['label_text'] ?? '' );
-				$icon_out = $hide ? '' : $make_icon_html( (int) ( $res['icon_id'] ?? 0 ) );
+				$icon_out = $hide ? '' : $make_icon_html( (int) ( $res['icon_id'] ?? 0 ), (string) ( $res['icon_url'] ?? '' ) );
 
 				$amount    = $to_amount( $raw );
 				$formatted = jprm_format_amount( $raw, $currency_opts );

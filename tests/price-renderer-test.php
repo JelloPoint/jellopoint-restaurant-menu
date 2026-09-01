@@ -5,12 +5,16 @@ define( 'ABSPATH', __DIR__ . '/' );
 
 function esc_attr( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
 function esc_html( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
+function esc_url( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
 function wp_get_attachment_image( $id, $size, $icon, $attrs ) {
 	return '<img data-id="' . (int) $id . '" class="' . esc_attr( $attrs['class'] ?? '' ) . '">';
 }
 
 class JPRM_Labels_Store {
 	public static function resolve( $ref ): array {
+		if ( 'Bundled' === $ref ) {
+			return [ 'label_text' => 'Bundled', 'icon_id' => 0, 'icon_url' => 'https://example.test/bottle.svg' ];
+		}
 		return [ 'label_text' => (string) $ref, 'icon_id' => 12 ];
 	}
 }
@@ -59,5 +63,11 @@ $multi_html = Price_Renderer::render_pricegroup(
 jprm_render_assert( ! str_contains( $multi_html, 'data-id="301"' ), 'A hidden icon must not be rendered.' );
 jprm_render_assert( str_contains( $multi_html, 'data-id="302"' ), 'A visible explicit multi-price icon must be rendered.' );
 jprm_render_assert( 2 === substr_count( $multi_html, 'class="jp-menu__row ' ), 'Every valid multi-price row must render exactly once.' );
+
+$bundled_html = Price_Renderer::render_pricegroup(
+	[ 'mode' => 'single', 'price' => '5', 'label_ref' => 'Bundled', 'hide_icon' => false ],
+	[ 'presentation' => 'icon_text' ]
+);
+jprm_render_assert( str_contains( $bundled_html, 'bottle.svg' ), 'A bundled label icon URL must render when no attachment icon is selected.' );
 
 fwrite( STDOUT, "Price renderer regression checks passed.\n" );

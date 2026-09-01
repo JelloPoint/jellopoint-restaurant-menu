@@ -68,10 +68,11 @@ class Price_Renderer {
                 $res        = \JPRM_Labels_Store::resolve( $ref );
                 $label_text = (string) ( $res['label_text'] ?? '' );
                 $icon_id    = (int) ( $cfg['icon_id'] ?? ( $res['icon_id'] ?? 0 ) );
+                $icon_url   = $icon_id > 0 ? '' : (string) ( $res['icon_url'] ?? '' );
 
                 $price_html = self::format_price_display( $price, $currency );
 
-                echo self::row_html( $price_html, $label_text, $icon_id, $presentation, $order_class, $hide );
+                echo self::row_html( $price_html, $label_text, $icon_id, $icon_url, $presentation, $order_class, $hide );
             }
         }
         // MULTI
@@ -88,10 +89,11 @@ class Price_Renderer {
                 $res        = \JPRM_Labels_Store::resolve( $ref );
                 $label_text = (string) ( $res['label_text'] ?? '' );
                 $icon_id    = (int) ( $row['icon_id'] ?? ( $res['icon_id'] ?? 0 ) );
+                $icon_url   = $icon_id > 0 ? '' : (string) ( $res['icon_url'] ?? '' );
 
                 $price_html = self::format_price_display( $price, $currency );
 
-                echo self::row_html( $price_html, $label_text, $icon_id, $presentation, $order_class, $hide );
+                echo self::row_html( $price_html, $label_text, $icon_id, $icon_url, $presentation, $order_class, $hide );
             }
         }
 
@@ -103,8 +105,8 @@ class Price_Renderer {
      * Render one row: label (text/icon/both) + price markup.
      * Keeps exact classes/structure.
      */
-    protected static function row_html( string $price_html, string $label_text, int $icon_id, string $presentation, string $order_class, bool $hide_icon ) : string {
-        $label_markup = self::get_label_markup( $label_text, $icon_id, $presentation, $hide_icon );
+    protected static function row_html( string $price_html, string $label_text, int $icon_id, string $icon_url, string $presentation, string $order_class, bool $hide_icon ) : string {
+        $label_markup = self::get_label_markup( $label_text, $icon_id, $icon_url, $presentation, $hide_icon );
 
         // Order: left label then price, or reversed (DOM order controls layout)
         if ( $order_class === 'jp-order--label-left' ) {
@@ -126,7 +128,7 @@ class Price_Renderer {
      * - 'icon'      => icon only (if available)
      * - 'icon_text' => icon + text (space-separated)
      */
-    protected static function get_label_markup( string $label_text, int $icon_id, string $presentation, bool $hide_icon ) : string {
+    protected static function get_label_markup( string $label_text, int $icon_id, string $icon_url, string $presentation, bool $hide_icon ) : string {
         $icon_html = '';
 
         if ( ! $hide_icon && $icon_id > 0 ) {
@@ -135,6 +137,11 @@ class Price_Renderer {
                 $icon_html = $img;
             }
         }
+		if ( ! $hide_icon && '' === $icon_html && '' !== $icon_url ) {
+			$icon_html = function_exists( 'jprm_colorize_icon' )
+				? jprm_colorize_icon( '', $icon_url, 'label' )
+				: '<img class="jp-menu__icon" src="' . esc_url( $icon_url ) . '" alt="" />';
+		}
 
         if ( $presentation === 'icon' ) {
             return $icon_html;

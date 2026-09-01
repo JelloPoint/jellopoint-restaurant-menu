@@ -46,11 +46,12 @@ class JPRM_Labels_Store {
                     $text = (string)($row['label'] ?? '');
                     if ( $text === '' ) { $text = (string)($row['label_text'] ?? ''); }
                     $icon = (int)($row['icon_id'] ?? 0);
-                    return ['label_text' => $text, 'icon_id' => ($icon > 0 ? $icon : 0)];
+                    $icon_url = (string)($row['icon_url'] ?? '');
+                    return ['label_text' => $text, 'icon_id' => ($icon > 0 ? $icon : 0), 'icon_url' => $icon_url];
                 }
             }
         }
-        return ['label_text' => $ref, 'icon_id' => 0];
+        return ['label_text' => $ref, 'icon_id' => 0, 'icon_url' => ''];
     }
 
     /* ================= Admin wiring ================= */
@@ -123,6 +124,7 @@ class JPRM_Labels_Store {
                 'label' => '',
                 'slug' => '',
                 'icon_id' => 0,
+                'icon_url' => '',
                 'active' => true,
                 'order' => 0,
             ] );
@@ -189,6 +191,7 @@ class JPRM_Labels_Store {
                         '<div class="jprm-icon-wrap">',
                           '<span class="jprm-icon-preview" role="button" tabindex="0">'+iconPlaceholder()+'</span>',
                           '<input type="hidden" name="labels['+idx+'][icon_id]" value="0" />',
+                          '<input type="hidden" name="labels['+idx+'][icon_url]" value="" />',
                           '<button type="button" class="button jprm-icon-btn jprm-icon-clear" title="Clear icon"><span class="dashicons dashicons-no"></span><span class="screen-reader-text">Clear</span></button>',
                         '</div>',
                       '</td>',
@@ -222,6 +225,7 @@ class JPRM_Labels_Store {
                 if (e.type === 'keypress' && e.key !== 'Enter' && e.key !== ' ') return;
                 var $wrap = $(this).closest('.jprm-icon-wrap');
                 var $input = $wrap.find('input[type="hidden"][name*="[icon_id]"]');
+                var $urlInput = $wrap.find('input[type="hidden"][name*="[icon_url]"]');
                 var $preview = $wrap.find('.jprm-icon-preview');
                 if (frame) { frame.close(); }
                 frame = wp.media({
@@ -234,6 +238,7 @@ class JPRM_Labels_Store {
                     var attachment = frame.state().get('selection').first().toJSON();
                     var url = (attachment.sizes && attachment.sizes.thumbnail && attachment.sizes.thumbnail.url) ? attachment.sizes.thumbnail.url : (attachment.icon || attachment.url);
                     $input.val(attachment.id);
+                    $urlInput.val('');
                     $preview.html('<img src="'+url+'" alt="" />');
                 });
                 frame.open();
@@ -243,6 +248,7 @@ class JPRM_Labels_Store {
             $(document).on('click', '.jprm-icon-clear', function(){
                 var $wrap = $(this).closest('.jprm-icon-wrap');
                 $wrap.find('input[type="hidden"][name*="[icon_id]"]').val('0');
+                $wrap.find('input[type="hidden"][name*="[icon_url]"]').val('');
                 $wrap.find('.jprm-icon-preview').html(iconPlaceholder());
             });
 
@@ -293,7 +299,7 @@ class JPRM_Labels_Store {
             $row = self::sanitize_row( $row );
 
             // Skip empty lines
-            if ( $row['label'] === '' && $row['slug'] === '' && (int)$row['icon_id'] === 0 ) {
+            if ( $row['label'] === '' && $row['slug'] === '' && (int)$row['icon_id'] === 0 && $row['icon_url'] === '' ) {
                 continue;
             }
 
@@ -342,6 +348,7 @@ class JPRM_Labels_Store {
             $label = wp_kses_post( (string)$row['label_text'] );
         }
         $icon  = isset($row['icon_id']) ? (int)$row['icon_id'] : 0;
+        $icon_url = isset($row['icon_url']) ? esc_url_raw( (string)$row['icon_url'] ) : '';
         $active= ! empty($row['active']) ? true : false;
         $order = isset($row['order']) ? (int)$row['order'] : 0;
         return [
@@ -349,6 +356,7 @@ class JPRM_Labels_Store {
             'slug'   => $slug,
             'label'  => $label,
             'icon_id'=> $icon,
+            'icon_url'=> $icon_url,
             'active' => $active,
             'order'  => $order,
         ];
@@ -361,6 +369,7 @@ class JPRM_Labels_Store {
         $label = esc_attr( (string)($row['label'] ?? '') );
         if ( $label === '' ) { $label = esc_attr( (string)($row['label_text'] ?? '') ); }
         $icon  = (int)($row['icon_id'] ?? 0);
+        $icon_url = esc_url( (string)($row['icon_url'] ?? '') );
         $act   = ! empty($row['active']);
         $order = (int)($row['order'] ?? $index);
 
@@ -368,6 +377,8 @@ class JPRM_Labels_Store {
         if ( $icon > 0 ) {
             $img = wp_get_attachment_image( $icon, [28,28], false );
             if ( is_string($img) ) { $preview = $img; }
+        } elseif ( $icon_url !== '' ) {
+            $preview = '<img src="' . $icon_url . '" alt="" />';
         } else {
             $preview = '<span class="dashicons dashicons-format-image" title="'.esc_attr__('Choose icon','jellopoint-restaurant-menu').'"></span>';
         }
@@ -386,6 +397,7 @@ class JPRM_Labels_Store {
                 <div class="jprm-icon-wrap">
                     <span class="jprm-icon-preview" role="button" tabindex="0"><?php echo $preview; ?></span>
                     <input type="hidden" name="labels[<?php echo $index; ?>][icon_id]" value="<?php echo esc_attr($icon); ?>" />
+                    <input type="hidden" name="labels[<?php echo $index; ?>][icon_url]" value="<?php echo esc_url($icon_url); ?>" />
                     <button type="button" class="button jprm-icon-btn jprm-icon-clear" title="<?php echo esc_attr__('Clear icon','jellopoint-restaurant-menu'); ?>"><span class="dashicons dashicons-no"></span><span class="screen-reader-text"><?php echo esc_html__('Clear','jellopoint-restaurant-menu'); ?></span></button>
                 </div>
             </td>

@@ -27,5 +27,6 @@ jprm_import_hook_assert_same( 1, count( $jprm_import_actions['admin_post_jprm_im
 jprm_import_hook_assert_same( 1, count( $jprm_import_actions['admin_post_jprm_remove_demo'] ?? [] ), 'The demo removal must have exactly one authenticated admin handler.' );
 jprm_import_hook_assert_same( 1, count( $jprm_import_actions['admin_post_jprm_import'] ?? [] ), 'The normal import handler must remain registered.' );
 jprm_import_hook_assert_same( 1, count( $jprm_import_actions['admin_post_jprm_export'] ?? [] ), 'The export handler must remain registered.' );
+jprm_import_hook_assert_same( 1, count( $jprm_import_actions['admin_post_jprm_install_defaults'] ?? [] ), 'The default-data installer must have exactly one authenticated admin handler.' );
 
 fwrite( STDOUT, "Import/Export admin hook checks passed.\n" );

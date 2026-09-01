@@ -33,6 +33,7 @@ final class JPRM_Admin_Import_Export {
         add_action( 'admin_post_jprm_import', [ __CLASS__, 'handle_import' ] );
         add_action( 'admin_post_jprm_import_demo', [ __CLASS__, 'handle_demo_import' ] );
         add_action( 'admin_post_jprm_remove_demo', [ __CLASS__, 'handle_demo_remove' ] );
+        add_action( 'admin_post_jprm_install_defaults', [ __CLASS__, 'handle_install_defaults' ] );
 
         // Assets only on our screen.
         add_action( 'admin_enqueue_scripts', [ __CLASS__, 'enqueue_assets' ] );
@@ -70,6 +71,7 @@ final class JPRM_Admin_Import_Export {
         $import_url  = admin_url( 'admin-post.php?action=jprm_import' );
         $demo_import_url = admin_url( 'admin-post.php?action=jprm_import_demo' );
         $demo_remove_url = admin_url( 'admin-post.php?action=jprm_remove_demo' );
+        $install_defaults_url = admin_url( 'admin-post.php?action=jprm_install_defaults' );
         $nonce_field = wp_nonce_field( self::NONCE_ACTION, self::NONCE_FIELD, true, false );
 
 		if ( ! class_exists( '\\JelloPoint\\RestaurantMenu\\Data\\JPRM_Demo_Menu' ) ) {
@@ -247,6 +249,27 @@ final class JPRM_Admin_Import_Export {
 			(int) ( $result['items'] ?? 0 ),
 			(int) ( $result['sections'] ?? 0 ),
 			(int) ( $result['menus'] ?? 0 )
+		);
+
+		$back = wp_get_referer() ?: admin_url( 'admin.php?page=' . self::PAGE_SLUG );
+		wp_safe_redirect( add_query_arg( 'jprm_ie_msg', rawurlencode( $message ), $back ) );
+		exit;
+	}
+
+	/** Add missing standard badges, labels, and bundled icons. */
+	public static function handle_install_defaults(): void {
+		if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( 'Unauthorized' ); }
+		check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
+
+		if ( ! class_exists( '\JPRM_Default_Data' ) ) {
+			require_once dirname( __DIR__ ) . '/data/class-default-data.php';
+		}
+		$result = \JPRM_Default_Data::install_missing();
+		$message = sprintf(
+			'Defaults installed: %d badges, %d labels, %d icons added.',
+			(int) $result['badges_added'],
+			(int) $result['labels_added'],
+			(int) $result['badge_icons_added'] + (int) $result['label_icons_added']
 		);
 
 		$back = wp_get_referer() ?: admin_url( 'admin.php?page=' . self::PAGE_SLUG );

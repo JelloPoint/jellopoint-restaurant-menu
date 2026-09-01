@@ -2,7 +2,7 @@
 /**
  * Plugin Name: JelloPoint – Restaurant Menu
  * Description: Restaurant Menu items, labels and Elementor widget.
- * Version: 2.0.6
+ * Version: 2.0.7
  * Author: JelloPoint
  * Text Domain: jellopoint-restaurant-menu
  */
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Constants
  * ------------------------------------------------- */
 if ( ! defined( 'JPRM_VERSION' ) ) {
-	define( 'JPRM_VERSION', '2.0.6' );
+	define( 'JPRM_VERSION', '2.0.7' );
 }
 if ( ! defined( 'JPRM_PLUGIN_FILE' ) ) {
 	define( 'JPRM_PLUGIN_FILE', __FILE__ );
@@ -37,6 +37,7 @@ if ( ! defined( 'JPRM_PLUGIN_URL' ) ) {
 require_once JPRM_PLUGIN_PATH . 'includes/storage/class-price-schema.php';
 require_once JPRM_PLUGIN_PATH . 'includes/data/class-price-schema.php';
 require_once JPRM_PLUGIN_PATH . 'includes/data/class-labels-store.php';
+require_once JPRM_PLUGIN_PATH . 'includes/data/class-default-data.php';
 
 // Storage
 require_once JPRM_PLUGIN_PATH . 'includes/storage/class-price-repository.php';
@@ -108,6 +109,7 @@ add_action(
 function jprm_activate(): void {
 	\JelloPoint\RestaurantMenu\Plugin::register_types();
 	\JelloPoint\RestaurantMenu\Plugin::register_taxonomies();
+	JPRM_Default_Data::install_missing();
 	flush_rewrite_rules();
 }
 

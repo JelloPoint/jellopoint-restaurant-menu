@@ -4,6 +4,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 /** @var string      $import_url */
 /** @var string      $demo_import_url */
 /** @var string      $demo_remove_url */
+/** @var string      $install_defaults_url */
 /** @var string      $nonce_field */
 /** @var array       $messages */
 /** @var array|null  $import_report */
@@ -94,6 +95,16 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 					<?php esc_html_e( 'Remove Demo Content', 'jellopoint-restaurant-menu' ); ?>
 				</button>
 				<p class="description"><?php esc_html_e( 'Only content marked by the demo importer is removed. Menu items are moved to the WordPress Trash.', 'jellopoint-restaurant-menu' ); ?></p>
+			</form>
+		</section>
+
+		<section class="jprm-card">
+			<h2><?php esc_html_e( 'Default Badges & Price Labels', 'jellopoint-restaurant-menu' ); ?></h2>
+			<p><?php esc_html_e( 'Install the standard dietary badges and price labels with bundled icons.', 'jellopoint-restaurant-menu' ); ?></p>
+			<form method="post" action="<?php echo esc_url( $install_defaults_url ); ?>">
+				<?php echo $nonce_field; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+				<button type="submit" class="button button-primary"><?php esc_html_e( 'Install Default Badges & Labels', 'jellopoint-restaurant-menu' ); ?></button>
+				<p class="description"><?php esc_html_e( 'Safe to run again. Missing entries and icons are added; your existing names, settings, and selected icons are preserved.', 'jellopoint-restaurant-menu' ); ?></p>
 			</form>
 		</section>
 	</div>
