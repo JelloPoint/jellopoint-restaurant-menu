@@ -533,11 +533,11 @@ final class JPRM_Importer {
 		return self::result_row(
 			$existing_id,
 			$dry ? ( $is_existing ? $existing_id : 0 ) : ( $post_id ?: 0 ),
-			$title, $price_mode, $price_summary, $new, $new_terms_created, $error
+			$title, $price_mode, $price_summary, $new, $new_terms_created, $error, $action
 		);
 	}
 
-	private static function result_row( $old_id, $new_id, $title, $mode, $price_summary, $new, $new_terms_created, $error ) : array {
+	private static function result_row( $old_id, $new_id, $title, $mode, $price_summary, $new, $new_terms_created, $error, $action = '' ) : array {
 		// Defensive: never fatally error when an upstream caller passes an unexpected type.
 		if ( ! is_array( $new ) ) {
 			$new = [
@@ -554,11 +554,14 @@ final class JPRM_Importer {
 			'prices'     => [],
 		], $new );
 
+		$derived_action = ( $new_id && $old_id && $new_id === $old_id ) ? 'updated' : ( $new_id ? 'created' : 'skipped' );
+		$reported_action = in_array( $action, [ 'created', 'updated', 'unchanged', 'skipped' ], true ) ? $action : $derived_action;
+
 		return [
 			'post_id_old'       => $old_id,
 			'post_id_new'       => $new_id,
 			'title'             => $title,
-			'action'            => ( $new_id && $old_id && $new_id === $old_id ) ? 'updated' : ( $new_id ? 'created' : 'skipped' ),
+			'action'            => $reported_action,
 			'mode'              => $mode,
 			'price_summary'     => $price_summary,
 			'menus'             => is_array( $new['menu_terms'] ) ? $new['menu_terms'] : [],

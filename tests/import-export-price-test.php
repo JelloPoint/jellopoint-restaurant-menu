@@ -62,8 +62,10 @@ function wp_generate_uuid4() { return '00000000-0000-4000-8000-000000000000'; }
 require_once dirname( __DIR__ ) . '/includes/storage/class-price-schema.php';
 require_once dirname( __DIR__ ) . '/includes/storage/class-price-repository.php';
 require_once dirname( __DIR__ ) . '/includes/data/class-exporter.php';
+require_once dirname( __DIR__ ) . '/includes/data/class-importer.php';
 
 use JelloPoint\RestaurantMenu\Data\JPRM_Exporter;
+use JelloPoint\RestaurantMenu\Data\JPRM_Importer;
 
 function jprm_transfer_assert_same( $expected, $actual, string $message ): void {
 	if ( $expected !== $actual ) {
@@ -83,5 +85,9 @@ jprm_transfer_assert_same( 301, $items[1]['prices']['rows'][0]['icon_id'], 'Mult
 jprm_transfer_assert_same( 'custom', $items[1]['prices']['rows'][1]['label_mode'], 'Multi custom label mode must survive export.' );
 jprm_transfer_assert_same( 'Large', $items[1]['prices']['rows'][1]['label_custom'], 'Multi custom label must survive export.' );
 jprm_transfer_assert_same( true, $items[1]['prices']['rows'][1]['hide_icon'], 'Multi icon visibility must survive export.' );
+
+$result_method = new ReflectionMethod( JPRM_Importer::class, 'result_row' );
+$reported = $result_method->invoke( null, 101, 101, 'Item 101', 'single', '14,50', [], [], '', 'unchanged' );
+jprm_transfer_assert_same( 'unchanged', $reported['action'], 'Dry-run reports must preserve the calculated unchanged action.' );
 
 fwrite( STDOUT, "Import/export price compatibility checks passed.\n" );
