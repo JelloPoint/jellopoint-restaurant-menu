@@ -32,7 +32,6 @@ class JPRM_Admin_Dietary_Badges {
 
 	public function __construct( $store_instance ) {
 		$this->store = $store_instance;
-		add_action( 'admin_post_jprm_save_dietary_badges', [ $this, 'handle_post' ] );
 	}
 
 	public function render_page() {
@@ -193,6 +192,7 @@ class JPRM_Admin_Dietary_Badges {
 
 	protected function row_html( $index, $row ) : string {
 		$name     = isset( $row['name'] ) ? $row['name'] : '';
+		$slug     = isset( $row['slug'] ) ? $row['slug'] : sanitize_title( $name );
 		$icon_id  = isset( $row['icon_id'] ) ? (int) $row['icon_id'] : 0;
 		$icon_url = isset( $row['icon_url'] ) ? $row['icon_url'] : '';
 		$active   = ! empty( $row['active'] );
@@ -215,6 +215,7 @@ class JPRM_Admin_Dietary_Badges {
 
 			<td class="jprm-cell-name">
 				<input type="text" class="regular-text" name="jprm_badges[<?php echo esc_attr( (string) $index ); ?>][name]" value="<?php echo esc_attr( $name ); ?>" />
+				<input type="hidden" name="jprm_badges[<?php echo esc_attr( (string) $index ); ?>][slug]" value="<?php echo esc_attr( $slug ); ?>" />
 			</td>
 
 			<td class="jprm-cell-icon">

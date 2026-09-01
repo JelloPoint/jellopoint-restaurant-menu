@@ -4,6 +4,7 @@
  *
  * Mirrors the "Price Labels" data shape/UX:
  * - name (string)
+ * - slug (string) — stable identifier used by menu items
  * - icon_id (int)
  * - icon_url (string)
  * - active (bool)
@@ -51,12 +52,21 @@ class JPRM_Badges_Store {
 	 */
 	public function save_rows( $input ) : void {
 		$out = [];
+		$seen_slugs = [];
 
 		if ( is_array( $input ) ) {
 			foreach ( $input as $row ) {
 				$r = $this->sanitize_row( $row );
 				// Keep non-empty lines only (at least a name or an icon)
 				if ( $r['name'] !== '' || $r['icon_id'] || $r['icon_url'] !== '' ) {
+					$base = $r['slug'] !== '' ? $r['slug'] : sanitize_title( $r['name'] );
+					$slug = $base;
+					$suffix = 2;
+					while ( $slug !== '' && isset( $seen_slugs[ $slug ] ) ) {
+						$slug = $base . '-' . $suffix++;
+					}
+					$r['slug'] = $slug;
+					if ( $slug !== '' ) $seen_slugs[ $slug ] = true;
 					$out[] = $r;
 				}
 			}
@@ -76,6 +86,7 @@ class JPRM_Badges_Store {
 	public function blank_row() : array {
 		return [
 			'name'     => '',
+			'slug'     => '',
 			'icon_id'  => 0,
 			'icon_url' => '',
 			'active'   => true,
@@ -88,6 +99,7 @@ class JPRM_Badges_Store {
 	 */
 	protected function sanitize_row( $row ) : array {
 		$name     = isset( $row['name'] ) ? sanitize_text_field( (string) $row['name'] ) : '';
+		$slug     = isset( $row['slug'] ) ? sanitize_title( (string) $row['slug'] ) : sanitize_title( $name );
 		$icon_id  = isset( $row['icon_id'] ) ? absint( $row['icon_id'] ) : 0;
 		$icon_url = isset( $row['icon_url'] ) ? esc_url_raw( (string) $row['icon_url'] ) : '';
 		$active   = isset( $row['active'] ) ? (bool) $row['active'] : false;
@@ -103,6 +115,7 @@ class JPRM_Badges_Store {
 
 		return [
 			'name'     => $name,
+			'slug'     => $slug,
 			'icon_id'  => $icon_id,
 			'icon_url' => $icon_url,
 			'active'   => $active,
@@ -133,6 +146,7 @@ class JPRM_Badges_Store {
 		foreach ( $names as $i => $n ) {
 			$rows[] = [
 				'name'     => $n,
+				'slug'     => sanitize_title( $n ),
 				'icon_id'  => 0,
 				'icon_url' => '',
 				'active'   => true,

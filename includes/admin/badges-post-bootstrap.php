@@ -47,7 +47,7 @@ class Badges_Post_Bootstrap {
 	 */
 	public static function enqueue_admin_assets( $hook ) : void {
 		$page = isset( $_GET['page'] ) ? sanitize_key( (string) $_GET['page'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( $page !== 'jprm_dietary_badges' ) {
+		if ( $page !== 'jprm-dietary-badges' ) {
 			return;
 		}
 		\wp_enqueue_media();
@@ -133,4 +133,3 @@ add_action( 'load-post.php',     __NAMESPACE__ . '\\jprm_bootstrap_menuitem_badg
 add_action( 'load-post-new.php', __NAMESPACE__ . '\\jprm_bootstrap_menuitem_badges_metabox_loader' );
 
 add_action( 'admin_enqueue_scripts', __NAMESPACE__ . '\\Badges_Post_Bootstrap::enqueue_admin_assets' );
-add_action( 'admin_post_jprm_badges_save', __NAMESPACE__ . '\\Badges_Post_Bootstrap::handle_post' );
