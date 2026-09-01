@@ -43,7 +43,8 @@ class Price_Schema {
      */
     public static function normalize_single( array $in ) : array {
         $price     = self::sanitize_price_string( $in['price'] ?? '' );
-        $label_ref = is_scalar($in['label_ref'] ?? '') ? (string)$in['label_ref'] : '';
+        $label_raw = $in['label_ref'] ?? '';
+        $label_ref = is_scalar( $label_raw ) ? (string) $label_raw : '';
         $icon_id   = isset($in['icon_id']) ? max(0, (int)$in['icon_id']) : 0;
         $hide_icon = ! empty( $in['hide_icon'] );
 
@@ -72,7 +73,8 @@ class Price_Schema {
             $value     = self::sanitize_price_string( $r['value'] ?? '' );
             if ( $value === '' ) continue;
 
-            $label_ref = is_scalar($r['label_ref'] ?? '') ? (string)$r['label_ref'] : '';
+            $label_raw = $r['label_ref'] ?? '';
+            $label_ref = is_scalar( $label_raw ) ? (string) $label_raw : '';
             $icon_id   = isset($r['icon_id']) ? max(0, (int)$r['icon_id']) : 0;
             $hide_icon = ! empty( $r['hide_icon'] );
 

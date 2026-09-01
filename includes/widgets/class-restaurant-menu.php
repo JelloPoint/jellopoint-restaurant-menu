@@ -2,6 +2,7 @@
 namespace JelloPoint\RestaurantMenu\Widgets;
 
 use Elementor\Widget_Base;
+use JelloPoint\RestaurantMenu\Storage\Price_Repository;
 
 use function jprm_build_label_map;
 use function jprm_read_price_config;
@@ -112,33 +113,34 @@ final class Restaurant_Menu extends Widget_Base {
 
     /** Return a numeric price used only for sorting (single or first multi row). */
     private static function jprm_effective_price_number( int $post_id ) : float {
-        $mode   = (string) get_post_meta( $post_id, 'jprm_price_mode', true );
-        $amount = '';
+        $cfg = Price_Repository::get( $post_id );
+        if ( ! is_array( $cfg ) || empty( $cfg['mode'] ) ) return INF;
 
-        if ( $mode === 'single' ) {
-            $amount = (string) get_post_meta( $post_id, 'jprm_price_amount', true );
-        } else {
-            $rows = get_post_meta( $post_id, 'jprm_prices', true );
-            if ( ! is_array( $rows ) ) {
-                $p = get_post_meta( $post_id, 'jprm_price', true );
-                $rows = ( is_array($p) && !empty($p['rows']) && is_array($p['rows']) ) ? $p['rows'] : [];
-            }
-            if ( ! empty( $rows ) ) {
-                $r = (array) $rows[0];
-                $amount = (string) ( $r['amount'] ?? ( $r['value'] ?? '' ) );
-            }
+        $amount = '';
+        if ( 'single' === $cfg['mode'] ) {
+            $amount = (string) ( $cfg['price'] ?? '' );
+        } elseif ( 'multi' === $cfg['mode'] && ! empty( $cfg['rows'][0] ) && is_array( $cfg['rows'][0] ) ) {
+            $amount = (string) ( $cfg['rows'][0]['value'] ?? '' );
         }
 
         $s = trim( (string) $amount );
         if ( $s === '' ) return INF; // empty pushes to end if ASC
 
-        // normalize strings like "€ 2,50" -> "2.50"
-        $s = preg_replace('~[^0-9,.\-]~', '', $s);
-        if ( strpos($s, ',') !== false && strpos($s, '.') === false ) {
-            $s = str_replace(',', '.', $s);
+        $s = preg_replace( '~[^0-9,.\-]~', '', $s );
+        if ( $s === '' || $s === '-' ) return INF;
+
+        if ( strpos( $s, ',' ) !== false && strpos( $s, '.' ) !== false ) {
+            if ( strrpos( $s, ',' ) > strrpos( $s, '.' ) ) {
+                $s = str_replace( '.', '', $s );
+                $s = str_replace( ',', '.', $s );
+            } else {
+                $s = str_replace( ',', '', $s );
+            }
+        } elseif ( strpos( $s, ',' ) !== false ) {
+            $s = str_replace( ',', '.', $s );
         }
-        $n = floatval( $s );
-        return is_finite($n) ? $n : INF;
+
+        return is_numeric( $s ) ? (float) $s : INF;
     }
 
     /* =========================
@@ -564,7 +566,11 @@ final class Restaurant_Menu extends Widget_Base {
         $tax_query = [];
         if ( ! empty( $menu_ids ) )    $tax_query[] = [ 'taxonomy' => 'jprm_menu',    'field' => 'term_id', 'terms' => $menu_ids ];
         if ( ! empty( $section_ids ) ) $tax_query[] = [ 'taxonomy' => 'jprm_section', 'field' => 'term_id', 'terms' => $section_ids ];
-        if ( ! empty( $tax_query ) )   $args['tax_query'] = $tax_query;
+        if ( ! empty( $tax_query ) ) {
+            $args['tax_query'] = count( $tax_query ) > 1
+                ? array_merge( [ 'relation' => 'AND' ], $tax_query )
+                : $tax_query;
+        }
         elseif ( ! $fallback_all )     return [];
 
         $q = new \WP_Query( $args );
