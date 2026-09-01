@@ -24,6 +24,7 @@ function jprm_import_hook_assert_same( $expected, $actual, string $message ): vo
 
 JPRM_Admin_Import_Export::bootstrap();
 jprm_import_hook_assert_same( 1, count( $jprm_import_actions['admin_post_jprm_import_demo'] ?? [] ), 'The demo import must have exactly one authenticated admin handler.' );
+jprm_import_hook_assert_same( 1, count( $jprm_import_actions['admin_post_jprm_remove_demo'] ?? [] ), 'The demo removal must have exactly one authenticated admin handler.' );
 jprm_import_hook_assert_same( 1, count( $jprm_import_actions['admin_post_jprm_import'] ?? [] ), 'The normal import handler must remain registered.' );
 jprm_import_hook_assert_same( 1, count( $jprm_import_actions['admin_post_jprm_export'] ?? [] ), 'The export handler must remain registered.' );
 

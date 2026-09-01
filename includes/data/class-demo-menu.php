@@ -71,6 +71,47 @@ final class JPRM_Demo_Menu {
 		];
 	}
 
+	/** Remove only content carrying this demo import's explicit markers. */
+	public static function remove(): array {
+		$stored = get_option( self::OPTION_KEY, [] );
+		if ( ! is_array( $stored ) || empty( $stored['menu_term_id'] ) ) {
+			return [ 'items' => 0, 'sections' => 0, 'menus' => 0 ];
+		}
+
+		$removed_items = 0;
+		foreach ( array_map( 'absint', (array) ( $stored['post_ids'] ?? [] ) ) as $post_id ) {
+			if ( $post_id <= 0 || 1 !== (int) get_post_meta( $post_id, '_jprm_demo_menu', true ) ) { continue; }
+			if ( wp_trash_post( $post_id ) ) {
+				++$removed_items;
+			}
+		}
+
+		$removed_sections = 0;
+		$names = is_array( $stored['names'] ?? null ) ? $stored['names'] : [];
+		$section_names = is_array( $names['sections'] ?? null ) ? $names['sections'] : [];
+		foreach ( array_reverse( self::summary()['sections'] ) as $original_name ) {
+			$name = (string) ( $section_names[ $original_name ] ?? $original_name );
+			$term = get_term_by( 'name', $name, 'jprm_section' );
+			if ( ! $term || 1 !== (int) get_term_meta( (int) $term->term_id, '_jprm_demo_menu', true ) ) { continue; }
+			$result = wp_delete_term( (int) $term->term_id, 'jprm_section' );
+			if ( true === $result ) {
+				++$removed_sections;
+			}
+		}
+
+		$removed_menus = 0;
+		$menu_id = absint( $stored['menu_term_id'] );
+		if ( $menu_id > 0 && 1 === (int) get_term_meta( $menu_id, '_jprm_demo_menu', true ) ) {
+			$result = wp_delete_term( $menu_id, 'jprm_menu' );
+			if ( true === $result ) {
+				$removed_menus = 1;
+			}
+		}
+
+		delete_option( self::OPTION_KEY );
+		return [ 'items' => $removed_items, 'sections' => $removed_sections, 'menus' => $removed_menus ];
+	}
+
 	/** Bundled demo items in the normal lossless importer shape. */
 	public static function items( array $names = [] ): array {
 		$single = static function ( string $title, string $section, string $description, string $price, array $badges = [] ): array {

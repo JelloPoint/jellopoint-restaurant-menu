@@ -3,6 +3,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 /** @var string      $export_url */
 /** @var string      $import_url */
 /** @var string      $demo_import_url */
+/** @var string      $demo_remove_url */
 /** @var string      $nonce_field */
 /** @var array       $messages */
 /** @var array|null  $import_report */
@@ -85,6 +86,14 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 					</button>
 				</p>
 				<p class="description"><?php esc_html_e( 'Importing again will not create duplicates. Conflicting names stop the import before data is changed.', 'jellopoint-restaurant-menu' ); ?></p>
+			</form>
+			<hr />
+			<form method="post" action="<?php echo esc_url( $demo_remove_url ); ?>" onsubmit="return window.confirm('<?php echo esc_js( __( 'Remove all imported demo menu content? Demo items will be moved to the Trash.', 'jellopoint-restaurant-menu' ) ); ?>');">
+				<?php echo $nonce_field; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+				<button type="submit" class="button button-link-delete">
+					<?php esc_html_e( 'Remove Demo Content', 'jellopoint-restaurant-menu' ); ?>
+				</button>
+				<p class="description"><?php esc_html_e( 'Only content marked by the demo importer is removed. Menu items are moved to the WordPress Trash.', 'jellopoint-restaurant-menu' ); ?></p>
 			</form>
 		</section>
 	</div>
