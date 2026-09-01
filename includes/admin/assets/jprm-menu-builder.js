@@ -1,6 +1,18 @@
 (function($){
-  function apiGet(path){ return $.ajax({ url: JPRM_MENU_BUILDER.root + '/' + path.replace(/^\//,''), method:'GET', beforeSend:x=>x.setRequestHeader('X-WP-Nonce',JPRM_MENU_BUILDER.nonce) }); }
-  function apiPost(path,data){ return $.ajax({ url: JPRM_MENU_BUILDER.root + '/' + path.replace(/^\//,''), method:'POST', contentType:'application/json; charset=utf-8', data:JSON.stringify(data||{}), beforeSend:x=>x.setRequestHeader('X-WP-Nonce',JPRM_MENU_BUILDER.nonce) }); }
+  function apiUrl(path){
+    const parts = String(path || '').replace(/^\//, '').split('?');
+    const root = String(JPRM_MENU_BUILDER.root || '').replace(/\/$/, '');
+    const url = root + '/' + parts.shift();
+    const query = parts.join('?');
+
+    if (!query) return url;
+
+    // With plain WordPress permalinks, rest_url() already contains
+    // ?rest_route=...; additional request arguments must therefore use &.
+    return url + (root.indexOf('?') === -1 ? '?' : '&') + query;
+  }
+  function apiGet(path){ return $.ajax({ url: apiUrl(path), method:'GET', beforeSend:x=>x.setRequestHeader('X-WP-Nonce',JPRM_MENU_BUILDER.nonce) }); }
+  function apiPost(path,data){ return $.ajax({ url: apiUrl(path), method:'POST', contentType:'application/json; charset=utf-8', data:JSON.stringify(data||{}), beforeSend:x=>x.setRequestHeader('X-WP-Nonce',JPRM_MENU_BUILDER.nonce) }); }
 
   const state = { menus:[], sections:[], items:[], unassigned:[], currentMenu:null };
   const INDENT = 28, MAX_DEPTH = 6;
