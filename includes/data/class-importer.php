@@ -328,9 +328,9 @@ final class JPRM_Importer {
 		}
 
 		$old = [
-			'post_title'  => $is_existing ? (string) get_the_title( $post_id ) : '',
+			'post_title'  => $is_existing ? sanitize_text_field( (string) get_the_title( $post_id ) ) : '',
 			'post_status' => $is_existing ? (string) get_post_status( $post_id ) : 'draft',
-			'desc'        => $is_existing ? (string) get_post_meta( $post_id, 'jprm_desc', true ) : '',
+			'desc'        => $is_existing ? wp_kses_post( (string) get_post_meta( $post_id, 'jprm_desc', true ) ) : '',
 			'menu_terms'  => $is_existing ? self::terms_as_names( $post_id, 'jprm_menu' ) : [],
 			'sect_terms'  => $is_existing ? self::terms_as_names( $post_id, 'jprm_section' ) : [],
 			'badges'      => $is_existing ? self::meta_badges( $post_id ) : [],

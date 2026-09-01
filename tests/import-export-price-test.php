@@ -58,6 +58,8 @@ function update_option( $key, $value ) {
 	return true;
 }
 function wp_generate_uuid4() { return '00000000-0000-4000-8000-000000000000'; }
+function sanitize_text_field( $value ) { return preg_replace( '/\s+/', ' ', trim( (string) $value ) ); }
+function wp_kses_post( $value ) { return str_replace( "\r\n", "\n", (string) $value ); }
 
 require_once dirname( __DIR__ ) . '/includes/storage/class-price-schema.php';
 require_once dirname( __DIR__ ) . '/includes/storage/class-price-repository.php';
