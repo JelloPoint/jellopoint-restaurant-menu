@@ -67,7 +67,7 @@ class Price_Renderer {
 
                 $res        = \JPRM_Labels_Store::resolve( $ref );
                 $label_text = (string) ( $res['label_text'] ?? '' );
-                $icon_id    = (int) ( $res['icon_id'] ?? 0 );
+                $icon_id    = (int) ( $cfg['icon_id'] ?? ( $res['icon_id'] ?? 0 ) );
 
                 $price_html = self::format_price_display( $price, $currency );
 
@@ -87,7 +87,7 @@ class Price_Renderer {
 
                 $res        = \JPRM_Labels_Store::resolve( $ref );
                 $label_text = (string) ( $res['label_text'] ?? '' );
-                $icon_id    = (int) ( $res['icon_id'] ?? 0 );
+                $icon_id    = (int) ( $row['icon_id'] ?? ( $res['icon_id'] ?? 0 ) );
 
                 $price_html = self::format_price_display( $price, $currency );
 
