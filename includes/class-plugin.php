@@ -106,21 +106,8 @@ class Plugin {
 	public static function register_assets() : void {
 		// Register the widget stylesheet so Elementor can enqueue it via get_style_depends().
 		if ( ! wp_style_is( 'jprm-menu', 'registered' ) ) {
-			// Absolute path to assets/css/menu.css relative to this file.
-			$abs_css = __DIR__ . '/assets/menu.css';
-			// URL built relative to this file (this file is in /includes/), so we pass __FILE__
-			// and a relative path from /includes/ to /assets/css/menu.css.
-			$url_css = plugins_url( 'assets/css/menu.css', __FILE__ );
-
-			$ver = defined( 'JPRM_PLUGIN_VERSION' ) ? JPRM_PLUGIN_VERSION : null;
-
-			// Even if the file check fails on some environments, still register so Elementor can try to enqueue.
-			if ( file_exists( $abs_css ) ) {
-				wp_register_style( 'jprm-menu', $url_css, [], $ver );
-			} else {
-				// Fallback: still register with the computed URL (helps in symlinked or atypical installs).
-				wp_register_style( 'jprm-menu', $url_css, [], $ver );
-			}
+			$url_css = JPRM_PLUGIN_URL . 'assets/css/menu.css';
+			wp_register_style( 'jprm-menu', $url_css, [], JPRM_VERSION );
 		}
 	}
 
@@ -130,7 +117,7 @@ class Plugin {
 	}
 
 	public static function enqueue_elementor_editor_assets() : void {
-		$base_url = defined( 'JPRM_PLUGIN_URL' ) ? JPRM_PLUGIN_URL : plugin_dir_url( __DIR__ ) . '../';
+		$base_url = JPRM_PLUGIN_URL;
 		$handle   = 'jprm-elementor-sections-dep';
 		$src      = trailingslashit( $base_url ) . 'assets/admin/elementor-sections-dep.js';
 
@@ -138,7 +125,7 @@ class Plugin {
 			$handle,
 			$src,
 			[ 'jquery', 'elementor-editor' ],
-			defined( 'JPRM_PLUGIN_VERSION' ) ? JPRM_PLUGIN_VERSION : null,
+			JPRM_VERSION,
 			true
 		);
 
@@ -196,10 +183,10 @@ class Plugin {
 	public static function ajax_sections_by_menu() : void {
 		// Keep the editor usable even on nonce/capability issues.
 		if ( ! current_user_can( 'edit_posts' ) ) {
-			wp_send_json_success( self::all_sections_map(), 200 );
+			wp_send_json_error( [ 'message' => __( 'Insufficient permissions.', 'jellopoint-restaurant-menu' ) ], 403 );
 		}
 		if ( ! isset( $_REQUEST['_ajax_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_REQUEST['_ajax_nonce'] ) ), 'jprm_sections' ) ) {
-			wp_send_json_success( self::all_sections_map(), 200 );
+			wp_send_json_error( [ 'message' => __( 'Invalid request.', 'jellopoint-restaurant-menu' ) ], 403 );
 		}
 
 		$menu_raw = isset( $_REQUEST['menu'] ) ? wp_unslash( $_REQUEST['menu'] ) : '';
@@ -315,5 +302,3 @@ class Plugin {
 		return $out;
 	}
 }
-
-\JelloPoint\RestaurantMenu\Plugin::init();

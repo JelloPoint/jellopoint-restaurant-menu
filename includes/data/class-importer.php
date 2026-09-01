@@ -282,9 +282,10 @@ final class JPRM_Importer {
 			);
 		}
 
-		$title   = (string) ( $it['post_title'] ?? '' );
-		$status  = (string) ( $it['post_status'] ?? 'draft' );
-		$desc    = (string) ( $it['description'] ?? '' );
+		$title   = sanitize_text_field( (string) ( $it['post_title'] ?? '' ) );
+		$status  = sanitize_key( (string) ( $it['post_status'] ?? 'draft' ) );
+		$status  = in_array( $status, [ 'draft', 'pending', 'publish', 'private' ], true ) ? $status : 'draft';
+		$desc    = wp_kses_post( (string) ( $it['description'] ?? '' ) );
 		$tax     = is_array( $it['tax'] ?? null ) ? $it['tax'] : [ 'jprm_menu'=>[], 'jprm_section'=>[] ];
 		$badges  = is_array( $it['badges'] ?? null ) ? $it['badges'] : [];
 		$prices  = is_array( $it['prices'] ?? null ) ? $it['prices'] : [];
@@ -305,6 +306,18 @@ final class JPRM_Importer {
 		}
 
 		$is_existing = ( $existing_id > 0 && get_post_type( $existing_id ) === 'jprm_menu_item' );
+		if ( $is_existing && ! current_user_can( 'edit_post', $existing_id ) ) {
+			return self::result_row(
+				$existing_id,
+				0,
+				$title,
+				'skipped',
+				'',
+				[],
+				[ 'menus' => [], 'sections' => [] ],
+				'Insufficient permissions to update this item.'
+			);
+		}
 		if ( $is_existing ) {
 			$post_id = $existing_id;
 			$action  = 'updated'; // may become 'unchanged'

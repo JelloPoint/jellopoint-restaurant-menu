@@ -16,7 +16,10 @@ final class JPRM_Admin_Import_Export {
     private const NONCE_FIELD  = '_jprm_ie_nonce';
 
     /** Capability — match the parent menu. */
-    private const CAPABILITY   = 'edit_posts';
+    private const CAPABILITY   = 'manage_options';
+
+    /** Maximum accepted import size (5 MiB). */
+    private const MAX_IMPORT_BYTES = 5242880;
 
     /** Bootstrap hooks — call once from your plugin loader (admin only). */
     public static function bootstrap(): void {
@@ -131,7 +134,7 @@ final class JPRM_Admin_Import_Export {
         if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( 'Unauthorized' ); }
         check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
 
-        $format = isset( $_POST['format'] ) && $_POST['format'] === 'csv' ? 'csv' : 'json';
+        $format = isset( $_POST['format'] ) && 'csv' === sanitize_key( wp_unslash( $_POST['format'] ) ) ? 'csv' : 'json';
 
         // Include the exporter and stream the download.
         if ( ! class_exists( '\\JelloPoint\\RestaurantMenu\\Data\\JPRM_Exporter' ) ) {
@@ -156,18 +159,32 @@ final class JPRM_Admin_Import_Export {
         $ignore_ids           = ! empty( $_POST['ignore_ids'] );
         $attach_images        = ! empty( $_POST['attach_images'] ); // reserved
 
-        if ( empty( $_FILES['jprm_import_file'] ) ) {
+        if ( empty( $_FILES['jprm_import_file'] ) || ! is_array( $_FILES['jprm_import_file'] ) ) {
             $back = wp_get_referer() ?: admin_url( 'admin.php?page=' . self::PAGE_SLUG );
             wp_safe_redirect( add_query_arg( 'jprm_ie_msg', rawurlencode( 'No file uploaded.' ), $back ) );
             exit;
         }
+
+		$file = $_FILES['jprm_import_file'];
+		$error = isset( $file['error'] ) ? (int) $file['error'] : UPLOAD_ERR_NO_FILE;
+		$size  = isset( $file['size'] ) ? (int) $file['size'] : 0;
+		$name  = isset( $file['name'] ) ? sanitize_file_name( wp_unslash( $file['name'] ) ) : '';
+		$ext   = strtolower( pathinfo( $name, PATHINFO_EXTENSION ) );
+
+		if ( UPLOAD_ERR_OK !== $error || $size <= 0 || $size > self::MAX_IMPORT_BYTES || ! in_array( $ext, [ 'csv', 'json' ], true ) ) {
+			$back = wp_get_referer() ?: admin_url( 'admin.php?page=' . self::PAGE_SLUG );
+			wp_safe_redirect( add_query_arg( 'jprm_ie_msg', rawurlencode( 'Upload a valid CSV or JSON file no larger than 5 MB.' ), $back ) );
+			exit;
+		}
+
+		$file['name'] = $name;
 
         if ( ! class_exists( '\\JelloPoint\\RestaurantMenu\\Data\\JPRM_Importer' ) ) {
             require_once dirname( __DIR__ ) . '/data/class-importer.php';
         }
 
         $report = \JelloPoint\RestaurantMenu\Data\JPRM_Importer::run(
-            $_FILES['jprm_import_file'],
+            $file,
             [
                 'dry_run'              => $dry_run,
                 'create_missing_terms' => $create_missing_terms,

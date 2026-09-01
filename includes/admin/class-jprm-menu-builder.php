@@ -28,8 +28,8 @@ class Menu_Builder {
     public static function register_page() : void {
         add_submenu_page(
             self::PARENT_SLUG,                          // parent: Jellopoint (already exists)
-            __( 'Menu Builder', 'jprm' ),
-            __( 'Menu Builder', 'jprm' ),
+            __( 'Menu Builder', 'jellopoint-restaurant-menu' ),
+            __( 'Menu Builder', 'jellopoint-restaurant-menu' ),
             'edit_posts',
             self::SLUG,
             [ __CLASS__, 'render' ],
@@ -63,7 +63,7 @@ class Menu_Builder {
         wp_localize_script( 'jprm-menu-builder', 'JPRM_MENU_BUILDER', [
             'root'               => esc_url_raw( rest_url( 'jprm/v1' ) ),
             'nonce'              => wp_create_nonce( 'wp_rest' ),
-            'debug'              => true, // set false to hide the diagnostics stripe
+            'debug'              => false,
             'admin_new_item_url' => admin_url( 'post-new.php?post_type=jprm_menu_item' ),
         ] );
 
@@ -80,7 +80,7 @@ class Menu_Builder {
         $view = trailingslashit( JPRM_PLUGIN_PATH ) . 'includes/admin/views/jprm-menu-builder.php';
         if ( file_exists( $view ) ) { require $view; return; }
 
-        echo '<div class="wrap"><h1>' . esc_html__( 'Menu Builder', 'jprm' ) . '</h1>';
-        echo '<p>' . esc_html__( 'View file not found at includes/admin/views/jprm-menu-builder.php', 'jprm' ) . '</p></div>';
+        echo '<div class="wrap"><h1>' . esc_html__( 'Menu Builder', 'jellopoint-restaurant-menu' ) . '</h1>';
+        echo '<p>' . esc_html__( 'View file not found at includes/admin/views/jprm-menu-builder.php', 'jellopoint-restaurant-menu' ) . '</p></div>';
     }
 }

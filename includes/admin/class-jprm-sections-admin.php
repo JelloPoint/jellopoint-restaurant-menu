@@ -216,13 +216,6 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 			$pieces['orderby'] = ' ORDER BY CAST(tm_sort.meta_value AS UNSIGNED), t.name ';
 		}
 
-		// Debug hook
-		if ( isset($_GET['jprm_dbg']) && $_GET['jprm_dbg'] === '1' ) { // phpcs:ignore
-			error_log('[JPRM terms_clauses:filtered] WHERE=' . ($pieces['where'] ?? '(none)'));
-			error_log('[JPRM terms_clauses:filtered] JOIN='  . ($pieces['join']  ?? '(none)'));
-			error_log('[JPRM terms_clauses:filtered] GROUP=' . ($pieces['groupby']?? '(none)'));
-			error_log('[JPRM terms_clauses:filtered] ORDER=' . ($pieces['orderby']?? '(none)'));
-		}
 		return $pieces;
 	}
 
@@ -234,14 +227,6 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 			$pieces['groupby'] .= ', t.term_id';
 		}
 		$pieces['orderby'] = ' ORDER BY CAST(tm_sort.meta_value AS UNSIGNED), t.name ';
-	}
-
-	// Debug
-	if ( isset($_GET['jprm_dbg']) && $_GET['jprm_dbg'] === '1' ) { // phpcs:ignore
-		error_log('[JPRM terms_clauses:all] WHERE=' . ($pieces['where'] ?? '(none)'));
-		error_log('[JPRM terms_clauses:all] JOIN='  . ($pieces['join']  ?? '(none)'));
-		error_log('[JPRM terms_clauses:all] GROUP=' . ($pieces['groupby']?? '(none)'));
-		error_log('[JPRM terms_clauses:all] ORDER=' . ($pieces['orderby']?? '(none)'));
 	}
 
 	return $pieces;

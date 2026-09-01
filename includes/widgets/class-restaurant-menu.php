@@ -296,11 +296,6 @@ final class Restaurant_Menu extends Widget_Base {
             }
         }
 
-        // Tiny debug hook: visible in view-source so you can confirm overrides are seen.
-        if ( ! empty( $ov_map ) ) {
-            echo "\n<!-- jprm items_order_overrides: " . esc_html( wp_json_encode( $ov_map ) ) . " -->\n";
-        }
-
         foreach ( $sections_data as $tid => &$bucket ) {
             if ( empty( $bucket['items'] ) || ! is_array( $bucket['items'] ) ) continue;
 

@@ -123,7 +123,11 @@ class Menu_Builder_Controller extends \WP_REST_Controller {
 		] );
 	}
 
-	public function cap() : bool {
+	public function cap( $request ) : bool {
+		if ( $request instanceof \WP_REST_Request && 'GET' !== $request->get_method() ) {
+			return current_user_can( 'manage_categories' );
+		}
+
 		return current_user_can( 'edit_posts' );
 	}
 
@@ -192,6 +196,9 @@ return rest_ensure_response( [ 'sections' => $list ] );
 		if ( $menu_id <= 0 || $name === '' ) {
 			return new \WP_Error( 'jprm_bad_params', __( 'Name and menu_id are required.', 'jprm' ), [ 'status' => 400 ] );
 		}
+		if ( ! current_user_can( 'manage_categories' ) ) {
+			return new \WP_Error( 'jprm_perm', __( 'Insufficient permissions.', 'jellopoint-restaurant-menu' ), [ 'status' => 403 ] );
+		}
 
 		// Guard: parent (if provided) must belong to same menu
 		if ( $parent ) {
@@ -247,6 +254,20 @@ foreach ( $flat as $row ) {
 			[ 'status' => 400 ]
 		);
 	}
+
+	$parent_id = (int) ( $row['parent_id'] ?? 0 );
+	if ( $parent_id === $tid ) {
+		return new \WP_Error( 'jprm_invalid_parent', __( 'A section cannot be its own parent.', 'jellopoint-restaurant-menu' ), [ 'status' => 400 ] );
+	}
+	if ( $parent_id > 0 ) {
+		$parent_owner = (int) get_term_meta( $parent_id, self::META_MENU_OWNER, true );
+		if ( $parent_owner !== $menu_id ) {
+			return new \WP_Error( 'jprm_cross_menu', __( 'A parent section must belong to the same Menu.', 'jellopoint-restaurant-menu' ), [ 'status' => 400 ] );
+		}
+		if ( term_is_ancestor_of( $tid, $parent_id, self::TAX_SECTION ) ) {
+			return new \WP_Error( 'jprm_invalid_parent', __( 'A section cannot be moved below one of its descendants.', 'jellopoint-restaurant-menu' ), [ 'status' => 400 ] );
+		}
+	}
 }
 
 // Apply parents and write sequential order 1..N
@@ -293,6 +314,9 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $touched ) ] );
 
 		if ( $menu_id <= 0 || $section_id <= 0 ) {
 			return new \WP_Error( 'jprm_bad_params', __( 'menu_id and section_id are required.', 'jprm' ), [ 'status' => 400 ] );
+		}
+		if ( ! current_user_can( 'edit_term', $section_id ) ) {
+			return new \WP_Error( 'jprm_perm', __( 'Insufficient permissions.', 'jellopoint-restaurant-menu' ), [ 'status' => 403 ] );
 		}
 		$owner = (int) get_term_meta( $section_id, self::META_MENU_OWNER, true );
 		if ( $owner !== $menu_id ) {
@@ -492,6 +516,7 @@ public function save_items_order( $request ) {
 			if ( $pid <= 0 ) continue;
 			if ( ! current_user_can( 'edit_post', $pid ) ) continue;
 			wp_set_post_terms( $pid, [ $section_id ], self::TAX_SECTION, false );
+			wp_set_post_terms( $pid, [ $menu_id ], self::TAX_MENU, true );
 			$next++;
 			update_post_meta( $pid, self::META_ITEM_ORDER, $next );
 			$done++;
