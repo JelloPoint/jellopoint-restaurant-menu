@@ -33,7 +33,8 @@ if ( ! defined( 'JPRM_PLUGIN_URL' ) ) {
 
 /** Core data / storage / render (front + admin) */
 
-// Data layer (fix: correct path was includes/data/, not storage/)
+// Canonical price schema and backward-compatible data adapter.
+require_once JPRM_PLUGIN_PATH . 'includes/storage/class-price-schema.php';
 require_once JPRM_PLUGIN_PATH . 'includes/data/class-price-schema.php';
 require_once JPRM_PLUGIN_PATH . 'includes/data/class-labels-store.php';
 

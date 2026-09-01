@@ -8,6 +8,31 @@ if ( ! defined('ABSPATH') ) exit;
 
 class Price_Schema {
 
+	/** Read and normalize either legacy array or canonical JSON post meta. */
+	public static function from_post( int $post_id ) : array {
+		if ( $post_id <= 0 ) return [];
+
+		$raw = get_post_meta( $post_id, 'jprm_price', true );
+		$cfg = is_string( $raw ) ? json_decode( $raw, true ) : $raw;
+
+		return is_array( $cfg ) ? self::normalize( $cfg ) : [];
+	}
+
+	/** Normalize a complete single- or multi-price configuration. */
+	public static function normalize( array $cfg ) : array {
+		$mode = (string) ( $cfg['mode'] ?? '' );
+		if ( 'single' === $mode ) {
+			$normalized = self::normalize_single( $cfg );
+			return self::is_valid( $normalized ) ? $normalized : [];
+		}
+		if ( 'multi' === $mode ) {
+			$normalized = self::normalize_multi( is_array( $cfg['rows'] ?? null ) ? $cfg['rows'] : [] );
+			return self::is_valid( $normalized ) ? $normalized : [];
+		}
+
+		return [];
+	}
+
     /**
      * Normalize a single-price config.
      * Input keys (any subset):
@@ -88,8 +113,8 @@ class Price_Schema {
             if ( $t !== '' && ($t[0] === '{' || $t[0] === '[') ) {
                 $inner = json_decode( $t, true );
                 if ( json_last_error() === JSON_ERROR_NONE && is_array($inner) ) {
-                    if ( isset($inner['price']) && is_scalar($inner['price']) ) return (string)$inner['price'];
-                    if ( isset($inner['value']) && is_scalar($inner['value']) ) return (string)$inner['value'];
+                    if ( isset($inner['price']) && is_scalar($inner['price']) ) return trim( (string)$inner['price'] );
+                    if ( isset($inner['value']) && is_scalar($inner['value']) ) return trim( (string)$inner['value'] );
                 }
                 return '';
             }
@@ -101,16 +126,6 @@ class Price_Schema {
 
     /** Sanitize a full cfg (unwrap nested JSON in price/value). */
     public static function sanitize_cfg( array $cfg ) : array {
-        if ( ($cfg['mode'] ?? '') === 'single' && isset($cfg['price']) ) {
-            $cfg['price'] = self::sanitize_price_string( $cfg['price'] );
-            if ( $cfg['price'] === '' ) unset($cfg['price']);
-        }
-        if ( ($cfg['mode'] ?? '') === 'multi' && !empty($cfg['rows']) && is_array($cfg['rows']) ) {
-            foreach ( $cfg['rows'] as &$r ) {
-                if ( isset($r['value']) ) $r['value'] = self::sanitize_price_string( $r['value'] );
-            }
-            unset($r);
-        }
-        return $cfg;
+		return self::normalize( $cfg );
     }
 }

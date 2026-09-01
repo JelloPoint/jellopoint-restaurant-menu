@@ -3,13 +3,10 @@
  * Price Repository – single point of read/write for 'jprm_price'.
  *
  * Canonical meta key: 'jprm_price' (JSON string).
- * Reads use the schema's public API (from_post).
- * Writes store the array as JSON verbatim (no missing sanitize_cfg).
+ * Legacy array values remain readable; new writes are normalized JSON.
  */
 
 namespace JelloPoint\RestaurantMenu\Storage;
-
-use JelloPoint\RestaurantMenu\Data\Price_Schema;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -26,18 +23,19 @@ class Price_Repository {
 		if ( $post_id <= 0 ) {
 			return null;
 		}
-		// Schema takes care of reading + normalizing from meta.
 		$cfg = Price_Schema::from_post( $post_id );
 		return is_array( $cfg ) ? $cfg : null;
 	}
 
 	/**
-	 * Persist a price config array to post meta as canonical JSON.
-	 * No sanitize_cfg() call – it doesn't exist in Price_Schema.
-	 * Assume upstream UI already validated shape.
+	 * Persist a normalized price config to post meta as canonical JSON.
 	 */
 	public static function set( int $post_id, array $cfg ) : bool {
 		if ( $post_id <= 0 ) {
+			return false;
+		}
+		$cfg = Price_Schema::normalize( $cfg );
+		if ( empty( $cfg ) ) {
 			return false;
 		}
 		$json = wp_json_encode( $cfg );
