@@ -91,6 +91,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 					<th><?php esc_html_e( 'Menus', 'jellopoint-restaurant-menu' ); ?></th>
 					<th><?php esc_html_e( 'Sections', 'jellopoint-restaurant-menu' ); ?></th>
 					<th><?php esc_html_e( 'Badges', 'jellopoint-restaurant-menu' ); ?></th>
+					<th><?php esc_html_e( 'Changes', 'jellopoint-restaurant-menu' ); ?></th>
 					<th><?php esc_html_e( 'Error', 'jellopoint-restaurant-menu' ); ?></th>
 				</tr>
 				</thead>
@@ -105,6 +106,15 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 						<td><?php echo esc_html( implode( ', ', (array) ($it['menus'] ?? []) ) ); ?></td>
 						<td><?php echo esc_html( implode( ', ', (array) ($it['sections'] ?? []) ) ); ?></td>
 						<td><?php echo esc_html( implode( ', ', (array) ($it['badges'] ?? []) ) ); ?></td>
+						<td>
+							<?php $changes = is_array( $it['changes'] ?? null ) ? $it['changes'] : []; ?>
+							<?php if ( $changes ) : ?>
+								<details>
+									<summary><?php echo esc_html( implode( ', ', array_keys( $changes ) ) ); ?></summary>
+									<pre><?php echo esc_html( (string) wp_json_encode( $changes, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT ) ); ?></pre>
+								</details>
+							<?php endif; ?>
+						</td>
 						<td><?php echo esc_html( (string) ($it['error'] ?? '') ); ?></td>
 					</tr>
 				<?php endforeach; ?>

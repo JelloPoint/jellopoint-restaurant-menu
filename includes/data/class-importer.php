@@ -529,15 +529,23 @@ final class JPRM_Importer {
 		if ( $is_existing && ! $changed['any'] ) {
 			$action = 'unchanged';
 		}
+		$change_details = [];
+		foreach ( $changed as $field => $is_changed ) {
+			if ( 'any' === $field || ! $is_changed ) continue;
+			$change_details[ $field ] = [
+				'old' => $old[ $field ] ?? null,
+				'new' => $new[ $field ] ?? null,
+			];
+		}
 
 		return self::result_row(
 			$existing_id,
 			$dry ? ( $is_existing ? $existing_id : 0 ) : ( $post_id ?: 0 ),
-			$title, $price_mode, $price_summary, $new, $new_terms_created, $error, $action
+			$title, $price_mode, $price_summary, $new, $new_terms_created, $error, $action, $change_details
 		);
 	}
 
-	private static function result_row( $old_id, $new_id, $title, $mode, $price_summary, $new, $new_terms_created, $error, $action = '' ) : array {
+	private static function result_row( $old_id, $new_id, $title, $mode, $price_summary, $new, $new_terms_created, $error, $action = '', $changes = [] ) : array {
 		// Defensive: never fatally error when an upstream caller passes an unexpected type.
 		if ( ! is_array( $new ) ) {
 			$new = [
@@ -568,6 +576,7 @@ final class JPRM_Importer {
 			'sections'          => is_array( $new['sect_terms'] ) ? $new['sect_terms'] : [],
 			'badges'            => is_array( $new['badges'] ) ? $new['badges'] : [],
 			'new_terms_created' => $new_terms_created,
+			'changes'           => is_array( $changes ) ? $changes : [],
 			'error'             => $error,
 		];
 	}
