@@ -93,6 +93,15 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 		<hr/>
 		<h2><?php esc_html_e( 'Import Report', 'jellopoint-restaurant-menu' ); ?></h2>
 
+		<?php $report_errors = array_filter( array_map( 'strval', (array) ( $import_report['errors'] ?? [] ) ) ); ?>
+		<?php if ( $report_errors ) : ?>
+			<div class="notice notice-error inline">
+				<?php foreach ( $report_errors as $report_error ) : ?>
+					<p><?php echo esc_html( $report_error ); ?></p>
+				<?php endforeach; ?>
+			</div>
+		<?php endif; ?>
+
 		<p>
 			<strong><?php esc_html_e( 'Mode:', 'jellopoint-restaurant-menu' ); ?></strong>
 			<?php echo ! empty( $import_report['dry_run'] ) ? esc_html__( 'Dry Run', 'jellopoint-restaurant-menu' ) : esc_html__( 'Committed', 'jellopoint-restaurant-menu' ); ?>

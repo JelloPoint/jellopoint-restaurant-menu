@@ -50,6 +50,13 @@ jprm_demo_assert_same( '250 ml', $beer_rows[0]['label_custom'], 'Beer must demon
 jprm_demo_assert_same( '500 ml', $beer_rows[1]['label_custom'], 'Beer must demonstrate a large serving price.' );
 jprm_demo_assert_same( [ 'vegan', 'gluten-free', 'spicy' ], $by_title['Thai Green Vegetable Curry']['badges'], 'Demo dishes must demonstrate multiple dietary badges.' );
 
+$resolved_names = [
+	'menu'     => 'JelloPoint Demo Menu',
+	'sections' => [ 'Starters' => 'Starters (Demo)', 'Mains' => 'Mains' ],
+];
+$resolved_items = JPRM_Demo_Menu::items( $resolved_names );
+jprm_demo_assert_same( [ 'Starters (Demo)' ], $resolved_items[0]['tax']['jprm_section'], 'Items must use the safely resolved section name.' );
+
 $jprm_demo_options['jprm_demo_menu_v1'] = [
 	'menu_term_id' => 77,
 	'post_ids'     => range( 101, 123 ),

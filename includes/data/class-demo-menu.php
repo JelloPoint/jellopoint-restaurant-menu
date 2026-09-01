@@ -15,17 +15,16 @@ final class JPRM_Demo_Menu {
 
 	/** Return a dry-run report or import the bundled demo menu. */
 	public static function run( bool $dry_run = true ): array {
-		$items  = self::items();
 		$stored = get_option( self::OPTION_KEY, [] );
 
 		if ( is_array( $stored ) && ! empty( $stored['menu_term_id'] ) ) {
+			$names = is_array( $stored['names'] ?? null ) ? $stored['names'] : [];
+			$items = self::items( $names );
 			return self::already_imported_report( $items, $stored, $dry_run );
 		}
 
-		$conflicts = self::find_conflicts();
-		if ( $conflicts ) {
-			return self::conflict_report( $items, $conflicts, $dry_run );
-		}
+		$names = self::resolved_names();
+		$items = self::items( $names );
 
 		if ( ! class_exists( JPRM_Importer::class ) ) {
 			require_once __DIR__ . '/class-importer.php';
@@ -56,7 +55,7 @@ final class JPRM_Demo_Menu {
 		@unlink( $tmp_file );
 
 		if ( ! $dry_run && empty( $report['errors'] ) && count( $items ) === (int) ( $report['created'] ?? 0 ) ) {
-			self::finalize_import( $report );
+			self::finalize_import( $report, $names );
 		}
 
 		return $report;
@@ -73,7 +72,7 @@ final class JPRM_Demo_Menu {
 	}
 
 	/** Bundled demo items in the normal lossless importer shape. */
-	public static function items(): array {
+	public static function items( array $names = [] ): array {
 		$single = static function ( string $title, string $section, string $description, string $price, array $badges = [] ): array {
 			return self::item( $title, $section, $description, $badges, [
 				'mode'          => 'single',
@@ -100,7 +99,7 @@ final class JPRM_Demo_Menu {
 			return self::item( $title, $section, $description, $badges, [ 'mode' => 'multi', 'rows' => $prices ] );
 		};
 
-		return [
+		$items = [
 			$single( 'Roasted Tomato Soup', 'Starters', 'Slow-roasted tomato, basil oil and sourdough.', '7.50', [ 'vegan' ] ),
 			$single( 'Burrata & Heritage Tomato', 'Starters', 'Creamy burrata, heritage tomatoes, pesto and toasted pine nuts.', '12.50', [ 'vegetarian' ] ),
 			$single( 'Beef Carpaccio', 'Starters', 'Truffle mayonnaise, capers, Parmesan and rocket.', '14.50', [ 'gluten-free' ] ),
@@ -129,6 +128,19 @@ final class JPRM_Demo_Menu {
 			$multi( 'Belgian Blonde', 'Beer', 'Golden specialty beer with fruit, spice and a soft bitterness.', [ '330 ml' => '5.75', '750 ml' => '12.50' ], [ 'contains-alcohol' ] ),
 			$single( 'Alcohol-Free IPA', 'Beer', 'Bright citrus hops with a balanced malt finish.', '4.75' ),
 		];
+
+		if ( $names ) {
+			$menu_name = (string) ( $names['menu'] ?? self::MENU_NAME );
+			$section_names = is_array( $names['sections'] ?? null ) ? $names['sections'] : [];
+			foreach ( $items as &$item ) {
+				$original_section = (string) ( $item['tax']['jprm_section'][0] ?? '' );
+				$item['tax']['jprm_menu'] = [ $menu_name ];
+				$item['tax']['jprm_section'] = [ (string) ( $section_names[ $original_section ] ?? $original_section ) ];
+			}
+			unset( $item );
+		}
+
+		return $items;
 	}
 
 	private static function item( string $title, string $section, string $description, array $badges, array $prices ): array {
@@ -146,41 +158,50 @@ final class JPRM_Demo_Menu {
 		];
 	}
 
-	private static function find_conflicts(): array {
-		$conflicts = [];
-		$menu = get_term_by( 'slug', self::MENU_SLUG, 'jprm_menu' );
-		if ( ! $menu ) {
-			$menu = get_term_by( 'name', self::MENU_NAME, 'jprm_menu' );
-		}
-		if ( $menu ) {
-			$conflicts[] = self::MENU_NAME;
+	private static function resolved_names(): array {
+		$menu_name = self::MENU_NAME;
+		if ( get_term_by( 'name', $menu_name, 'jprm_menu' ) || get_term_by( 'slug', self::MENU_SLUG, 'jprm_menu' ) ) {
+			$menu_name = self::unique_term_name( self::MENU_NAME, 'jprm_menu' );
 		}
 
+		$sections = [];
 		foreach ( self::summary()['sections'] as $name ) {
-			$term = get_term_by( 'name', $name, 'jprm_section' );
-			if ( $term ) {
-				$conflicts[] = $name;
-			}
+			$sections[ $name ] = get_term_by( 'name', $name, 'jprm_section' )
+				? self::unique_term_name( $name, 'jprm_section' )
+				: $name;
 		}
-		return $conflicts;
+
+		return [ 'menu' => $menu_name, 'sections' => $sections ];
 	}
 
-	private static function finalize_import( array $report ): void {
-		$menu = get_term_by( 'name', self::MENU_NAME, 'jprm_menu' );
+	private static function unique_term_name( string $preferred, string $taxonomy ): string {
+		$candidate = $preferred . ' (Demo)';
+		$suffix = 2;
+		while ( get_term_by( 'name', $candidate, $taxonomy ) ) {
+			$candidate = $preferred . ' (Demo ' . $suffix++ . ')';
+		}
+		return $candidate;
+	}
+
+	private static function finalize_import( array $report, array $names ): void {
+		$menu_name = (string) ( $names['menu'] ?? self::MENU_NAME );
+		$section_names = is_array( $names['sections'] ?? null ) ? $names['sections'] : [];
+		$menu = get_term_by( 'name', $menu_name, 'jprm_menu' );
 		if ( ! $menu ) { return; }
 
 		$menu_id = (int) $menu->term_id;
 		wp_update_term( $menu_id, 'jprm_menu', [
-			'slug'        => self::MENU_SLUG,
+			'slug'        => sanitize_title( $menu_name ),
 			'description' => 'A complete example restaurant menu created by JelloPoint.',
 		] );
 		update_term_meta( $menu_id, '_jprm_demo_menu', 1 );
 
 		$section_ids = [];
-		foreach ( self::summary()['sections'] as $order => $name ) {
+		foreach ( self::summary()['sections'] as $order => $original_name ) {
+			$name = (string) ( $section_names[ $original_name ] ?? $original_name );
 			$term = get_term_by( 'name', $name, 'jprm_section' );
 			if ( ! $term ) { continue; }
-			$section_ids[ $name ] = (int) $term->term_id;
+			$section_ids[ $original_name ] = (int) $term->term_id;
 			update_term_meta( (int) $term->term_id, '_jprm_menu_term_id', $menu_id );
 			update_term_meta( (int) $term->term_id, '_jprm_section_order', $order );
 			update_term_meta( (int) $term->term_id, '_jprm_demo_menu', 1 );
@@ -204,6 +225,7 @@ final class JPRM_Demo_Menu {
 			'version'      => 1,
 			'menu_term_id' => $menu_id,
 			'post_ids'     => $post_ids,
+			'names'        => $names,
 		] );
 	}
 
@@ -217,7 +239,7 @@ final class JPRM_Demo_Menu {
 				'title'         => (string) $item['post_title'],
 				'action'        => 'unchanged',
 				'price_summary' => self::price_summary( $item ),
-				'menus'         => [ self::MENU_NAME ],
+				'menus'         => (array) $item['tax']['jprm_menu'],
 				'sections'      => (array) $item['tax']['jprm_section'],
 				'badges'        => (array) $item['badges'],
 				'changes'       => [],
@@ -225,11 +247,6 @@ final class JPRM_Demo_Menu {
 			];
 		}
 		return self::base_report( $dry_run, 0, 0, count( $rows ), 0, [], $rows );
-	}
-
-	private static function conflict_report( array $items, array $conflicts, bool $dry_run ): array {
-		$message = 'Demo import stopped to protect existing data. Conflicting names: ' . implode( ', ', $conflicts ) . '.';
-		return self::base_report( $dry_run, 0, 0, 0, count( $items ), [ $message ], [] );
 	}
 
 	private static function error_report( string $message, bool $dry_run ): array {
