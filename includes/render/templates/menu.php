@@ -98,6 +98,8 @@ $columns                  = max( 1, min( 3, (int) ( $ctx['layout_columns'] ?? 1 
 $split_mode               = (string) ( $ctx['layout_split_mode']         ?? 'auto' );
 $split_after_section_id_1 = (int) ( $ctx['layout_split_after_section']   ?? 0 );
 $split_after_section_id_2 = (int) ( $ctx['layout_split_after_section2']  ?? 0 );
+$style_preset = (string) ( $ctx['style_preset'] ?? 'default' );
+$style_preset = in_array( $style_preset, [ 'classic', 'modern', 'elegant' ], true ) ? $style_preset : 'default';
 
 /* ---------------- helpers ---------------- */
 $is_editor = false;
@@ -563,6 +565,8 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 };
 
 /* -------------- top meta (above) -------------- */
+echo '<div class="jprm-menu-preset jprm-preset--' . esc_attr( $style_preset ) . '">';
+
 if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {
 	echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
 }
@@ -586,3 +590,5 @@ echo '</div>';
 if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'below_menu' ) {
 	echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore
 }
+
+echo '</div>';

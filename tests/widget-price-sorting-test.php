@@ -30,6 +30,7 @@ function get_post_meta( $post_id, $key, $single = false ) {
 	global $jprm_sort_meta;
 	return $jprm_sort_meta[ $post_id ][ $key ] ?? '';
 }
+function sanitize_key( $value ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $value ) ); }
 
 require_once dirname( __DIR__ ) . '/stubs/elementor.php';
 require_once dirname( __DIR__ ) . '/includes/storage/class-price-schema.php';
@@ -50,6 +51,17 @@ jprm_sort_assert_same( 1234.5, $method->invoke( null, 201 ), 'EU thousands and d
 jprm_sort_assert_same( 9.75, $method->invoke( null, 202 ), 'Canonical multi-price JSON must sort by its first row.' );
 jprm_sort_assert_same( INF, $method->invoke( null, 203 ), 'Text prices must sort after numeric prices.' );
 jprm_sort_assert_same( 0.0, $method->invoke( null, 204 ), 'A zero price must remain sortable.' );
+
+$preset_method = new ReflectionMethod( Restaurant_Menu::class, 'jprm_normalize_style_preset' );
+jprm_sort_assert_same( 'classic', $preset_method->invoke( null, 'classic' ), 'The Classic preset must remain selectable.' );
+jprm_sort_assert_same( 'modern', $preset_method->invoke( null, 'MODERN' ), 'Preset values must be normalized safely.' );
+jprm_sort_assert_same( 'elegant', $preset_method->invoke( null, 'elegant' ), 'The Elegant preset must remain selectable.' );
+jprm_sort_assert_same( 'default', $preset_method->invoke( null, 'unknown-class' ), 'Unknown preset classes must fall back safely.' );
+
+$preset_css = file_get_contents( dirname( __DIR__ ) . '/assets/css/menu.css' );
+foreach ( [ 'classic', 'modern', 'elegant' ] as $preset ) {
+	jprm_sort_assert_same( true, false !== strpos( $preset_css, '.jprm-preset--' . $preset ), ucfirst( $preset ) . ' must have a bundled CSS preset.' );
+}
 
 $widget = new Restaurant_Menu();
 $query_method = new ReflectionMethod( Restaurant_Menu::class, 'query_items' );

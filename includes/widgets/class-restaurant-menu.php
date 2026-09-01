@@ -153,6 +153,7 @@ final class Restaurant_Menu extends Widget_Base {
         self::ensure_menu_meta_helper();
 
         $s = $this->get_settings_for_display();
+		$style_preset = self::jprm_normalize_style_preset( $s['style_preset'] ?? 'default' );
 
         $show_all           = ( isset( $s['show_all_when_empty'] ) && 'yes' === $s['show_all_when_empty'] );
         $menu_sel           = $s['menus'] ?? '';
@@ -453,7 +454,8 @@ final class Restaurant_Menu extends Widget_Base {
         // Build ctx for template
         $ctx = [
             // Multi-column
-           'layout_columns' => $columns,
+            'layout_columns' => $columns,
+			'style_preset'  => $style_preset,
             'layout_split_mode'           => $split_mode,
             'layout_split_after_section'  => $split_after_1,
             'layout_split_after_section2' => $split_after_2,
@@ -529,6 +531,12 @@ final class Restaurant_Menu extends Widget_Base {
             echo '<div class="jp-menu--empty">Template missing.</div>';
         }
     }
+
+	/** Allow only known preset class suffixes in rendered markup. */
+	private static function jprm_normalize_style_preset( $preset ): string {
+		$preset = is_scalar( $preset ) ? sanitize_key( (string) $preset ) : 'default';
+		return in_array( $preset, [ 'classic', 'modern', 'elegant' ], true ) ? $preset : 'default';
+	}
 
     /* =========================
      * Data helpers

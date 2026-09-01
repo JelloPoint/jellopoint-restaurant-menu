@@ -141,6 +141,24 @@ trait Restaurant_Menu_Controls {
 	// - Provide non-null defaults for ALL controls.
 	$_scoped_sections = $section_options_all; // editor JS will scope + indent dynamically
 
+		/* --- Design preset ------------------------------------------------------ */
+		$this->start_controls_section( 'section_design_preset', [ 'label' => __( 'Design Preset', 'jellopoint-restaurant-menu' ) ] );
+
+		$this->add_control( 'style_preset', [
+			'label'       => __( 'Predefined Style', 'jellopoint-restaurant-menu' ),
+			'type'        => Controls_Manager::SELECT,
+			'default'     => 'default',
+			'options'     => [
+				'default' => __( 'Default / Custom', 'jellopoint-restaurant-menu' ),
+				'classic' => __( 'Classic', 'jellopoint-restaurant-menu' ),
+				'modern'  => __( 'Modern', 'jellopoint-restaurant-menu' ),
+				'elegant' => __( 'Elegant', 'jellopoint-restaurant-menu' ),
+			],
+			'description' => __( 'Choose a starting design. Settings in the Style tab can still be used to customize it.', 'jellopoint-restaurant-menu' ),
+		] );
+
+		$this->end_controls_section();
+
 		/* --- Data Source -------------------------------------------------------- */
 		$this->start_controls_section( 'section_source', [ 'label' => __( 'Data Source', 'jellopoint-restaurant-menu' ) ] );
 
