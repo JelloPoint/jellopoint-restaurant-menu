@@ -106,8 +106,11 @@ class Plugin {
 	public static function register_assets() : void {
 		// Register the widget stylesheet so Elementor can enqueue it via get_style_depends().
 		if ( ! wp_style_is( 'jprm-menu', 'registered' ) ) {
-			$url_css = JPRM_PLUGIN_URL . 'assets/css/menu.css';
-			wp_register_style( 'jprm-menu', $url_css, [], JPRM_VERSION );
+			$url_css     = JPRM_PLUGIN_URL . 'assets/css/menu.css';
+			$path_css    = JPRM_PLUGIN_PATH . 'assets/css/menu.css';
+			$modified_at = is_file( $path_css ) ? filemtime( $path_css ) : false;
+			$version     = false !== $modified_at ? JPRM_VERSION . '.' . (string) $modified_at : JPRM_VERSION;
+			wp_register_style( 'jprm-menu', $url_css, [], $version );
 		}
 	}
 
