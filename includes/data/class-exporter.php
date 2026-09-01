@@ -1,6 +1,8 @@
 <?php
 namespace JelloPoint\RestaurantMenu\Data;
 
+use JelloPoint\RestaurantMenu\Storage\Price_Repository;
+
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
@@ -54,36 +56,7 @@ final class JPRM_Exporter {
 		foreach ( (array) $q->posts as $post_id ) {
 			$uid = self::ensure_item_uid( $post_id ); // generate if missing
 
-			$mode   = (string) get_post_meta( $post_id, 'jprm_price_mode', true );
-			$prices = [];
-
-			if ( $mode === 'single' || $mode === '' ) {
-				$amount_raw = (string) get_post_meta( $post_id, 'jprm_price_amount', true );
-
-				// Backwards-compat
-				if ( $amount_raw === '' ) {
-					$legacy = get_post_meta( $post_id, 'jprm_price', true );
-					if ( is_array( $legacy ) && isset( $legacy['price'] ) ) {
-						$amount_raw = (string) $legacy['price'];
-					}
-				}
-
-				$prices = [
-					'mode'          => 'single',
-					'amount_raw'    => $amount_raw,
-					'amount_number' => self::to_float_eu_us( $amount_raw ),
-					'label_mode'    => 'ref',
-					'label_ref'     => (string) get_post_meta( $post_id, 'jprm_price_label_ref', true ),
-				];
-			} else {
-				$rows = get_post_meta( $post_id, 'jprm_prices', true );
-				if ( ! is_array( $rows ) ) { $rows = []; }
-
-				$prices = [
-					'mode' => 'multi',
-					'rows' => self::canonicalize_rows( $rows ),
-				];
-			}
+			$prices = self::prices_for_export( $post_id );
 
 			$out[] = [
 				'post_id'     => (int) $post_id,
@@ -257,6 +230,54 @@ final class JPRM_Exporter {
 			return is_array( $un ) ? array_values( $un ) : [];
 		}
 		return [];
+	}
+
+	/** Build a lossless importer-compatible price payload from canonical meta. */
+	private static function prices_for_export( int $post_id ): array {
+		$cfg = Price_Repository::get( $post_id );
+		if ( ! is_array( $cfg ) || empty( $cfg['mode'] ) ) {
+			return [];
+		}
+
+		if ( 'single' === $cfg['mode'] ) {
+			$amount = (string) ( $cfg['price'] ?? '' );
+			$label_mode = ( (string) get_post_meta( $post_id, 'jprm_price_label_mode', true ) === 'custom' ) ? 'custom' : 'ref';
+			return [
+				'mode'          => 'single',
+				'amount_raw'    => $amount,
+				'amount_number' => self::to_float_eu_us( $amount ),
+				'label_mode'    => $label_mode,
+				'label_ref'     => 'ref' === $label_mode ? (string) ( $cfg['label_ref'] ?? '' ) : '',
+				'label_custom'  => 'custom' === $label_mode ? (string) ( $cfg['label_ref'] ?? '' ) : '',
+				'icon_id'       => (int) ( $cfg['icon_id'] ?? 0 ),
+				'hide_icon'     => ! empty( $cfg['hide_icon'] ),
+			];
+		}
+
+		$editor_rows = get_post_meta( $post_id, 'jprm_prices', true );
+		if ( is_string( $editor_rows ) ) {
+			$decoded = json_decode( $editor_rows, true );
+			$editor_rows = is_array( $decoded ) ? $decoded : [];
+		}
+		if ( ! is_array( $editor_rows ) ) $editor_rows = [];
+
+		$rows = [];
+		foreach ( array_values( (array) ( $cfg['rows'] ?? [] ) ) as $index => $row ) {
+			if ( ! is_array( $row ) || (string) ( $row['value'] ?? '' ) === '' ) continue;
+			$editor = is_array( $editor_rows[ $index ] ?? null ) ? $editor_rows[ $index ] : [];
+			$label_mode = ( (string) ( $editor['label_mode'] ?? 'ref' ) === 'custom' ) ? 'custom' : 'ref';
+			$rows[] = [
+				'enabled'      => true,
+				'label_mode'   => $label_mode,
+				'label_ref'    => 'ref' === $label_mode ? (string) ( $row['label_ref'] ?? '' ) : '',
+				'label_custom' => 'custom' === $label_mode ? (string) ( $row['label_ref'] ?? '' ) : '',
+				'icon_id'      => (int) ( $row['icon_id'] ?? 0 ),
+				'amount'       => (string) $row['value'],
+				'hide_icon'    => ! empty( $row['hide_icon'] ),
+			];
+		}
+
+		return [ 'mode' => 'multi', 'rows' => $rows ];
 	}
 
 	private static function canonicalize_rows( array $rows ): array {

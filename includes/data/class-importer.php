@@ -1,6 +1,8 @@
 <?php
 namespace JelloPoint\RestaurantMenu\Data;
 
+use JelloPoint\RestaurantMenu\Storage\Price_Repository;
+
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
@@ -336,6 +338,11 @@ final class JPRM_Importer {
 		];
 
 		$new_rows = ( $price_mode === 'multi' ) ? (array) ( $prices['rows'] ?? [] ) : [];
+		$single_label_mode = ( (string) ( $prices['label_mode'] ?? 'ref' ) === 'custom' ) ? 'custom' : 'ref';
+		$single_label_ref  = (string) ( $prices['label_ref'] ?? '' );
+		$single_custom     = (string) ( $prices['label_custom'] ?? '' );
+		$single_icon_id    = max( 0, (int) ( $prices['icon_id'] ?? 0 ) );
+		$single_hide_icon  = ! empty( $prices['hide_icon'] );
 		$new = [
 			'post_title'  => $title,
 			'post_status' => $status ?: 'draft',
@@ -348,8 +355,11 @@ final class JPRM_Importer {
 					'mode'          => 'single',
 					'amount_raw'    => (string) ( $prices['amount_raw'] ?? '' ),
 					'amount_number' => null,
-					'label_mode'    => 'ref',
-					'label_ref'     => '',
+					'label_mode'    => $single_label_mode,
+					'label_ref'     => $single_label_ref,
+					'label_custom'  => $single_custom,
+					'icon_id'       => $single_icon_id,
+					'hide_icon'     => $single_hide_icon,
 				  ]
 				: [
 					'mode' => 'multi',
@@ -438,13 +448,21 @@ final class JPRM_Importer {
 				$amount_raw = (string) $new['prices']['amount_raw'];
 
 				update_post_meta( $post_id, 'jprm_price_amount', $amount_raw );
-				update_post_meta( $post_id, 'jprm_price_label_mode', 'ref' );
-				update_post_meta( $post_id, 'jprm_price_label_ref',  '' );
+				update_post_meta( $post_id, 'jprm_price_label_mode', $single_label_mode );
+				update_post_meta( $post_id, 'jprm_price_label_ref', $single_label_ref );
+				update_post_meta( $post_id, 'jprm_price_label_custom', $single_custom );
+				update_post_meta( $post_id, 'jprm_price_label_icon_id', $single_icon_id );
 
-				update_post_meta( $post_id, 'jprm_price', [
+				$canonical_label = ( 'custom' === $single_label_mode && '' !== $single_custom )
+					? $single_custom
+					: $single_label_ref;
+
+				Price_Repository::set( $post_id, [
 					'mode'      => 'single',
 					'price'     => $amount_raw,
-					'label_ref' => '',
+					'label_ref' => $canonical_label,
+					'hide_icon' => $single_hide_icon,
+					'icon_id'   => $single_icon_id,
 				] );
 
 				delete_post_meta( $post_id, 'jprm_prices' );
@@ -456,34 +474,40 @@ final class JPRM_Importer {
 
 				foreach ( $in_rows as $r ) {
 					$amount    = (string) ( $r['amount'] ?? '' );
+					$label_mode = ( (string) ( $r['label_mode'] ?? 'ref' ) === 'custom' ) ? 'custom' : 'ref';
 					$label_ref = (string) ( $r['label_ref'] ?? '' );
+					$label_custom = (string) ( $r['label_custom'] ?? '' );
+					$canonical_label = ( 'custom' === $label_mode && '' !== $label_custom ) ? $label_custom : $label_ref;
 					$hide_icon = (bool)   ( $r['hide_icon'] ?? false );
 					$icon_id   = isset( $r['icon_id'] ) ? (int) $r['icon_id'] : 0;
 
 					$rows_for_editor[] = [
 						'enabled'      => true,
-						'label_mode'   => 'ref',
+						'label_mode'   => $label_mode,
 						'label_ref'    => $label_ref,
-						'label_custom' => '',
+						'label_custom' => $label_custom,
 						'icon_id'      => $icon_id,
 						'amount'       => $amount,
 						'hide_icon'    => $hide_icon,
 					];
 
 					$rows_for_price[] = [
-						'label_ref' => $label_ref,
+						'label_ref' => $canonical_label,
 						'value'     => $amount,
 						'hide_icon' => $hide_icon,
+						'icon_id'   => $icon_id,
 					];
 				}
 
 				update_post_meta( $post_id, 'jprm_prices', $rows_for_editor );
-				update_post_meta( $post_id, 'jprm_price', [ 'mode' => 'multi', 'rows' => $rows_for_price ] );
+				Price_Repository::set( $post_id, [ 'mode' => 'multi', 'rows' => $rows_for_price ] );
 
 				// Clean single-only metas
 				delete_post_meta( $post_id, 'jprm_price_amount' );
 				delete_post_meta( $post_id, 'jprm_price_label_mode' );
 				delete_post_meta( $post_id, 'jprm_price_label_ref' );
+				delete_post_meta( $post_id, 'jprm_price_label_custom' );
+				delete_post_meta( $post_id, 'jprm_price_label_icon_id' );
 			}
 
 			/**
@@ -605,21 +629,30 @@ final class JPRM_Importer {
 	}
 
 	private static function build_prices_payload( int $post_id, string $mode ): array {
-		$mode = ( $mode === 'multi' ) ? 'multi' : 'single';
+		$cfg = Price_Repository::get( $post_id );
+		$mode = is_array( $cfg ) && ( $cfg['mode'] ?? '' ) === 'multi' ? 'multi' : ( ( $mode === 'multi' ) ? 'multi' : 'single' );
 
 		if ( $mode === 'single' ) {
+			$label_mode = ( (string) get_post_meta( $post_id, 'jprm_price_label_mode', true ) === 'custom' ) ? 'custom' : 'ref';
 			return [
 				'mode'          => 'single',
-				'amount_raw'    => (string) get_post_meta( $post_id, 'jprm_price_amount', true ),
+				'amount_raw'    => is_array( $cfg ) ? (string) ( $cfg['price'] ?? '' ) : (string) get_post_meta( $post_id, 'jprm_price_amount', true ),
 				'amount_number' => null,
-				'label_mode'    => 'ref',
+				'label_mode'    => $label_mode,
 				'label_ref'     => (string) get_post_meta( $post_id, 'jprm_price_label_ref', true ),
+				'label_custom'  => (string) get_post_meta( $post_id, 'jprm_price_label_custom', true ),
+				'icon_id'       => is_array( $cfg ) ? (int) ( $cfg['icon_id'] ?? 0 ) : 0,
+				'hide_icon'     => is_array( $cfg ) && ! empty( $cfg['hide_icon'] ),
 			];
 		}
 
 		$rows = get_post_meta( $post_id, 'jprm_prices', true );
+		if ( is_string( $rows ) ) {
+			$decoded = json_decode( $rows, true );
+			$rows = is_array( $decoded ) ? $decoded : [];
+		}
 		if ( ! is_array( $rows ) ) $rows = [];
-		return [ 'mode' => 'multi', 'rows' => $rows ];
+		return [ 'mode' => 'multi', 'rows' => self::canonicalize_rows_strict( $rows ) ];
 	}
 
 	private static function canonicalize_rows_strict( array $rows ): array {
@@ -631,9 +664,9 @@ final class JPRM_Importer {
 
 			$out[] = [
 				'enabled'      => true,
-				'label_mode'   => 'ref',
+				'label_mode'   => ( (string) ( $r['label_mode'] ?? 'ref' ) === 'custom' ) ? 'custom' : 'ref',
 				'label_ref'    => isset( $r['label_ref'] ) ? (string) $r['label_ref'] : '',
-				'label_custom' => '',
+				'label_custom' => isset( $r['label_custom'] ) ? (string) $r['label_custom'] : '',
 				'icon_id'      => isset( $r['icon_id'] ) ? (int) $r['icon_id'] : 0,
 				'amount'       => $amount,
 				'hide_icon'    => ! empty( $r['hide_icon'] ),
