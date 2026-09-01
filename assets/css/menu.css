@@ -63,6 +63,7 @@
 }
 .jprm-preset--modern .jp-menu-grid { padding: clamp(1rem, 2.5vw, 2rem); }
 .jprm-preset--modern .jp-menu__section-box { background: #fff; border: 1px solid var(--jprm-border); padding: 1.25rem; box-shadow: 0 8px 24px rgba(23, 107, 104, .07); }
+.jprm-preset--modern .jp-menu--col > .jp-menu__section-box:not(:last-child) { margin-bottom: 1.5rem; }
 .jprm-preset--modern .jp-section__title { color: var(--jprm-accent); font-weight: 700; letter-spacing: -.015em; }
 .jprm-preset--modern .jp-menu__title { font-weight: 650; }
 .jprm-preset--modern .jp-menu__amount { color: var(--jprm-accent); font-weight: 700; }
