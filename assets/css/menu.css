@@ -10,6 +10,8 @@
 .jp-menu__content { min-width: 0; }
 .jp-menu__title { margin: 0; }
 .jp-menu__desc { opacity: .85; }
+.jp-menu__item-separator { margin: .45rem 0 .8rem; color: var(--jprm-muted, inherit); font-style: italic; text-align: center; }
+.jp-menu__item-separator--matrix { grid-column: 1 / -1; }
 
 /* =====================================================================
    Design presets

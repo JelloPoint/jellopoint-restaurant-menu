@@ -26,6 +26,7 @@ $label_presentation = (string) ( $sctx['label_presentation'] ?? 'icon_text' );
 $label_position     = (string) ( $sctx['label_position']     ?? 'right' );
 $label_map          = is_array( $sctx['label_map']     ?? null ) ? $sctx['label_map']     : [];
 $currency_opts      = is_array( $sctx['currency_opts'] ?? null ) ? $sctx['currency_opts'] : [];
+$item_separator     = trim( (string) ( $sctx['item_separator'] ?? '' ) );
 
 $leader_enabled = (string) ( $sctx['inline_leader_enable'] ?? 'no' ) === 'yes';
 $leader_style   = isset( $sctx['inline_leader_style'] ) ? (string) $sctx['inline_leader_style'] : 'dotted';
@@ -100,7 +101,10 @@ if ( ! function_exists( 'jprm_label_chip_inline' ) ) {
  */
 echo '<div class="jp-inline jp-layout-inline">';
 
-foreach ( $items as $post ) {
+foreach ( $items as $item_index => $post ) {
+	if ( $item_separator !== '' && $item_index > 0 ) {
+		echo '<div class="jp-menu__item-separator">' . esc_html( $item_separator ) . '</div>';
+	}
 	$pid   = (int) $post->ID;
 	$title = get_the_title( $pid );
 	$desc  = get_post_meta( $pid, 'jprm_desc', true );

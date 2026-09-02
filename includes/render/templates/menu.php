@@ -324,6 +324,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 
 	$term  = $registry[ $tid ]['term']  ?? null;
 	$items = $registry[ $tid ]['items'] ?? [];
+	$item_separator = $term ? (string) get_term_meta( (int) ( is_object( $term ) ? $term->term_id : ( $term['term_id'] ?? 0 ) ), '_jprm_item_separator', true ) : '';
 	$level = $__resolve_section_level( $term );
 
 	$has_items    = ! empty( $items );
@@ -468,6 +469,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 						// extras
 						'section_level'        => $level,
 						'section_id'           => $tid,
+						'item_separator'       => $item_separator,
 					];
 					include $file;
 					unset( $_section_ctx );
@@ -555,6 +557,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 						// extras
 						'section_level'        => $level,
 						'section_id'           => $tid,
+						'item_separator'       => $item_separator,
 					];
 					include $file;
 					unset( $_section_ctx );

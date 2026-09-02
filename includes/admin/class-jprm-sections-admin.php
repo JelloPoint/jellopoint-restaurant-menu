@@ -9,6 +9,7 @@ class Sections_Admin {
 	const TAX_MENU            = 'jprm_menu';
 	const META_MENU_OWNER     = '_jprm_menu_term_id';
 	const META_SECTION_ORDER  = '_jprm_section_order';
+	const META_ITEM_SEPARATOR = '_jprm_item_separator';
 
 	public static function init() : void {
 		// Columns
@@ -247,12 +248,18 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 			</select>
 			<p class="description"><?php esc_html_e( 'If you set a parent later, ownership will inherit from the parent.', 'jprm' ); ?></p>
 		</div>
+		<div class="form-field term-item-separator-wrap">
+			<label for="jprm_item_separator"><?php esc_html_e( 'Item Separator Text', 'jellopoint-restaurant-menu' ); ?></label>
+			<input type="text" name="jprm_item_separator" id="jprm_item_separator" value="" placeholder="or" />
+			<p class="description"><?php esc_html_e( 'Optional text shown between items in this Section, for example “or”.', 'jellopoint-restaurant-menu' ); ?></p>
+		</div>
 		<?php
 	}
 
 	public static function edit_field( $term, $taxonomy ) {
 		$menus   = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false ] );
 		$current = (int) get_term_meta( $term->term_id, self::META_MENU_OWNER, true );
+		$item_separator = (string) get_term_meta( $term->term_id, self::META_ITEM_SEPARATOR, true );
 		$parent  = (int) $term->parent;
 		$hint    = $parent
 			? __( 'Owner usually inherits from parent; changing it cascades to children.', 'jprm' )
@@ -272,6 +279,10 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 				<p class="description"><?php echo esc_html( $hint ); ?></p>
 			</td>
 		</tr>
+		<tr class="form-field term-item-separator-wrap">
+			<th scope="row"><label for="jprm_item_separator"><?php esc_html_e( 'Item Separator Text', 'jellopoint-restaurant-menu' ); ?></label></th>
+			<td><input type="text" name="jprm_item_separator" id="jprm_item_separator" value="<?php echo esc_attr( $item_separator ); ?>" placeholder="or" /><p class="description"><?php esc_html_e( 'Optional text shown between items in this Section, for example “or”.', 'jellopoint-restaurant-menu' ); ?></p></td>
+		</tr>
 		<?php
 	}
 
@@ -289,6 +300,7 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 		}
 		if ( $owner > 0 ) update_term_meta( $term_id, self::META_MENU_OWNER, $owner );
 		if ( $owner > 0 ) self::ensure_section_order( (int) $term_id, (int) $owner );
+		self::save_item_separator( (int) $term_id );
 	}
 
 	public static function save_on_edit( $term_id, $tt_id ) {
@@ -310,6 +322,14 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 			self::cascade_children( $term_id, $final );
 		}
 		if ( $final > 0 ) self::ensure_section_order( (int) $term_id, (int) $final );
+		self::save_item_separator( (int) $term_id );
+	}
+
+	private static function save_item_separator( int $term_id ) : void {
+		if ( ! isset( $_POST['jprm_item_separator'] ) ) { return; }
+		$value = sanitize_text_field( wp_unslash( $_POST['jprm_item_separator'] ) );
+		if ( '' === $value ) { delete_term_meta( $term_id, self::META_ITEM_SEPARATOR ); }
+		else { update_term_meta( $term_id, self::META_ITEM_SEPARATOR, $value ); }
 	}
 
 	/**
