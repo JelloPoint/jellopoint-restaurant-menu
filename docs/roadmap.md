@@ -32,7 +32,7 @@ Each phase is tested on the JPRM development website before it is merged into `d
 | 10A | Daily Menu metadata: menu type, no date/single date/date range, and fixed price | ✅ Approved |
 | 10B | Elementor Daily Menu output, price positioning, item separators, styling, and full-width fixed-price presentation | ✅ Approved |
 | 10C | Automatically show or hide Daily/Weekly Menus according to their date or date range | ✅ Approved |
-| 10D | Shared Sections across multiple Menus, with independent items and ordering per Menu, plus Builder section selection | 🚧 In progress |
+| 10D | Shared Sections across multiple Menus, with independent items and ordering per Menu, plus Builder section selection | ✅ Approved |
 
 ### Phase 10C intended behaviour
 
