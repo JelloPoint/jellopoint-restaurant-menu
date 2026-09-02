@@ -645,7 +645,7 @@ trait Restaurant_Menu_Style {
 		$this->add_responsive_control(
 			'jprm_item_title_align',
 			[
-				'label'   => __( 'Alignment', 'jellopoint-restaurant-menu' ),
+				'label'   => __( 'Title & Description Alignment', 'jellopoint-restaurant-menu' ),
 				'type'    => Controls_Manager::CHOOSE,
 				'options' => [
 					'left'   => [ 'title' => __( 'Left', 'jellopoint-restaurant-menu' ),   'icon' => 'eicon-text-align-left' ],
@@ -655,8 +655,10 @@ trait Restaurant_Menu_Style {
 				'selectors' => [
 					'{{WRAPPER}} .jp-menu__item .jp-menu__titlewrap'         => 'justify-content: {{VALUE}}; text-align: {{VALUE}};',
 					'{{WRAPPER}} .jp-menu__item .jp-menu__title'             => 'text-align: {{VALUE}};',
+					'{{WRAPPER}} .jp-menu__item .jp-menu__desc'              => 'text-align: {{VALUE}};',
 					'{{WRAPPER}} .jp-matrix__cell--item .jp-menu__titlewrap' => 'justify-content: {{VALUE}}; text-align: {{VALUE}};',
 					'{{WRAPPER}} .jp-matrix__cell--item .jp-menu__title'     => 'text-align: {{VALUE}};',
+					'{{WRAPPER}} .jp-matrix__cell--item .jp-menu__desc'      => 'text-align: {{VALUE}};',
 				],
 			]
 		);

@@ -723,6 +723,29 @@
   }
 }
 
+/* Daily Menu final layout override: no reserved leader/price columns. */
+.jp-layout-inline.jp-layout-inline--no-prices .jp-grid.jp-grid--inline {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.jp-layout-inline.jp-layout-inline--no-prices .jp-left-title,
+.jp-layout-inline.jp-layout-inline--no-prices .jp-left-desc {
+  grid-column: 1 / -1 !important;
+  width: 100% !important;
+}
+
+.jp-layout-inline.jp-layout-inline--no-prices .jp-menu__content,
+.jp-layout-inline.jp-layout-inline--no-prices .jp-menu__titlewrap,
+.jp-layout-inline.jp-layout-inline--no-prices .jp-menu__desc {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.jp-layout-inline.jp-layout-inline--no-prices .jp-leader,
+.jp-layout-inline.jp-layout-inline--no-prices .jp-right-pricegroup {
+  display: none !important;
+}
+
 
 
 
