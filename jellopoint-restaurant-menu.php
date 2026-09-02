@@ -2,7 +2,7 @@
 /**
  * Plugin Name: JelloPoint – Restaurant Menu
  * Description: Restaurant Menu items, labels and Elementor widget.
- * Version: 2.0.8
+ * Version: 2.0.9
  * Author: JelloPoint
  * Text Domain: jellopoint-restaurant-menu
  */
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Constants
  * ------------------------------------------------- */
 if ( ! defined( 'JPRM_VERSION' ) ) {
-	define( 'JPRM_VERSION', '2.0.8' );
+	define( 'JPRM_VERSION', '2.0.9' );
 }
 if ( ! defined( 'JPRM_PLUGIN_FILE' ) ) {
 	define( 'JPRM_PLUGIN_FILE', __FILE__ );

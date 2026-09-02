@@ -275,6 +275,20 @@ $this->add_control( 'items_order_overrides', [
 			'return_value' => 'yes',
 			'default'      => '',
 		] );
+		$this->add_control( 'show_daily_menu_date', [
+			'label'        => __( 'Daily Menu date', 'jellopoint-restaurant-menu' ),
+			'type'         => Controls_Manager::SWITCHER,
+			'return_value' => 'yes',
+			'default'      => 'yes',
+			'description'  => __( 'Shown only when the selected Menu is marked as a Daily Menu.', 'jellopoint-restaurant-menu' ),
+		] );
+		$this->add_control( 'show_daily_menu_price', [
+			'label'        => __( 'Daily Menu fixed price', 'jellopoint-restaurant-menu' ),
+			'type'         => Controls_Manager::SWITCHER,
+			'return_value' => 'yes',
+			'default'      => 'yes',
+			'description'  => __( 'Uses the currency settings from Prices and Labels.', 'jellopoint-restaurant-menu' ),
+		] );
 		$this->add_control( 'menu_title_position', [
 			'label'     => __( 'Menu title position', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::SELECT,

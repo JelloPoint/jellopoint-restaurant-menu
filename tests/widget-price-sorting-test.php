@@ -15,6 +15,15 @@ $jprm_sort_meta = [
 	203 => [ 'jprm_price' => json_encode( [ 'mode' => 'single', 'price' => 'Dagprijs' ] ) ],
 	204 => [ 'jprm_price' => json_encode( [ 'mode' => 'single', 'price' => '0' ] ) ],
 ];
+$jprm_daily_term_meta = [
+	91 => [
+		'_jprm_is_daily_menu' => '1',
+		'_jprm_daily_menu_date_type' => 'range',
+		'_jprm_daily_menu_date' => '2026-09-01',
+		'_jprm_daily_menu_end_date' => '2026-09-07',
+		'_jprm_daily_menu_fixed_price' => '39.50',
+	],
+];
 
 class WP_Query {
 	public static int $calls = 0;
@@ -30,6 +39,13 @@ function get_post_meta( $post_id, $key, $single = false ) {
 	global $jprm_sort_meta;
 	return $jprm_sort_meta[ $post_id ][ $key ] ?? '';
 }
+function get_term_meta( $term_id, $key, $single = false ) {
+	global $jprm_daily_term_meta;
+	return $jprm_daily_term_meta[ $term_id ][ $key ] ?? '';
+}
+function get_option( $key, $default = false ) { return 'Y-m-d'; }
+function wp_timezone() { return new DateTimeZone( 'Europe/Amsterdam' ); }
+function wp_date( $format, $timestamp, $timezone = null ) { return ( new DateTimeImmutable( '@' . $timestamp ) )->setTimezone( $timezone ?: new DateTimeZone( 'UTC' ) )->format( $format ); }
 function sanitize_key( $value ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $value ) ); }
 
 require_once dirname( __DIR__ ) . '/stubs/elementor.php';
@@ -57,6 +73,12 @@ jprm_sort_assert_same( 'classic', $preset_method->invoke( null, 'classic' ), 'Th
 jprm_sort_assert_same( 'modern', $preset_method->invoke( null, 'MODERN' ), 'Preset values must be normalized safely.' );
 jprm_sort_assert_same( 'elegant', $preset_method->invoke( null, 'elegant' ), 'The Elegant preset must remain selectable.' );
 jprm_sort_assert_same( 'default', $preset_method->invoke( null, 'unknown-class' ), 'Unknown preset classes must fall back safely.' );
+
+$daily_method = new ReflectionMethod( Restaurant_Menu::class, 'jprm_daily_menu_display_data' );
+$daily = $daily_method->invoke( null, 91 );
+jprm_sort_assert_same( '2026-09-01 – 2026-09-07', $daily['date_text'] ?? '', 'A Daily Menu range must be formatted inclusively.' );
+jprm_sort_assert_same( '39.50', $daily['price'] ?? '', 'The fixed menu price must reach the presentation layer unchanged.' );
+jprm_sort_assert_same( [], $daily_method->invoke( null, 92 ), 'A regular Menu must not expose Daily Menu presentation data.' );
 
 $preset_css = file_get_contents( dirname( __DIR__ ) . '/assets/css/menu.css' );
 foreach ( [ 'classic', 'modern', 'elegant' ] as $preset ) {

@@ -354,6 +354,54 @@ trait Restaurant_Menu_Style {
 			]
 		);
 
+		$this->add_control(
+			'jprm_daily_menu_heading',
+			[
+				'label'     => __( 'Daily Menu Details', 'jellopoint-restaurant-menu' ),
+				'type'      => Controls_Manager::HEADING,
+				'separator' => 'before',
+			]
+		);
+
+		$this->add_responsive_control(
+			'jprm_daily_menu_align',
+			[
+				'label'   => __( 'Alignment', 'jellopoint-restaurant-menu' ),
+				'type'    => Controls_Manager::CHOOSE,
+				'options' => [
+					'flex-start' => [ 'title' => __( 'Left', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-left' ],
+					'center'     => [ 'title' => __( 'Center', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-center' ],
+					'flex-end'   => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-right' ],
+				],
+				'default' => 'center',
+				'selectors' => [ '{{WRAPPER}} .jp-menu__daily-meta' => 'justify-content: {{VALUE}};' ],
+			]
+		);
+
+		$this->add_responsive_control(
+			'jprm_daily_menu_spacing',
+			[
+				'label'      => __( 'Spacing', 'jellopoint-restaurant-menu' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => [ 'px', 'em', 'rem' ],
+				'selectors'  => [ '{{WRAPPER}} .jp-menu__daily-meta' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};' ],
+			]
+		);
+
+		$this->add_control( 'jprm_daily_date_heading', [ 'label' => __( 'Date', 'jellopoint-restaurant-menu' ), 'type' => Controls_Manager::HEADING ] );
+		$this->add_group_control( Group_Control_Typography::get_type(), [ 'name' => 'jprm_daily_date_typography', 'selector' => '{{WRAPPER}} .jp-menu__daily-date' ] );
+		$this->add_control( 'jprm_daily_date_color', [
+			'label' => __( 'Color', 'jellopoint-restaurant-menu' ), 'type' => Controls_Manager::COLOR,
+			'selectors' => [ '{{WRAPPER}} .jp-menu__daily-date' => 'color: {{VALUE}};' ],
+		] );
+
+		$this->add_control( 'jprm_daily_price_heading', [ 'label' => __( 'Fixed Price', 'jellopoint-restaurant-menu' ), 'type' => Controls_Manager::HEADING, 'separator' => 'before' ] );
+		$this->add_group_control( Group_Control_Typography::get_type(), [ 'name' => 'jprm_daily_price_typography', 'selector' => '{{WRAPPER}} .jp-menu__daily-price' ] );
+		$this->add_control( 'jprm_daily_price_color', [
+			'label' => __( 'Color', 'jellopoint-restaurant-menu' ), 'type' => Controls_Manager::COLOR,
+			'selectors' => [ '{{WRAPPER}} .jp-menu__daily-price' => 'color: {{VALUE}};' ],
+		] );
+
 		// Line height for items & matrix cells
 		$this->add_responsive_control(
 			'jprm_item_line_height',

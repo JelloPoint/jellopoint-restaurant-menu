@@ -45,22 +45,6 @@ final class Restaurant_Menu extends Widget_Base {
         if ( is_readable( $path ) ) require_once $path;
         $loaded = true;
     }
-    private static function ensure_menu_meta_helper() : void {
-        if ( function_exists( 'jprm_render_menu_meta' ) ) return;
-        function jprm_render_menu_meta( $term, bool $show_title, bool $show_desc, string $scope ) : string {
-            if ( ! $term || ( ! $show_title && ! $show_desc ) ) return '';
-            $title = $show_title ? trim( (string) $term->name ) : '';
-            $desc  = $show_desc  ? trim( (string) $term->description ) : '';
-            if ( $title === '' && $desc === '' ) return '';
-            $cls = 'jp-menu__meta ' . ( $scope === 'global' ? 'jp-menu__meta--global' : 'jp-menu__meta--col' );
-            $out  = '<div class="' . esc_attr( $cls ) . '">';
-            if ( $title !== '' ) $out .= '<h2 class="jp-menu__meta-title">' . esc_html( $title ) . '</h2>';
-            if ( $desc  !== '' ) $out .= '<div class="jp-menu__meta-desc">' . esc_html( $desc ) . '</div>';
-            $out .= '</div>';
-            return $out;
-        }
-    }
-
     /** Helper for controls: SELECT2 of all sections (id => label), with owner menu hint when available. */
     public function jprm_get_sections_options() : array {
         $terms = get_terms([
@@ -150,8 +134,6 @@ final class Restaurant_Menu extends Widget_Base {
         self::require_price_partial_once();
         self::require_badges_partial_once();
         self::require_infoblocks_partial_once();
-        self::ensure_menu_meta_helper();
-
         $s = $this->get_settings_for_display();
 		$style_preset = self::jprm_normalize_style_preset( $s['style_preset'] ?? 'default' );
 
@@ -200,6 +182,9 @@ final class Restaurant_Menu extends Widget_Base {
 
         $show_menu_title = ( isset( $s['show_menu_title'] ) && $s['show_menu_title'] === 'yes' );
         $show_menu_desc  = ( isset( $s['show_menu_description'] ) && $s['show_menu_description'] === 'yes' );
+		$show_daily_date = ( ! isset( $s['show_daily_menu_date'] ) || 'yes' === $s['show_daily_menu_date'] );
+		$show_daily_price = ( ! isset( $s['show_daily_menu_price'] ) || 'yes' === $s['show_daily_menu_price'] );
+		$daily_menu = $menu_term ? self::jprm_daily_menu_display_data( (int) $menu_term->term_id ) : [];
         $menu_pos        = isset( $s['menu_title_position'] ) ? (string) $s['menu_title_position'] : 'above_menu';
 
         if ( empty( $menu_ids ) && empty( $section_ids ) && ! $show_all ) {
@@ -464,6 +449,9 @@ final class Restaurant_Menu extends Widget_Base {
             'menu_term'           => $menu_term,
             'show_menu_title'     => $show_menu_title,
             'show_menu_desc'      => $show_menu_desc,
+			'daily_menu'         => $daily_menu,
+			'show_daily_date'    => $show_daily_date,
+			'show_daily_price'   => $show_daily_price,
             'menu_pos'            => $menu_pos,
 
             // Sections + items
@@ -536,6 +524,30 @@ final class Restaurant_Menu extends Widget_Base {
 	private static function jprm_normalize_style_preset( $preset ): string {
 		$preset = is_scalar( $preset ) ? sanitize_key( (string) $preset ) : 'default';
 		return in_array( $preset, [ 'classic', 'modern', 'elegant' ], true ) ? $preset : 'default';
+	}
+
+	/** Read and format Daily Menu term metadata for presentation. */
+	private static function jprm_daily_menu_display_data( int $term_id ) : array {
+		if ( $term_id <= 0 || '1' !== (string) get_term_meta( $term_id, '_jprm_is_daily_menu', true ) ) { return []; }
+		$start = (string) get_term_meta( $term_id, '_jprm_daily_menu_date', true );
+		$end = (string) get_term_meta( $term_id, '_jprm_daily_menu_end_date', true );
+		$type = (string) get_term_meta( $term_id, '_jprm_daily_menu_date_type', true );
+		$price = (string) get_term_meta( $term_id, '_jprm_daily_menu_fixed_price', true );
+
+		$format = (string) get_option( 'date_format', 'F j, Y' );
+		$timezone = wp_timezone();
+		$format_date = static function( string $value ) use ( $format, $timezone ) : string {
+			$date = \DateTimeImmutable::createFromFormat( '!Y-m-d', $value, $timezone );
+			return $date && $date->format( 'Y-m-d' ) === $value ? wp_date( $format, $date->getTimestamp(), $timezone ) : '';
+		};
+		$start_text = $format_date( $start );
+		$end_text = 'range' === $type && $end >= $start ? $format_date( $end ) : '';
+
+		return [
+			'enabled' => true,
+			'date_text' => $start_text !== '' && $end_text !== '' ? $start_text . ' – ' . $end_text : $start_text,
+			'price' => $price,
+		];
 	}
 
     /* =========================
