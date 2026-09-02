@@ -19,6 +19,7 @@ class Menus_Admin {
 	const META_DATE_TYPE = '_jprm_daily_menu_date_type';
 	const META_END_DATE = '_jprm_daily_menu_end_date';
 	const META_FIXED_PRICE = '_jprm_daily_menu_fixed_price';
+	const META_ITEM_SEPARATOR = '_jprm_daily_menu_item_separator';
 	const NONCE_ACTION = 'jprm_save_daily_menu_fields';
 	const NONCE_FIELD = '_jprm_daily_menu_nonce';
 
@@ -106,6 +107,11 @@ class Menus_Admin {
 			<input type="text" inputmode="decimal" id="jprm_daily_menu_fixed_price" name="jprm_daily_menu_fixed_price" value="" placeholder="39.50" />
 			<p><?php esc_html_e( 'Enter the amount without a currency symbol.', 'jellopoint-restaurant-menu' ); ?></p>
 		</div>
+		<div class="form-field jprm-daily-menu-detail">
+			<label for="jprm_daily_menu_item_separator"><?php esc_html_e( 'Default Item Separator Text', 'jellopoint-restaurant-menu' ); ?></label>
+			<input type="text" id="jprm_daily_menu_item_separator" name="jprm_daily_menu_item_separator" value="" placeholder="or" />
+			<p><?php esc_html_e( 'Shown between items in each Section unless that Section overrides or disables it.', 'jellopoint-restaurant-menu' ); ?></p>
+		</div>
 		<?php self::daily_menu_toggle_script(); ?>
 		<?php
 	}
@@ -119,6 +125,7 @@ class Menus_Admin {
 		$date_type = 'range' === $date_type ? 'range' : 'single';
 		$end_date = (string) get_term_meta( $term_id, self::META_END_DATE, true );
 		$price = (string) get_term_meta( $term_id, self::META_FIXED_PRICE, true );
+		$item_separator = (string) get_term_meta( $term_id, self::META_ITEM_SEPARATOR, true );
 		wp_nonce_field( self::NONCE_ACTION, self::NONCE_FIELD );
 		?>
 		<tr class="form-field jprm-daily-menu-toggle-wrap">
@@ -141,6 +148,10 @@ class Menus_Admin {
 			<th scope="row"><label for="jprm_daily_menu_fixed_price"><?php esc_html_e( 'Fixed Menu Price', 'jellopoint-restaurant-menu' ); ?></label></th>
 			<td><input type="text" inputmode="decimal" id="jprm_daily_menu_fixed_price" name="jprm_daily_menu_fixed_price" value="<?php echo esc_attr( $price ); ?>" placeholder="39.50" /><p class="description"><?php esc_html_e( 'Enter the amount without a currency symbol.', 'jellopoint-restaurant-menu' ); ?></p></td>
 		</tr>
+		<tr class="form-field jprm-daily-menu-detail">
+			<th scope="row"><label for="jprm_daily_menu_item_separator"><?php esc_html_e( 'Default Item Separator Text', 'jellopoint-restaurant-menu' ); ?></label></th>
+			<td><input type="text" id="jprm_daily_menu_item_separator" name="jprm_daily_menu_item_separator" value="<?php echo esc_attr( $item_separator ); ?>" placeholder="or" /><p class="description"><?php esc_html_e( 'Shown between items in each Section unless that Section overrides or disables it.', 'jellopoint-restaurant-menu' ); ?></p></td>
+		</tr>
 		<?php self::daily_menu_toggle_script(); ?>
 		<?php
 	}
@@ -158,12 +169,14 @@ class Menus_Admin {
 		$date_type = isset( $_POST['jprm_daily_menu_date_type'] ) && 'range' === sanitize_key( wp_unslash( $_POST['jprm_daily_menu_date_type'] ) ) ? 'range' : 'single';
 		$end_date = self::sanitize_end_date( $date, isset( $_POST['jprm_daily_menu_end_date'] ) ? wp_unslash( $_POST['jprm_daily_menu_end_date'] ) : '', $date_type );
 		$price = self::sanitize_price( isset( $_POST['jprm_daily_menu_fixed_price'] ) ? wp_unslash( $_POST['jprm_daily_menu_fixed_price'] ) : '' );
+		$item_separator = isset( $_POST['jprm_daily_menu_item_separator'] ) ? sanitize_text_field( wp_unslash( $_POST['jprm_daily_menu_item_separator'] ) ) : '';
 
 		update_term_meta( $term_id, self::META_IS_DAILY, $enabled ? '1' : '0' );
 		self::update_or_delete_meta( $term_id, self::META_DATE, $date );
 		update_term_meta( $term_id, self::META_DATE_TYPE, $date_type );
 		self::update_or_delete_meta( $term_id, self::META_END_DATE, $end_date );
 		self::update_or_delete_meta( $term_id, self::META_FIXED_PRICE, $price );
+		self::update_or_delete_meta( $term_id, self::META_ITEM_SEPARATOR, $item_separator );
 	}
 
 	public static function is_daily_menu( int $term_id ) : bool {

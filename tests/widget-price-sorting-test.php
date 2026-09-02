@@ -22,6 +22,7 @@ $jprm_daily_term_meta = [
 		'_jprm_daily_menu_date' => '2026-09-01',
 		'_jprm_daily_menu_end_date' => '2026-09-07',
 		'_jprm_daily_menu_fixed_price' => '39.50',
+		'_jprm_daily_menu_item_separator' => 'or',
 	],
 ];
 
@@ -78,6 +79,7 @@ $daily_method = new ReflectionMethod( Restaurant_Menu::class, 'jprm_daily_menu_d
 $daily = $daily_method->invoke( null, 91 );
 jprm_sort_assert_same( '2026-09-01 – 2026-09-07', $daily['date_text'] ?? '', 'A Daily Menu range must be formatted inclusively.' );
 jprm_sort_assert_same( '39.50', $daily['price'] ?? '', 'The fixed menu price must reach the presentation layer unchanged.' );
+jprm_sort_assert_same( 'or', $daily['item_separator'] ?? '', 'The Daily Menu separator default must reach the presentation layer.' );
 jprm_sort_assert_same( [], $daily_method->invoke( null, 92 ), 'A regular Menu must not expose Daily Menu presentation data.' );
 
 $preset_css = file_get_contents( dirname( __DIR__ ) . '/assets/css/menu.css' );

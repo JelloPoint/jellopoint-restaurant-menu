@@ -533,6 +533,7 @@ final class Restaurant_Menu extends Widget_Base {
 		$end = (string) get_term_meta( $term_id, '_jprm_daily_menu_end_date', true );
 		$type = (string) get_term_meta( $term_id, '_jprm_daily_menu_date_type', true );
 		$price = (string) get_term_meta( $term_id, '_jprm_daily_menu_fixed_price', true );
+		$item_separator = (string) get_term_meta( $term_id, '_jprm_daily_menu_item_separator', true );
 
 		$format = (string) get_option( 'date_format', 'F j, Y' );
 		$timezone = wp_timezone();
@@ -547,6 +548,7 @@ final class Restaurant_Menu extends Widget_Base {
 			'enabled' => true,
 			'date_text' => $start_text !== '' && $end_text !== '' ? $start_text . ' – ' . $end_text : $start_text,
 			'price' => $price,
+			'item_separator' => $item_separator,
 		];
 	}
 

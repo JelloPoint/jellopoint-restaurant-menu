@@ -10,6 +10,7 @@ class Sections_Admin {
 	const META_MENU_OWNER     = '_jprm_menu_term_id';
 	const META_SECTION_ORDER  = '_jprm_section_order';
 	const META_ITEM_SEPARATOR = '_jprm_item_separator';
+	const META_DISABLE_ITEM_SEPARATOR = '_jprm_disable_item_separator';
 
 	public static function init() : void {
 		// Columns
@@ -243,16 +244,18 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 			<select name="jprm_owner_menu" id="jprm_owner_menu">
 				<option value="0"><?php esc_html_e( '— choose —', 'jprm' ); ?></option>
 				<?php if ( ! is_wp_error( $menus ) ) foreach ( $menus as $m ) : ?>
-					<option value="<?php echo (int) $m->term_id; ?>"><?php echo esc_html( $m->name ); ?></option>
+					<option value="<?php echo (int) $m->term_id; ?>" data-daily="<?php echo '1' === (string) get_term_meta( (int) $m->term_id, '_jprm_is_daily_menu', true ) ? '1' : '0'; ?>"><?php echo esc_html( $m->name ); ?></option>
 				<?php endforeach; ?>
 			</select>
 			<p class="description"><?php esc_html_e( 'If you set a parent later, ownership will inherit from the parent.', 'jprm' ); ?></p>
 		</div>
-		<div class="form-field term-item-separator-wrap">
-			<label for="jprm_item_separator"><?php esc_html_e( 'Item Separator Text', 'jellopoint-restaurant-menu' ); ?></label>
+		<div class="form-field term-item-separator-wrap jprm-daily-section-option">
+			<label for="jprm_item_separator"><?php esc_html_e( 'Item Separator Override', 'jellopoint-restaurant-menu' ); ?></label>
 			<input type="text" name="jprm_item_separator" id="jprm_item_separator" value="" placeholder="or" />
-			<p class="description"><?php esc_html_e( 'Optional text shown between items in this Section, for example “or”.', 'jellopoint-restaurant-menu' ); ?></p>
+			<label><input type="checkbox" name="jprm_disable_item_separator" value="1" /> <?php esc_html_e( 'Do not show separators in this Section', 'jellopoint-restaurant-menu' ); ?></label>
+			<p class="description"><?php esc_html_e( 'Leave empty to use the Daily Menu default.', 'jellopoint-restaurant-menu' ); ?></p>
 		</div>
+		<?php self::item_separator_dependency_script(); ?>
 		<?php
 	}
 
@@ -260,6 +263,7 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 		$menus   = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false ] );
 		$current = (int) get_term_meta( $term->term_id, self::META_MENU_OWNER, true );
 		$item_separator = (string) get_term_meta( $term->term_id, self::META_ITEM_SEPARATOR, true );
+		$disable_item_separator = '1' === (string) get_term_meta( $term->term_id, self::META_DISABLE_ITEM_SEPARATOR, true );
 		$parent  = (int) $term->parent;
 		$hint    = $parent
 			? __( 'Owner usually inherits from parent; changing it cascades to children.', 'jprm' )
@@ -271,7 +275,7 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 				<select name="jprm_owner_menu" id="jprm_owner_menu">
 					<option value="0"><?php esc_html_e( '— choose —', 'jprm' ); ?></option>
 					<?php if ( ! is_wp_error( $menus ) ) foreach ( $menus as $m ) : ?>
-						<option value="<?php echo (int) $m->term_id; ?>" <?php selected( $current, (int) $m->term_id ); ?>>
+						<option value="<?php echo (int) $m->term_id; ?>" data-daily="<?php echo '1' === (string) get_term_meta( (int) $m->term_id, '_jprm_is_daily_menu', true ) ? '1' : '0'; ?>" <?php selected( $current, (int) $m->term_id ); ?>>
 							<?php echo esc_html( $m->name ); ?>
 						</option>
 					<?php endforeach; ?>
@@ -279,10 +283,11 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 				<p class="description"><?php echo esc_html( $hint ); ?></p>
 			</td>
 		</tr>
-		<tr class="form-field term-item-separator-wrap">
-			<th scope="row"><label for="jprm_item_separator"><?php esc_html_e( 'Item Separator Text', 'jellopoint-restaurant-menu' ); ?></label></th>
-			<td><input type="text" name="jprm_item_separator" id="jprm_item_separator" value="<?php echo esc_attr( $item_separator ); ?>" placeholder="or" /><p class="description"><?php esc_html_e( 'Optional text shown between items in this Section, for example “or”.', 'jellopoint-restaurant-menu' ); ?></p></td>
+		<tr class="form-field term-item-separator-wrap jprm-daily-section-option">
+			<th scope="row"><label for="jprm_item_separator"><?php esc_html_e( 'Item Separator Override', 'jellopoint-restaurant-menu' ); ?></label></th>
+			<td><input type="text" name="jprm_item_separator" id="jprm_item_separator" value="<?php echo esc_attr( $item_separator ); ?>" placeholder="or" /><p><label><input type="checkbox" name="jprm_disable_item_separator" value="1" <?php checked( $disable_item_separator ); ?> /> <?php esc_html_e( 'Do not show separators in this Section', 'jellopoint-restaurant-menu' ); ?></label></p><p class="description"><?php esc_html_e( 'Leave empty to use the Daily Menu default.', 'jellopoint-restaurant-menu' ); ?></p></td>
 		</tr>
+		<?php self::item_separator_dependency_script(); ?>
 		<?php
 	}
 
@@ -328,8 +333,28 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 	private static function save_item_separator( int $term_id ) : void {
 		if ( ! isset( $_POST['jprm_item_separator'] ) ) { return; }
 		$value = sanitize_text_field( wp_unslash( $_POST['jprm_item_separator'] ) );
+		$disabled = ! empty( $_POST['jprm_disable_item_separator'] );
 		if ( '' === $value ) { delete_term_meta( $term_id, self::META_ITEM_SEPARATOR ); }
 		else { update_term_meta( $term_id, self::META_ITEM_SEPARATOR, $value ); }
+		update_term_meta( $term_id, self::META_DISABLE_ITEM_SEPARATOR, $disabled ? '1' : '0' );
+	}
+
+	private static function item_separator_dependency_script() : void {
+		?>
+		<script>
+		document.addEventListener('DOMContentLoaded', function(){
+			var owner = document.getElementById('jprm_owner_menu');
+			var fields = document.querySelectorAll('.jprm-daily-section-option');
+			if (!owner || !fields.length) return;
+			function refresh(){
+				var option = owner.options[owner.selectedIndex];
+				var visible = option && option.getAttribute('data-daily') === '1';
+				fields.forEach(function(field){ field.style.display = visible ? '' : 'none'; });
+			}
+			owner.addEventListener('change', refresh); refresh();
+		});
+		</script>
+		<?php
 	}
 
 	/**

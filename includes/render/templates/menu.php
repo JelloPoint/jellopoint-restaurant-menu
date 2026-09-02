@@ -312,6 +312,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 	$global_matrix_placeholder, $computed_global_inline_separator, $global_placeholder_legacy,
 	$label_presentation, $label_position, $label_map, $currency_opts,
 	$show_badges, $badges_position, $badges_presentation,
+	$daily_menu,
 	$show_main_sections, $show_main_even_if_empty,
 	$inline_leader_enable, $inline_leader_char, $inline_leader_style,
 	$__resolve_section_level, $ib_map,
@@ -324,7 +325,11 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 
 	$term  = $registry[ $tid ]['term']  ?? null;
 	$items = $registry[ $tid ]['items'] ?? [];
-	$item_separator = $term ? (string) get_term_meta( (int) ( is_object( $term ) ? $term->term_id : ( $term['term_id'] ?? 0 ) ), '_jprm_item_separator', true ) : '';
+	$section_term_id = $term ? (int) ( is_object( $term ) ? $term->term_id : ( $term['term_id'] ?? 0 ) ) : 0;
+	$section_separator = $section_term_id ? (string) get_term_meta( $section_term_id, '_jprm_item_separator', true ) : '';
+	$separator_disabled = $section_term_id && '1' === (string) get_term_meta( $section_term_id, '_jprm_disable_item_separator', true );
+	$menu_separator = (string) ( $daily_menu['item_separator'] ?? '' );
+	$item_separator = empty( $daily_menu['enabled'] ) || $separator_disabled ? '' : ( $section_separator !== '' ? $section_separator : $menu_separator );
 	$level = $__resolve_section_level( $term );
 
 	$has_items    = ! empty( $items );
