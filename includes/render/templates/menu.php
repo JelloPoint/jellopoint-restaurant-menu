@@ -69,6 +69,7 @@ $menu_term         = $ctx['menu_term'] ?? null;
 $show_menu_title   = ! empty( $ctx['show_menu_title'] );
 $show_menu_desc    = ! empty( $ctx['show_menu_desc'] );
 $daily_menu        = is_array( $ctx['daily_menu'] ?? null ) ? $ctx['daily_menu'] : [];
+$show_item_prices  = empty( $daily_menu['enabled'] );
 $show_daily_date   = ! empty( $ctx['show_daily_date'] );
 $show_daily_price  = ! empty( $ctx['show_daily_price'] );
 $daily_price_position = in_array( $ctx['daily_price_position'] ?? '', [ 'beside_date', 'below_date', 'bottom_menu' ], true ) ? (string) $ctx['daily_price_position'] : 'beside_date';
@@ -314,7 +315,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 	$global_matrix_placeholder, $computed_global_inline_separator, $global_placeholder_legacy,
 	$label_presentation, $label_position, $label_map, $currency_opts,
 	$show_badges, $badges_position, $badges_presentation,
-	$daily_menu,
+	$daily_menu, $show_item_prices,
 	$show_main_sections, $show_main_even_if_empty,
 	$inline_leader_enable, $inline_leader_char, $inline_leader_style,
 	$__resolve_section_level, $ib_map,
@@ -462,6 +463,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 						'label_position'       => $label_position,
 						'label_map'            => $label_map,
 						'currency_opts'        => $currency_opts,
+						'show_item_prices'     => $show_item_prices ? 'yes' : 'no',
 						// badges
 						'show_badges'          => $show_badges ? 'yes' : 'no',
 						'badges_position'      => $badges_position,
@@ -550,6 +552,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 						'label_position'       => $label_position,
 						'label_map'            => $label_map,
 						'currency_opts'        => $currency_opts,
+						'show_item_prices'     => $show_item_prices ? 'yes' : 'no',
 						// badges
 						'show_badges'          => $show_badges ? 'yes' : 'no',
 						'badges_position'      => $badges_position,

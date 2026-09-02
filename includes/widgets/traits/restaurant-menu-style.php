@@ -652,14 +652,11 @@ trait Restaurant_Menu_Style {
 					'center' => [ 'title' => __( 'Center', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-center' ],
 					'right'  => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ),  'icon' => 'eicon-text-align-right' ],
 				],
-				'selectors_dictionary' => [
-					'left'   => 'flex-start',
-					'center' => 'center',
-					'right'  => 'flex-end',
-				],
 				'selectors' => [
-					'{{WRAPPER}} .jp-menu__item .jp-menu__titlewrap'         => 'justify-content: {{VALUE}};',
-					'{{WRAPPER}} .jp-matrix__cell--item .jp-menu__titlewrap' => 'justify-content: {{VALUE}};',
+					'{{WRAPPER}} .jp-menu__item .jp-menu__titlewrap'         => 'justify-content: {{VALUE}}; text-align: {{VALUE}};',
+					'{{WRAPPER}} .jp-menu__item .jp-menu__title'             => 'text-align: {{VALUE}};',
+					'{{WRAPPER}} .jp-matrix__cell--item .jp-menu__titlewrap' => 'justify-content: {{VALUE}}; text-align: {{VALUE}};',
+					'{{WRAPPER}} .jp-matrix__cell--item .jp-menu__title'     => 'text-align: {{VALUE}};',
 				],
 			]
 		);

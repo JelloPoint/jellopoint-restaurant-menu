@@ -19,6 +19,7 @@ $items = is_array($sctx['items'] ?? null) ? $sctx['items'] : [];
 $label_presentation = (string)($sctx['label_presentation'] ?? 'icon_text');
 $label_map          = is_array($sctx['label_map'] ?? null) ? $sctx['label_map'] : [];
 $currency_opts      = is_array($sctx['currency_opts'] ?? null) ? $sctx['currency_opts'] : [];
+$show_item_prices   = (string) ( $sctx['show_item_prices'] ?? 'yes' ) === 'yes';
 $item_separator     = trim( (string) ( $sctx['item_separator'] ?? '' ) );
 $sep                = (string)($sctx['inline_separator'] ?? '');
 
@@ -103,7 +104,7 @@ foreach ($items as $item_index => $post) {
 	$title = get_the_title($pid);
 	$desc  = get_post_meta($pid, 'jprm_desc', true);
 
-	$rows = function_exists('jprm_get_pricegroup_data')
+	$rows = $show_item_prices && function_exists('jprm_get_pricegroup_data')
 		? jprm_get_pricegroup_data($pid, $label_map, $currency_opts)
 		: [];
 
@@ -130,6 +131,7 @@ foreach ($items as $item_index => $post) {
 	echo '</div>';
 
 	// ---- Full-width line of chips below ----
+	if ( $show_item_prices ) {
 	echo '<div class="jp-menu__pricegroup jp-menu__pricegroup--below">';
 		echo '<div class="jp-inline-below__line">';
 
@@ -173,6 +175,7 @@ foreach ($items as $item_index => $post) {
 
 		echo '</div>'; // .jp-inline-below__line
 	echo '</div>'; // .jp-menu__pricegroup--below
+	}
 
 	echo '</div></div>'; // .jp-menu__inner / .jp-menu__item
 }

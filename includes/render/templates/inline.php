@@ -26,6 +26,7 @@ $label_presentation = (string) ( $sctx['label_presentation'] ?? 'icon_text' );
 $label_position     = (string) ( $sctx['label_position']     ?? 'right' );
 $label_map          = is_array( $sctx['label_map']     ?? null ) ? $sctx['label_map']     : [];
 $currency_opts      = is_array( $sctx['currency_opts'] ?? null ) ? $sctx['currency_opts'] : [];
+$show_item_prices   = (string) ( $sctx['show_item_prices'] ?? 'yes' ) === 'yes';
 $item_separator     = trim( (string) ( $sctx['item_separator'] ?? '' ) );
 
 $leader_enabled = (string) ( $sctx['inline_leader_enable'] ?? 'no' ) === 'yes';
@@ -109,7 +110,7 @@ foreach ( $items as $item_index => $post ) {
 	$title = get_the_title( $pid );
 	$desc  = get_post_meta( $pid, 'jprm_desc', true );
 
-	$rows = function_exists( 'jprm_get_pricegroup_data' )
+	$rows = $show_item_prices && function_exists( 'jprm_get_pricegroup_data' )
 		? jprm_get_pricegroup_data( $pid, $label_map, $currency_opts )
 		: [];
 

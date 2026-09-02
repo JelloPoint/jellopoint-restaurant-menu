@@ -18,6 +18,7 @@ $items = is_array( $sctx['items'] ?? null ) ? $sctx['items'] : [];
 $label_presentation = (string) ( $sctx['label_presentation'] ?? 'icon_text' );
 $label_map          = is_array( $sctx['label_map'] ?? null ) ? $sctx['label_map'] : [];
 $currency_opts      = is_array( $sctx['currency_opts'] ?? null ) ? $sctx['currency_opts'] : [];
+$show_item_prices   = (string) ( $sctx['show_item_prices'] ?? 'yes' ) === 'yes';
 $item_separator     = trim( (string) ( $sctx['item_separator'] ?? '' ) );
 $matrix_placeholder = (string) ( $sctx['matrix_placeholder'] ?? '' );
 
@@ -239,7 +240,7 @@ if ( ! function_exists( 'jprm_matrix_filter_active_columns' ) ) {
 
 /* ---------- grid build ---------- */
 
-$collect        = jprm_matrix_collect_columns( $items, $label_map, $currency_opts );
+$collect        = $show_item_prices ? jprm_matrix_collect_columns( $items, $label_map, $currency_opts ) : [ 'cols' => [], 'order' => [], 'has_any_label' => false ];
 $cols           = $collect['cols'];
 $col_keys       = jprm_matrix_filter_active_columns( $items, $collect['order'], $label_map, $currency_opts );
 $has_any_label  = ! empty( $collect['has_any_label'] );
@@ -298,6 +299,7 @@ $col_count = max( 1, count( $col_keys ) );
 echo '<div class="jp-matrix" style="--jp-matrix-cols:' . esc_attr( (string) $col_count ) . '">';
 
 /* header row: first cell blank (item title column) */
+if ( $show_item_prices ) {
 echo '<div class="jp-matrix__row jp-matrix__row--header">';
 	echo '<div class="jp-matrix__cell jp-matrix__cell--head jp-matrix__cell--item"></div>';
 	foreach ( $col_keys as $k ) {
@@ -311,6 +313,7 @@ echo '<div class="jp-matrix__row jp-matrix__row--header">';
 			. '</div>';
 	}
 echo '</div>';
+}
 
 /* body rows */
 foreach ( $items as $item_index => $post ) {
@@ -320,7 +323,7 @@ foreach ( $items as $item_index => $post ) {
 	$pid   = (int) $post->ID;
 	$title = get_the_title( $pid );
 	$desc  = get_post_meta( $pid, 'jprm_desc', true );
-	$rows  = function_exists( 'jprm_get_pricegroup_data' )
+	$rows  = $show_item_prices && function_exists( 'jprm_get_pricegroup_data' )
 		? jprm_get_pricegroup_data( $pid, $label_map, $currency_opts )
 		: [];
 
