@@ -100,7 +100,11 @@ if ( ! function_exists( 'jprm_label_chip_inline' ) ) {
  *       <div class="jp-inline jp-layout-inline"> ...items... </div>
  *   </li>
  */
-echo '<div class="jp-inline jp-layout-inline">';
+$layout_classes = 'jp-inline jp-layout-inline';
+if ( ! $show_item_prices ) {
+	$layout_classes .= ' jp-layout-inline--no-prices';
+}
+echo '<div class="' . esc_attr( $layout_classes ) . '">';
 
 foreach ( $items as $item_index => $post ) {
 	if ( $item_separator !== '' && $item_index > 0 ) {

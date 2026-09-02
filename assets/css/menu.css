@@ -539,6 +539,25 @@
 .jp-layout-inline .jp-menu__content{ flex:0 1 auto; min-width:0; }
 .jp-layout-inline .jp-menu__titlewrap{ display:flex; width:100%; align-items:baseline; gap:.35rem; }
 
+/* Daily Menus with a fixed price use the full item width. */
+.jp-layout-inline--no-prices .jp-grid--inline {
+  grid-template-columns: minmax(0, 1fr);
+}
+.jp-layout-inline--no-prices .jp-left-title,
+.jp-layout-inline--no-prices .jp-left-desc {
+  grid-column: 1;
+  width: 100%;
+}
+.jp-layout-inline--no-prices .jp-menu__content,
+.jp-layout-inline--no-prices .jp-menu__titlewrap,
+.jp-layout-inline--no-prices .jp-menu__desc {
+  width: 100%;
+}
+.jp-layout-inline--no-prices .jp-leader,
+.jp-layout-inline--no-prices .jp-right-pricegroup {
+  display: none;
+}
+
 /* Price group stays compact on the right */
 .jp-layout-inline .jp-menu__pricegroup{
   flex:0 0 auto;
