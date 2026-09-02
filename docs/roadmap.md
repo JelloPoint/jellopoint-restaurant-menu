@@ -32,6 +32,7 @@ Each phase is tested on the JPRM development website before it is merged into `d
 | 10A | Daily Menu metadata: menu type, no date/single date/date range, and fixed price | ✅ Approved |
 | 10B | Elementor Daily Menu output, price positioning, item separators, styling, and full-width fixed-price presentation | ✅ Approved |
 | 10C | Automatically show or hide Daily/Weekly Menus according to their date or date range | ✅ Approved |
+| 10D | Shared Sections across multiple Menus, with independent items and ordering per Menu, plus Builder section selection | 🚧 In progress |
 
 ### Phase 10C intended behaviour
 
@@ -42,6 +43,21 @@ Each phase is tested on the JPRM development website before it is merged into `d
 - Provide a clear Elementor setting for automatic date filtering.
 - Keep editor preview and frontend behaviour understandable when a menu is currently outside its active period.
 - Never delete or modify menu content when a menu is outside its active period.
+
+### Phase 10D intended behaviour
+
+- Allow one Section definition to be attached to multiple Menus.
+- Store the Menu → Section relationship independently from the Section taxonomy term itself.
+- Allow each Menu to have its own Menu Items and item order inside the same shared Section.
+- Preserve the section order and hierarchy independently for each Menu.
+- In Menu Builder, **Add Section** offers two actions:
+  - select and attach an existing Section;
+  - create and attach a new Section.
+- Prevent accidental duplicate attachments within the same Menu.
+- Removing a Section from one Menu must not delete the Section or affect another Menu.
+- Existing single-owner Section data remains readable and is migrated safely when edited.
+- Elementor output and queries must use the selected Menu's own Section contents.
+- Import/export must preserve the new per-Menu relationships.
 
 ## Printable menus and PDF export
 
@@ -68,7 +84,6 @@ The website display remains powered by Elementor. Print and PDF use dedicated te
 
 | Area | Scope | Status |
 | --- | --- | --- |
-| Shared Sections | Allow a Section to belong to multiple Menus, with independent item membership/order per Menu | 🗂️ Later; data-model change required |
 | Elementor Atomic | Add compatibility with Elementor V4 Atomic styling without breaking the current widget | 🗂️ Later |
 | WPML | Explicit multilingual handling for menus, sections, relationships, and stored Elementor IDs | 🗂️ Later |
 
