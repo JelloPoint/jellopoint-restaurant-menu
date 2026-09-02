@@ -36,6 +36,8 @@
 .jprm-menu-preset .jp-menu__daily-meta { display: flex; justify-content: center; align-items: baseline; flex-wrap: wrap; gap: .5rem 1rem; margin-top: .75rem; }
 .jprm-menu-preset .jp-menu__daily-date { color: var(--jprm-muted); }
 .jprm-menu-preset .jp-menu__daily-price { color: var(--jprm-accent); font-weight: 700; }
+.jprm-menu-preset .jp-menu__daily-meta--price-below { flex-direction: column; align-items: center; }
+.jprm-menu-preset .jp-menu__meta--bottom { margin: 2rem 0 0; text-align: center; }
 .jprm-menu-preset .jp-menu__meta-desc,
 .jprm-menu-preset .jp-menu__desc,
 .jprm-menu-preset .jp-section__desc { color: var(--jprm-muted); }

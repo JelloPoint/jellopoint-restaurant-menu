@@ -92,7 +92,7 @@ class Menus_Admin {
 		</div>
 		<div class="form-field jprm-daily-menu-detail">
 			<label for="jprm_daily_menu_date_type"><?php esc_html_e( 'Date Type', 'jellopoint-restaurant-menu' ); ?></label>
-			<select id="jprm_daily_menu_date_type" name="jprm_daily_menu_date_type"><option value="single"><?php esc_html_e( 'Single Date', 'jellopoint-restaurant-menu' ); ?></option><option value="range"><?php esc_html_e( 'Date Range', 'jellopoint-restaurant-menu' ); ?></option></select>
+			<select id="jprm_daily_menu_date_type" name="jprm_daily_menu_date_type"><option value="none"><?php esc_html_e( 'No Date', 'jellopoint-restaurant-menu' ); ?></option><option value="single" selected><?php esc_html_e( 'Single Date', 'jellopoint-restaurant-menu' ); ?></option><option value="range"><?php esc_html_e( 'Date Range', 'jellopoint-restaurant-menu' ); ?></option></select>
 		</div>
 		<div class="form-field jprm-daily-menu-detail">
 			<label for="jprm_daily_menu_date"><span class="jprm-date-label-single"><?php esc_html_e( 'Date', 'jellopoint-restaurant-menu' ); ?></span><span class="jprm-date-label-range"><?php esc_html_e( 'Start Date', 'jellopoint-restaurant-menu' ); ?></span></label>
@@ -122,7 +122,7 @@ class Menus_Admin {
 		$enabled = self::is_daily_menu( $term_id );
 		$date = (string) get_term_meta( $term_id, self::META_DATE, true );
 		$date_type = (string) get_term_meta( $term_id, self::META_DATE_TYPE, true );
-		$date_type = 'range' === $date_type ? 'range' : 'single';
+		$date_type = in_array( $date_type, [ 'none', 'range' ], true ) ? $date_type : 'single';
 		$end_date = (string) get_term_meta( $term_id, self::META_END_DATE, true );
 		$price = (string) get_term_meta( $term_id, self::META_FIXED_PRICE, true );
 		$item_separator = (string) get_term_meta( $term_id, self::META_ITEM_SEPARATOR, true );
@@ -134,7 +134,7 @@ class Menus_Admin {
 		</tr>
 		<tr class="form-field jprm-daily-menu-detail">
 			<th scope="row"><label for="jprm_daily_menu_date_type"><?php esc_html_e( 'Date Type', 'jellopoint-restaurant-menu' ); ?></label></th>
-			<td><select id="jprm_daily_menu_date_type" name="jprm_daily_menu_date_type"><option value="single" <?php selected( $date_type, 'single' ); ?>><?php esc_html_e( 'Single Date', 'jellopoint-restaurant-menu' ); ?></option><option value="range" <?php selected( $date_type, 'range' ); ?>><?php esc_html_e( 'Date Range', 'jellopoint-restaurant-menu' ); ?></option></select></td>
+			<td><select id="jprm_daily_menu_date_type" name="jprm_daily_menu_date_type"><option value="none" <?php selected( $date_type, 'none' ); ?>><?php esc_html_e( 'No Date', 'jellopoint-restaurant-menu' ); ?></option><option value="single" <?php selected( $date_type, 'single' ); ?>><?php esc_html_e( 'Single Date', 'jellopoint-restaurant-menu' ); ?></option><option value="range" <?php selected( $date_type, 'range' ); ?>><?php esc_html_e( 'Date Range', 'jellopoint-restaurant-menu' ); ?></option></select></td>
 		</tr>
 		<tr class="form-field jprm-daily-menu-detail">
 			<th scope="row"><label for="jprm_daily_menu_date"><span class="jprm-date-label-single"><?php esc_html_e( 'Date', 'jellopoint-restaurant-menu' ); ?></span><span class="jprm-date-label-range"><?php esc_html_e( 'Start Date', 'jellopoint-restaurant-menu' ); ?></span></label></th>
@@ -166,7 +166,9 @@ class Menus_Admin {
 		$term_id = (int) $term_id;
 		$enabled = ! empty( $_POST['jprm_is_daily_menu'] );
 		$date = self::sanitize_date( isset( $_POST['jprm_daily_menu_date'] ) ? wp_unslash( $_POST['jprm_daily_menu_date'] ) : '' );
-		$date_type = isset( $_POST['jprm_daily_menu_date_type'] ) && 'range' === sanitize_key( wp_unslash( $_POST['jprm_daily_menu_date_type'] ) ) ? 'range' : 'single';
+		$date_type_raw = isset( $_POST['jprm_daily_menu_date_type'] ) ? sanitize_key( wp_unslash( $_POST['jprm_daily_menu_date_type'] ) ) : 'single';
+		$date_type = in_array( $date_type_raw, [ 'none', 'single', 'range' ], true ) ? $date_type_raw : 'single';
+		if ( 'none' === $date_type ) { $date = ''; }
 		$end_date = self::sanitize_end_date( $date, isset( $_POST['jprm_daily_menu_end_date'] ) ? wp_unslash( $_POST['jprm_daily_menu_end_date'] ) : '', $date_type );
 		$price = self::sanitize_price( isset( $_POST['jprm_daily_menu_fixed_price'] ) ? wp_unslash( $_POST['jprm_daily_menu_fixed_price'] ) : '' );
 		$item_separator = isset( $_POST['jprm_daily_menu_item_separator'] ) ? sanitize_text_field( wp_unslash( $_POST['jprm_daily_menu_item_separator'] ) ) : '';
@@ -221,11 +223,13 @@ class Menus_Admin {
 			function refresh(){
 				document.querySelectorAll('.jprm-daily-menu-detail').forEach(function(field){ field.style.display = toggle.checked ? '' : 'none'; });
 				var range = type && type.value === 'range';
+				var noDate = type && type.value === 'none';
 				document.querySelectorAll('.jprm-date-label-single').forEach(function(label){ label.style.display = range ? 'none' : ''; });
 				document.querySelectorAll('.jprm-date-label-range').forEach(function(label){ label.style.display = range ? '' : 'none'; });
 				document.querySelectorAll('.jprm-daily-menu-end-date').forEach(function(field){ field.style.display = toggle.checked && range ? '' : 'none'; });
+				if (start) { start.closest('.jprm-daily-menu-detail').style.display = toggle.checked && !noDate ? '' : 'none'; }
 				if (end) { end.min = start ? start.value : ''; end.required = toggle.checked && range; }
-				if (start) { start.required = toggle.checked; }
+				if (start) { start.required = toggle.checked && !noDate; }
 			}
 			toggle.addEventListener('change', refresh);
 			if (type) type.addEventListener('change', refresh);

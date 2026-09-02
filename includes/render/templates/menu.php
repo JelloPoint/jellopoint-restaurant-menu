@@ -29,7 +29,7 @@ if ( ! function_exists( 'jprm_render_rich_text' ) ) {
 }
 
 if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
-	function jprm_render_menu_meta( $menu_term, bool $show_title, bool $show_desc, string $scope = 'global', array $daily_menu = [], bool $show_daily_date = true, bool $show_daily_price = true, array $currency_opts = [] ) : string {
+	function jprm_render_menu_meta( $menu_term, bool $show_title, bool $show_desc, string $scope = 'global', array $daily_menu = [], bool $show_daily_date = true, bool $show_daily_price = true, array $currency_opts = [], string $price_position = 'beside_date' ) : string {
 		if ( ! $menu_term ) return '';
 		$out   = '';
 		$title = is_object( $menu_term ) ? (string) ( $menu_term->name ?? '' ) : (string) ( $menu_term['name'] ?? '' );
@@ -47,7 +47,8 @@ if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
 				$out .= '<div class="jp-menu__desc">' . jprm_render_rich_text( $desc ) . '</div>';
 			}
 			if ( $date_text !== '' || $price !== '' ) {
-				$out .= '<div class="jp-menu__daily-meta">';
+				$position_class = 'below_date' === $price_position ? ' jp-menu__daily-meta--price-below' : '';
+				$out .= '<div class="jp-menu__daily-meta' . $position_class . '">';
 				if ( $date_text !== '' ) { $out .= '<time class="jp-menu__daily-date">' . esc_html( $date_text ) . '</time>'; }
 				if ( $price !== '' ) {
 					$amount = function_exists( 'number_format_i18n' ) ? number_format_i18n( (float) $price, 2 ) : number_format( (float) $price, 2, '.', '' );
@@ -70,6 +71,7 @@ $show_menu_desc    = ! empty( $ctx['show_menu_desc'] );
 $daily_menu        = is_array( $ctx['daily_menu'] ?? null ) ? $ctx['daily_menu'] : [];
 $show_daily_date   = ! empty( $ctx['show_daily_date'] );
 $show_daily_price  = ! empty( $ctx['show_daily_price'] );
+$daily_price_position = in_array( $ctx['daily_price_position'] ?? '', [ 'beside_date', 'below_date', 'bottom_menu' ], true ) ? (string) $ctx['daily_price_position'] : 'beside_date';
 $menu_pos          = $ctx['menu_pos'] ?? 'above_menu';
 
 $sections_order    = is_array( $ctx['sections_order'] ?? null ) ? array_values( $ctx['sections_order'] ) : [];
@@ -592,7 +594,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 echo '<div class="jprm-menu-preset jprm-preset--' . esc_attr( $style_preset ) . '">';
 
 if ( $menu_term && ( $show_menu_title || $show_menu_desc || ! empty( $daily_menu['enabled'] ) ) && $menu_pos === 'above_menu' ) {
-	echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global', $daily_menu, $show_daily_date, $show_daily_price, $currency_opts ); // phpcs:ignore
+	echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global', $daily_menu, $show_daily_date, $show_daily_price && 'bottom_menu' !== $daily_price_position, $currency_opts, $daily_price_position ); // phpcs:ignore
 }
 
 /* -------------- render columns (roots only) -------------- */
@@ -604,7 +606,7 @@ echo '<div class="jp-menu-grid jp-menu-grid--cols-' . (int) $columns . '" style=
 foreach ( $columns_sets as $col_idx => $roots ) {
 	echo '<ul class="jp-menu jp-menu--col" data-col="' . (int) $col_idx . '">';
 	if ( 0 === (int) $col_idx && 'first_column' === $menu_pos && $menu_term && ( $show_menu_title || $show_menu_desc || ! empty( $daily_menu['enabled'] ) ) ) {
-		echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'column', $daily_menu, $show_daily_date, $show_daily_price, $currency_opts ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'column', $daily_menu, $show_daily_date, $show_daily_price && 'bottom_menu' !== $daily_price_position, $currency_opts, $daily_price_position ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 	foreach ( $roots as $root_tid ) {
 		$__render_section( (int) $root_tid, null ); // root: no inheritance yet
@@ -613,9 +615,13 @@ foreach ( $columns_sets as $col_idx => $roots ) {
 }
 echo '</div>';
 
+if ( $menu_term && ! empty( $daily_menu['enabled'] ) && $show_daily_price && 'bottom_menu' === $daily_price_position ) {
+	echo jprm_render_menu_meta( $menu_term, false, false, 'bottom', $daily_menu, false, true, $currency_opts, 'beside_date' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+}
+
 /* -------------- bottom meta (below) -------------- */
 if ( $menu_term && ( $show_menu_title || $show_menu_desc || ! empty( $daily_menu['enabled'] ) ) && $menu_pos === 'below_menu' ) {
-	echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global', $daily_menu, $show_daily_date, $show_daily_price, $currency_opts ); // phpcs:ignore
+	echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global', $daily_menu, $show_daily_date, $show_daily_price && 'bottom_menu' !== $daily_price_position, $currency_opts, $daily_price_position ); // phpcs:ignore
 }
 
 echo '</div>';

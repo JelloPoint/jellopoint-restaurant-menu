@@ -184,6 +184,7 @@ final class Restaurant_Menu extends Widget_Base {
         $show_menu_desc  = ( isset( $s['show_menu_description'] ) && $s['show_menu_description'] === 'yes' );
 		$show_daily_date = ( ! isset( $s['show_daily_menu_date'] ) || 'yes' === $s['show_daily_menu_date'] );
 		$show_daily_price = ( ! isset( $s['show_daily_menu_price'] ) || 'yes' === $s['show_daily_menu_price'] );
+		$daily_price_position = isset( $s['daily_menu_price_position'] ) && in_array( $s['daily_menu_price_position'], [ 'beside_date', 'below_date', 'bottom_menu' ], true ) ? (string) $s['daily_menu_price_position'] : 'beside_date';
 		$daily_menu = $menu_term ? self::jprm_daily_menu_display_data( (int) $menu_term->term_id ) : [];
         $menu_pos        = isset( $s['menu_title_position'] ) ? (string) $s['menu_title_position'] : 'above_menu';
 
@@ -452,6 +453,7 @@ final class Restaurant_Menu extends Widget_Base {
 			'daily_menu'         => $daily_menu,
 			'show_daily_date'    => $show_daily_date,
 			'show_daily_price'   => $show_daily_price,
+			'daily_price_position' => $daily_price_position,
             'menu_pos'            => $menu_pos,
 
             // Sections + items
