@@ -28,8 +28,10 @@ function wp_get_post_terms( $post_id, $taxonomy, $args = [] ) { return 501 === $
 function get_post_meta( $post_id, $key, $single = false ) { return 501 === $post_id ? 3 : 1; }
 
 class WP_Query {
+	public static int $calls = 0;
+	public static array $last_args = [];
 	public array $posts = [ 501, 502 ];
-	public function __construct( array $args ) { if ( [] === $args ) { $this->posts = []; } }
+	public function __construct( array $args ) { self::$calls++; self::$last_args = $args; if ( [] === $args ) { $this->posts = []; } }
 }
 
 require_once dirname( __DIR__ ) . '/includes/data/class-menu-structure-store.php';
@@ -67,5 +69,12 @@ jprm_structure_assert_same( [ 22, 21, 23 ], Menu_Structure_Store::section_ids( 8
 jprm_structure_assert_same( true, Menu_Structure_Store::save_section_tree( 8, [ [ 'id' => 23, 'parent_id' => 0 ], [ 'id' => 21, 'parent_id' => 23 ], [ 'id' => 22, 'parent_id' => 21 ] ] ), 'A per-Menu tree must save independently.' );
 jprm_structure_assert_same( true, Menu_Structure_Store::detach_section( 8, 21 ), 'A Section subtree must detach from one Menu.' );
 jprm_structure_assert_same( [ 23 ], Menu_Structure_Store::section_ids( 8 ), 'Detaching a subtree must retain unrelated Sections.' );
+jprm_structure_assert_same( true, Menu_Structure_Store::attach_section( 8, 24 ), 'A second target Section must attach.' );
+jprm_structure_assert_same( true, Menu_Structure_Store::save_items( 8, [ [ 'id' => 701, 'section_id' => 23, 'order' => 4 ], [ 'id' => 702, 'section_id' => 24, 'order' => 2 ] ] ), 'Item placements must save per Menu.' );
+jprm_structure_assert_same( [ 'section_id' => 23, 'order' => 0 ], Menu_Structure_Store::item_placements( 8 )[701], 'Item order must normalize inside its Menu Section.' );
+jprm_structure_assert_same( true, Menu_Structure_Store::assign_items( 8, 24, [ 701, 703 ] ), 'Items must move or append inside one Menu.' );
+jprm_structure_assert_same( 24, Menu_Structure_Store::item_placements( 8 )[701]['section_id'], 'Moving an item must remove its earlier placement in the same Menu.' );
+jprm_structure_assert_same( true, Menu_Structure_Store::unassign_item( 8, 701 ), 'An item must unassign from one Menu.' );
+jprm_structure_assert_same( false, isset( Menu_Structure_Store::item_placements( 8 )[701] ), 'Unassigning must remove only the selected Menu placement.' );
 
 fwrite( STDOUT, "Menu structure store checks passed.\n" );

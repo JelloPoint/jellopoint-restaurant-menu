@@ -1,6 +1,8 @@
 <?php
 namespace JelloPoint\RestaurantMenu\Admin;
 
+use JelloPoint\RestaurantMenu\Data\Menu_Structure_Store;
+
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Sections_Admin {
@@ -24,7 +26,7 @@ class Sections_Admin {
 		// Single source of truth for query (tree vs flat, filter, sort)
 		add_action( 'pre_get_terms', [ __CLASS__, 'shape_terms_query' ] );
 
-		// Add/Edit fields (Owner Menu selector)
+		// Add/Edit fields (shared Menu selector)
 		add_action( self::TAX_SECTION . '_add_form_fields',  [ __CLASS__, 'add_field' ] );
 		add_action( self::TAX_SECTION . '_edit_form_fields', [ __CLASS__, 'edit_field' ], 10, 2 );
 
@@ -63,10 +65,12 @@ class Sections_Admin {
 
 	public static function print_column( $out, $column_name, $term_id ) {
 		if ( 'jprm_menu' === $column_name ) {
-			$owner = (int) get_term_meta( $term_id, self::META_MENU_OWNER, true );
-			if ( ! $owner ) { echo '—'; return; }
-			$menu = get_term( $owner, self::TAX_MENU );
-			echo ( $menu && ! is_wp_error( $menu ) ) ? esc_html( $menu->name ) : '—';
+			$names = [];
+			foreach ( self::menu_ids_for_section( (int) $term_id ) as $menu_id ) {
+				$menu = get_term( $menu_id, self::TAX_MENU );
+				if ( $menu && ! is_wp_error( $menu ) ) { $names[] = (string) $menu->name; }
+			}
+			echo $names ? esc_html( implode( ', ', $names ) ) : '—';
 			return;
 		}
 		if ( 'jprm_order' === $column_name ) {
@@ -142,15 +146,10 @@ class Sections_Admin {
 
 		// If a menu is selected, filter by owner meta and default to order ASC unless user clicked Order.
 		if ( $menu_id > 0 ) {
-			$mq   = (array) ( $q->query_vars['meta_query'] ?? [] );
-			$mq[] = [ 'key' => self::META_MENU_OWNER, 'value' => (string) $menu_id ];
-			$q->query_vars['meta_query'] = $mq;
-
-			if ( $orderby !== 'jprm_order' ) {
-				$q->query_vars['meta_key'] = self::META_SECTION_ORDER;
-				$q->query_vars['orderby']  = 'meta_value_num';
-				$q->query_vars['order']    = 'ASC';
-			}
+			$q->query_vars['include'] = Menu_Structure_Store::section_ids( $menu_id );
+			$q->query_vars['orderby'] = 'include';
+			unset( $q->query_vars['meta_key'] );
+			$q->query_vars['meta_query'] = [];
 		}
 
 		// If user clicked the "Order" header: sort by section order ASC/DESC.
@@ -183,42 +182,13 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 
 	// COUNT(*) passes must never receive ORDER BY injections (Core doesn't add one there).
 	$is_count = ( isset($args['fields']) && $args['fields'] === 'count' );
+	if ( $selected_menu > 0 ) { return $pieces; }
 
 	// Always have the ORDER meta available when we plan to order (non-count only).
 	if ( ! $is_count && strpos($pieces['join'] ?? '', 'tm_sort') === false ) {
 		$meta_key_order = esc_sql(self::META_SECTION_ORDER);
 		$pieces['join'] .= " LEFT JOIN {$wpdb->termmeta} AS tm_sort
 			ON (tm_sort.term_id = t.term_id AND tm_sort.meta_key = '{$meta_key_order}')";
-	}
-
-	// If a specific Menu is selected, filter by owner meta value.
-	if ( $selected_menu > 0 ) {
-		if ( strpos($pieces['join'] ?? '', 'tm_owner') === false ) {
-			$meta_key_owner = esc_sql(self::META_MENU_OWNER);
-			$pieces['join'] .= " LEFT JOIN {$wpdb->termmeta} AS tm_owner
-				ON (tm_owner.term_id = t.term_id AND tm_owner.meta_key = '{$meta_key_owner}')";
-		}
-
-		// WHERE
-		$where = $pieces['where'] ?? '';
-		if ( $where === '' ) $where = ' WHERE 1=1 ';
-		$where .= $wpdb->prepare(' AND tm_owner.meta_value = %s ', (string) $selected_menu);
-		$pieces['where'] = $where;
-
-		// De-duplicate rows when joins exist.
-		if ( empty($pieces['groupby']) ) {
-			$pieces['groupby'] = ' t.term_id ';
-		} elseif ( strpos($pieces['groupby'], 't.term_id') === false ) {
-			$pieces['groupby'] .= ', t.term_id';
-		}
-
-		// Deterministic default order (non-count only).
-		if ( ! $is_count ) {
-			// IMPORTANT: include the 'ORDER BY' keyword and leave off trailing ASC to let Core append a single ASC.
-			$pieces['orderby'] = ' ORDER BY CAST(tm_sort.meta_value AS UNSIGNED), t.name ';
-		}
-
-		return $pieces;
 	}
 
 	// "All Menus" view: only re-order when the user clicked the Order column; never for count.
@@ -240,14 +210,13 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 		$menus = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false ] );
 		?>
 		<div class="form-field term-owner-wrap">
-			<label for="jprm_owner_menu"><?php esc_html_e( 'Owner Menu', 'jprm' ); ?></label>
-			<select name="jprm_owner_menu" id="jprm_owner_menu">
-				<option value="0"><?php esc_html_e( '— choose —', 'jprm' ); ?></option>
+			<label for="jprm_owner_menus"><?php esc_html_e( 'Menus', 'jprm' ); ?></label>
+			<select name="jprm_owner_menus[]" id="jprm_owner_menus" multiple size="6">
 				<?php if ( ! is_wp_error( $menus ) ) foreach ( $menus as $m ) : ?>
 					<option value="<?php echo (int) $m->term_id; ?>" data-daily="<?php echo '1' === (string) get_term_meta( (int) $m->term_id, '_jprm_is_daily_menu', true ) ? '1' : '0'; ?>"><?php echo esc_html( $m->name ); ?></option>
 				<?php endforeach; ?>
 			</select>
-			<p class="description"><?php esc_html_e( 'If you set a parent later, ownership will inherit from the parent.', 'jprm' ); ?></p>
+			<p class="description"><?php esc_html_e( 'Select one or more Menus. Each Menu keeps its own Section content and order.', 'jprm' ); ?></p>
 		</div>
 		<div class="form-field term-item-separator-wrap jprm-daily-section-option">
 			<label for="jprm_item_separator"><?php esc_html_e( 'Item Separator Override', 'jellopoint-restaurant-menu' ); ?></label>
@@ -261,21 +230,17 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 
 	public static function edit_field( $term, $taxonomy ) {
 		$menus   = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false ] );
-		$current = (int) get_term_meta( $term->term_id, self::META_MENU_OWNER, true );
+		$current = self::menu_ids_for_section( (int) $term->term_id );
 		$item_separator = (string) get_term_meta( $term->term_id, self::META_ITEM_SEPARATOR, true );
 		$disable_item_separator = '1' === (string) get_term_meta( $term->term_id, self::META_DISABLE_ITEM_SEPARATOR, true );
-		$parent  = (int) $term->parent;
-		$hint    = $parent
-			? __( 'Owner usually inherits from parent; changing it cascades to children.', 'jprm' )
-			: __( 'Choose the menu that owns this section.', 'jprm' );
+		$hint = __( 'Select one or more Menus. Each Menu keeps its own Section content and order.', 'jprm' );
 		?>
 		<tr class="form-field term-owner-wrap">
-			<th scope="row"><label for="jprm_owner_menu"><?php esc_html_e( 'Owner Menu', 'jprm' ); ?></label></th>
+			<th scope="row"><label for="jprm_owner_menus"><?php esc_html_e( 'Menus', 'jprm' ); ?></label></th>
 			<td>
-				<select name="jprm_owner_menu" id="jprm_owner_menu">
-					<option value="0"><?php esc_html_e( '— choose —', 'jprm' ); ?></option>
+				<select name="jprm_owner_menus[]" id="jprm_owner_menus" multiple size="6">
 					<?php if ( ! is_wp_error( $menus ) ) foreach ( $menus as $m ) : ?>
-						<option value="<?php echo (int) $m->term_id; ?>" data-daily="<?php echo '1' === (string) get_term_meta( (int) $m->term_id, '_jprm_is_daily_menu', true ) ? '1' : '0'; ?>" <?php selected( $current, (int) $m->term_id ); ?>>
+						<option value="<?php echo (int) $m->term_id; ?>" data-daily="<?php echo '1' === (string) get_term_meta( (int) $m->term_id, '_jprm_is_daily_menu', true ) ? '1' : '0'; ?>" <?php echo in_array( (int) $m->term_id, $current, true ) ? 'selected' : ''; ?>>
 							<?php echo esc_html( $m->name ); ?>
 						</option>
 					<?php endforeach; ?>
@@ -294,40 +259,45 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 	/* ================= Save & cascade ================= */
 
 	public static function save_on_create( $term_id, $tt_id ) {
-		$owner = isset( $_POST['jprm_owner_menu'] ) ? (int) $_POST['jprm_owner_menu'] : 0; // phpcs:ignore
-		$term  = get_term( $term_id, self::TAX_SECTION );
-		if ( ! $term || is_wp_error( $term ) ) return;
-
-		// Inherit from parent if any
-		if ( $term->parent ) {
-			$po = (int) get_term_meta( $term->parent, self::META_MENU_OWNER, true );
-			if ( $po ) $owner = $po;
-		}
-		if ( $owner > 0 ) update_term_meta( $term_id, self::META_MENU_OWNER, $owner );
-		if ( $owner > 0 ) self::ensure_section_order( (int) $term_id, (int) $owner );
+		self::save_menu_relations( (int) $term_id );
 		self::save_item_separator( (int) $term_id );
 	}
 
 	public static function save_on_edit( $term_id, $tt_id ) {
-		$term = get_term( $term_id, self::TAX_SECTION );
-		if ( ! $term || is_wp_error( $term ) ) return;
-
-		$chosen = isset( $_POST['jprm_owner_menu'] ) ? (int) $_POST['jprm_owner_menu'] : 0; // phpcs:ignore
-		$final  = $chosen;
-
-		// If parent exists, force inheritance
-		if ( $term->parent ) {
-			$po = (int) get_term_meta( $term->parent, self::META_MENU_OWNER, true );
-			if ( $po ) $final = $po;
-		}
-
-		$current = (int) get_term_meta( $term_id, self::META_MENU_OWNER, true );
-		if ( $final !== $current ) {
-			update_term_meta( $term_id, self::META_MENU_OWNER, $final );
-			self::cascade_children( $term_id, $final );
-		}
-		if ( $final > 0 ) self::ensure_section_order( (int) $term_id, (int) $final );
+		self::save_menu_relations( (int) $term_id );
 		self::save_item_separator( (int) $term_id );
+	}
+
+	private static function save_menu_relations( int $term_id ) : void {
+		$selected = isset( $_POST['jprm_owner_menus'] ) ? array_map( 'intval', (array) wp_unslash( $_POST['jprm_owner_menus'] ) ) : []; // phpcs:ignore
+		$selected = array_values( array_unique( array_filter( $selected ) ) );
+		$menus = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false, 'fields' => 'ids' ] );
+		if ( is_wp_error( $menus ) ) { return; }
+
+		foreach ( array_map( 'intval', (array) $menus ) as $menu_id ) {
+			if ( in_array( $menu_id, $selected, true ) ) {
+				Menu_Structure_Store::attach_section( $menu_id, $term_id );
+			} elseif ( in_array( $menu_id, self::menu_ids_for_section( $term_id ), true ) ) {
+				Menu_Structure_Store::detach_section( $menu_id, $term_id );
+			}
+		}
+
+		if ( $selected ) {
+			update_term_meta( $term_id, self::META_MENU_OWNER, $selected[0] );
+			self::ensure_section_order( $term_id, $selected[0] );
+		} else {
+			delete_term_meta( $term_id, self::META_MENU_OWNER );
+		}
+	}
+
+	private static function menu_ids_for_section( int $term_id ) : array {
+		$menus = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false, 'fields' => 'ids' ] );
+		if ( is_wp_error( $menus ) ) { return []; }
+		$menu_ids = [];
+		foreach ( array_map( 'intval', (array) $menus ) as $menu_id ) {
+			if ( in_array( $term_id, Menu_Structure_Store::section_ids( $menu_id ), true ) ) { $menu_ids[] = $menu_id; }
+		}
+		return $menu_ids;
 	}
 
 	private static function save_item_separator( int $term_id ) : void {
@@ -343,12 +313,13 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 		?>
 		<script>
 		document.addEventListener('DOMContentLoaded', function(){
-			var owner = document.getElementById('jprm_owner_menu');
+			var owner = document.getElementById('jprm_owner_menus');
 			var fields = document.querySelectorAll('.jprm-daily-section-option');
 			if (!owner || !fields.length) return;
 			function refresh(){
-				var option = owner.options[owner.selectedIndex];
-				var visible = option && option.getAttribute('data-daily') === '1';
+				var visible = Array.prototype.some.call(owner.selectedOptions, function(option){
+					return option.getAttribute('data-daily') === '1';
+				});
 				fields.forEach(function(field){ field.style.display = visible ? '' : 'none'; });
 			}
 			owner.addEventListener('change', refresh); refresh();

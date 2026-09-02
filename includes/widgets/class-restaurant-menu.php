@@ -2,6 +2,7 @@
 namespace JelloPoint\RestaurantMenu\Widgets;
 
 use Elementor\Widget_Base;
+use JelloPoint\RestaurantMenu\Data\Menu_Structure_Store;
 use JelloPoint\RestaurantMenu\Storage\Price_Repository;
 
 use function jprm_build_label_map;
@@ -68,31 +69,18 @@ final class Restaurant_Menu extends Widget_Base {
         return $out;
     }
 
-    /** Fetch sections that belong to a Menu, ordered by _jprm_section_order (ASC), then name. */
-    private function jprm_get_ordered_sections_for_menu( int $menu_id ) : array {
-        if ( $menu_id <= 0 ) return [];
-
-        $terms = get_terms( [
-            'taxonomy'   => 'jprm_section',
-            'hide_empty' => false,
-            'meta_query' => [
-                [ 'key' => '_jprm_menu_term_id', 'value' => (string) $menu_id ],
-            ],
-            'meta_key'   => '_jprm_section_order',
-            'orderby'    => 'meta_value_num',
-            'order'      => 'ASC',
-        ] );
-        if ( is_wp_error( $terms ) || empty( $terms ) ) return [];
-
-        // Stable fallback by name if some terms miss the meta.
-        usort( $terms, static function( $a, $b ){
-            $ao = (int) get_term_meta( $a->term_id, '_jprm_section_order', true );
-            $bo = (int) get_term_meta( $b->term_id, '_jprm_section_order', true );
-            if ( $ao !== $bo ) return $ao <=> $bo;
-            return strcasecmp( (string) $a->name, (string) $b->name );
-        } );
-
-        return $terms;
+	/** Fetch Sections in this Menu's own hierarchy and order. */
+	private function jprm_get_ordered_sections_for_menu( int $menu_id ) : array {
+		if ( $menu_id <= 0 ) return [];
+		$terms = [];
+		foreach ( Menu_Structure_Store::get( $menu_id )['sections'] as $row ) {
+			$term = get_term( (int) $row['id'], 'jprm_section' );
+			if ( ! $term || is_wp_error( $term ) ) { continue; }
+			$term = clone $term;
+			$term->parent = (int) $row['parent_id'];
+			$terms[] = $term;
+		}
+		return $terms;
     }
 
     /** Return a numeric price used only for sorting (single or first multi row). */
@@ -187,6 +175,7 @@ final class Restaurant_Menu extends Widget_Base {
 		$show_daily_price = ( ! isset( $s['show_daily_menu_price'] ) || 'yes' === $s['show_daily_menu_price'] );
 		$daily_price_position = isset( $s['daily_menu_price_position'] ) && in_array( $s['daily_menu_price_position'], [ 'beside_date', 'below_date', 'bottom_menu' ], true ) ? (string) $s['daily_menu_price_position'] : 'beside_date';
 		$daily_menu = $menu_term ? self::jprm_daily_menu_display_data( (int) $menu_term->term_id ) : [];
+		$menu_placements = $menu_term ? Menu_Structure_Store::item_placements( (int) $menu_term->term_id ) : [];
         $menu_pos        = isset( $s['menu_title_position'] ) ? (string) $s['menu_title_position'] : 'above_menu';
 
         if ( empty( $menu_ids ) && empty( $section_ids ) && ! $show_all ) {
@@ -209,7 +198,15 @@ final class Restaurant_Menu extends Widget_Base {
 			}
 		}
 
-        $items = $this->query_items( $menu_ids, $section_ids, $orderby, $order, $limit, $show_all );
+		$structured_item_ids = null;
+		if ( $menu_term && Menu_Structure_Store::has_explicit( (int) $menu_term->term_id ) ) {
+			$structured_item_ids = [];
+			foreach ( $menu_placements as $item_id => $placement ) {
+				if ( ! empty( $section_ids ) && ! in_array( (int) $placement['section_id'], $section_ids, true ) ) { continue; }
+				$structured_item_ids[] = (int) $item_id;
+			}
+		}
+		$items = $this->query_items( $menu_ids, $section_ids, $orderby, $order, $limit, $show_all, $structured_item_ids );
         if ( empty( $items ) ) {
             echo '<div class="jp-menu--empty">' . esc_html__( 'No items found.', 'jellopoint-restaurant-menu' ) . '</div>';
             return;
@@ -226,12 +223,14 @@ final class Restaurant_Menu extends Widget_Base {
             $cfg = function_exists( 'jprm_read_price_config' ) ? jprm_read_price_config( $post_id ) : [];
             if ( empty( $cfg ) ) continue;
 
-            $terms = wp_get_post_terms( $post_id, 'jprm_section', [ 'orderby' => 'name', 'order' => 'ASC' ] );
-            $primary_tid  = 0;
-            $primary_term = null;
-            if ( is_array( $terms ) && ! empty( $terms ) && ! is_wp_error( $terms ) ) {
-                $primary_term = $terms[0];
-                $primary_tid  = (int) $primary_term->term_id;
+			$primary_tid  = 0;
+			$primary_term = null;
+			if ( isset( $menu_placements[ $post_id ] ) ) {
+				$primary_tid = (int) $menu_placements[ $post_id ]['section_id'];
+				$primary_term = get_term( $primary_tid, 'jprm_section' );
+			} else {
+				$terms = wp_get_post_terms( $post_id, 'jprm_section', [ 'orderby' => 'name', 'order' => 'ASC' ] );
+				if ( is_array( $terms ) && ! empty( $terms ) && ! is_wp_error( $terms ) ) { $primary_term = $terms[0]; $primary_tid = (int) $primary_term->term_id; }
             }
             if ( ! isset( $sections_data[ $primary_tid ] ) ) {
                 $sections_data[ $primary_tid ] = [ 'term' => $primary_term, 'items' => [] ];
@@ -299,7 +298,7 @@ final class Restaurant_Menu extends Widget_Base {
             $use_od = $ov_map[$tid]['order']   ?? $global_od;
             $dir    = ($use_od === 'DESC') ? -1 : 1;
 
-            usort( $bucket['items'], function( $a, $b ) use ( $use_ob, $dir ) {
+			usort( $bucket['items'], function( $a, $b ) use ( $use_ob, $dir, $menu_placements ) {
                 $aid = (int)$a->ID; $bid = (int)$b->ID;
 
                 switch ( $use_ob ) {
@@ -320,8 +319,8 @@ final class Restaurant_Menu extends Widget_Base {
                         // Prefer Menu Builder ordering: per-section order meta.
                         $meta_key = '_jprm_order_in_section';
 
-                        $ameta = get_post_meta( $aid, $meta_key, true );
-                        $bmeta = get_post_meta( $bid, $meta_key, true );
+						$ameta = isset( $menu_placements[ $aid ] ) ? (int) $menu_placements[ $aid ]['order'] : get_post_meta( $aid, $meta_key, true );
+						$bmeta = isset( $menu_placements[ $bid ] ) ? (int) $menu_placements[ $bid ]['order'] : get_post_meta( $bid, $meta_key, true );
 
                         // If builder meta exists, use it; otherwise fall back to core menu_order.
                         $am = ( $ameta !== '' ) ? (int) $ameta : (int) get_post_field( 'menu_order', $aid );
@@ -336,9 +335,13 @@ final class Restaurant_Menu extends Widget_Base {
         unset($bucket);
 
         // --- Reorder sections by builder order if a single Menu is chosen ---
-        if ( $menu_term && empty( $section_ids ) ) {
-            $ordered_terms   = $this->jprm_get_ordered_sections_for_menu( (int) $menu_term->term_id );
-            $ordered_ids_all = array_map( static fn( $t ) => (int) $t->term_id, $ordered_terms );
+		if ( $menu_term && empty( $section_ids ) ) {
+			$ordered_terms   = $this->jprm_get_ordered_sections_for_menu( (int) $menu_term->term_id );
+			$ordered_ids_all = array_map( static fn( $t ) => (int) $t->term_id, $ordered_terms );
+			foreach ( $ordered_terms as $ordered_term ) {
+				$ordered_id = (int) $ordered_term->term_id;
+				if ( isset( $sections_data[ $ordered_id ] ) ) { $sections_data[ $ordered_id ]['term'] = $ordered_term; }
+			}
 
             $reordered = [];
 
@@ -612,7 +615,7 @@ final class Restaurant_Menu extends Widget_Base {
         return array_values( array_unique( array_filter( $out, fn( $n ) => $n > 0 ) ) );
     }
 
-    protected function query_items( array $menu_ids, array $section_ids, string $orderby, string $order, int $limit, bool $fallback_all ) : array {
+	protected function query_items( array $menu_ids, array $section_ids, string $orderby, string $order, int $limit, bool $fallback_all, ?array $include_ids = null ) : array {
         $args = [
             'post_type'        => 'jprm_menu_item',
             'post_status'      => 'publish',
@@ -622,7 +625,15 @@ final class Restaurant_Menu extends Widget_Base {
             'suppress_filters' => false,
         ];
 
-        $tax_query = [];
+		if ( null !== $include_ids ) {
+			if ( [] === $include_ids ) { return []; }
+			$args['post__in'] = array_values( array_unique( array_map( 'intval', $include_ids ) ) );
+			$args['orderby'] = 'post__in';
+			$q = new \WP_Query( $args );
+			return is_array( $q->posts ?? null ) ? $q->posts : [];
+		}
+
+		$tax_query = [];
         if ( ! empty( $menu_ids ) )    $tax_query[] = [ 'taxonomy' => 'jprm_menu',    'field' => 'term_id', 'terms' => $menu_ids ];
         if ( ! empty( $section_ids ) ) $tax_query[] = [ 'taxonomy' => 'jprm_section', 'field' => 'term_id', 'terms' => $section_ids ];
         if ( ! empty( $tax_query ) ) {

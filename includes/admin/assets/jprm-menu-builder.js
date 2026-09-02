@@ -378,7 +378,7 @@
     if($(this).data('action')==='item-unassign'){
       if(!confirm('Remove this item from its section?')) return;
       setLoading(true);
-      apiPost('menu-builder/item/unassign',{id})
+      apiPost('menu-builder/item/unassign',{menu_id:state.currentMenu,id})
         .done(()=> chainLoadAndRender(false))
         .fail(x=>toast(apiFailToMessage(x)))
         .always(()=>setLoading(false));

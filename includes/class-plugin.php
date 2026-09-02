@@ -239,6 +239,9 @@ class Plugin {
 
 	/** Get section IDs where _jprm_menu_term_id equals the given $menu_id. */
 	private static function get_section_ids_from_meta( int $menu_id ) : array {
+		if ( class_exists( '\\JelloPoint\\RestaurantMenu\\Data\\Menu_Structure_Store' ) ) {
+			return \JelloPoint\RestaurantMenu\Data\Menu_Structure_Store::section_ids( $menu_id );
+		}
 		$terms = get_terms( [
 			'taxonomy'   => 'jprm_section',
 			'hide_empty' => false,

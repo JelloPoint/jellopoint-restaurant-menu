@@ -139,6 +139,60 @@ final class Menu_Structure_Store {
 		return self::save( $menu_id, $structure );
 	}
 
+	/** Return item_id => placement for one Menu. */
+	public static function item_placements( int $menu_id ) : array {
+		$placements = [];
+		foreach ( self::get( $menu_id )['sections'] as $section ) {
+			foreach ( $section['items'] as $item ) {
+				$placements[ (int) $item['id'] ] = [ 'section_id' => (int) $section['id'], 'order' => (int) $item['order'] ];
+			}
+		}
+		return $placements;
+	}
+
+	/** Replace all item placements for one Menu, preserving its Section tree. */
+	public static function save_items( int $menu_id, array $rows ) : bool {
+		if ( $menu_id <= 0 ) { return false; }
+		$structure = self::get( $menu_id );
+		$section_indexes = [];
+		foreach ( $structure['sections'] as $index => &$section ) { $section['items'] = []; $section_indexes[ (int) $section['id'] ] = $index; }
+		unset( $section );
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) ) { continue; }
+			$item_id = (int) ( $row['id'] ?? 0 );
+			$section_id = (int) ( $row['section_id'] ?? 0 );
+			if ( $item_id <= 0 || ! isset( $section_indexes[ $section_id ] ) ) { continue; }
+			$structure['sections'][ $section_indexes[ $section_id ] ]['items'][] = [ 'id' => $item_id, 'order' => (int) ( $row['order'] ?? 0 ) ];
+		}
+		return self::save( $menu_id, $structure );
+	}
+
+	/** Append items to a Section in one Menu, removing only prior placements in that same Menu. */
+	public static function assign_items( int $menu_id, int $section_id, array $item_ids ) : bool {
+		$structure = self::get( $menu_id );
+		$ids = array_fill_keys( array_filter( array_map( 'intval', $item_ids ) ), true );
+		$target_index = null;
+		foreach ( $structure['sections'] as $index => &$section ) {
+			if ( (int) $section['id'] === $section_id ) { $target_index = $index; }
+			$section['items'] = array_values( array_filter( $section['items'], static function( array $item ) use ( $ids ) : bool { return ! isset( $ids[ (int) $item['id'] ] ); } ) );
+		}
+		unset( $section );
+		if ( null === $target_index ) { return false; }
+		$next = count( $structure['sections'][ $target_index ]['items'] );
+		foreach ( array_keys( $ids ) as $item_id ) { $structure['sections'][ $target_index ]['items'][] = [ 'id' => (int) $item_id, 'order' => $next++ ]; }
+		return self::save( $menu_id, $structure );
+	}
+
+	public static function unassign_item( int $menu_id, int $item_id ) : bool {
+		if ( $menu_id <= 0 || $item_id <= 0 ) { return false; }
+		$structure = self::get( $menu_id );
+		foreach ( $structure['sections'] as &$section ) {
+			$section['items'] = array_values( array_filter( $section['items'], static function( array $item ) use ( $item_id ) : bool { return (int) $item['id'] !== $item_id; } ) );
+		}
+		unset( $section );
+		return self::save( $menu_id, $structure );
+	}
+
 	/** Build a backwards-compatible snapshot without writing any new metadata. */
 	private static function legacy_snapshot( int $menu_id ) : array {
 		$terms = get_terms( [ 'taxonomy' => self::TAX_SECTION, 'hide_empty' => false ] );

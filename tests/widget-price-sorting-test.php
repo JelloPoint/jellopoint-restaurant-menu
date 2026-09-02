@@ -110,4 +110,9 @@ jprm_sort_assert_same( 'AND', WP_Query::$last_args['tax_query']['relation'] ?? '
 jprm_sort_assert_same( 25, WP_Query::$last_args['posts_per_page'], 'A positive query limit must be preserved.' );
 jprm_sort_assert_same( 'DESC', WP_Query::$last_args['order'], 'Descending order must be preserved.' );
 
+$structured = $query_method->invoke( $widget, [ 8 ], [ 12 ], 'menu_order', 'ASC', 0, false, [ 203, 201 ] );
+jprm_sort_assert_same( [ 501 ], $structured, 'An explicit per-Menu structure must query its placed items.' );
+jprm_sort_assert_same( [ 203, 201 ], WP_Query::$last_args['post__in'] ?? [], 'The exact per-Menu item IDs must constrain the frontend query.' );
+jprm_sort_assert_same( 'post__in', WP_Query::$last_args['orderby'] ?? '', 'An explicit structure must preserve its Menu Builder item order.' );
+
 fwrite( STDOUT, "Widget price sorting checks passed.\n" );

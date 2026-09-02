@@ -137,7 +137,10 @@ class Menu_Builder_Controller extends \WP_REST_Controller {
 		register_rest_route( self::NS, '/menu-builder/item/unassign', [
 			'methods'  => 'POST',
 			'callback' => [ $this, 'unassign_item' ],
-			'args'     => [ 'id' => [ 'type' => 'integer', 'required' => true ] ],
+			'args'     => [
+				'menu_id' => [ 'type' => 'integer', 'required' => true ],
+				'id' => [ 'type' => 'integer', 'required' => true ],
+			],
 			'permission_callback' => [ $this, 'cap' ],
 		] );
 	}
@@ -329,33 +332,23 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 			'order'          => 'ASC',
 		] );
 
+		$placements = Menu_Structure_Store::item_placements( $menu_id );
 		$out = [];
 		foreach ( (array) $q->posts as $pid ) {
-			$terms = wp_get_post_terms( $pid, self::TAX_SECTION );
-			$sec   = is_wp_error( $terms ) || empty( $terms ) ? null : $terms[0];
-
-			// Determine the item "belongs to menu?" by the section's owner
-			$belongs = false;
-			$section_id = 0;
-			if ( $sec ) {
-				$owner = (int) get_term_meta( $sec->term_id, self::META_MENU_OWNER, true );
-				$belongs = ( $owner === $menu_id );
-				$section_id = (int) $sec->term_id;
-			}
+			$placement = $placements[ (int) $pid ] ?? null;
+			$belongs = is_array( $placement );
 
 			if ( $unassigned ) {
-				// Unassigned = either no section or section not owned by this menu
 				if ( $belongs ) continue;
 			} else {
-				// Assigned to this menu only
 				if ( ! $belongs ) continue;
 			}
 
 			$out[] = [
 				'id'               => (int) $pid,
 				'title'            => get_the_title( $pid ),
-				'section_id'       => $section_id ?: null,
-				'order_in_section' => (int) get_post_meta( $pid, self::META_ITEM_ORDER, true ),
+				'section_id'       => $belongs ? (int) $placement['section_id'] : null,
+				'order_in_section' => $belongs ? (int) $placement['order'] : 0,
 				'price'            => '', // keep blank in REST; UI may compute/ignore
 			];
 		}
@@ -364,91 +357,25 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 		return rest_ensure_response( [ 'items' => $out ] );
 	}
 
-public function save_items_order( $request ) {
-	$menu_id = (int) $request['menu_id'];
-	$items   = (array) $request['items']; // [{id,section_id,order}]
-
-	if ( $menu_id <= 0 || ! is_array( $items ) ) {
-		return new \WP_Error(
-			'jprm_bad_params',
-			__( 'menu_id and items are required.', 'jprm' ),
-			[ 'status' => 400 ]
-		);
-	}
-
-	// Group items per section first
-	$by_section = [];
-
-	foreach ( $items as $row ) {
-		$pid        = (int) ( $row['id'] ?? 0 );
-		$section_id = (int) ( $row['section_id'] ?? 0 );
-		$order      = (int) ( $row['order'] ?? 0 );
-
-		if ( ! $pid || ! $section_id ) {
-			continue;
-		}
-
-		// Guard: section must belong to the menu
-		$owner = (int) get_term_meta( $section_id, self::META_MENU_OWNER, true );
-		if ( $owner !== $menu_id ) {
-			return new \WP_Error(
-				'jprm_cross_menu',
-				__( 'Cannot assign item to a section owned by another Menu.', 'jprm' ),
-				[ 'status' => 400 ]
-			);
-		}
-
-		$by_section[ $section_id ][] = [
-			'id'    => $pid,
-			'order' => $order,
-		];
-	}
-
-	$changed_posts = [];
-
-	// Within each section, rewrite to a dense 0..N-1 order range
-	foreach ( $by_section as $section_id => $rows ) {
-		usort(
-			$rows,
-			static function( $a, $b ) {
-				return (int) ( $a['order'] ?? 0 ) <=> (int) ( $b['order'] ?? 0 );
-			}
-		);
-
-		$seq = -1;
-
-		foreach ( $rows as $row ) {
+	public function save_items_order( $request ) {
+		$menu_id = (int) $request['menu_id'];
+		$items = (array) $request['items'];
+		if ( $menu_id <= 0 ) { return new \WP_Error( 'jprm_bad_params', __( 'menu_id and items are required.', 'jellopoint-restaurant-menu' ), [ 'status' => 400 ] ); }
+		$section_ids = Menu_Structure_Store::section_ids( $menu_id );
+		$valid = [];
+		foreach ( $items as $row ) {
 			$pid = (int) ( $row['id'] ?? 0 );
-			if ( ! $pid ) {
-				continue;
-			}
-			if ( ! current_user_can( 'edit_post', $pid ) ) {
-				continue;
-			}
-
-			$seq++;
-
-			// Assign section (single) and stamp the menu taxonomy (additive)
-			wp_set_post_terms( $pid, [ $section_id ], self::TAX_SECTION, false );
+			$section_id = (int) ( $row['section_id'] ?? 0 );
+			if ( $pid <= 0 || ! in_array( $section_id, $section_ids, true ) ) { continue; }
+			if ( ! current_user_can( 'edit_post', $pid ) ) { continue; }
+			$valid[] = [ 'id' => $pid, 'section_id' => $section_id, 'order' => (int) ( $row['order'] ?? 0 ) ];
+			// Additive legacy terms never remove another Menu's placement.
+			wp_set_post_terms( $pid, [ $section_id ], self::TAX_SECTION, true );
 			wp_set_post_terms( $pid, [ $menu_id ], self::TAX_MENU, true );
-
-			// Guard-rail: always store a numeric order 0..N-1
-			update_post_meta( $pid, self::META_ITEM_ORDER, $seq );
-			$changed_posts[] = $pid;
 		}
+		Menu_Structure_Store::save_items( $menu_id, $valid );
+		return rest_ensure_response( [ 'ok' => true, 'count' => count( $valid ), 'msg' => __( 'Menu layout saved.', 'jellopoint-restaurant-menu' ) ] );
 	}
-
-	// Targeted cache clear for changed posts
-	foreach ( array_unique( $changed_posts ) as $p ) {
-		clean_post_cache( $p );
-	}
-
-	return rest_ensure_response( [
-		'ok'    => true,
-		'count' => count( $changed_posts ),
-		'msg'   => __( 'Menu layout saved.', 'jprm' ),
-	] );
-}
 
 
 	public function assign_items_batch( $request ) {
@@ -460,8 +387,7 @@ public function save_items_order( $request ) {
 			return new \WP_Error( 'jprm_bad_params', __( 'menu_id, section_id and ids are required.', 'jprm' ), [ 'status' => 400 ] );
 		}
 
-		$owner = (int) get_term_meta( $section_id, self::META_MENU_OWNER, true );
-		if ( $owner !== $menu_id ) {
+		if ( ! in_array( $section_id, Menu_Structure_Store::section_ids( $menu_id ), true ) ) {
 			return new \WP_Error(
 				'jprm_cross_menu',
 				__( 'Target section belongs to another Menu.', 'jprm' ),
@@ -469,50 +395,29 @@ public function save_items_order( $request ) {
 			);
 		}
 
-		// Current end order in that section
-		$existing = new \WP_Query( [
-			'post_type'      => self::CPT_ITEM,
-			'posts_per_page' => -1,
-			'post_status'    => 'any',
-			'tax_query'      => [[
-				'taxonomy' => self::TAX_SECTION,
-				'field'    => 'term_id',
-				'terms'    => [ $section_id ],
-				'include_children' => false,
-			]],
-			'fields'        => 'ids',
-			'no_found_rows' => true,
-		] );
-		$next = 0;
-		foreach ( (array) $existing->posts as $pid ) {
-			$next = max( $next, (int) get_post_meta( $pid, self::META_ITEM_ORDER, true ) );
-		}
-
-		$done = 0;
+		$allowed = [];
 		foreach ( $ids as $pid ) {
 			$pid = (int) $pid;
 			if ( $pid <= 0 ) continue;
 			if ( ! current_user_can( 'edit_post', $pid ) ) continue;
-			wp_set_post_terms( $pid, [ $section_id ], self::TAX_SECTION, false );
+			$allowed[] = $pid;
+			wp_set_post_terms( $pid, [ $section_id ], self::TAX_SECTION, true );
 			wp_set_post_terms( $pid, [ $menu_id ], self::TAX_MENU, true );
-			$next++;
-			update_post_meta( $pid, self::META_ITEM_ORDER, $next );
-			$done++;
 		}
-
-		return rest_ensure_response( [ 'ok' => true, 'assigned' => $done ] );
+		Menu_Structure_Store::assign_items( $menu_id, $section_id, $allowed );
+		return rest_ensure_response( [ 'ok' => true, 'assigned' => count( $allowed ) ] );
 	}
 
 	public function unassign_item( $request ) {
+		$menu_id = (int) $request['menu_id'];
 		$pid = (int) $request['id'];
-		if ( $pid <= 0 ) {
-			return new \WP_Error( 'jprm_bad_params', __( 'Missing item id.', 'jprm' ), [ 'status' => 400 ] );
+		if ( $menu_id <= 0 || $pid <= 0 ) {
+			return new \WP_Error( 'jprm_bad_params', __( 'Missing Menu or item id.', 'jellopoint-restaurant-menu' ), [ 'status' => 400 ] );
 		}
 		if ( ! current_user_can( 'edit_post', $pid ) ) {
 			return new \WP_Error( 'jprm_perm', __( 'Insufficient permissions.', 'jprm' ), [ 'status' => 403 ] );
 		}
-		wp_set_post_terms( $pid, [], self::TAX_SECTION, false );
-		delete_post_meta( $pid, self::META_ITEM_ORDER );
+		Menu_Structure_Store::unassign_item( $menu_id, $pid );
 		return rest_ensure_response( [ 'ok' => true ] );
 	}
 
