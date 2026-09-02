@@ -97,6 +97,48 @@ final class Menu_Structure_Store {
 		return array_map( 'intval', array_column( self::get( $menu_id )['sections'], 'id' ) );
 	}
 
+	public static function attach_section( int $menu_id, int $section_id, int $parent_id = 0 ) : bool {
+		if ( $menu_id <= 0 || $section_id <= 0 ) { return false; }
+		$structure = self::get( $menu_id );
+		foreach ( $structure['sections'] as $section ) {
+			if ( (int) $section['id'] === $section_id ) { return true; }
+		}
+		$structure['sections'][] = [ 'id' => $section_id, 'parent_id' => $parent_id, 'order' => count( $structure['sections'] ), 'items' => [] ];
+		return self::save( $menu_id, $structure );
+	}
+
+	public static function save_section_tree( int $menu_id, array $tree ) : bool {
+		if ( $menu_id <= 0 ) { return false; }
+		$current = self::get( $menu_id );
+		$items_by_section = [];
+		foreach ( $current['sections'] as $section ) { $items_by_section[ (int) $section['id'] ] = $section['items']; }
+		$sections = [];
+		foreach ( $tree as $index => $row ) {
+			if ( ! is_array( $row ) ) { continue; }
+			$id = (int) ( $row['id'] ?? 0 );
+			if ( $id <= 0 ) { continue; }
+			$sections[] = [ 'id' => $id, 'parent_id' => max( 0, (int) ( $row['parent_id'] ?? 0 ) ), 'order' => (int) $index, 'items' => $items_by_section[ $id ] ?? [] ];
+		}
+		return self::save( $menu_id, [ 'sections' => $sections ] );
+	}
+
+	public static function detach_section( int $menu_id, int $section_id ) : bool {
+		if ( $menu_id <= 0 || $section_id <= 0 ) { return false; }
+		$structure = self::get( $menu_id );
+		$remove = [ $section_id => true ];
+		do {
+			$changed = false;
+			foreach ( $structure['sections'] as $section ) {
+				$id = (int) $section['id'];
+				if ( isset( $remove[ (int) $section['parent_id'] ] ) && ! isset( $remove[ $id ] ) ) { $remove[ $id ] = true; $changed = true; }
+			}
+		} while ( $changed );
+		$structure['sections'] = array_values( array_filter( $structure['sections'], static function( array $section ) use ( $remove ) : bool {
+			return ! isset( $remove[ (int) $section['id'] ] );
+		} ) );
+		return self::save( $menu_id, $structure );
+	}
+
 	/** Build a backwards-compatible snapshot without writing any new metadata. */
 	private static function legacy_snapshot( int $menu_id ) : array {
 		$terms = get_terms( [ 'taxonomy' => self::TAX_SECTION, 'hide_empty' => false ] );

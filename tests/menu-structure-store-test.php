@@ -62,4 +62,10 @@ jprm_structure_assert_same( true, Menu_Structure_Store::save( 8, $dirty ), 'A va
 jprm_structure_assert_same( true, Menu_Structure_Store::has_explicit( 8 ), 'Saved structures must become the explicit source for that Menu.' );
 jprm_structure_assert_same( [ 22, 21 ], Menu_Structure_Store::section_ids( 8 ), 'Section IDs must come from the explicit structure after migration.' );
 
+jprm_structure_assert_same( true, Menu_Structure_Store::attach_section( 8, 23 ), 'An existing Section must attach to a Menu.' );
+jprm_structure_assert_same( [ 22, 21, 23 ], Menu_Structure_Store::section_ids( 8 ), 'Attaching must preserve the existing Menu structure.' );
+jprm_structure_assert_same( true, Menu_Structure_Store::save_section_tree( 8, [ [ 'id' => 23, 'parent_id' => 0 ], [ 'id' => 21, 'parent_id' => 23 ], [ 'id' => 22, 'parent_id' => 21 ] ] ), 'A per-Menu tree must save independently.' );
+jprm_structure_assert_same( true, Menu_Structure_Store::detach_section( 8, 21 ), 'A Section subtree must detach from one Menu.' );
+jprm_structure_assert_same( [ 23 ], Menu_Structure_Store::section_ids( 8 ), 'Detaching a subtree must retain unrelated Sections.' );
+
 fwrite( STDOUT, "Menu structure store checks passed.\n" );

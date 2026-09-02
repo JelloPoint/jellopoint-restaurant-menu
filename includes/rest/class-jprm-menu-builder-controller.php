@@ -1,6 +1,8 @@
 <?php
 namespace JelloPoint\RestaurantMenu\REST;
 
+use JelloPoint\RestaurantMenu\Data\Menu_Structure_Store;
+
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 /**
@@ -48,6 +50,23 @@ class Menu_Builder_Controller extends \WP_REST_Controller {
 			'methods'  => 'GET',
 			'callback' => [ $this, 'get_sections' ],
 			'args'     => [ 'menu_id' => [ 'type' => 'integer', 'required' => true ] ],
+			'permission_callback' => [ $this, 'cap' ],
+		] );
+
+		register_rest_route( self::NS, '/menu-builder/sections/available', [
+			'methods'  => 'GET',
+			'callback' => [ $this, 'get_available_sections' ],
+			'args'     => [ 'menu_id' => [ 'type' => 'integer', 'required' => true ] ],
+			'permission_callback' => [ $this, 'cap' ],
+		] );
+
+		register_rest_route( self::NS, '/menu-builder/section/attach', [
+			'methods'  => 'POST',
+			'callback' => [ $this, 'attach_section' ],
+			'args'     => [
+				'menu_id' => [ 'type' => 'integer', 'required' => true ],
+				'section_id' => [ 'type' => 'integer', 'required' => true ],
+			],
 			'permission_callback' => [ $this, 'cap' ],
 		] );
 
@@ -152,40 +171,39 @@ class Menu_Builder_Controller extends \WP_REST_Controller {
 	 * ============================================================ */
 
 	public function get_sections( $request ) {
-$menu_id = (int) $request['menu_id'];
-if ( $menu_id <= 0 ) {
-	return new \WP_Error( 'jprm_bad_menu', __( 'Missing or invalid menu_id.', 'jprm' ), [ 'status' => 400 ] );
-}
+		$menu_id = (int) $request['menu_id'];
+		if ( $menu_id <= 0 ) { return new \WP_Error( 'jprm_bad_menu', __( 'Missing or invalid menu_id.', 'jellopoint-restaurant-menu' ), [ 'status' => 400 ] ); }
+		$list = [];
+		foreach ( Menu_Structure_Store::get( $menu_id )['sections'] as $row ) {
+			$term = get_term( (int) $row['id'], self::TAX_SECTION );
+			if ( ! $term || is_wp_error( $term ) ) { continue; }
+			$list[] = [ 'id' => (int) $term->term_id, 'title' => (string) $term->name, 'parent_id' => (int) $row['parent_id'], 'order' => (int) $row['order'], 'owner' => $menu_id ];
+		}
+		return rest_ensure_response( [ 'sections' => $list ] );
+	}
 
-$terms = get_terms( [
-	'taxonomy'   => self::TAX_SECTION,
-	'hide_empty' => false,
-	'meta_query' => [
-		[ 'key' => self::META_MENU_OWNER, 'value' => (string) $menu_id ],
-	],
-	'meta_key'   => self::META_SECTION_ORDER,
-	'orderby'    => 'meta_value_num',
-	'order'      => 'ASC',
-] );
+	public function get_available_sections( $request ) {
+		$menu_id = (int) $request['menu_id'];
+		if ( $menu_id <= 0 ) { return new \WP_Error( 'jprm_bad_menu', __( 'Missing or invalid menu_id.', 'jellopoint-restaurant-menu' ), [ 'status' => 400 ] ); }
+		$attached = array_fill_keys( Menu_Structure_Store::section_ids( $menu_id ), true );
+		$terms = get_terms( [ 'taxonomy' => self::TAX_SECTION, 'hide_empty' => false, 'orderby' => 'name', 'order' => 'ASC' ] );
+		if ( is_wp_error( $terms ) ) { return new \WP_Error( 'jprm_terms_err', $terms->get_error_message(), [ 'status' => 500 ] ); }
+		$list = [];
+		foreach ( $terms as $term ) {
+			if ( ! isset( $attached[ (int) $term->term_id ] ) ) { $list[] = [ 'id' => (int) $term->term_id, 'title' => (string) $term->name ]; }
+		}
+		return rest_ensure_response( [ 'sections' => $list ] );
+	}
 
-if ( is_wp_error( $terms ) ) {
-	return new \WP_Error( 'jprm_terms_err', $terms->get_error_message(), [ 'status' => 500 ] );
-}
-
-$list = [];
-foreach ( $terms as $t ) {
-	$list[] = [
-		'id'        => (int) $t->term_id,
-		'title'     => (string) $t->name,
-		'parent_id' => (int) $t->parent,
-		'order'     => (int) get_term_meta( $t->term_id, self::META_SECTION_ORDER, true ),
-		'owner'     => (int) get_term_meta( $t->term_id, self::META_MENU_OWNER, true ),
-	];
-}
-
-return rest_ensure_response( [ 'sections' => $list ] );
-
-}
+	public function attach_section( $request ) {
+		$menu_id = (int) $request['menu_id'];
+		$section_id = (int) $request['section_id'];
+		$term = get_term( $section_id, self::TAX_SECTION );
+		if ( $menu_id <= 0 || ! $term || is_wp_error( $term ) ) { return new \WP_Error( 'jprm_bad_section', __( 'Select a valid existing Section.', 'jellopoint-restaurant-menu' ), [ 'status' => 400 ] ); }
+		if ( ! current_user_can( 'edit_term', $section_id ) ) { return new \WP_Error( 'jprm_perm', __( 'Insufficient permissions.', 'jellopoint-restaurant-menu' ), [ 'status' => 403 ] ); }
+		Menu_Structure_Store::attach_section( $menu_id, $section_id );
+		return rest_ensure_response( [ 'ok' => true, 'id' => $section_id, 'title' => (string) $term->name ] );
+	}
 
 
 	public function create_section( $request ) {
@@ -200,37 +218,32 @@ return rest_ensure_response( [ 'sections' => $list ] );
 			return new \WP_Error( 'jprm_perm', __( 'Insufficient permissions.', 'jellopoint-restaurant-menu' ), [ 'status' => 403 ] );
 		}
 
-		// Guard: parent (if provided) must belong to same menu
+		// A parent is valid only when attached to this Menu's own structure.
 		if ( $parent ) {
-			$parent_owner = (int) get_term_meta( $parent, self::META_MENU_OWNER, true );
-			if ( $parent_owner && $parent_owner !== $menu_id ) {
+			if ( ! in_array( $parent, Menu_Structure_Store::section_ids( $menu_id ), true ) ) {
 				return new \WP_Error(
 					'jprm_cross_menu',
-					__( 'You cannot create a subsection under a section owned by another Menu.', 'jprm' ),
+					__( 'The parent Section is not attached to this Menu.', 'jellopoint-restaurant-menu' ),
 					[ 'status' => 400 ]
 				);
 			}
 		}
 
-		$ins = wp_insert_term( $name, self::TAX_SECTION, [ 'parent' => $parent ] );
+		$ins = wp_insert_term( $name, self::TAX_SECTION );
 		if ( is_wp_error( $ins ) ) {
 			return new \WP_Error( 'jprm_term_create', $ins->get_error_message(), [ 'status' => 500 ] );
 		}
 		$term_id = (int) $ins['term_id'];
 
-		// Owner: inherit from parent if present, else use menu_id
-		$owner_to_set = $menu_id;
-		if ( $parent ) {
-			$po = (int) get_term_meta( $parent, self::META_MENU_OWNER, true );
-			if ( $po ) $owner_to_set = $po;
-		}
-		update_term_meta( $term_id, self::META_MENU_OWNER, $owner_to_set );
+		Menu_Structure_Store::attach_section( $menu_id, $term_id, $parent );
+		// Temporary legacy compatibility for screens not migrated until 10D-D.
+		update_term_meta( $term_id, self::META_MENU_OWNER, $menu_id );
 
 		return rest_ensure_response( [
 			'id'        => $term_id,
 			'title'     => get_term( $term_id )->name,
 			'parent_id' => (int) $parent,
-			'menu_id'   => $owner_to_set,
+			'menu_id'   => $menu_id,
 		] );
 	}
 
@@ -242,12 +255,12 @@ if ( $menu_id <= 0 || ! is_array( $flat ) ) {
 	return new \WP_Error( 'jprm_bad_params', __( 'menu_id and tree are required.', 'jprm' ), [ 'status' => 400 ] );
 }
 
-// Guard: all sections in payload belong to this menu
+$attached_ids = Menu_Structure_Store::section_ids( $menu_id );
+// Guard: all Sections in the payload are attached to this Menu.
 foreach ( $flat as $row ) {
 	$tid = (int) ( $row['id'] ?? 0 );
 	if ( ! $tid ) continue;
-	$owner = (int) get_term_meta( $tid, self::META_MENU_OWNER, true );
-	if ( $owner !== $menu_id ) {
+	if ( ! in_array( $tid, $attached_ids, true ) ) {
 		return new \WP_Error(
 			'jprm_cross_menu',
 			sprintf( __( 'Section %d belongs to another Menu and cannot be moved here.', 'jprm' ), $tid ),
@@ -260,51 +273,18 @@ foreach ( $flat as $row ) {
 		return new \WP_Error( 'jprm_invalid_parent', __( 'A section cannot be its own parent.', 'jellopoint-restaurant-menu' ), [ 'status' => 400 ] );
 	}
 	if ( $parent_id > 0 ) {
-		$parent_owner = (int) get_term_meta( $parent_id, self::META_MENU_OWNER, true );
-		if ( $parent_owner !== $menu_id ) {
+		if ( ! in_array( $parent_id, $attached_ids, true ) ) {
 			return new \WP_Error( 'jprm_cross_menu', __( 'A parent section must belong to the same Menu.', 'jellopoint-restaurant-menu' ), [ 'status' => 400 ] );
-		}
-		if ( term_is_ancestor_of( $tid, $parent_id, self::TAX_SECTION ) ) {
-			return new \WP_Error( 'jprm_invalid_parent', __( 'A section cannot be moved below one of its descendants.', 'jellopoint-restaurant-menu' ), [ 'status' => 400 ] );
 		}
 	}
 }
 
-// Apply parents and write sequential order 1..N
+// Store parent and order inside this Menu only.
 usort( $flat, static function( $a, $b ) {
 	return (int) ( $a['order'] ?? 0 ) <=> (int) ( $b['order'] ?? 0 );
 } );
-
-$seq     = 0;
-$touched = [];
-
-foreach ( $flat as $row ) {
-	$tid = (int) ( $row['id'] ?? 0 );
-	if ( ! $tid ) continue;
-
-	$pid  = (int) ( $row['parent_id'] ?? 0 );
-	$term = get_term( $tid, self::TAX_SECTION );
-
-	// Update parent if changed
-	if ( $term && ! is_wp_error( $term ) && (int) $term->parent !== $pid ) {
-		wp_update_term( $tid, self::TAX_SECTION, [ 'parent' => $pid ] );
-	}
-
-	// Ensure owner on this term (+ descendants)
-	$this->cascade_owner( $tid, $menu_id );
-
-	// IMPORTANT: write order on the SECTION (term) meta:
-	$seq++;
-	update_term_meta( $tid, self::META_SECTION_ORDER, $seq );
-	$touched[] = $tid;
-}
-
-// Targeted cache clear only for changed terms
-if ( $touched ) {
-	clean_term_cache( $touched, self::TAX_SECTION );
-}
-
-return rest_ensure_response( [ 'ok' => true, 'count' => count( $touched ) ] );
+Menu_Structure_Store::save_section_tree( $menu_id, $flat );
+return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 
 	}
 
@@ -318,13 +298,11 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $touched ) ] );
 		if ( ! current_user_can( 'edit_term', $section_id ) ) {
 			return new \WP_Error( 'jprm_perm', __( 'Insufficient permissions.', 'jellopoint-restaurant-menu' ), [ 'status' => 403 ] );
 		}
-		$owner = (int) get_term_meta( $section_id, self::META_MENU_OWNER, true );
-		if ( $owner !== $menu_id ) {
-			return new \WP_Error( 'jprm_cross_menu', __( 'This section belongs to another Menu.', 'jprm' ), [ 'status' => 400 ] );
+		if ( ! in_array( $section_id, Menu_Structure_Store::section_ids( $menu_id ), true ) ) {
+			return new \WP_Error( 'jprm_cross_menu', __( 'This Section is not attached to the selected Menu.', 'jellopoint-restaurant-menu' ), [ 'status' => 400 ] );
 		}
 
-		// Unset owner on this section and descendants
-		$this->cascade_owner( $section_id, 0 );
+		Menu_Structure_Store::detach_section( $menu_id, $section_id );
 
 		return rest_ensure_response( [ 'ok' => true ] );
 	}

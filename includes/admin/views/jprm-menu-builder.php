@@ -40,8 +40,14 @@
             <div class="card">
                 <h2><?php esc_html_e('Add Section', 'jprm'); ?></h2>
                 <div class="jprm-form">
+                    <h3><?php esc_html_e('Choose Existing Section', 'jellopoint-restaurant-menu'); ?></h3>
+                    <select id="jprm-existing-section" style="width:100%;max-width:100%;"></select>
+                    <button class="button" id="jprm-attach-section" style="margin-top:8px;"><?php esc_html_e('Add Existing Section', 'jellopoint-restaurant-menu'); ?></button>
+
+                    <hr style="margin:16px 0;">
+                    <h3><?php esc_html_e('Create New Section', 'jellopoint-restaurant-menu'); ?></h3>
                     <input type="text" id="jprm-new-section-title" class="regular-text" placeholder="<?php esc_attr_e('Section title…', 'jprm'); ?>">
-                    <button class="button button-primary" id="jprm-add-section" style="margin-top:8px;"><?php esc_html_e('Add', 'jprm'); ?></button>
+                    <button class="button button-primary" id="jprm-add-section" style="margin-top:8px;"><?php esc_html_e('Create and Add Section', 'jellopoint-restaurant-menu'); ?></button>
                 </div>
                 <p class="description" style="margin-top:8px;">
                     <?php esc_html_e('Tip: drag slightly to the right to create a sub-section; drag left to outdent.', 'jprm'); ?>

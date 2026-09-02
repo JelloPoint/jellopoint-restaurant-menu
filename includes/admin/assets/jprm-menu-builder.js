@@ -14,7 +14,7 @@
   function apiGet(path){ return $.ajax({ url: apiUrl(path), method:'GET', beforeSend:x=>x.setRequestHeader('X-WP-Nonce',JPRM_MENU_BUILDER.nonce) }); }
   function apiPost(path,data){ return $.ajax({ url: apiUrl(path), method:'POST', contentType:'application/json; charset=utf-8', data:JSON.stringify(data||{}), beforeSend:x=>x.setRequestHeader('X-WP-Nonce',JPRM_MENU_BUILDER.nonce) }); }
 
-  const state = { menus:[], sections:[], items:[], unassigned:[], currentMenu:null };
+  const state = { menus:[], sections:[], availableSections:[], items:[], unassigned:[], currentMenu:null };
   const INDENT = 28, MAX_DEPTH = 6;
   let drag = null;
 
@@ -74,6 +74,7 @@
     }).always(()=>setLoading(false));
   }
   function loadSections(){ if(!state.currentMenu){ $('#jprm-tree').empty(); return $.Deferred().resolve().promise(); } setLoading(true); return apiGet('menu-builder/sections?menu_id='+state.currentMenu).done(res=>{ state.sections = res.sections||[]; }).always(()=>setLoading(false)); }
+  function loadAvailableSections(){ if(!state.currentMenu){ state.availableSections=[]; return $.Deferred().resolve().promise(); } return apiGet('menu-builder/sections/available?menu_id='+state.currentMenu).done(res=>{ state.availableSections=res.sections||[]; fillExistingSectionSelect(); }); }
   function loadItems(){ if(!state.currentMenu){ state.items=[]; return $.Deferred().resolve().promise(); } return apiGet('menu-builder/items?menu_id='+state.currentMenu).done(res=>{ state.items = res.items||[]; }); }
   function loadUnassigned(){ if(!state.currentMenu){ state.unassigned=[]; return $.Deferred().resolve().promise(); } return apiGet('menu-builder/items?menu_id='+state.currentMenu+'&unassigned=1').done(res=>{ state.unassigned = res.items||[]; }); }
 
@@ -94,6 +95,12 @@
     if(!tree.flat.length){ $sel.append($('<option>').text('— No sections —').prop('disabled',true)); return; }
     tree.flat.forEach(s=>{ const indent=new Array(s.depth+1).join('— '); $sel.append($('<option>').val(s.id).text(indent+s.title)); });
     $sel.val(tree.flat[0].id);
+  }
+  function fillExistingSectionSelect(){
+    const $sel=$('#jprm-existing-section').empty();
+    if(!state.availableSections.length){ $sel.append($('<option>').text('— No other sections available —').prop('disabled',true)); $('#jprm-attach-section').prop('disabled',true); return; }
+    state.availableSections.forEach(s=>$sel.append($('<option>').val(s.id).text(s.title)));
+    $('#jprm-attach-section').prop('disabled',false);
   }
   function renderUnassignedCheckboxes(){
     const $box=$('#jprm-unassigned-list').empty();
@@ -379,7 +386,7 @@
   });
 
   function chainLoadAndRender(expand){
-    return loadSections().then(()=>loadItems()).then(()=>loadUnassigned()).then(()=>{ renderList(); if(expand) expandAll(); else setToggleAllLabel(false); });
+    return loadSections().then(()=>loadAvailableSections()).then(()=>loadItems()).then(()=>loadUnassigned()).then(()=>{ renderList(); if(expand) expandAll(); else setToggleAllLabel(false); });
   }
 
   $(document).on('change','#jprm-menu-select',function(){ state.currentMenu=parseInt($(this).val(),10)||null; chainLoadAndRender(true); });
@@ -393,6 +400,17 @@
     apiPost('menu-builder/section',{name:title,parent:0,menu_id:state.currentMenu})
       .done(()=>{ $('#jprm-new-section-title').val(''); chainLoadAndRender(true); })
       .fail(x=>toast(apiFailToMessage(x)))
+      .always(()=>setLoading(false));
+  });
+
+  $('#jprm-attach-section').on('click',function(){
+    const sectionId=parseInt($('#jprm-existing-section').val(),10)||0;
+    if(!state.currentMenu) return toast('Select a Menu first.');
+    if(!sectionId) return toast('Choose an existing Section first.');
+    setLoading(true);
+    apiPost('menu-builder/section/attach',{menu_id:state.currentMenu,section_id:sectionId})
+      .done(()=>chainLoadAndRender(true))
+      .fail(x=>toast(apiFailToMessage(x),'error'))
       .always(()=>setLoading(false));
   });
 
@@ -428,5 +446,5 @@
       .always(()=>setLoading(false));
   });
 
-  $(function(){ loadMenus().then(()=>loadSections()).then(()=>loadItems()).then(()=>loadUnassigned()).then(()=>{ renderList(); expandAll(); }); });
+  $(function(){ loadMenus().then(()=>loadSections()).then(()=>loadAvailableSections()).then(()=>loadItems()).then(()=>loadUnassigned()).then(()=>{ renderList(); expandAll(); }); });
 })(jQuery);
