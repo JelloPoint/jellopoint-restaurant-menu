@@ -282,6 +282,13 @@ $this->add_control( 'items_order_overrides', [
 			'default'      => 'yes',
 			'description'  => __( 'Shown only when the selected Menu is marked as a Daily Menu.', 'jellopoint-restaurant-menu' ),
 		] );
+		$this->add_control( 'daily_menu_auto_schedule', [
+			'label'        => __( 'Automatic date visibility', 'jellopoint-restaurant-menu' ),
+			'type'         => Controls_Manager::SWITCHER,
+			'return_value' => 'yes',
+			'default'      => 'yes',
+			'description'  => __( 'Automatically hides this Daily Menu outside its single date or date range. No Date menus remain visible.', 'jellopoint-restaurant-menu' ),
+		] );
 		$this->add_control( 'show_daily_menu_price', [
 			'label'        => __( 'Daily Menu fixed price', 'jellopoint-restaurant-menu' ),
 			'type'         => Controls_Manager::SWITCHER,

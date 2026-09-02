@@ -183,6 +183,7 @@ final class Restaurant_Menu extends Widget_Base {
         $show_menu_title = ( isset( $s['show_menu_title'] ) && $s['show_menu_title'] === 'yes' );
         $show_menu_desc  = ( isset( $s['show_menu_description'] ) && $s['show_menu_description'] === 'yes' );
 		$show_daily_date = ( ! isset( $s['show_daily_menu_date'] ) || 'yes' === $s['show_daily_menu_date'] );
+		$daily_auto_schedule = ( ! isset( $s['daily_menu_auto_schedule'] ) || 'yes' === $s['daily_menu_auto_schedule'] );
 		$show_daily_price = ( ! isset( $s['show_daily_menu_price'] ) || 'yes' === $s['show_daily_menu_price'] );
 		$daily_price_position = isset( $s['daily_menu_price_position'] ) && in_array( $s['daily_menu_price_position'], [ 'beside_date', 'below_date', 'bottom_menu' ], true ) ? (string) $s['daily_menu_price_position'] : 'beside_date';
 		$daily_menu = $menu_term ? self::jprm_daily_menu_display_data( (int) $menu_term->term_id ) : [];
@@ -192,6 +193,21 @@ final class Restaurant_Menu extends Widget_Base {
             echo '<div class="jp-menu--empty">' . esc_html__( 'Select a Menu or Section to display items.', 'jellopoint-restaurant-menu' ) . '</div>';
             return;
         }
+
+		if ( $daily_auto_schedule && ! empty( $daily_menu['enabled'] ) && ! self::jprm_daily_menu_is_active( $daily_menu ) ) {
+			$is_editor = false;
+			if ( class_exists( '\\Elementor\\Plugin' ) ) {
+				try {
+					$is_editor = \Elementor\Plugin::$instance->editor->is_edit_mode();
+				} catch ( \Throwable $e ) {}
+			}
+
+			if ( $is_editor ) {
+				echo '<div class="jp-menu--empty jp-menu--schedule-notice">' . esc_html__( 'Editor preview: this Daily Menu is currently outside its active date or date range and is hidden on the frontend.', 'jellopoint-restaurant-menu' ) . '</div>';
+			} else {
+				return;
+			}
+		}
 
         $items = $this->query_items( $menu_ids, $section_ids, $orderby, $order, $limit, $show_all );
         if ( empty( $items ) ) {
@@ -548,10 +564,38 @@ final class Restaurant_Menu extends Widget_Base {
 
 		return [
 			'enabled' => true,
+			'date_type' => in_array( $type, [ 'none', 'single', 'range' ], true ) ? $type : 'single',
+			'start_date' => $start,
+			'end_date' => $end,
 			'date_text' => $start_text !== '' && $end_text !== '' ? $start_text . ' – ' . $end_text : $start_text,
 			'price' => $price,
 			'item_separator' => $item_separator,
 		];
+	}
+
+	/** Determine availability in the WordPress site timezone without mutating content. */
+	private static function jprm_daily_menu_is_active( array $daily_menu, ?\DateTimeImmutable $now = null ) : bool {
+		if ( empty( $daily_menu['enabled'] ) ) { return true; }
+
+		$type = (string) ( $daily_menu['date_type'] ?? 'single' );
+		if ( 'none' === $type ) { return true; }
+
+		$timezone = wp_timezone();
+		$today = ( $now ?: new \DateTimeImmutable( 'now', $timezone ) )->setTimezone( $timezone )->format( 'Y-m-d' );
+		$start = (string) ( $daily_menu['start_date'] ?? '' );
+		$valid_date = static function( string $value ) use ( $timezone ) : bool {
+			$date = \DateTimeImmutable::createFromFormat( '!Y-m-d', $value, $timezone );
+			return false !== $date && $date->format( 'Y-m-d' ) === $value;
+		};
+
+		// Incomplete legacy data remains visible so a configuration error never silently removes a menu.
+		if ( ! $valid_date( $start ) ) { return true; }
+		if ( 'single' === $type ) { return $today === $start; }
+		if ( 'range' !== $type ) { return true; }
+
+		$end = (string) ( $daily_menu['end_date'] ?? '' );
+		if ( ! $valid_date( $end ) || $end < $start ) { return true; }
+		return $today >= $start && $today <= $end;
 	}
 
     /* =========================

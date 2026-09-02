@@ -78,9 +78,20 @@ jprm_sort_assert_same( 'default', $preset_method->invoke( null, 'unknown-class' 
 $daily_method = new ReflectionMethod( Restaurant_Menu::class, 'jprm_daily_menu_display_data' );
 $daily = $daily_method->invoke( null, 91 );
 jprm_sort_assert_same( '2026-09-01 – 2026-09-07', $daily['date_text'] ?? '', 'A Daily Menu range must be formatted inclusively.' );
+jprm_sort_assert_same( 'range', $daily['date_type'] ?? '', 'The Daily Menu date type must reach the scheduling layer.' );
+jprm_sort_assert_same( '2026-09-01', $daily['start_date'] ?? '', 'The Daily Menu start date must reach the scheduling layer.' );
+jprm_sort_assert_same( '2026-09-07', $daily['end_date'] ?? '', 'The Daily Menu end date must reach the scheduling layer.' );
 jprm_sort_assert_same( '39.50', $daily['price'] ?? '', 'The fixed menu price must reach the presentation layer unchanged.' );
 jprm_sort_assert_same( 'or', $daily['item_separator'] ?? '', 'The Daily Menu separator default must reach the presentation layer.' );
 jprm_sort_assert_same( [], $daily_method->invoke( null, 92 ), 'A regular Menu must not expose Daily Menu presentation data.' );
+
+$active_method = new ReflectionMethod( Restaurant_Menu::class, 'jprm_daily_menu_is_active' );
+$inside_range = new DateTimeImmutable( '2026-09-07 23:59:59', new DateTimeZone( 'Europe/Amsterdam' ) );
+$outside_range = new DateTimeImmutable( '2026-09-08 00:00:00', new DateTimeZone( 'Europe/Amsterdam' ) );
+jprm_sort_assert_same( true, $active_method->invoke( null, $daily, $inside_range ), 'A range end date must be inclusive.' );
+jprm_sort_assert_same( false, $active_method->invoke( null, $daily, $outside_range ), 'A Daily Menu must be inactive after its range.' );
+jprm_sort_assert_same( true, $active_method->invoke( null, [ 'enabled' => true, 'date_type' => 'none' ], $outside_range ), 'A No Date menu must remain active.' );
+jprm_sort_assert_same( true, $active_method->invoke( null, [ 'enabled' => true, 'date_type' => 'single', 'start_date' => '' ], $outside_range ), 'Incomplete legacy date data must fail open.' );
 
 $preset_css = file_get_contents( dirname( __DIR__ ) . '/assets/css/menu.css' );
 foreach ( [ 'classic', 'modern', 'elegant' ] as $preset ) {

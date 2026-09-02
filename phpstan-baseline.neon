@@ -187,7 +187,7 @@ parameters:
 
 		-
 			message: "#^Access to constant SWITCHER on an unknown class Elementor\\\\Controls_Manager\\.$#"
-			count: 13
+			count: 14
 			path: includes/widgets/class-restaurant-menu.php
 
 		-
@@ -207,7 +207,7 @@ parameters:
 
 		-
 			message: "#^Call to an undefined method JelloPoint\\\\RestaurantMenu\\\\Widgets\\\\Restaurant_Menu\\:\\:add_control\\(\\)\\.$#"
-			count: 87
+			count: 88
 			path: includes/widgets/class-restaurant-menu.php
 
 		-
