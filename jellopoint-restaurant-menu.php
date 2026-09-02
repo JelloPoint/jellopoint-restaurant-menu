@@ -38,6 +38,7 @@ require_once JPRM_PLUGIN_PATH . 'includes/storage/class-price-schema.php';
 require_once JPRM_PLUGIN_PATH . 'includes/data/class-price-schema.php';
 require_once JPRM_PLUGIN_PATH . 'includes/data/class-labels-store.php';
 require_once JPRM_PLUGIN_PATH . 'includes/data/class-default-data.php';
+require_once JPRM_PLUGIN_PATH . 'includes/data/class-menu-structure-store.php';
 
 // Storage
 require_once JPRM_PLUGIN_PATH . 'includes/storage/class-price-repository.php';
