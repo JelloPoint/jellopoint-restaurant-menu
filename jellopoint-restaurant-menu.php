@@ -100,6 +100,8 @@ if ( is_admin() ) {
 
 	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-print-document.php';
 	\JelloPoint\RestaurantMenu\Admin\Print_Document_Admin::init();
+	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-info-blocks.php';
+	\JelloPoint\RestaurantMenu\Admin\Info_Blocks_Admin::init();
 
 	\JelloPoint\RestaurantMenu\Admin\Admin_Menu::init();
 }

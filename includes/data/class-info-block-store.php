@@ -38,7 +38,9 @@ final class Info_Block_Store {
 			$post = get_post( $row['id'] );
 			if ( ! $post || 'jprm_info_block' !== $post->post_type || 'publish' !== $post->post_status ) { continue; }
 			$image_id = (int) get_post_thumbnail_id( $post->ID );
-			$out[] = array_merge( $row, [ 'title' => (string) $post->post_title, 'content_html' => (string) apply_filters( 'the_content', $post->post_content ), 'image' => [ 'id' => $image_id, 'url' => $image_id ? (string) wp_get_attachment_image_url( $image_id, 'large' ) : '' ] ] );
+			$content = get_post_meta( $post->ID, 'jprm_info_block_content', true );
+			if ( '' === (string) $content ) { $content = $post->post_content; }
+			$out[] = array_merge( $row, [ 'title' => (string) $post->post_title, 'content_html' => (string) apply_filters( 'the_content', $content ), 'image' => [ 'id' => $image_id, 'url' => $image_id ? (string) wp_get_attachment_image_url( $image_id, 'large' ) : '' ] ] );
 		}
 		return $out;
 	}

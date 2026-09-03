@@ -69,7 +69,7 @@ class Plugin {
 		if ( ! post_type_exists( 'jprm_info_block' ) ) { register_post_type( 'jprm_info_block', [
 			'labels' => [ 'name' => __( 'Info Blocks', 'jellopoint-restaurant-menu' ), 'singular_name' => __( 'Info Block', 'jellopoint-restaurant-menu' ), 'add_new_item' => __( 'Add Info Block', 'jellopoint-restaurant-menu' ), 'edit_item' => __( 'Edit Info Block', 'jellopoint-restaurant-menu' ) ],
 			'public' => false, 'show_ui' => true, 'show_in_menu' => false, 'show_in_rest' => true,
-			'supports' => [ 'title', 'editor', 'thumbnail', 'page-attributes', 'revisions' ],
+			'supports' => [ 'title', 'thumbnail', 'page-attributes', 'revisions' ],
 		] ); }
 	}
 
