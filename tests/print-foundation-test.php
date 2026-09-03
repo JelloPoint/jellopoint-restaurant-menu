@@ -19,10 +19,11 @@ function jprm_print_assert_same( $expected, $actual, string $message ) : void {
 }
 
 $settings = Print_Document_Settings::sanitize( [
-	'menu_id' => '18', 'paper_size' => 'letter', 'orientation' => 'landscape',
+	'menu_id' => '18', 'preset' => 'modern', 'paper_size' => 'letter', 'orientation' => 'landscape',
 	'margins' => [ 'top' => '-2', 'right' => '12.5', 'bottom' => '99', 'left' => 'invalid' ],
 ] );
 jprm_print_assert_same( 18, $settings['menu_id'], 'The selected existing Menu ID must be normalized.' );
+jprm_print_assert_same( 'modern', $settings['preset'], 'A supported dedicated print preset must be stored.' );
 jprm_print_assert_same( 'a4', $settings['paper_size'], 'Phase 11A must allow only A4.' );
 jprm_print_assert_same( 'landscape', $settings['orientation'], 'Landscape must be supported.' );
 jprm_print_assert_same( [ 'top' => 0, 'right' => 12.5, 'bottom' => 50, 'left' => 15.0 ], $settings['margins'], 'Margins must be clamped to 0–50 mm with safe defaults.' );
@@ -33,10 +34,18 @@ jprm_print_assert_same( $settings, Print_Document_Settings::get(), 'Saved docume
 $main = file_get_contents( dirname( __DIR__ ) . '/jellopoint-restaurant-menu.php' );
 $admin = file_get_contents( dirname( __DIR__ ) . '/includes/admin/class-admin-print-document.php' );
 $builder = file_get_contents( dirname( __DIR__ ) . '/includes/data/class-print-document-builder.php' );
+$renderer = file_get_contents( dirname( __DIR__ ) . '/includes/render/class-print-document-renderer.php' );
+$template = file_get_contents( dirname( __DIR__ ) . '/includes/render/print/document.php' );
+$css = file_get_contents( dirname( __DIR__ ) . '/assets/css/print-document.css' );
 jprm_print_assert_same( true, false !== strpos( $main, 'class-print-document-builder.php' ), 'The print document pipeline must load in every context.' );
 jprm_print_assert_same( true, false !== strpos( $admin, 'admin_post_jprm_save_print_document' ), 'The settings form must use a protected admin handler.' );
 jprm_print_assert_same( true, false !== strpos( $builder, 'Menu_Structure_Store::get' ), 'Print data must reuse the canonical per-Menu structure.' );
 jprm_print_assert_same( true, false !== strpos( $builder, 'Price_Repository::get' ), 'Print data must reuse canonical prices.' );
 jprm_print_assert_same( true, false !== strpos( $builder, 'JPRM_Badges_Store' ), 'Print data must reuse Dietary Badges and icons.' );
+jprm_print_assert_same( true, false !== strpos( $renderer, 'price_html' ), 'The standalone renderer must support canonical prices and Price Labels.' );
+jprm_print_assert_same( true, false !== strpos( $template, 'jprm-print--' ), 'The document must apply its selected print preset.' );
+foreach ( [ 'classic', 'modern', 'elegant' ] as $preset ) {
+	jprm_print_assert_same( true, false !== strpos( $css, '.jprm-print--' . $preset ), ucfirst( $preset ) . ' must have dedicated print styling.' );
+}
 
 fwrite( STDOUT, "Print/PDF foundation checks passed.\n" );

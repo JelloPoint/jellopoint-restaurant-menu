@@ -1,0 +1,43 @@
+* { box-sizing: border-box; }
+html { background: #d8d8d8; }
+body { margin: 0; color: #242424; font-family: Arial, sans-serif; }
+.jprm-print--classic { color: #242424; }
+.jprm-print-document { width: 210mm; min-height: 297mm; margin: 20px auto; background: #fff; padding: var(--jprm-page-top) var(--jprm-page-right) var(--jprm-page-bottom) var(--jprm-page-left); box-shadow: 0 4px 24px rgba(0,0,0,.18); }
+.jprm-print--landscape .jprm-print-document { width: 297mm; min-height: 210mm; }
+.jprm-print-header { text-align: center; margin-bottom: 12mm; }
+.jprm-print-kicker { text-transform: uppercase; letter-spacing: .22em; font-size: 9pt; margin: 0 0 3mm; }
+.jprm-print-header h1 { font-size: 30pt; line-height: 1.05; margin: 0; }
+.jprm-print-intro { max-width: 145mm; margin: 4mm auto 0; font-size: 10pt; }
+.jprm-print-intro p, .jprm-print-description p { margin: 0; }
+.jprm-print-daily { display: flex; justify-content: center; gap: 8mm; margin-top: 4mm; }
+.jprm-print-section { break-inside: avoid; margin: 0 0 9mm; }
+.jprm-print-section h2 { font-size: 17pt; margin: 0 0 4mm; border-bottom: 1px solid currentColor; padding-bottom: 2mm; }
+.jprm-print-section--child { margin-left: 7mm; }
+.jprm-print-item { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8mm; align-items: start; break-inside: avoid; margin: 0 0 4mm; }
+.jprm-print-item h3 { font-size: 11pt; margin: 0 0 1mm; }
+.jprm-print-description { font-size: 9pt; line-height: 1.45; color: #555; }
+.jprm-print-prices { display: flex; gap: 3mm; }
+.jprm-print-price { display: flex; align-items: center; gap: 1.5mm; white-space: nowrap; font-size: 9pt; }
+.jprm-print-price img, .jprm-print-badge img { width: 4mm; height: 4mm; object-fit: contain; }
+.jprm-print-badges { display: flex; flex-wrap: wrap; gap: 3mm; margin-top: 1.5mm; }
+.jprm-print-badge { display: inline-flex; align-items: center; gap: 1mm; font-size: 7.5pt; }
+.jprm-print-separator { text-align: center; font-size: 8pt; font-style: italic; margin: -1mm 0 3mm; }
+.jprm-print--modern { --accent: #173f47; }
+.jprm-print--modern .jprm-print-header { background: var(--accent); color: #fff; padding: 10mm; margin: -5mm -5mm 12mm; }
+.jprm-print--modern .jprm-print-section h2 { color: var(--accent); border-bottom-width: 2px; text-transform: uppercase; letter-spacing: .08em; }
+.jprm-print--modern .jprm-print-item { border-bottom: 1px solid #d7e1e3; padding-bottom: 3mm; }
+.jprm-print--elegant { font-family: Georgia, 'Times New Roman', serif; color: #312a25; }
+.jprm-print--elegant .jprm-print-header h1 { font-size: 34pt; font-weight: 400; font-style: italic; }
+.jprm-print--elegant .jprm-print-kicker { color: #8b6d48; }
+.jprm-print--elegant .jprm-print-section h2 { text-align: center; border: 0; font-weight: 400; }
+.jprm-print--elegant .jprm-print-section h2::after { content: '◆'; display: block; color: #b89a73; font-size: 6pt; margin-top: 2mm; }
+.jprm-print--elegant .jprm-print-item h3 { font-weight: 400; }
+@media print {
+	html { background: #fff; }
+	.jprm-print-document { width: auto !important; min-height: 0 !important; margin: 0; box-shadow: none; padding: 0; }
+	.jprm-print-section { break-inside: auto; }
+	.jprm-print-item { break-inside: avoid-page; }
+}
+@media (max-width: 900px) {
+	.jprm-print-document { width: 100% !important; min-height: 100vh; margin: 0; box-shadow: none; }
+}

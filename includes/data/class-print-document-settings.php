@@ -10,6 +10,7 @@ final class Print_Document_Settings {
 	public static function defaults() : array {
 		return [
 			'menu_id' => 0,
+			'preset' => 'classic',
 			'paper_size' => 'a4',
 			'orientation' => 'portrait',
 			'margins' => [ 'top' => 15, 'right' => 15, 'bottom' => 15, 'left' => 15 ],
@@ -30,6 +31,7 @@ final class Print_Document_Settings {
 		$margins = isset( $input['margins'] ) && is_array( $input['margins'] ) ? $input['margins'] : [];
 		$out = [
 			'menu_id' => max( 0, (int) ( $input['menu_id'] ?? 0 ) ),
+			'preset' => in_array( (string) ( $input['preset'] ?? '' ), [ 'classic', 'modern', 'elegant' ], true ) ? (string) $input['preset'] : 'classic',
 			'paper_size' => 'a4',
 			'orientation' => 'landscape' === (string) ( $input['orientation'] ?? '' ) ? 'landscape' : 'portrait',
 			'margins' => [],
