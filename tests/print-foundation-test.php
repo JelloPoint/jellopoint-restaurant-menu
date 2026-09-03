@@ -68,5 +68,6 @@ jprm_print_assert_same( true, false !== strpos( $template, 'render_info_blocks' 
 jprm_print_assert_same( true, false !== strpos( $template, '--jprm-info-background' ), 'Print Info Block styles must reach the document CSS variables.' );
 jprm_print_assert_same( true, false !== strpos( $template, 'window.print()' ), 'Print preview must provide the browser PDF/print action.' );
 jprm_print_assert_same( true, false !== strpos( $template, 'auto_print' ), 'Direct PDF/print workflow must support opening the browser dialog automatically.' );
+jprm_print_assert_same( true, false !== strpos( $template, 'Headers and footers' ), 'Preview must explain how to remove browser-added URLs from PDF output.' );
 
 fwrite( STDOUT, "Print/PDF foundation checks passed.\n" );

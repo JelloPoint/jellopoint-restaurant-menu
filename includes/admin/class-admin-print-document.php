@@ -58,7 +58,6 @@ final class Print_Document_Admin {
 			<p><?php esc_html_e( 'Choose an existing Menu, a dedicated print design and the paper settings.', 'jellopoint-restaurant-menu' ); ?></p>
 			<?php if ( isset( $_GET['updated'] ) ) : ?><div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Print settings saved.', 'jellopoint-restaurant-menu' ); ?></p></div><?php endif; ?>
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-				<input type="hidden" name="action" value="jprm_save_print_document" />
 				<?php wp_nonce_field( self::NONCE_ACTION, self::NONCE_FIELD ); ?>
 				<table class="form-table" role="presentation">
 					<tr><th><label for="jprm-print-menu"><?php esc_html_e( 'Menu', 'jellopoint-restaurant-menu' ); ?></label></th><td><select id="jprm-print-menu" name="jprm_print[menu_id]" required><option value=""><?php esc_html_e( '— Select a Menu —', 'jellopoint-restaurant-menu' ); ?></option><?php if ( ! is_wp_error( $menus ) ) : foreach ( $menus as $menu ) : ?><option value="<?php echo (int) $menu->term_id; ?>" <?php selected( (int) $settings['menu_id'], (int) $menu->term_id ); ?>><?php echo esc_html( $menu->name ); ?></option><?php endforeach; endif; ?></select><p class="description"><?php esc_html_e( 'Content comes directly from this existing Menu and remains managed in Menu Builder.', 'jellopoint-restaurant-menu' ); ?></p></td></tr>
@@ -93,10 +92,10 @@ final class Print_Document_Admin {
 					<tr><th><?php esc_html_e( 'Margins', 'jellopoint-restaurant-menu' ); ?></th><td><fieldset class="jprm-margin-grid"><?php foreach ( [ 'top' => __( 'Top', 'jellopoint-restaurant-menu' ), 'right' => __( 'Right', 'jellopoint-restaurant-menu' ), 'bottom' => __( 'Bottom', 'jellopoint-restaurant-menu' ), 'left' => __( 'Left', 'jellopoint-restaurant-menu' ) ] as $side => $label ) : ?><label><?php echo esc_html( $label ); ?><input type="number" min="0" max="50" step="0.5" name="jprm_print[margins][<?php echo esc_attr( $side ); ?>]" value="<?php echo esc_attr( (string) $settings['margins'][ $side ] ); ?>" /> mm</label><?php endforeach; ?></fieldset><p class="description"><?php esc_html_e( 'Allowed range: 0–50 mm.', 'jellopoint-restaurant-menu' ); ?></p></td></tr>
 					<?php if ( $document && (int) $settings['columns'] > 1 ) : ?><tr><th><?php esc_html_e( 'Start New Column', 'jellopoint-restaurant-menu' ); ?></th><td><p class="description"><?php esc_html_e( 'Optionally force a selected Section to begin at the top of a new column.', 'jellopoint-restaurant-menu' ); ?></p><?php foreach ( $document['sections'] as $section ) : ?><label class="jprm-check"><input type="checkbox" name="jprm_print[column_breaks][]" value="<?php echo (int) $section['id']; ?>" <?php checked( in_array( (int) $section['id'], $settings['column_breaks'], true ) ); ?> /> <?php echo esc_html( (string) $section['name'] ); ?></label><?php endforeach; ?></td></tr><?php endif; ?>
 				</table>
-				<?php submit_button( __( 'Save Print Settings', 'jellopoint-restaurant-menu' ), 'primary', 'submit', false ); ?>
+				<button type="submit" class="button button-primary" name="action" value="jprm_save_print_document"><?php esc_html_e( 'Save Print Settings', 'jellopoint-restaurant-menu' ); ?></button>
 				<?php if ( $document ) : ?>
-					<a class="button button-secondary" target="_blank" rel="noopener" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=jprm_preview_print_document' ), 'jprm_preview_print_document' ) ); ?>"><?php esc_html_e( 'Open Print Preview', 'jellopoint-restaurant-menu' ); ?></a>
-					<a class="button button-secondary" target="_blank" rel="noopener" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=jprm_preview_print_document&auto_print=1' ), 'jprm_preview_print_document' ) ); ?>"><?php esc_html_e( 'Print / Save as PDF', 'jellopoint-restaurant-menu' ); ?></a>
+					<button type="submit" class="button button-secondary" name="action" value="jprm_preview_print_document" formtarget="_blank"><?php esc_html_e( 'Open Print Preview', 'jellopoint-restaurant-menu' ); ?></button>
+					<button type="submit" class="button button-secondary" name="action" value="jprm_preview_print_document" formtarget="_blank" formaction="<?php echo esc_url( add_query_arg( 'auto_print', '1', admin_url( 'admin-post.php' ) ) ); ?>"><?php esc_html_e( 'Print / Save as PDF', 'jellopoint-restaurant-menu' ); ?></button>
 					<span class="description"><?php esc_html_e( 'Choose “Save as PDF” in the browser print window to download the menu.', 'jellopoint-restaurant-menu' ); ?></span>
 				<?php endif; ?>
 			</form>
@@ -109,8 +108,14 @@ final class Print_Document_Admin {
 
 	public static function preview() : void {
 		if ( ! current_user_can( 'edit_posts' ) ) { wp_die( esc_html__( 'You do not have permission to access this preview.', 'jellopoint-restaurant-menu' ) ); }
-		check_admin_referer( 'jprm_preview_print_document' );
-		$settings = Print_Document_Settings::get();
+		if ( 'POST' === (string) ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) {
+			check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
+			$raw = isset( $_POST['jprm_print'] ) && is_array( $_POST['jprm_print'] ) ? wp_unslash( $_POST['jprm_print'] ) : [];
+			$settings = Print_Document_Settings::sanitize( $raw );
+		} else {
+			check_admin_referer( 'jprm_preview_print_document' );
+			$settings = Print_Document_Settings::get();
+		}
 		$document = Print_Document_Builder::build( (int) $settings['menu_id'], $settings );
 		if ( ! $document ) { wp_die( esc_html__( 'Select and save a valid Menu first.', 'jellopoint-restaurant-menu' ) ); }
 		$document['auto_print'] = isset( $_GET['auto_print'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['auto_print'] ) );

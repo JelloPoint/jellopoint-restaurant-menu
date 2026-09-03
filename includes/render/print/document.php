@@ -31,7 +31,7 @@ if ( ! empty( $daily['enabled'] ) && 'none' !== (string) $daily['date_type'] ) {
 </head>
 <body class="jprm-print jprm-print--<?php echo esc_attr( $preset ); ?> jprm-print--<?php echo esc_attr( (string) $settings['orientation'] ); ?> jprm-print--columns-<?php echo (int) $settings['columns']; ?> jprm-print--heading-<?php echo esc_attr( (string) $settings['heading_font'] ); ?> jprm-print--body-<?php echo esc_attr( (string) $settings['body_font'] ); ?> jprm-print--info-<?php echo esc_attr( (string) $settings['info_block_layout'] ); ?> jprm-print--info-align-<?php echo esc_attr( (string) $settings['info_block_alignment'] ); ?> <?php echo esc_attr( implode( ' ', $visibility_classes ) ); ?>">
 	<div class="jprm-print-toolbar" role="region" aria-label="<?php esc_attr_e( 'Print and PDF controls', 'jellopoint-restaurant-menu' ); ?>">
-		<p><?php esc_html_e( 'Print this menu, or choose “Save as PDF” in the browser print window to download a PDF.', 'jellopoint-restaurant-menu' ); ?></p>
+		<p><?php esc_html_e( 'Choose “Save as PDF”. For the intended design, turn off “Headers and footers” and turn on “Background graphics” in the browser print window.', 'jellopoint-restaurant-menu' ); ?></p>
 		<div><button type="button" onclick="window.print()"><?php esc_html_e( 'Print / Save as PDF', 'jellopoint-restaurant-menu' ); ?></button><button type="button" onclick="window.close()"><?php esc_html_e( 'Close Preview', 'jellopoint-restaurant-menu' ); ?></button></div>
 	</div>
 	<main class="jprm-print-document">
