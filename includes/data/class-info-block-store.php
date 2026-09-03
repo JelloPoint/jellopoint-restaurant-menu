@@ -44,4 +44,19 @@ final class Info_Block_Store {
 		}
 		return $out;
 	}
+
+	/** Resolve Elementor repeater selections to central content while retaining style row IDs. */
+	public static function data_for_widget( array $rows ) : array {
+		$out = [];
+		foreach ( $rows as $row ) {
+			$id = (int) ( $row['info_block_id'] ?? 0 );
+			$post = get_post( $id );
+			if ( ! $post || 'jprm_info_block' !== $post->post_type || 'publish' !== $post->post_status ) { continue; }
+			$content = get_post_meta( $id, 'jprm_info_block_content', true );
+			if ( '' === (string) $content ) { $content = $post->post_content; }
+			$image_id = (int) get_post_thumbnail_id( $id );
+			$out[] = array_merge( $row, [ 'id' => $id, 'title' => (string) $post->post_title, 'content_html' => (string) apply_filters( 'the_content', $content ), 'image' => [ 'id' => $image_id, 'url' => $image_id ? (string) wp_get_attachment_image_url( $image_id, 'large' ) : '' ] ] );
+		}
+		return $out;
+	}
 }

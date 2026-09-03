@@ -1379,6 +1379,17 @@ trait Restaurant_Menu_Style {
 			'type'=>\Elementor\Controls_Manager::COLOR,
 			'selectors'=>['{{WRAPPER}} .jprm-infoblock'=>'background-color: {{VALUE}};'],
 		]);
+		$this->add_responsive_control('infob_alignment',[
+			'label'=>__('Alignment','jellopoint-restaurant-menu'),
+			'type'=>\Elementor\Controls_Manager::CHOOSE,
+			'options'=>[
+				'left'=>['title'=>__('Left','jellopoint-restaurant-menu'),'icon'=>'eicon-text-align-left'],
+				'center'=>['title'=>__('Center','jellopoint-restaurant-menu'),'icon'=>'eicon-text-align-center'],
+				'right'=>['title'=>__('Right','jellopoint-restaurant-menu'),'icon'=>'eicon-text-align-right'],
+			],
+			'default'=>'left',
+			'selectors'=>['{{WRAPPER}} .jprm-infoblock'=>'text-align: {{VALUE}};'],
+		]);
 		$this->add_responsive_control('infob_image_size',[
 			'label'=>__('Image Size','jellopoint-restaurant-menu'),
 			'type'=>\Elementor\Controls_Manager::SLIDER,

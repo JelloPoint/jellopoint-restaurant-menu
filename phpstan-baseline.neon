@@ -122,12 +122,12 @@ parameters:
 
 		-
 			message: "#^Access to constant CHOOSE on an unknown class Elementor\\\\Controls_Manager\\.$#"
-			count: 12
+			count: 14
 			path: includes/widgets/class-restaurant-menu.php
 
 		-
 			message: "#^Access to constant COLOR on an unknown class Elementor\\\\Controls_Manager\\.$#"
-			count: 23
+			count: 25
 			path: includes/widgets/class-restaurant-menu.php
 
 		-
@@ -151,11 +151,6 @@ parameters:
 			path: includes/widgets/class-restaurant-menu.php
 
 		-
-			message: "#^Access to constant MEDIA on an unknown class Elementor\\\\Controls_Manager\\.$#"
-			count: 1
-			path: includes/widgets/class-restaurant-menu.php
-
-		-
 			message: "#^Access to constant NUMBER on an unknown class Elementor\\\\Controls_Manager\\.$#"
 			count: 1
 			path: includes/widgets/class-restaurant-menu.php
@@ -172,12 +167,12 @@ parameters:
 
 		-
 			message: "#^Access to constant SELECT2 on an unknown class Elementor\\\\Controls_Manager\\.$#"
-			count: 3
+			count: 4
 			path: includes/widgets/class-restaurant-menu.php
 
 		-
 			message: "#^Access to constant SLIDER on an unknown class Elementor\\\\Controls_Manager\\.$#"
-			count: 22
+			count: 24
 			path: includes/widgets/class-restaurant-menu.php
 
 		-
@@ -192,7 +187,7 @@ parameters:
 
 		-
 			message: "#^Access to constant TEXT on an unknown class Elementor\\\\Controls_Manager\\.$#"
-			count: 6
+			count: 5
 			path: includes/widgets/class-restaurant-menu.php
 
 		-
@@ -212,7 +207,7 @@ parameters:
 
 		-
 			message: "#^Call to an undefined method JelloPoint\\\\RestaurantMenu\\\\Widgets\\\\Restaurant_Menu\\:\\:add_responsive_control\\(\\)\\.$#"
-			count: 52
+			count: 53
 			path: includes/widgets/class-restaurant-menu.php
 
 		-
@@ -232,7 +227,12 @@ parameters:
 
 		-
 			message: "#^Call to method add_control\\(\\) on an unknown class Elementor\\\\Repeater\\.$#"
-			count: 11
+			count: 13
+			path: includes/widgets/class-restaurant-menu.php
+
+		-
+			message: "#^Call to method add_responsive_control\\(\\) on an unknown class Elementor\\\\Repeater\\.$#"
+			count: 2
 			path: includes/widgets/class-restaurant-menu.php
 
 		-

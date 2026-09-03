@@ -375,8 +375,8 @@ final class Restaurant_Menu extends Widget_Base {
         $show_section_desc = ( isset( $s['show_section_description'] ) && $s['show_section_description'] === 'yes' );
 
         // Info Blocks map
-        $ib_rows = ( isset( $s['info_blocks'] ) && is_array( $s['info_blocks'] ) ) ? $s['info_blocks'] : [];
-		if ( $menu_term ) { $ib_rows = array_merge( $ib_rows, Info_Block_Store::data_for_menu( (int) $menu_term->term_id ) ); }
+		$ib_selections = ( isset( $s['info_blocks'] ) && is_array( $s['info_blocks'] ) ) ? $s['info_blocks'] : [];
+		$ib_rows = Info_Block_Store::data_for_widget( $ib_selections );
         $ib_map  = function_exists('jprm_infoblocks_partition_by_position') ? jprm_infoblocks_partition_by_position( $ib_rows ) : [];
 
         // ====== GLOBAL LABEL LAYOUTS PER DEVICE =========================

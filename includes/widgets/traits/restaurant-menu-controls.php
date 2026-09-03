@@ -22,6 +22,13 @@ trait Restaurant_Menu_Controls {
 		return $out;
 	}
 
+	protected function info_block_options() : array {
+		$out = [];
+		$query = new \WP_Query( [ 'post_type' => 'jprm_info_block', 'post_status' => 'publish', 'posts_per_page' => -1, 'orderby' => [ 'menu_order' => 'ASC', 'title' => 'ASC' ] ] );
+		foreach ( (array) $query->posts as $post ) { $out[ (string) $post->ID ] = (string) $post->post_title; }
+		return $out;
+	}
+
 	/**
 	 * Limit Section dropdown to Sections that occur in items for the chosen Menu (falls back to all).
 	 * (Kept for compatibility; not used for the primary scoped list anymore.)
@@ -627,32 +634,14 @@ $this->end_controls_section();
 
 		$this->end_controls_section();
 
-		/* --- Info Blocks (HTML + Image; editor-only title) --------------------- */
+		/* --- Reusable Info Blocks ----------------------------------------------- */
 		$this->start_controls_section(
 			'jprm_section_info_blocks',
 			[ 'label' => __( 'Info Blocks', 'jellopoint-restaurant-menu' ) ]
 		);
 
-		// Use the unified scoped list here as well
 		$ib = new Repeater();
-		$ib->add_control( 'ib_title', [
-			'label'       => __( 'Title (editor only)', 'jellopoint-restaurant-menu' ),
-			'type'        => Controls_Manager::TEXT,
-			'placeholder' => __( 'e.g., Chef’s Note, Allergen Info', 'jellopoint-restaurant-menu' ),
-			'label_block' => true,
-			'default'     => '',
-		] );
-		/*$ib->add_control( 'content_html', [
-			'label' => __( 'Description', 'textdomain' ),
-			'type'	=> Controls_Manager::WYSIWYG,
-			'default' => __( 'Default description', 'textdomain' ),
-			'placeholder' => __( 'Type your description here', 'textdomain' ),
-		] );*/
-		$ib->add_control( 'image', [
-			'label'   => __( 'Image', 'jellopoint-restaurant-menu' ),
-			'type'    => Controls_Manager::MEDIA,
-			'default' => [],
-		] );
+		$ib->add_control( 'info_block_id', [ 'label' => __( 'Info Block', 'jellopoint-restaurant-menu' ), 'type' => Controls_Manager::SELECT2, 'options' => $this->info_block_options(), 'label_block' => true ] );
 		$ib->add_control( 'position', [
 			'label'   => __( 'Position vs Section', 'jellopoint-restaurant-menu' ),
 			'type'    => Controls_Manager::SELECT,
@@ -671,13 +660,18 @@ $this->end_controls_section();
 			'multiple'    => false,
 			'label_block' => true,
 		] );
+		$ib->add_control( 'block_text_color', [ 'label' => __( 'Text Color', 'jellopoint-restaurant-menu' ), 'type' => Controls_Manager::COLOR, 'selectors' => [ '{{WRAPPER}} {{CURRENT_ITEM}} .jprm-infoblock__content' => 'color: {{VALUE}};' ] ] );
+		$ib->add_control( 'block_bg_color', [ 'label' => __( 'Background Color', 'jellopoint-restaurant-menu' ), 'type' => Controls_Manager::COLOR, 'selectors' => [ '{{WRAPPER}} {{CURRENT_ITEM}}' => 'background-color: {{VALUE}};' ] ] );
+		$ib->add_control( 'block_alignment', [ 'label' => __( 'Alignment', 'jellopoint-restaurant-menu' ), 'type' => Controls_Manager::CHOOSE, 'options' => [ 'left' => [ 'title' => __( 'Left', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-left' ], 'center' => [ 'title' => __( 'Center', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-center' ], 'right' => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-right' ] ], 'selectors' => [ '{{WRAPPER}} {{CURRENT_ITEM}}' => 'text-align: {{VALUE}};' ] ] );
+		$ib->add_responsive_control( 'block_font_size', [ 'label' => __( 'Font Size', 'jellopoint-restaurant-menu' ), 'type' => Controls_Manager::SLIDER, 'size_units' => [ 'px', 'em', 'rem' ], 'range' => [ 'px' => [ 'min' => 8, 'max' => 48 ] ], 'selectors' => [ '{{WRAPPER}} {{CURRENT_ITEM}} .jprm-infoblock__content' => 'font-size: {{SIZE}}{{UNIT}};' ] ] );
+		$ib->add_responsive_control( 'block_image_size', [ 'label' => __( 'Image Width', 'jellopoint-restaurant-menu' ), 'type' => Controls_Manager::SLIDER, 'size_units' => [ 'px', '%' ], 'range' => [ 'px' => [ 'min' => 16, 'max' => 500 ], '%' => [ 'min' => 5, 'max' => 100 ] ], 'selectors' => [ '{{WRAPPER}} {{CURRENT_ITEM}} .jprm-infoblock__image img' => 'width: {{SIZE}}{{UNIT}};' ] ] );
 
 		$this->add_control( 'info_blocks', [
 			'label'       => __( 'Info Blocks', 'jellopoint-restaurant-menu' ),
 			'type'        => Controls_Manager::REPEATER,
 			'fields'      => $ib->get_controls(),
 			'default'     => [],
-			'title_field' => '{{{ ib_title }}} ({{{ position }}} #{{{ section_id }}})',
+			'title_field' => 'Info Block #{{{ info_block_id }}} — {{{ position }}}',
 		] );
 
 		$this->end_controls_section();

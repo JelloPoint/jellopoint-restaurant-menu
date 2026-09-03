@@ -53,7 +53,8 @@ function jprm_infoblocks_render_rows( array $rows, string $position ) : string {
 			? $image['url']
 			: ( $img_id ? wp_get_attachment_image_url( $img_id, 'full' ) : '' );
 
-		echo '<div class="jprm-infoblock" data-position="' . esc_attr( $position ) . '">';
+		$repeater_class = ! empty( $row['_id'] ) ? ' elementor-repeater-item-' . sanitize_html_class( (string) $row['_id'] ) : '';
+		echo '<div class="jprm-infoblock' . esc_attr( $repeater_class ) . '" data-position="' . esc_attr( $position ) . '">';
 
 		if ( $img_url ) {
 			$alt = $img_id ? get_post_meta( $img_id, '_wp_attachment_image_alt', true ) : '';

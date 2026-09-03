@@ -11,6 +11,12 @@ jprm_ib_assert( true, Info_Block_Store::save( 2, $rows ), 'Placements must save 
 jprm_ib_assert( [ [ 'id'=>3,'section_id'=>8,'position'=>'above','order'=>0 ], [ 'id'=>4,'section_id'=>8,'position'=>'below','order'=>1 ] ], Info_Block_Store::get( 2 ), 'Placements must normalize order, position, and duplicates.' );
 $widget = file_get_contents( dirname( __DIR__ ) . '/includes/widgets/class-restaurant-menu.php' );
 $rest = file_get_contents( dirname( __DIR__ ) . '/includes/rest/class-jprm-menu-builder-controller.php' );
-jprm_ib_assert( true, false !== strpos( $widget, 'Info_Block_Store::data_for_menu' ), 'Elementor must include central Info Blocks.' );
+$controls = file_get_contents( dirname( __DIR__ ) . '/includes/widgets/traits/restaurant-menu-controls.php' );
+$styles = file_get_contents( dirname( __DIR__ ) . '/includes/widgets/traits/restaurant-menu-style.php' );
+jprm_ib_assert( true, false !== strpos( $widget, 'Info_Block_Store::data_for_widget' ), 'Elementor must resolve selected central Info Blocks.' );
 jprm_ib_assert( true, false !== strpos( $rest, 'menu-builder/info-blocks/save' ), 'Menu Builder must manage Info Block placements.' );
+jprm_ib_assert( true, false !== strpos( $controls, "'info_block_id'" ), 'Elementor must select centrally managed Info Blocks.' );
+jprm_ib_assert( true, false === strpos( $controls, "'ib_title'" ), 'The unused legacy Info Block input must be removed.' );
+jprm_ib_assert( true, false !== strpos( $controls, "'block_alignment'" ), 'Each selected Info Block must have independent alignment.' );
+jprm_ib_assert( true, false !== strpos( $styles, "'infob_alignment'" ), 'Info Blocks must also have a global responsive alignment control.' );
 fwrite( STDOUT, "Reusable Info Block checks passed.\n" );
