@@ -10,7 +10,7 @@ body { margin: 0; color: var(--jprm-text); font-family: Arial, sans-serif; }
 .jprm-print--heading-modern h1, .jprm-print--heading-modern h2 { font-family: 'Trebuchet MS', Arial, sans-serif; }
 .jprm-print--heading-classic h1, .jprm-print--heading-classic h2 { font-family: Garamond, Georgia, serif; }
 .jprm-print--classic { color: var(--jprm-text); }
-.jprm-print-document { width: 210mm; min-height: 297mm; margin: 20px auto; background: var(--jprm-background); padding: var(--jprm-page-top) var(--jprm-page-right) var(--jprm-page-bottom) var(--jprm-page-left); box-shadow: 0 4px 24px rgba(0,0,0,.18); }
+.jprm-print-document { width: 210mm; min-height: 297mm; margin: 20px auto; background: var(--jprm-background); padding: var(--jprm-page-top) var(--jprm-page-right) var(--jprm-page-bottom) var(--jprm-page-left); box-shadow: 0 4px 24px rgba(0,0,0,.18); border: var(--jprm-menu-border); border-radius: var(--jprm-menu-radius); }
 .jprm-print--landscape .jprm-print-document { width: 297mm; min-height: 210mm; }
 .jprm-print-header { text-align: var(--jprm-header-align); margin-bottom: 12mm; }
 .jprm-print-logo { display: block; max-width: 55mm; max-height: 28mm; object-fit: contain; margin-bottom: 5mm; }
@@ -23,7 +23,7 @@ body { margin: 0; color: var(--jprm-text); font-family: Arial, sans-serif; }
 .jprm-print-intro p, .jprm-print-description p { margin: 0; }
 .jprm-print-daily { display: flex; justify-content: center; gap: 8mm; margin-top: 4mm; }
 .jprm-print-sections { column-count: var(--jprm-columns); column-gap: 10mm; }
-.jprm-print-section { display: inline-block; width: 100%; break-inside: avoid; margin: 0 0 var(--jprm-section-spacing); }
+.jprm-print-section { display: inline-block; width: 100%; break-inside: avoid; margin: 0 0 var(--jprm-section-spacing); border: var(--jprm-section-border); border-radius: var(--jprm-section-radius); padding: var(--jprm-section-padding); }
 .jprm-print--columns-2 .jprm-print-section--column-break, .jprm-print--columns-3 .jprm-print-section--column-break { break-before: column; }
 .jprm-print-section h2 { text-align: var(--jprm-section-align); color: var(--jprm-accent); font-size: var(--jprm-section-size); margin: 0 0 4mm; border-bottom: 1px solid currentColor; padding-bottom: 2mm; }
 .jprm-print-section--child { margin-left: 7mm; }
@@ -36,7 +36,10 @@ body { margin: 0; color: var(--jprm-text); font-family: Arial, sans-serif; }
 .jprm-print-badges { display: flex; flex-wrap: wrap; gap: 3mm; margin-top: 1.5mm; }
 .jprm-print-badge { display: inline-flex; align-items: center; gap: 1mm; font-size: 7.5pt; }
 .jprm-print-separator { text-align: center; font-size: 8pt; font-style: italic; margin: -1mm 0 3mm; }
-.jprm-print--hide-descriptions .jprm-print-description, .jprm-print--hide-price-labels .jprm-print-price-label, .jprm-print--hide-price-icons .jprm-print-price img, .jprm-print--hide-badges .jprm-print-badges { display: none; }
+.jprm-print--hide-descriptions .jprm-print-description, .jprm-print--hide-price-labels .jprm-print-price-label, .jprm-print--hide-price-icons .jprm-print-price img, .jprm-print--hide-badges .jprm-print-badges, .jprm-print--hide-info-blocks .jprm-print-info-block { display: none; }
+.jprm-print-info-block { display: grid; grid-template-columns: auto 1fr; gap: 3mm; align-items: center; padding: 3mm; margin: 0 0 4mm; background: color-mix(in srgb, var(--jprm-accent) 8%, transparent); break-inside: avoid; }
+.jprm-print-info-block img { max-width: 22mm; max-height: 18mm; object-fit: contain; }
+.jprm-print-info-block p { margin: 0; }
 .jprm-print--modern .jprm-print-header { background: var(--jprm-accent); color: #fff; padding: 10mm; margin: -5mm -5mm 12mm; }
 .jprm-print--modern .jprm-print-section h2 { border-bottom-width: 2px; text-transform: uppercase; letter-spacing: .08em; }
 .jprm-print--modern .jprm-print-item { border-bottom: 1px solid #d7e1e3; padding-bottom: 3mm; }

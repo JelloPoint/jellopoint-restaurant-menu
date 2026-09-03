@@ -46,9 +46,7 @@ class Plugin {
 	 * ========================= */
 
 	public static function register_types() : void {
-		if ( post_type_exists( 'jprm_menu_item' ) ) return;
-
-		register_post_type(
+		if ( ! post_type_exists( 'jprm_menu_item' ) ) { register_post_type(
 			'jprm_menu_item',
 			[
 				'label'        => __( 'Menu Items', 'jellopoint-restaurant-menu' ),
@@ -67,7 +65,12 @@ class Plugin {
 				'rewrite'      => [ 'slug' => 'menu-item' ],
 				'menu_icon'    => 'dashicons-carrot',
 			]
-		);
+		); }
+		if ( ! post_type_exists( 'jprm_info_block' ) ) { register_post_type( 'jprm_info_block', [
+			'labels' => [ 'name' => __( 'Info Blocks', 'jellopoint-restaurant-menu' ), 'singular_name' => __( 'Info Block', 'jellopoint-restaurant-menu' ), 'add_new_item' => __( 'Add Info Block', 'jellopoint-restaurant-menu' ), 'edit_item' => __( 'Edit Info Block', 'jellopoint-restaurant-menu' ) ],
+			'public' => false, 'show_ui' => true, 'show_in_menu' => false, 'show_in_rest' => true,
+			'supports' => [ 'title', 'editor', 'thumbnail', 'page-attributes', 'revisions' ],
+		] ); }
 	}
 
 	public static function register_taxonomies() : void {

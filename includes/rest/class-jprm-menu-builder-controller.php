@@ -2,6 +2,7 @@
 namespace JelloPoint\RestaurantMenu\REST;
 
 use JelloPoint\RestaurantMenu\Data\Menu_Structure_Store;
+use JelloPoint\RestaurantMenu\Data\Info_Block_Store;
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
@@ -143,6 +144,9 @@ class Menu_Builder_Controller extends \WP_REST_Controller {
 			],
 			'permission_callback' => [ $this, 'cap' ],
 		] );
+
+		register_rest_route( self::NS, '/menu-builder/info-blocks', [ 'methods' => 'GET', 'callback' => [ $this, 'get_info_blocks' ], 'args' => [ 'menu_id' => [ 'type' => 'integer', 'required' => true ] ], 'permission_callback' => [ $this, 'cap' ] ] );
+		register_rest_route( self::NS, '/menu-builder/info-blocks/save', [ 'methods' => 'POST', 'callback' => [ $this, 'save_info_blocks' ], 'args' => [ 'menu_id' => [ 'type' => 'integer', 'required' => true ], 'placements' => [ 'type' => 'array', 'required' => true ] ], 'permission_callback' => [ $this, 'cap' ] ] );
 	}
 
 	public function cap( $request ) : bool {
@@ -419,6 +423,25 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 		}
 		Menu_Structure_Store::unassign_item( $menu_id, $pid );
 		return rest_ensure_response( [ 'ok' => true ] );
+	}
+
+	public function get_info_blocks( $request ) {
+		$menu_id = (int) $request['menu_id'];
+		$query = new \WP_Query( [ 'post_type' => 'jprm_info_block', 'post_status' => 'publish', 'posts_per_page' => -1, 'orderby' => [ 'menu_order' => 'ASC', 'title' => 'ASC' ] ] );
+		$blocks = [];
+		foreach ( (array) $query->posts as $post ) { $blocks[] = [ 'id' => (int) $post->ID, 'title' => (string) $post->post_title ]; }
+		return rest_ensure_response( [ 'blocks' => $blocks, 'placements' => Info_Block_Store::get( $menu_id ) ] );
+	}
+
+	public function save_info_blocks( $request ) {
+		$menu_id = (int) $request['menu_id']; $rows = (array) $request['placements'];
+		$sections = Menu_Structure_Store::section_ids( $menu_id ); $valid = [];
+		foreach ( $rows as $row ) {
+			$id = (int) ( $row['id'] ?? 0 ); $section_id = (int) ( $row['section_id'] ?? 0 );
+			if ( $id > 0 && in_array( $section_id, $sections, true ) && 'jprm_info_block' === get_post_type( $id ) ) { $valid[] = $row; }
+		}
+		Info_Block_Store::save( $menu_id, $valid );
+		return rest_ensure_response( [ 'ok' => true, 'count' => count( $valid ) ] );
 	}
 
 	/* ============================================================

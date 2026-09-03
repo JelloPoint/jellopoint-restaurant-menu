@@ -44,4 +44,13 @@ final class Print_Document_Renderer {
 		}
 		return $out;
 	}
+
+	public static function render_info_blocks( array $blocks ) : void {
+		foreach ( $blocks as $block ) {
+			echo '<aside class="jprm-print-info-block">';
+			$image = isset( $block['image'] ) && is_array( $block['image'] ) ? (string) ( $block['image']['url'] ?? '' ) : '';
+			if ( '' !== $image ) { echo '<img src="' . esc_url( $image ) . '" alt="" />'; }
+			echo '<div>' . wp_kses_post( (string) ( $block['content_html'] ?? '' ) ) . '</div></aside>';
+		}
+	}
 }

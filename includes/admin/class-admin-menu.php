@@ -16,6 +16,7 @@ class Admin_Menu {
 	const SLUG_MENUS  = 'edit-tags.php?taxonomy=jprm_menu&post_type=jprm_menu_item';
 	const SLUG_SECTS  = 'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item';
 	const SLUG_ITEMS  = 'edit.php?post_type=jprm_menu_item'; // canonical CPT list
+	const SLUG_INFO_BLOCKS = 'edit.php?post_type=jprm_info_block';
 
 	/** @var bool */
 	private static $bootstrapped = false;
@@ -87,6 +88,7 @@ class Admin_Menu {
 		if ( ! self::has_submenu_slug( $parent, self::SLUG_ITEMS ) ) {
 			self::maybe_add_submenu( $parent, __( 'Menu Items', 'jellopoint-restaurant-menu' ), self::SLUG_ITEMS, 'edit_posts' );
 		}
+		self::maybe_add_submenu( $parent, __( 'Info Blocks', 'jellopoint-restaurant-menu' ), self::SLUG_INFO_BLOCKS, 'edit_posts' );
 
 		self::maybe_add_submenu( $parent, __( 'Price Labels','jellopoint-restaurant-menu' ), $labels_slug,      'manage_options', '__return_null' );
 
@@ -146,7 +148,7 @@ class Admin_Menu {
 			if ( $slug === 'edit.php' ) continue;
 
 			// Remove any other CPT list pages that are not our canonical CPT slug.
-			if ( strpos( $slug, 'edit.php?post_type=' ) === 0 && $slug !== self::SLUG_ITEMS ) continue;
+			if ( strpos( $slug, 'edit.php?post_type=' ) === 0 && ! in_array( $slug, [ self::SLUG_ITEMS, self::SLUG_INFO_BLOCKS ], true ) ) continue;
 
 			$clean[] = $item;
 		}
@@ -166,6 +168,7 @@ class Admin_Menu {
 			self::SLUG_MENUS,
 			self::SLUG_SECTS,
 			self::SLUG_ITEMS,
+			self::SLUG_INFO_BLOCKS,
 			apply_filters( 'jprm/price_labels_slug', 'jprm-price-labels' ),
 			'jprm-dietary-badges',
 		];

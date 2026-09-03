@@ -77,6 +77,16 @@
                     <?php esc_html_e('Tick one or more items and add them to the chosen Section.', 'jprm'); ?>
                 </p>
             </div>
+
+			<div class="card" style="margin-top:16px;">
+				<h2><?php esc_html_e( 'Info Blocks', 'jellopoint-restaurant-menu' ); ?></h2>
+				<p class="description"><?php esc_html_e( 'Place reusable information above or below a Section.', 'jellopoint-restaurant-menu' ); ?></p>
+				<select id="jprm-info-block" style="width:100%"></select>
+				<select id="jprm-info-section" style="width:100%;margin-top:8px"></select>
+				<select id="jprm-info-position" style="width:100%;margin-top:8px"><option value="above"><?php esc_html_e( 'Above Section', 'jellopoint-restaurant-menu' ); ?></option><option value="below"><?php esc_html_e( 'Below Section', 'jellopoint-restaurant-menu' ); ?></option></select>
+				<p><button class="button button-primary" id="jprm-add-info-block"><?php esc_html_e( 'Add Info Block', 'jellopoint-restaurant-menu' ); ?></button> <a class="button" id="jprm-new-info-block" target="_blank" rel="noopener"><?php esc_html_e( 'Create Info Block', 'jellopoint-restaurant-menu' ); ?></a></p>
+				<div id="jprm-info-placements"></div>
+			</div>
         </div>
     </div>
     <div class="jprm-menu-builder-notice jprm-menu-builder-notice--hidden jprm-menu-builder-notice--bottom"></div>

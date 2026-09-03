@@ -16,6 +16,8 @@ final class Print_Document_Builder {
 		$structure = Menu_Structure_Store::get( $menu_id );
 		$badge_map = self::badge_map();
 		$sections = [];
+		$info_by_section = [];
+		foreach ( Info_Block_Store::data_for_menu( $menu_id ) as $block ) { $info_by_section[ (int) $block['section_id'] ][ (string) $block['position'] ][] = $block; }
 
 		foreach ( $structure['sections'] as $section_row ) {
 			$term = get_term( (int) $section_row['id'], 'jprm_section' );
@@ -34,6 +36,7 @@ final class Print_Document_Builder {
 				'item_separator' => (string) get_term_meta( (int) $term->term_id, '_jprm_item_separator', true ),
 				'disable_item_separator' => '1' === (string) get_term_meta( (int) $term->term_id, '_jprm_disable_item_separator', true ),
 				'items' => $items,
+				'info_blocks' => $info_by_section[ (int) $term->term_id ] ?? [ 'above' => [], 'below' => [] ],
 			];
 		}
 

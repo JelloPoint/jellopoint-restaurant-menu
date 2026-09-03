@@ -14,7 +14,7 @@
   function apiGet(path){ return $.ajax({ url: apiUrl(path), method:'GET', beforeSend:x=>x.setRequestHeader('X-WP-Nonce',JPRM_MENU_BUILDER.nonce) }); }
   function apiPost(path,data){ return $.ajax({ url: apiUrl(path), method:'POST', contentType:'application/json; charset=utf-8', data:JSON.stringify(data||{}), beforeSend:x=>x.setRequestHeader('X-WP-Nonce',JPRM_MENU_BUILDER.nonce) }); }
 
-  const state = { menus:[], sections:[], availableSections:[], items:[], unassigned:[], currentMenu:null };
+  const state = { menus:[], sections:[], availableSections:[], items:[], unassigned:[], infoBlocks:[], infoPlacements:[], currentMenu:null };
   const INDENT = 28, MAX_DEPTH = 6;
   let drag = null;
 
@@ -77,6 +77,15 @@
   function loadAvailableSections(){ if(!state.currentMenu){ state.availableSections=[]; return $.Deferred().resolve().promise(); } return apiGet('menu-builder/sections/available?menu_id='+state.currentMenu).done(res=>{ state.availableSections=res.sections||[]; fillExistingSectionSelect(); }); }
   function loadItems(){ if(!state.currentMenu){ state.items=[]; return $.Deferred().resolve().promise(); } return apiGet('menu-builder/items?menu_id='+state.currentMenu).done(res=>{ state.items = res.items||[]; }); }
   function loadUnassigned(){ if(!state.currentMenu){ state.unassigned=[]; return $.Deferred().resolve().promise(); } return apiGet('menu-builder/items?menu_id='+state.currentMenu+'&unassigned=1').done(res=>{ state.unassigned = res.items||[]; }); }
+  function loadInfoBlocks(){ if(!state.currentMenu) return $.Deferred().resolve().promise(); return apiGet('menu-builder/info-blocks?menu_id='+state.currentMenu).done(res=>{state.infoBlocks=res.blocks||[];state.infoPlacements=res.placements||[];renderInfoBlocks();}); }
+  function renderInfoBlocks(){
+	const names={}; state.infoBlocks.forEach(b=>names[b.id]=b.title);
+	const sections={}; state.sections.forEach(s=>sections[s.id]=s.title);
+	const $blocks=$('#jprm-info-block').empty(); state.infoBlocks.forEach(b=>$blocks.append($('<option>').val(b.id).text(b.title)));
+	const $sections=$('#jprm-info-section').empty(); state.sections.forEach(s=>$sections.append($('<option>').val(s.id).text(s.title)));
+	const $list=$('#jprm-info-placements').empty(); state.infoPlacements.forEach((p,i)=>{$list.append($('<p>').text((names[p.id]||'#'+p.id)+' — '+(p.position==='below'?'Below ':'Above ')+(sections[p.section_id]||'Section')).append($('<button type="button" class="button-link-delete" style="margin-left:8px">Remove</button>').on('click',()=>{state.infoPlacements.splice(i,1);saveInfoBlocks();})));});
+  }
+  function saveInfoBlocks(){ return apiPost('menu-builder/info-blocks/save',{menu_id:state.currentMenu,placements:state.infoPlacements}).then(()=>loadInfoBlocks()); }
 
   function applyIndent($li, depth){ $li.attr('data-depth',depth).css('margin-left',(depth*INDENT)+'px'); }
   function clampDepth(depth,$ph){ depth=Math.max(0,Math.min(MAX_DEPTH,depth)); const $prev=$ph.prev('.jprm-item'); if($prev.length){ const pd=parseInt($prev.attr('data-depth'),10)||0; depth=Math.min(depth,pd+1); } else depth=0; return depth; }
@@ -386,7 +395,7 @@
   });
 
   function chainLoadAndRender(expand){
-    return loadSections().then(()=>loadAvailableSections()).then(()=>loadItems()).then(()=>loadUnassigned()).then(()=>{ renderList(); if(expand) expandAll(); else setToggleAllLabel(false); });
+    return loadSections().then(()=>loadAvailableSections()).then(()=>loadItems()).then(()=>loadUnassigned()).then(()=>loadInfoBlocks()).then(()=>{ renderList(); renderInfoBlocks(); if(expand) expandAll(); else setToggleAllLabel(false); });
   }
 
   $(document).on('change','#jprm-menu-select',function(){ state.currentMenu=parseInt($(this).val(),10)||null; chainLoadAndRender(true); });
@@ -446,5 +455,8 @@
       .always(()=>setLoading(false));
   });
 
-  $(function(){ loadMenus().then(()=>loadSections()).then(()=>loadAvailableSections()).then(()=>loadItems()).then(()=>loadUnassigned()).then(()=>{ renderList(); expandAll(); }); });
+  $('#jprm-new-info-block').attr('href',JPRM_MENU_BUILDER.admin_new_info_block_url);
+  $('#jprm-add-info-block').on('click',function(){const id=parseInt($('#jprm-info-block').val(),10)||0,sectionId=parseInt($('#jprm-info-section').val(),10)||0;if(!id||!sectionId)return toast('Choose an Info Block and Section.');state.infoPlacements.push({id:id,section_id:sectionId,position:$('#jprm-info-position').val(),order:state.infoPlacements.length});saveInfoBlocks().then(()=>toast('Info Block added.'));});
+
+  $(function(){ loadMenus().then(()=>loadSections()).then(()=>loadAvailableSections()).then(()=>loadItems()).then(()=>loadUnassigned()).then(()=>loadInfoBlocks()).then(()=>{ renderList(); renderInfoBlocks(); expandAll(); }); });
 })(jQuery);

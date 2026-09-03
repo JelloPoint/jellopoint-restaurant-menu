@@ -35,6 +35,9 @@ final class Print_Document_Settings {
 			'show_price_labels' => true,
 			'show_price_icons' => true,
 			'show_badges' => true,
+			'show_info_blocks' => true,
+			'menu_border_style' => 'none', 'menu_border_width' => 1, 'menu_border_color' => '#173f47', 'menu_border_radius' => 0,
+			'section_border_style' => 'none', 'section_border_width' => 1, 'section_border_color' => '#173f47', 'section_border_radius' => 0, 'section_border_padding' => 4,
 		];
 	}
 
@@ -77,6 +80,16 @@ final class Print_Document_Settings {
 			'show_price_labels' => array_key_exists( 'show_price_labels', $input ) ? ! empty( $input['show_price_labels'] ) : true,
 			'show_price_icons' => array_key_exists( 'show_price_icons', $input ) ? ! empty( $input['show_price_icons'] ) : true,
 			'show_badges' => array_key_exists( 'show_badges', $input ) ? ! empty( $input['show_badges'] ) : true,
+			'show_info_blocks' => array_key_exists( 'show_info_blocks', $input ) ? ! empty( $input['show_info_blocks'] ) : true,
+			'menu_border_style' => self::choice( $input['menu_border_style'] ?? '', [ 'none', 'solid', 'double', 'dashed' ], 'none' ),
+			'menu_border_width' => self::number( $input['menu_border_width'] ?? null, 0, 10, 1 ),
+			'menu_border_color' => self::color( $input['menu_border_color'] ?? '', (string) $defaults['menu_border_color'] ),
+			'menu_border_radius' => self::number( $input['menu_border_radius'] ?? null, 0, 20, 0 ),
+			'section_border_style' => self::choice( $input['section_border_style'] ?? '', [ 'none', 'solid', 'double', 'dashed' ], 'none' ),
+			'section_border_width' => self::number( $input['section_border_width'] ?? null, 0, 10, 1 ),
+			'section_border_color' => self::color( $input['section_border_color'] ?? '', (string) $defaults['section_border_color'] ),
+			'section_border_radius' => self::number( $input['section_border_radius'] ?? null, 0, 20, 0 ),
+			'section_border_padding' => self::number( $input['section_border_padding'] ?? null, 0, 20, 4 ),
 		];
 		foreach ( [ 'top', 'right', 'bottom', 'left' ] as $side ) {
 			$value = isset( $margins[ $side ] ) && is_numeric( $margins[ $side ] ) ? (float) $margins[ $side ] : (float) $defaults['margins'][ $side ];

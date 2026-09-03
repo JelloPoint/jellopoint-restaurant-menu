@@ -63,5 +63,7 @@ foreach ( [ 'classic', 'modern', 'elegant' ] as $preset ) {
 }
 jprm_print_assert_same( true, false !== strpos( $css, 'column-count: var(--jprm-columns)' ), 'The print layout must support configurable columns.' );
 jprm_print_assert_same( true, false !== strpos( $css, 'jprm-print--hide-badges' ), 'Optional print elements must be hideable without changing Menu content.' );
+jprm_print_assert_same( true, false !== strpos( $css, 'var(--jprm-section-border)' ), 'Sections must support configurable decorative borders.' );
+jprm_print_assert_same( true, false !== strpos( $template, 'render_info_blocks' ), 'Reusable Info Blocks must reach the print template.' );
 
 fwrite( STDOUT, "Print/PDF foundation checks passed.\n" );

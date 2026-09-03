@@ -65,6 +65,7 @@ class Menu_Builder {
             'nonce'              => wp_create_nonce( 'wp_rest' ),
             'debug'              => false,
             'admin_new_item_url' => admin_url( 'post-new.php?post_type=jprm_menu_item' ),
+			'admin_new_info_block_url' => admin_url( 'post-new.php?post_type=jprm_info_block' ),
         ] );
 
         wp_enqueue_style(
