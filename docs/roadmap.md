@@ -67,6 +67,7 @@ The website display remains powered by Elementor. Print and PDF use dedicated te
 | --- | --- | --- |
 | 11A | Print/PDF foundation: document settings, paper size, orientation, margins, and reusable data pipeline | ✅ Approved |
 | 11B | Dedicated printable templates and print presets | ✅ Approved |
+| 11B-2 | Print design controls: columns, logo, typography, colors, alignment, spacing, visibility, and Section column breaks | 🚧 In progress |
 | 11C | PDF generation, download, and browser-print workflow | ⏳ Planned |
 
 ### Print/PDF requirements
