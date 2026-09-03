@@ -2,7 +2,7 @@
 /**
  * Plugin Name: JelloPoint – Restaurant Menu
  * Description: Restaurant Menu items, labels and Elementor widget.
- * Version: 2.0.11
+ * Version: 2.0.12
  * Author: JelloPoint
  * Text Domain: jellopoint-restaurant-menu
  */
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Constants
  * ------------------------------------------------- */
 if ( ! defined( 'JPRM_VERSION' ) ) {
-	define( 'JPRM_VERSION', '2.0.11' );
+	define( 'JPRM_VERSION', '2.0.12' );
 }
 if ( ! defined( 'JPRM_PLUGIN_FILE' ) ) {
 	define( 'JPRM_PLUGIN_FILE', __FILE__ );
@@ -39,6 +39,9 @@ require_once JPRM_PLUGIN_PATH . 'includes/data/class-price-schema.php';
 require_once JPRM_PLUGIN_PATH . 'includes/data/class-labels-store.php';
 require_once JPRM_PLUGIN_PATH . 'includes/data/class-default-data.php';
 require_once JPRM_PLUGIN_PATH . 'includes/data/class-menu-structure-store.php';
+require_once JPRM_PLUGIN_PATH . 'includes/data/class-print-document-settings.php';
+require_once JPRM_PLUGIN_PATH . 'includes/data/class-print-document-builder.php';
+require_once JPRM_PLUGIN_PATH . 'includes/data/class-badges-store.php';
 
 // Storage
 require_once JPRM_PLUGIN_PATH . 'includes/storage/class-price-repository.php';
@@ -90,8 +93,11 @@ if ( is_admin() ) {
     \JelloPoint\RestaurantMenu\Admin\JPRM_Admin_Bulk_Price_Labels::bootstrap();
 
     // includes/admin/class-admin-import-export.php
-    require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-import-export.php';
+	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-import-export.php';
     \JelloPoint\RestaurantMenu\Admin\JPRM_Admin_Import_Export::bootstrap();
+
+	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-print-document.php';
+	\JelloPoint\RestaurantMenu\Admin\Print_Document_Admin::init();
 
 	\JelloPoint\RestaurantMenu\Admin\Admin_Menu::init();
 }

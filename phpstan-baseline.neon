@@ -61,11 +61,6 @@ parameters:
 			path: includes/class-plugin.php
 
 		-
-			message: "#^Function update_option invoked with 3 parameters, 2 required\\.$#"
-			count: 2
-			path: includes/data/class-badges-store.php
-
-		-
 			message: "#^Function wp_json_encode invoked with 2 parameters, 1 required\\.$#"
 			count: 1
 			path: includes/data/class-exporter.php

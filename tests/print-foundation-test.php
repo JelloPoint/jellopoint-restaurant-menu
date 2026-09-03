@@ -1,0 +1,42 @@
+<?php
+/** Standalone regression checks for Phase 11A print settings and wiring. */
+
+define( 'ABSPATH', __DIR__ . '/' );
+
+$jprm_print_option = [];
+function get_option( $key, $default = false ) { global $jprm_print_option; return $jprm_print_option ?: $default; }
+function update_option( $key, $value, $autoload = null ) { global $jprm_print_option; $jprm_print_option = $value; return true; }
+
+require_once dirname( __DIR__ ) . '/includes/data/class-print-document-settings.php';
+
+use JelloPoint\RestaurantMenu\Data\Print_Document_Settings;
+
+function jprm_print_assert_same( $expected, $actual, string $message ) : void {
+	if ( $expected !== $actual ) {
+		fwrite( STDERR, "FAIL: {$message}\nExpected: " . var_export( $expected, true ) . "\nActual: " . var_export( $actual, true ) . "\n" );
+		exit( 1 );
+	}
+}
+
+$settings = Print_Document_Settings::sanitize( [
+	'menu_id' => '18', 'paper_size' => 'letter', 'orientation' => 'landscape',
+	'margins' => [ 'top' => '-2', 'right' => '12.5', 'bottom' => '99', 'left' => 'invalid' ],
+] );
+jprm_print_assert_same( 18, $settings['menu_id'], 'The selected existing Menu ID must be normalized.' );
+jprm_print_assert_same( 'a4', $settings['paper_size'], 'Phase 11A must allow only A4.' );
+jprm_print_assert_same( 'landscape', $settings['orientation'], 'Landscape must be supported.' );
+jprm_print_assert_same( [ 'top' => 0, 'right' => 12.5, 'bottom' => 50, 'left' => 15.0 ], $settings['margins'], 'Margins must be clamped to 0–50 mm with safe defaults.' );
+
+jprm_print_assert_same( true, Print_Document_Settings::save( $settings ), 'Validated document settings must persist.' );
+jprm_print_assert_same( $settings, Print_Document_Settings::get(), 'Saved document settings must round-trip.' );
+
+$main = file_get_contents( dirname( __DIR__ ) . '/jellopoint-restaurant-menu.php' );
+$admin = file_get_contents( dirname( __DIR__ ) . '/includes/admin/class-admin-print-document.php' );
+$builder = file_get_contents( dirname( __DIR__ ) . '/includes/data/class-print-document-builder.php' );
+jprm_print_assert_same( true, false !== strpos( $main, 'class-print-document-builder.php' ), 'The print document pipeline must load in every context.' );
+jprm_print_assert_same( true, false !== strpos( $admin, 'admin_post_jprm_save_print_document' ), 'The settings form must use a protected admin handler.' );
+jprm_print_assert_same( true, false !== strpos( $builder, 'Menu_Structure_Store::get' ), 'Print data must reuse the canonical per-Menu structure.' );
+jprm_print_assert_same( true, false !== strpos( $builder, 'Price_Repository::get' ), 'Print data must reuse canonical prices.' );
+jprm_print_assert_same( true, false !== strpos( $builder, 'JPRM_Badges_Store' ), 'Print data must reuse Dietary Badges and icons.' );
+
+fwrite( STDOUT, "Print/PDF foundation checks passed.\n" );
