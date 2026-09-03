@@ -19,6 +19,7 @@ jprm_ib_assert( true, false !== strpos( $controls, "'info_block_id'" ), 'Element
 jprm_ib_assert( true, false === strpos( $controls, "'ib_title'" ), 'The unused legacy Info Block input must be removed.' );
 jprm_ib_assert( true, false !== strpos( $controls, "'block_alignment'" ), 'Each selected Info Block must have independent alignment.' );
 jprm_ib_assert( true, false !== strpos( $controls, "'individual_style_heading'" ), 'Per-block overrides must be clearly separated from placement controls.' );
+jprm_ib_assert( true, false !== strpos( $controls, '{{CURRENT_ITEM}}.jprm-infoblock' ), 'Per-block selectors must outrank the global Info Block defaults.' );
 jprm_ib_assert( true, false !== strpos( $styles, "'infob_alignment'" ), 'Info Blocks must also have a global responsive alignment control.' );
 $store = file_get_contents( dirname( __DIR__ ) . '/includes/data/class-info-block-store.php' );
 jprm_ib_assert( true, false === strpos( $store, "apply_filters( 'the_content'" ), 'Info Blocks must not re-enter the page content pipeline.' );
