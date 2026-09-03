@@ -54,16 +54,38 @@ function jprm_infoblocks_render_rows( array $rows, string $position ) : string {
 			: ( $img_id ? wp_get_attachment_image_url( $img_id, 'full' ) : '' );
 
 		$repeater_class = ! empty( $row['_id'] ) ? ' elementor-repeater-item-' . sanitize_html_class( (string) $row['_id'] ) : '';
-		echo '<div class="jprm-infoblock' . esc_attr( $repeater_class ) . '" data-position="' . esc_attr( $position ) . '">';
+		$block_styles = [];
+		$content_styles = [];
+		$image_styles = [];
+		if ( ! empty( $row['block_text_color'] ) && preg_match( '/^(#[0-9a-f]{3,8}|rgba?\([^)]*\)|hsla?\([^)]*\)|[a-z]+)$/i', (string) $row['block_text_color'] ) ) {
+			$content_styles[] = 'color:' . (string) $row['block_text_color'];
+		}
+		if ( ! empty( $row['block_bg_color'] ) && preg_match( '/^(#[0-9a-f]{3,8}|rgba?\([^)]*\)|hsla?\([^)]*\)|[a-z]+)$/i', (string) $row['block_bg_color'] ) ) {
+			$block_styles[] = 'background-color:' . (string) $row['block_bg_color'];
+		}
+		if ( in_array( (string) ( $row['block_alignment'] ?? '' ), [ 'left', 'center', 'right' ], true ) ) {
+			$block_styles[] = 'text-align:' . (string) $row['block_alignment'];
+		}
+		foreach ( [ 'block_font_size' => [ &$content_styles, 'font-size' ], 'block_image_size' => [ &$image_styles, 'width' ] ] as $setting => &$target ) {
+			$value = is_array( $row[ $setting ] ?? null ) ? $row[ $setting ] : [];
+			$size  = isset( $value['size'] ) && is_numeric( $value['size'] ) ? (float) $value['size'] : null;
+			$unit  = in_array( (string) ( $value['unit'] ?? '' ), [ 'px', 'em', 'rem', '%' ], true ) ? (string) $value['unit'] : '';
+			if ( null !== $size && '' !== $unit ) { $target[0][] = $target[1] . ':' . $size . $unit; }
+		}
+		unset( $target );
+		$style_attr = $block_styles ? ' style="' . esc_attr( implode( ';', $block_styles ) ) . '"' : '';
+		$content_style_attr = $content_styles ? ' style="' . esc_attr( implode( ';', $content_styles ) ) . '"' : '';
+		$image_style_attr = $image_styles ? ' style="' . esc_attr( implode( ';', $image_styles ) ) . '"' : '';
+		echo '<div class="jprm-infoblock' . esc_attr( $repeater_class ) . '" data-position="' . esc_attr( $position ) . '"' . $style_attr . '>';
 
 		if ( $img_url ) {
 			$alt = $img_id ? get_post_meta( $img_id, '_wp_attachment_image_alt', true ) : '';
-			echo '<div class="jprm-infoblock__image"><img src="' . esc_url( $img_url ) . '" alt="' . esc_attr( $alt ) . '"></div>';
+			echo '<div class="jprm-infoblock__image"><img src="' . esc_url( $img_url ) . '" alt="' . esc_attr( $alt ) . '"' . $image_style_attr . '></div>';
 		}
 
 		if ( $html !== '' ) {
 			// Intentionally raw: this field is a deliberate HTML field in the widget.
-			echo '<div class="jprm-infoblock__content">' . $html . '</div>';
+			echo '<div class="jprm-infoblock__content"' . $content_style_attr . '>' . $html . '</div>';
 		}
 
 		echo '</div>';

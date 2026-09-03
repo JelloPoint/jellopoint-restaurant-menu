@@ -660,6 +660,16 @@ $this->end_controls_section();
 			'multiple'    => false,
 			'label_block' => true,
 		] );
+		$ib->add_control( 'individual_style_heading', [
+			'label'     => __( 'Individual Style Overrides (optional)', 'jellopoint-restaurant-menu' ),
+			'type'      => Controls_Manager::HEADING,
+			'separator' => 'before',
+		] );
+		$ib->add_control( 'individual_style_help', [
+			'type'            => Controls_Manager::RAW_HTML,
+			'raw'             => __( 'Leave these empty to use the global Info Blocks settings from the Style tab.', 'jellopoint-restaurant-menu' ),
+			'content_classes' => 'elementor-panel-alert elementor-panel-alert-info',
+		] );
 		$ib->add_control( 'block_text_color', [ 'label' => __( 'Text Color', 'jellopoint-restaurant-menu' ), 'type' => Controls_Manager::COLOR, 'selectors' => [ '{{WRAPPER}} {{CURRENT_ITEM}} .jprm-infoblock__content' => 'color: {{VALUE}};' ] ] );
 		$ib->add_control( 'block_bg_color', [ 'label' => __( 'Background Color', 'jellopoint-restaurant-menu' ), 'type' => Controls_Manager::COLOR, 'selectors' => [ '{{WRAPPER}} {{CURRENT_ITEM}}' => 'background-color: {{VALUE}};' ] ] );
 		$ib->add_control( 'block_alignment', [ 'label' => __( 'Alignment', 'jellopoint-restaurant-menu' ), 'type' => Controls_Manager::CHOOSE, 'options' => [ 'left' => [ 'title' => __( 'Left', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-left' ], 'center' => [ 'title' => __( 'Center', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-center' ], 'right' => [ 'title' => __( 'Right', 'jellopoint-restaurant-menu' ), 'icon' => 'eicon-text-align-right' ] ], 'selectors' => [ '{{WRAPPER}} {{CURRENT_ITEM}}' => 'text-align: {{VALUE}};' ] ] );

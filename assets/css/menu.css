@@ -190,15 +190,6 @@
 .jp-section__title { margin: 0 0 2px 0; font-size: 1.05em; line-height: 1.2; }
 .jp-section__desc  { margin: 0 0 8px 0; font-size: 0.95em; opacity: 0.8; }
 
-/* Info blocks */
-.jp-infoblocks { display: flex; gap: .5rem; flex-wrap: wrap; margin: .75rem 0; }
-.jp-infoblock { padding: .4em .7em; border-radius: .35em; font-size: .95em; line-height: 1.2; }
-.jp-infoblock--subtle { background: #f6f7f7; border: 1px solid #dcdcde; }
-.jp-infoblock--accent { background: #eef6ff; border: 1px solid #b9d7ff; }
-.jp-infoblock--note   { background: #fff7e6; border: 1px solid #f1cf8a; }
-.jp-infoblock__img { max-width: 100%; height: auto; display: block; }
-.jp-infoblock .jp-button { display: inline-block; text-decoration: none; padding: .45em .8em; border-radius: .35em; border: 1px solid #2271b1; }
-
 /* Badges: keep icons small and inline */
 .jp-menu__badges { display: inline-flex; gap: .35em; align-items: center; }
 .jp-badge { display: inline-flex; align-items: center; gap: .35em; }
@@ -315,7 +306,9 @@
 }
 
 /* Ensure full width for Info Blocks background color */
-.jprm-infoblock{ width: 100%; }
+.jprm-infoblock{ width:100%; color:var(--jprm-info-color,inherit); background-color:var(--jprm-info-bg,transparent); text-align:var(--jprm-info-align,inherit); }
+.jprm-infoblock__content{ color:var(--jprm-info-color,inherit); font-size:var(--jprm-info-font-size,inherit); }
+.jprm-infoblock__image img{ width:var(--jprm-info-image-width,auto); height:auto; }
 
 /* Default Inline: vertical stack at right (kept) */
 .jp-menu__inner { display:grid; grid-template-columns: 1fr auto; gap:.4rem .8rem; }
