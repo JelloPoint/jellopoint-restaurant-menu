@@ -7,6 +7,11 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Info_Block_Store {
 	public const META_KEY = '_jprm_info_block_placements_v1';
 
+	/** Format the plain editor content without invoking the page-level the_content pipeline. */
+	private static function format_content( string $content ) : string {
+		return (string) wp_kses_post( wpautop( wptexturize( $content ) ) );
+	}
+
 	public static function get( int $menu_id ) : array {
 		$rows = get_term_meta( $menu_id, self::META_KEY, true );
 		return self::normalize( is_array( $rows ) ? $rows : [] );
@@ -40,7 +45,7 @@ final class Info_Block_Store {
 			$image_id = (int) get_post_thumbnail_id( $post->ID );
 			$content = get_post_meta( $post->ID, 'jprm_info_block_content', true );
 			if ( '' === (string) $content ) { $content = $post->post_content; }
-			$out[] = array_merge( $row, [ 'title' => (string) $post->post_title, 'content_html' => (string) apply_filters( 'the_content', $content ), 'image' => [ 'id' => $image_id, 'url' => $image_id ? (string) wp_get_attachment_image_url( $image_id, 'large' ) : '' ] ] );
+			$out[] = array_merge( $row, [ 'title' => (string) $post->post_title, 'content_html' => self::format_content( (string) $content ), 'image' => [ 'id' => $image_id, 'url' => $image_id ? (string) wp_get_attachment_image_url( $image_id, 'large' ) : '' ] ] );
 		}
 		return $out;
 	}
@@ -55,7 +60,7 @@ final class Info_Block_Store {
 			$content = get_post_meta( $id, 'jprm_info_block_content', true );
 			if ( '' === (string) $content ) { $content = $post->post_content; }
 			$image_id = (int) get_post_thumbnail_id( $id );
-			$out[] = array_merge( $row, [ 'id' => $id, 'title' => (string) $post->post_title, 'content_html' => (string) apply_filters( 'the_content', $content ), 'image' => [ 'id' => $image_id, 'url' => $image_id ? (string) wp_get_attachment_image_url( $image_id, 'large' ) : '' ] ] );
+			$out[] = array_merge( $row, [ 'id' => $id, 'title' => (string) $post->post_title, 'content_html' => self::format_content( (string) $content ), 'image' => [ 'id' => $image_id, 'url' => $image_id ? (string) wp_get_attachment_image_url( $image_id, 'large' ) : '' ] ] );
 		}
 		return $out;
 	}
