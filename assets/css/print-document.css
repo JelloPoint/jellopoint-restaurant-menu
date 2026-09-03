@@ -65,7 +65,7 @@ body { margin: 0; color: var(--jprm-text); font-family: Arial, sans-serif; }
 	.jprm-print-section { display: inline-block; break-inside: avoid; }
 	.jprm-print-item { break-inside: avoid-page; }
 }
-@media (max-width: 900px) {
+@media screen and (max-width: 900px) {
 	.jprm-print-document { width: 100% !important; min-height: 100vh; margin: 0; box-shadow: none; }
 	.jprm-print-sections { column-count: 1; }
 	.jprm-print-section--column-break { break-before: auto !important; }
