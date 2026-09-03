@@ -16,6 +16,7 @@ $styles = file_get_contents( dirname( __DIR__ ) . '/includes/widgets/traits/rest
 jprm_ib_assert( true, false !== strpos( $widget, 'Info_Block_Store::data_for_widget' ), 'Elementor must resolve selected central Info Blocks.' );
 jprm_ib_assert( true, false !== strpos( $rest, 'menu-builder/info-blocks/save' ), 'Menu Builder must manage Info Block placements.' );
 jprm_ib_assert( true, false !== strpos( $controls, "'info_block_id'" ), 'Elementor must select centrally managed Info Blocks.' );
+jprm_ib_assert( true, false !== strpos( $controls, 'Website Info Blocks' ), 'Elementor must identify its Info Blocks as website placements.' );
 jprm_ib_assert( true, false === strpos( $controls, "'ib_title'" ), 'The unused legacy Info Block input must be removed.' );
 jprm_ib_assert( true, false !== strpos( $controls, "'block_alignment'" ), 'Each selected Info Block must have independent alignment.' );
 jprm_ib_assert( true, false !== strpos( $controls, "'individual_style_heading'" ), 'Per-block overrides must be clearly separated from placement controls.' );
@@ -25,4 +26,6 @@ jprm_ib_assert( true, false !== strpos( $styles, "'size_units'=>['px','%']" ), '
 $store = file_get_contents( dirname( __DIR__ ) . '/includes/data/class-info-block-store.php' );
 jprm_ib_assert( true, false === strpos( $store, "apply_filters( 'the_content'" ), 'Info Blocks must not re-enter the page content pipeline.' );
 jprm_ib_assert( true, false !== strpos( $store, 'format_content' ), 'Info Blocks must use isolated safe content formatting.' );
+$builder = file_get_contents( dirname( __DIR__ ) . '/includes/admin/views/jprm-menu-builder.php' );
+jprm_ib_assert( true, false !== strpos( $builder, 'Print/PDF Info Blocks' ), 'Menu Builder must identify its Info Blocks as print/PDF placements.' );
 fwrite( STDOUT, "Reusable Info Block checks passed.\n" );

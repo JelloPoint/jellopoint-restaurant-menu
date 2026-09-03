@@ -157,7 +157,7 @@ parameters:
 
 		-
 			message: "#^Access to constant RAW_HTML on an unknown class Elementor\\\\Controls_Manager\\.$#"
-			count: 1
+			count: 2
 			path: includes/widgets/class-restaurant-menu.php
 
 		-
@@ -202,7 +202,7 @@ parameters:
 
 		-
 			message: "#^Call to an undefined method JelloPoint\\\\RestaurantMenu\\\\Widgets\\\\Restaurant_Menu\\:\\:add_control\\(\\)\\.$#"
-			count: 88
+			count: 89
 			path: includes/widgets/class-restaurant-menu.php
 
 		-

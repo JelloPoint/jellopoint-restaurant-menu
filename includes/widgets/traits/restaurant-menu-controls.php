@@ -637,8 +637,13 @@ $this->end_controls_section();
 		/* --- Reusable Info Blocks ----------------------------------------------- */
 		$this->start_controls_section(
 			'jprm_section_info_blocks',
-			[ 'label' => __( 'Info Blocks', 'jellopoint-restaurant-menu' ) ]
+			[ 'label' => __( 'Website Info Blocks', 'jellopoint-restaurant-menu' ) ]
 		);
+		$this->add_control( 'website_info_blocks_help', [
+			'type'            => Controls_Manager::RAW_HTML,
+			'raw'             => __( 'Choose the Info Blocks shown by this Elementor widget. Print/PDF placement is configured separately in the Menu Builder.', 'jellopoint-restaurant-menu' ),
+			'content_classes' => 'elementor-panel-alert elementor-panel-alert-info',
+		] );
 
 		$ib = new Repeater();
 		$ib->add_control( 'info_block_id', [ 'label' => __( 'Info Block', 'jellopoint-restaurant-menu' ), 'type' => Controls_Manager::SELECT2, 'options' => $this->info_block_options(), 'label_block' => true ] );
@@ -677,7 +682,7 @@ $this->end_controls_section();
 		$ib->add_responsive_control( 'block_image_size', [ 'label' => __( 'Image Width', 'jellopoint-restaurant-menu' ), 'type' => Controls_Manager::SLIDER, 'size_units' => [ 'px', '%' ], 'range' => [ 'px' => [ 'min' => 16, 'max' => 500 ], '%' => [ 'min' => 5, 'max' => 100 ] ], 'selectors' => [ '{{WRAPPER}} {{CURRENT_ITEM}}.jprm-infoblock .jprm-infoblock__image img' => 'width: {{SIZE}}{{UNIT}};' ] ] );
 
 		$this->add_control( 'info_blocks', [
-			'label'       => __( 'Info Blocks', 'jellopoint-restaurant-menu' ),
+			'label'       => __( 'Website Info Blocks', 'jellopoint-restaurant-menu' ),
 			'type'        => Controls_Manager::REPEATER,
 			'fields'      => $ib->get_controls(),
 			'default'     => [],

@@ -79,8 +79,8 @@
             </div>
 
 			<div class="card" style="margin-top:16px;">
-				<h2><?php esc_html_e( 'Info Blocks', 'jellopoint-restaurant-menu' ); ?></h2>
-				<p class="description"><?php esc_html_e( 'Place reusable information above or below a Section.', 'jellopoint-restaurant-menu' ); ?></p>
+				<h2><?php esc_html_e( 'Print/PDF Info Blocks', 'jellopoint-restaurant-menu' ); ?></h2>
+				<p class="description"><?php esc_html_e( 'Choose which reusable Info Blocks appear in printed and PDF menus. Website placement is configured separately in the Elementor widget.', 'jellopoint-restaurant-menu' ); ?></p>
 				<select id="jprm-info-block" style="width:100%"></select>
 				<select id="jprm-info-section" style="width:100%;margin-top:8px"></select>
 				<select id="jprm-info-position" style="width:100%;margin-top:8px"><option value="above"><?php esc_html_e( 'Above Section', 'jellopoint-restaurant-menu' ); ?></option><option value="below"><?php esc_html_e( 'Below Section', 'jellopoint-restaurant-menu' ); ?></option></select>

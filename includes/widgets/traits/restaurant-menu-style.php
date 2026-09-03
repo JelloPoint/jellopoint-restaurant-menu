@@ -1360,7 +1360,7 @@ trait Restaurant_Menu_Style {
 
 		/* ===== Info Blocks ===== */
 		$this->start_controls_section('jprm_style_infoblocks',[
-			'label'=>__('Info Blocks','jellopoint-restaurant-menu'),
+			'label'=>__('Website Info Blocks','jellopoint-restaurant-menu'),
 			'tab'=>\Elementor\Controls_Manager::TAB_STYLE,
 		]);
 		$this->add_group_control(\Elementor\Group_Control_Typography::get_type(),[
