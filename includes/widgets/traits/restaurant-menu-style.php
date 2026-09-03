@@ -1393,8 +1393,11 @@ trait Restaurant_Menu_Style {
 		$this->add_responsive_control('infob_image_size',[
 			'label'=>__('Image Size','jellopoint-restaurant-menu'),
 			'type'=>\Elementor\Controls_Manager::SLIDER,
-			'size_units'=>['px'],
-			'range'=>['px'=>['min'=>16,'max'=>400]],
+			'size_units'=>['px','%'],
+			'range'=>[
+				'px'=>['min'=>16,'max'=>500],
+				'%'=>['min'=>5,'max'=>100],
+			],
 			'default'=>['size'=>80],
 			'selectors'=>['{{WRAPPER}} .jprm-infoblock__image img'=>'width: {{SIZE}}{{UNIT}}; height:auto;'],
 		]);
