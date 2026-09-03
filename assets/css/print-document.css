@@ -37,8 +37,12 @@ body { margin: 0; color: var(--jprm-text); font-family: Arial, sans-serif; }
 .jprm-print-badge { display: inline-flex; align-items: center; gap: 1mm; font-size: 7.5pt; }
 .jprm-print-separator { text-align: center; font-size: 8pt; font-style: italic; margin: -1mm 0 3mm; }
 .jprm-print--hide-descriptions .jprm-print-description, .jprm-print--hide-price-labels .jprm-print-price-label, .jprm-print--hide-price-icons .jprm-print-price img, .jprm-print--hide-badges .jprm-print-badges, .jprm-print--hide-info-blocks .jprm-print-info-block { display: none; }
-.jprm-print-info-block { display: grid; grid-template-columns: auto 1fr; gap: 3mm; align-items: center; padding: 3mm; margin: 0 0 4mm; background: color-mix(in srgb, var(--jprm-accent) 8%, transparent); break-inside: avoid; }
-.jprm-print-info-block img { max-width: 22mm; max-height: 18mm; object-fit: contain; }
+.jprm-print-info-block { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 3mm; align-items: center; padding: var(--jprm-info-padding); margin: 0 0 var(--jprm-info-spacing); color: var(--jprm-info-text); background: var(--jprm-info-background); border: var(--jprm-info-border); border-radius: var(--jprm-info-radius); text-align: var(--jprm-info-align); font-size: var(--jprm-info-size); break-inside: avoid; }
+.jprm-print-info-block img { width: var(--jprm-info-image-width); max-width: 100%; height: auto; max-height: none; object-fit: contain; }
+.jprm-print--info-stacked .jprm-print-info-block { grid-template-columns: 1fr; }
+.jprm-print--info-stacked.jprm-print--info-align-left .jprm-print-info-block img { justify-self: start; }
+.jprm-print--info-stacked.jprm-print--info-align-center .jprm-print-info-block img { justify-self: center; }
+.jprm-print--info-stacked.jprm-print--info-align-right .jprm-print-info-block img { justify-self: end; }
 .jprm-print-info-block p { margin: 0; }
 .jprm-print--modern .jprm-print-header { background: var(--jprm-accent); color: #fff; padding: 10mm; margin: -5mm -5mm 12mm; }
 .jprm-print--modern .jprm-print-section h2 { border-bottom-width: 2px; text-transform: uppercase; letter-spacing: .08em; }

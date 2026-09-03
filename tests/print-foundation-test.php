@@ -65,5 +65,6 @@ jprm_print_assert_same( true, false !== strpos( $css, 'column-count: var(--jprm-
 jprm_print_assert_same( true, false !== strpos( $css, 'jprm-print--hide-badges' ), 'Optional print elements must be hideable without changing Menu content.' );
 jprm_print_assert_same( true, false !== strpos( $css, 'var(--jprm-section-border)' ), 'Sections must support configurable decorative borders.' );
 jprm_print_assert_same( true, false !== strpos( $template, 'render_info_blocks' ), 'Reusable Info Blocks must reach the print template.' );
+jprm_print_assert_same( true, false !== strpos( $template, '--jprm-info-background' ), 'Print Info Block styles must reach the document CSS variables.' );
 
 fwrite( STDOUT, "Print/PDF foundation checks passed.\n" );
