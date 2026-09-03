@@ -8,6 +8,7 @@ $menu = $document['menu'];
 $preset = (string) $settings['preset'];
 $margins = $settings['margins'];
 $daily = $menu['daily'];
+$auto_print = ! empty( $document['auto_print'] );
 $logo_url = (int) $settings['logo_id'] > 0 ? wp_get_attachment_image_url( (int) $settings['logo_id'], 'large' ) : '';
 $visibility_classes = [];
 foreach ( [ 'show_descriptions' => 'descriptions', 'show_price_labels' => 'price-labels', 'show_price_icons' => 'price-icons', 'show_badges' => 'badges', 'show_info_blocks' => 'info-blocks' ] as $setting => $class_name ) {
@@ -29,6 +30,10 @@ if ( ! empty( $daily['enabled'] ) && 'none' !== (string) $daily['date_type'] ) {
 	<style>:root{--jprm-menu-border:<?php echo esc_attr( (string) $settings['menu_border_width'] ); ?>px <?php echo esc_attr( (string) $settings['menu_border_style'] ); ?> <?php echo esc_attr( (string) $settings['menu_border_color'] ); ?>;--jprm-menu-radius:<?php echo esc_attr( (string) $settings['menu_border_radius'] ); ?>mm;--jprm-section-border:<?php echo esc_attr( (string) $settings['section_border_width'] ); ?>px <?php echo esc_attr( (string) $settings['section_border_style'] ); ?> <?php echo esc_attr( (string) $settings['section_border_color'] ); ?>;--jprm-section-radius:<?php echo esc_attr( (string) $settings['section_border_radius'] ); ?>mm;--jprm-section-padding:<?php echo esc_attr( (string) $settings['section_border_padding'] ); ?>mm;--jprm-info-text:<?php echo esc_attr( (string) $settings['info_block_text_color'] ); ?>;--jprm-info-background:<?php echo esc_attr( (string) $settings['info_block_background_color'] ); ?>;--jprm-info-align:<?php echo esc_attr( (string) $settings['info_block_alignment'] ); ?>;--jprm-info-size:<?php echo esc_attr( (string) $settings['info_block_font_size'] ); ?>pt;--jprm-info-image-width:<?php echo esc_attr( (string) $settings['info_block_image_width'] ); ?>mm;--jprm-info-padding:<?php echo esc_attr( (string) $settings['info_block_padding'] ); ?>mm;--jprm-info-spacing:<?php echo esc_attr( (string) $settings['info_block_spacing'] ); ?>mm;--jprm-info-border:<?php echo esc_attr( (string) $settings['info_block_border_width'] ); ?>px <?php echo esc_attr( (string) $settings['info_block_border_style'] ); ?> <?php echo esc_attr( (string) $settings['info_block_border_color'] ); ?>;--jprm-info-radius:<?php echo esc_attr( (string) $settings['info_block_border_radius'] ); ?>mm}</style>
 </head>
 <body class="jprm-print jprm-print--<?php echo esc_attr( $preset ); ?> jprm-print--<?php echo esc_attr( (string) $settings['orientation'] ); ?> jprm-print--columns-<?php echo (int) $settings['columns']; ?> jprm-print--heading-<?php echo esc_attr( (string) $settings['heading_font'] ); ?> jprm-print--body-<?php echo esc_attr( (string) $settings['body_font'] ); ?> jprm-print--info-<?php echo esc_attr( (string) $settings['info_block_layout'] ); ?> jprm-print--info-align-<?php echo esc_attr( (string) $settings['info_block_alignment'] ); ?> <?php echo esc_attr( implode( ' ', $visibility_classes ) ); ?>">
+	<div class="jprm-print-toolbar" role="region" aria-label="<?php esc_attr_e( 'Print and PDF controls', 'jellopoint-restaurant-menu' ); ?>">
+		<p><?php esc_html_e( 'Print this menu, or choose “Save as PDF” in the browser print window to download a PDF.', 'jellopoint-restaurant-menu' ); ?></p>
+		<div><button type="button" onclick="window.print()"><?php esc_html_e( 'Print / Save as PDF', 'jellopoint-restaurant-menu' ); ?></button><button type="button" onclick="window.close()"><?php esc_html_e( 'Close Preview', 'jellopoint-restaurant-menu' ); ?></button></div>
+	</div>
 	<main class="jprm-print-document">
 		<header class="jprm-print-header jprm-print-header--logo-<?php echo esc_attr( (string) $settings['logo_position'] ); ?>"><?php if ( is_string( $logo_url ) && '' !== $logo_url ) : ?><img class="jprm-print-logo" src="<?php echo esc_url( $logo_url ); ?>" alt="" /><?php endif; ?><p class="jprm-print-kicker"><?php esc_html_e( 'Restaurant Menu', 'jellopoint-restaurant-menu' ); ?></p><h1><?php echo esc_html( (string) $menu['name'] ); ?></h1><?php if ( '' !== (string) $menu['description'] ) : ?><div class="jprm-print-intro"><?php echo wp_kses_post( wpautop( (string) $menu['description'] ) ); ?></div><?php endif; ?><?php if ( $date_text || '' !== (string) $daily['fixed_price'] ) : ?><div class="jprm-print-daily"><?php if ( $date_text ) : ?><span><?php echo esc_html( $date_text ); ?></span><?php endif; ?><?php if ( '' !== (string) $daily['fixed_price'] ) : ?><strong>€<?php echo esc_html( (string) $daily['fixed_price'] ); ?></strong><?php endif; ?></div><?php endif; ?></header>
 		<div class="jprm-print-sections">
@@ -41,4 +46,5 @@ if ( ! empty( $daily['enabled'] ) && 'none' !== (string) $daily['date_type'] ) {
 		<?php endforeach; ?>
 		</div>
 	</main>
+	<?php if ( $auto_print ) : ?><script>window.addEventListener('load',function(){window.setTimeout(function(){window.print()},250)});</script><?php endif; ?>
 </body></html>

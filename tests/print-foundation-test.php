@@ -66,5 +66,7 @@ jprm_print_assert_same( true, false !== strpos( $css, 'jprm-print--hide-badges' 
 jprm_print_assert_same( true, false !== strpos( $css, 'var(--jprm-section-border)' ), 'Sections must support configurable decorative borders.' );
 jprm_print_assert_same( true, false !== strpos( $template, 'render_info_blocks' ), 'Reusable Info Blocks must reach the print template.' );
 jprm_print_assert_same( true, false !== strpos( $template, '--jprm-info-background' ), 'Print Info Block styles must reach the document CSS variables.' );
+jprm_print_assert_same( true, false !== strpos( $template, 'window.print()' ), 'Print preview must provide the browser PDF/print action.' );
+jprm_print_assert_same( true, false !== strpos( $template, 'auto_print' ), 'Direct PDF/print workflow must support opening the browser dialog automatically.' );
 
 fwrite( STDOUT, "Print/PDF foundation checks passed.\n" );

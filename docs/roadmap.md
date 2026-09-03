@@ -69,7 +69,7 @@ The website display remains powered by Elementor. Print and PDF use dedicated te
 | 11B | Dedicated printable templates and print presets | ✅ Approved |
 | 11B-2 | Print design controls: columns, logo, typography, colors, alignment, spacing, visibility, and Section column breaks | ✅ Approved |
 | 11B-3 | Print borders and centrally managed reusable Info Blocks for Elementor, Menu Builder, and print/PDF | ✅ Approved |
-| 11C | PDF generation, download, and browser-print workflow | ⏳ Planned |
+| 11C | Browser-native PDF generation, download, and print workflow | 🚧 In progress |
 
 ### Print/PDF requirements
 
