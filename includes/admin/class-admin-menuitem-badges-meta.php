@@ -111,15 +111,17 @@ class JPRM_MenuItem_Badges_Meta {
 	}
 
 	public function save_post( $post_id, $post ) : void {
-		if ( ! isset( $_POST[ self::NONCE_NAME ] ) ) return;
-		if ( ! wp_verify_nonce( $_POST[ self::NONCE_NAME ], self::NONCE_ACTION ) ) return;
+		$nonce = isset( $_POST[ self::NONCE_NAME ] )
+			? sanitize_text_field( wp_unslash( $_POST[ self::NONCE_NAME ] ) )
+			: '';
+		if ( ! wp_verify_nonce( $nonce, self::NONCE_ACTION ) ) return;
 
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
 		if ( wp_is_post_revision( $post_id ) ) return;
 		if ( ! current_user_can( 'edit_post', $post_id ) ) return;
 
-		$incoming = isset($_POST['jprm_item_badges']) && is_array($_POST['jprm_item_badges'])
-			? array_values( array_unique( array_map( 'sanitize_title', $_POST['jprm_item_badges'] ) ) )
+		$incoming = isset( $_POST['jprm_item_badges'] ) && is_array( $_POST['jprm_item_badges'] )
+			? array_values( array_unique( array_map( 'sanitize_title', wp_unslash( $_POST['jprm_item_badges'] ) ) ) )
 			: [];
 
 		update_post_meta( $post_id, self::META_KEY, $incoming );

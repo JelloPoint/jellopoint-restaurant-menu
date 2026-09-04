@@ -479,41 +479,52 @@ class JPRM_Admin_MenuItem_Meta {
 
 	/* --------------------------------- save -------------------------------- */
 	public static function save($post_id,$post){
-		if ( ! isset($_POST['jprm_meta_nonce']) || ! wp_verify_nonce($_POST['jprm_meta_nonce'],'jprm_meta') ) return;
+		$nonce = isset( $_POST['jprm_meta_nonce'] )
+			? sanitize_text_field( wp_unslash( $_POST['jprm_meta_nonce'] ) )
+			: '';
+		if ( ! wp_verify_nonce( $nonce, 'jprm_meta' ) ) return;
 		if ( defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) return;
 		if ( ! current_user_can('edit_post',$post_id) ) return;
 
 		// WYSIWYG content: unslash then allow safe HTML
-		$raw_desc = wp_unslash($_POST['jprm_desc'] ?? '');
+		$raw_desc = isset( $_POST['jprm_desc'] ) ? wp_unslash( $_POST['jprm_desc'] ) : '';
 		update_post_meta($post_id,'jprm_desc', wp_kses_post($raw_desc));
 
 		// Clean up legacy toggle meta if it exists (safe no-op if not present)
 		delete_post_meta($post_id,'jprm_desc_format');
 
-		update_post_meta($post_id,'jprm_badge', sanitize_text_field($_POST['jprm_badge'] ?? ''));
-		update_post_meta($post_id,'jprm_visible', (isset($_POST['jprm_visible']) && $_POST['jprm_visible']==='yes')?'yes':'no');
+		$badge   = isset( $_POST['jprm_badge'] ) ? sanitize_text_field( wp_unslash( $_POST['jprm_badge'] ) ) : '';
+		$visible = isset( $_POST['jprm_visible'] ) ? sanitize_key( wp_unslash( $_POST['jprm_visible'] ) ) : '';
+		update_post_meta($post_id,'jprm_badge', $badge);
+		update_post_meta($post_id,'jprm_visible', ( 'yes' === $visible ) ? 'yes' : 'no');
 
-		$mode = (($_POST['jprm_price_mode'] ?? 'single')==='multi') ? 'multi' : 'single';
+		$price_mode = isset( $_POST['jprm_price_mode'] ) ? sanitize_key( wp_unslash( $_POST['jprm_price_mode'] ) ) : 'single';
+		$mode = ( 'multi' === $price_mode ) ? 'multi' : 'single';
 		update_post_meta($post_id,'jprm_price_mode',$mode);
 
 		if ($mode==='single'){
-			update_post_meta($post_id,'jprm_price_amount', sanitize_text_field($_POST['jprm_price_amount'] ?? ''));
-			$lm=(($_POST['jprm_price_label_mode'] ?? 'ref')==='custom')?'custom':'ref';
+			$amount = isset( $_POST['jprm_price_amount'] ) ? sanitize_text_field( wp_unslash( $_POST['jprm_price_amount'] ) ) : '';
+			update_post_meta($post_id,'jprm_price_amount', $amount);
+			$label_mode = isset( $_POST['jprm_price_label_mode'] ) ? sanitize_key( wp_unslash( $_POST['jprm_price_label_mode'] ) ) : 'ref';
+			$lm = ( 'custom' === $label_mode ) ? 'custom' : 'ref';
 			update_post_meta($post_id,'jprm_price_label_mode',$lm);
 			if ($lm==='ref'){
-				update_post_meta($post_id,'jprm_price_label_ref', sanitize_text_field($_POST['jprm_price_label_ref'] ?? ''));
+				$label_ref = isset( $_POST['jprm_price_label_ref'] ) ? sanitize_text_field( wp_unslash( $_POST['jprm_price_label_ref'] ) ) : '';
+				update_post_meta($post_id,'jprm_price_label_ref', $label_ref);
 				delete_post_meta($post_id,'jprm_price_label_custom');
 				delete_post_meta($post_id,'jprm_price_label_icon_id');
 			}else{
-				update_post_meta($post_id,'jprm_price_label_custom', sanitize_text_field($_POST['jprm_price_label_custom'] ?? ''));
-				update_post_meta($post_id,'jprm_price_label_icon_id', intval($_POST['jprm_price_label_icon_id'] ?? 0));
+				$label_custom = isset( $_POST['jprm_price_label_custom'] ) ? sanitize_text_field( wp_unslash( $_POST['jprm_price_label_custom'] ) ) : '';
+				$icon_id = isset( $_POST['jprm_price_label_icon_id'] ) ? absint( wp_unslash( $_POST['jprm_price_label_icon_id'] ) ) : 0;
+				update_post_meta($post_id,'jprm_price_label_custom', $label_custom);
+				update_post_meta($post_id,'jprm_price_label_icon_id', $icon_id);
 				delete_post_meta($post_id,'jprm_price_label_ref');
 			}
 			delete_post_meta($post_id,'jprm_prices');
 
 		}else{
-			$json = $_POST['jprm_prices'] ?? '[]';
-			$rows = json_decode(wp_unslash($json),true);
+			$json = isset( $_POST['jprm_prices'] ) ? wp_unslash( $_POST['jprm_prices'] ) : '[]';
+			$rows = json_decode( $json, true );
 			$out  = [];
 			if (is_array($rows)){
 				foreach ($rows as $r){

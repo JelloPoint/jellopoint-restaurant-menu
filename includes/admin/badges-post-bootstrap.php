@@ -46,7 +46,7 @@ class Badges_Post_Bootstrap {
 	 * (Optional helper; safe to keep even if not strictly needed now.)
 	 */
 	public static function enqueue_admin_assets( $hook ) : void {
-		$page = isset( $_GET['page'] ) ? sanitize_key( (string) $_GET['page'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( $page !== 'jprm-dietary-badges' ) {
 			return;
 		}

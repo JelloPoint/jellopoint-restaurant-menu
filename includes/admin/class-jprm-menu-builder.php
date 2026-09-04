@@ -39,7 +39,8 @@ class Menu_Builder {
 
     /** Enqueue cache-busted assets + localized vars used by the UI */
     public static function enqueue( string $hook ) : void {
-        if ( empty( $_GET['page'] ) || $_GET['page'] !== self::SLUG ) return; // phpcs:ignore
+        $page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+        if ( self::SLUG !== $page ) return;
 
         $js_rel  = 'includes/admin/assets/jprm-menu-builder.js';
         $css_rel = 'includes/admin/assets/jprm-menu-builder.css';

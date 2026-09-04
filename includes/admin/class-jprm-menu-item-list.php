@@ -96,8 +96,8 @@ class Menu_Item_List {
 	public static function filters( string $post_type ) : void {
 		if ( $post_type !== self::CPT ) return;
 
-		$sel_menu_id    = isset( $_GET['jprm_filter_menu'] ) ? intval( $_GET['jprm_filter_menu'] ) : 0; // phpcs:ignore
-		$sel_section_id = isset( $_GET['jprm_filter_section'] ) ? intval( $_GET['jprm_filter_section'] ) : 0; // phpcs:ignore
+		$sel_menu_id    = isset( $_GET['jprm_filter_menu'] ) ? absint( wp_unslash( $_GET['jprm_filter_menu'] ) ) : 0;
+		$sel_section_id = isset( $_GET['jprm_filter_section'] ) ? absint( wp_unslash( $_GET['jprm_filter_section'] ) ) : 0;
 
 		// MENUS
 		$menus = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false ] );
@@ -168,8 +168,8 @@ class Menu_Item_List {
 		if ( $pagenow !== 'edit.php' ) return;
 		if ( empty( $q->query ) || ( $q->get( 'post_type' ) !== self::CPT ) ) return;
 
-		$menu_id    = isset( $_GET['jprm_filter_menu'] ) ? intval( $_GET['jprm_filter_menu'] ) : 0; // phpcs:ignore
-		$section_id = isset( $_GET['jprm_filter_section'] ) ? intval( $_GET['jprm_filter_section'] ) : 0; // phpcs:ignore
+		$menu_id    = isset( $_GET['jprm_filter_menu'] ) ? absint( wp_unslash( $_GET['jprm_filter_menu'] ) ) : 0;
+		$section_id = isset( $_GET['jprm_filter_section'] ) ? absint( wp_unslash( $_GET['jprm_filter_section'] ) ) : 0;
 
 		$tax_query = (array) $q->get( 'tax_query', [] );
 
@@ -231,7 +231,7 @@ class Menu_Item_List {
 			return add_query_arg( [ 'jprm_bulk_unassigned' => $done ], $redirect_url );
 		}
 
-		$target_section = isset( $_REQUEST['jprm_target_section'] ) ? intval( $_REQUEST['jprm_target_section'] ) : 0; // phpcs:ignore
+		$target_section = isset( $_REQUEST['jprm_target_section'] ) ? absint( wp_unslash( $_REQUEST['jprm_target_section'] ) ) : 0;
 		if ( $target_section <= 0 ) {
 			return add_query_arg( [ 'jprm_bulk_error' => 1 ], $redirect_url );
 		}
@@ -267,12 +267,12 @@ class Menu_Item_List {
 	}
 
 	public static function bulk_admin_notice() : void {
-		if ( isset( $_GET['jprm_bulk_unassigned'] ) ) { // phpcs:ignore
-			$c = intval( $_GET['jprm_bulk_unassigned'] );
+		if ( isset( $_GET['jprm_bulk_unassigned'] ) ) {
+			$c = absint( wp_unslash( $_GET['jprm_bulk_unassigned'] ) );
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( _n( 'Unassigned %d item.', 'Unassigned %d items.', $c, 'jprm' ), $c ) ) . '</p></div>';
 		}
-		if ( isset( $_GET['jprm_bulk_assigned'] ) ) { // phpcs:ignore
-			$c = intval( $_GET['jprm_bulk_assigned'] );
+		if ( isset( $_GET['jprm_bulk_assigned'] ) ) {
+			$c = absint( wp_unslash( $_GET['jprm_bulk_assigned'] ) );
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( _n( 'Assigned %d item.', 'Assigned %d items.', $c, 'jprm' ), $c ) ) . '</p></div>';
 		}
 		if ( isset( $_GET['jprm_bulk_error'] ) ) { // phpcs:ignore

@@ -20,6 +20,7 @@ function wp_enqueue_media() {
 	$jprm_media_enqueues++;
 }
 function sanitize_key( $value ) { return strtolower( preg_replace( '/[^a-z0-9_\-]/', '', (string) $value ) ); }
+function wp_unslash( $value ) { return $value; }
 
 require_once dirname( __DIR__ ) . '/includes/admin/class-admin-menu.php';
 

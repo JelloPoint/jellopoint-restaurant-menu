@@ -85,7 +85,7 @@ class Sections_Admin {
 	public static function toolbar_filter( $taxonomy ) : void {
 		if ( $taxonomy !== self::TAX_SECTION ) return;
 
-		$selected = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
+		$selected = isset( $_GET['jprm_filter_menu'] ) ? absint( wp_unslash( $_GET['jprm_filter_menu'] ) ) : 0;
 		$menus    = get_terms( [
 			'taxonomy'   => self::TAX_MENU,
 			'hide_empty' => false,
@@ -121,14 +121,14 @@ class Sections_Admin {
 
 		// Read menu param robustly
 		$menu_id = 0;
-		if ( isset( $_GET['jprm_filter_menu'] ) ) { // phpcs:ignore
-			$menu_id = (int) $_GET['jprm_filter_menu']; // phpcs:ignore
+		if ( isset( $_GET['jprm_filter_menu'] ) ) {
+			$menu_id = absint( wp_unslash( $_GET['jprm_filter_menu'] ) );
 		} elseif ( isset( $_REQUEST['jprm_filter_menu'] ) ) { // fallback
-			$menu_id = (int) $_REQUEST['jprm_filter_menu']; // phpcs:ignore
+			$menu_id = absint( wp_unslash( $_REQUEST['jprm_filter_menu'] ) );
 		}
 
-		$orderby = isset( $_GET['orderby'] ) ? (string) $_GET['orderby'] : '';               // phpcs:ignore
-		$order   = isset( $_GET['order'] )   ? strtoupper( (string) $_GET['order'] ) : 'ASC'; // phpcs:ignore
+		$orderby = isset( $_GET['orderby'] ) ? sanitize_key( wp_unslash( $_GET['orderby'] ) ) : '';
+		$order   = isset( $_GET['order'] ) ? strtoupper( sanitize_key( wp_unslash( $_GET['order'] ) ) ) : 'ASC';
 
 		// Default: TREE (no menu filter + not sorting by Order)
 		if ( $menu_id <= 0 && $orderby !== 'jprm_order' ) {
@@ -177,8 +177,9 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 
 	global $wpdb;
 
-	$selected_menu   = isset($_GET['jprm_filter_menu']) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
-	$orderby_clicked = ( isset($_GET['orderby']) && $_GET['orderby'] === 'jprm_order' );      // phpcs:ignore
+	$selected_menu = isset( $_GET['jprm_filter_menu'] ) ? absint( wp_unslash( $_GET['jprm_filter_menu'] ) ) : 0;
+	$orderby       = isset( $_GET['orderby'] ) ? sanitize_key( wp_unslash( $_GET['orderby'] ) ) : '';
+	$orderby_clicked = ( 'jprm_order' === $orderby );
 
 	// COUNT(*) passes must never receive ORDER BY injections (Core doesn't add one there).
 	$is_count = ( isset($args['fields']) && $args['fields'] === 'count' );
@@ -443,7 +444,7 @@ public static function hook_terms_order_and_filter() : void {
 		$args['order']    = 'ASC';
 
 		// Respect toolbar filter
-		$menu_id = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
+		$menu_id = isset( $_GET['jprm_filter_menu'] ) ? absint( wp_unslash( $_GET['jprm_filter_menu'] ) ) : 0;
 		if ( $menu_id > 0 ) {
 			$mq   = isset( $args['meta_query'] ) && is_array( $args['meta_query'] ) ? $args['meta_query'] : [];
 			$mq[] = [ 'key' => self::META_MENU_OWNER, 'value' => (string) $menu_id ];
@@ -457,7 +458,7 @@ public static function hook_terms_order_and_filter() : void {
 	/* ================= UI polish + self-healing injector ================= */
 
 	public static function admin_head_assets() : void {
-		$tax = isset( $_GET['taxonomy'] ) ? sanitize_key( $_GET['taxonomy'] ) : ''; // phpcs:ignore
+		$tax = isset( $_GET['taxonomy'] ) ? sanitize_key( wp_unslash( $_GET['taxonomy'] ) ) : '';
 		if ( $tax !== self::TAX_SECTION ) return;
 
 		// CSS
@@ -469,7 +470,7 @@ public static function hook_terms_order_and_filter() : void {
 		</style>';
 
 		// Build <option>s server-side for the self-healing injector
-		$selected = isset( $_GET['jprm_filter_menu'] ) ? (int) $_GET['jprm_filter_menu'] : 0; // phpcs:ignore
+		$selected = isset( $_GET['jprm_filter_menu'] ) ? absint( wp_unslash( $_GET['jprm_filter_menu'] ) ) : 0;
 		if ( $selected > 0 ) self::backfill_missing_orders_for_menu( (int) $selected );
 		$menus    = get_terms( [
 			'taxonomy'   => self::TAX_MENU,

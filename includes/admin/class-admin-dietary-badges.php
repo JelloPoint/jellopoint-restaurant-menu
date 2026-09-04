@@ -53,7 +53,8 @@ class JPRM_Admin_Dietary_Badges {
 		?>
 		<div class="wrap jprm-wrap">
 			<h1 class="wp-heading-inline"><?php esc_html_e( 'Dietary Badges', 'jprm' ); ?></h1>
-			<?php if ( isset($_GET['updated']) && $_GET['updated'] === 'true' ) : ?>
+			<?php $updated = isset( $_GET['updated'] ) ? sanitize_key( wp_unslash( $_GET['updated'] ) ) : ''; ?>
+			<?php if ( 'true' === $updated ) : ?>
 	        <div class="notice notice-success is-dismissible">
 		    <p><?php echo esc_html__( 'Badges saved.', 'jprm' ); ?></p>
 	    </div>

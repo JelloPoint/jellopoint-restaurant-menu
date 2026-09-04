@@ -63,7 +63,8 @@ class JPRM_Labels_Store {
     }
 
     public static function enqueue_assets( $hook ) : void {
-        if ( isset($_GET['page']) && $_GET['page'] === self::PAGE_SLUG ) {
+        $page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+        if ( self::PAGE_SLUG === $page ) {
             wp_enqueue_media();
             wp_enqueue_script( 'jquery' );
             wp_enqueue_script( 'jquery-ui-sortable' );
@@ -93,7 +94,7 @@ class JPRM_Labels_Store {
 
         $rows    = self::all();
         usort( $rows, function($a,$b){ return (int)($a['order'] ?? 0) <=> (int)($b['order'] ?? 0); } );
-        $updated = isset($_GET['updated']) ? (int)$_GET['updated'] : 0;
+        $updated = isset( $_GET['updated'] ) ? absint( wp_unslash( $_GET['updated'] ) ) : 0;
 
         echo '<div class="wrap">';
         echo '<h1>' . esc_html__( 'Price Labels', 'jellopoint-restaurant-menu' ) . '</h1>';
@@ -285,12 +286,17 @@ class JPRM_Labels_Store {
     /** Save posted labels. */
     public static function handle_save() : void {
         if ( ! is_admin() ) return;
-        if ( empty($_POST['jprm_labels_nonce']) || ! wp_verify_nonce( $_POST['jprm_labels_nonce'], 'jprm_labels_save' ) ) {
+        $nonce = isset( $_POST['jprm_labels_nonce'] )
+            ? sanitize_text_field( wp_unslash( $_POST['jprm_labels_nonce'] ) )
+            : '';
+        if ( ! wp_verify_nonce( $nonce, 'jprm_labels_save' ) ) {
             return;
         }
         if ( ! current_user_can( 'manage_options' ) ) return;
 
-        $rows = isset($_POST['labels']) && is_array($_POST['labels']) ? $_POST['labels'] : [];
+        $rows = isset( $_POST['labels'] ) && is_array( $_POST['labels'] )
+            ? wp_unslash( $_POST['labels'] )
+            : [];
         $clean = [];
         $seen_ids = [];
         $i = 0;
