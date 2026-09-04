@@ -3,7 +3,7 @@
  * Plugin Name:       JelloPoint – Restaurant Menu
  * Plugin URI:        https://github.com/JelloPoint/jellopoint-restaurant-menu
  * Description:       Create and display restaurant menus with sections, flexible prices, dietary labels, and an Elementor widget.
- * Version:           2.0.17
+ * Version:           2.0.18
  * Requires at least: 6.5
  * Requires PHP:      7.4
  * Author:            JelloPoint
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Constants
  * ------------------------------------------------- */
 if ( ! defined( 'JPRM_VERSION' ) ) {
-	define( 'JPRM_VERSION', '2.0.17' );
+	define( 'JPRM_VERSION', '2.0.18' );
 }
 if ( ! defined( 'JPRM_PLUGIN_FILE' ) ) {
 	define( 'JPRM_PLUGIN_FILE', __FILE__ );
@@ -73,6 +73,7 @@ if ( is_admin() ) {
 	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-menuitem-meta.php';
 	require_once JPRM_PLUGIN_PATH . 'includes/admin/save/class-menuitem-v3-writer.php';
 	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-menu.php';               // admin menu bootstrap
+	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-settings.php';
 	require_once JPRM_PLUGIN_PATH . 'includes/admin/badges-post-bootstrap.php';
 
 	// Menu Builder (admin UI shell)
@@ -108,6 +109,7 @@ if ( is_admin() ) {
 	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-info-blocks.php';
 	\JelloPoint\RestaurantMenu\Admin\Info_Blocks_Admin::init();
 
+	\JelloPoint\RestaurantMenu\Admin\Settings::init();
 	\JelloPoint\RestaurantMenu\Admin\Admin_Menu::init();
 }
 

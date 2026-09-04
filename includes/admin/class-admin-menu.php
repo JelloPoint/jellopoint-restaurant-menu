@@ -17,6 +17,7 @@ class Admin_Menu {
 	const SLUG_SECTS  = 'edit-tags.php?taxonomy=jprm_section&post_type=jprm_menu_item';
 	const SLUG_ITEMS  = 'edit.php?post_type=jprm_menu_item'; // canonical CPT list
 	const SLUG_INFO_BLOCKS = 'edit.php?post_type=jprm_info_block';
+	const SLUG_SETTINGS = 'jprm-settings';
 
 	/** @var bool */
 	private static $bootstrapped = false;
@@ -171,6 +172,7 @@ class Admin_Menu {
 			self::SLUG_INFO_BLOCKS,
 			apply_filters( 'jprm/price_labels_slug', 'jprm-price-labels' ),
 			'jprm-dietary-badges',
+			self::SLUG_SETTINGS,
 		];
 
 		$ordered = [];
