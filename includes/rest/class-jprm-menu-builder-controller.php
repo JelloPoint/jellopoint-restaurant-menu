@@ -31,76 +31,91 @@ class Menu_Builder_Controller extends \WP_REST_Controller {
 	}
 
 	public function register_routes() : void {
+		$id_arg = [ 'type' => 'integer', 'required' => true, 'minimum' => 1, 'sanitize_callback' => 'absint' ];
+		$optional_id_arg = [ 'type' => 'integer', 'required' => false, 'default' => 0, 'minimum' => 0, 'sanitize_callback' => 'absint' ];
 
 		/* Sanity */
 		register_rest_route( self::NS, '/ping', [
 			'methods'             => 'GET',
 			'callback'            => function(){ return rest_ensure_response( [ 'ok' => true ] ); },
-			'permission_callback' => [ $this, 'cap' ],
+			'permission_callback' => [ $this, 'read_permissions_check' ],
 		] );
 
 		/* Menus */
 		register_rest_route( self::NS, '/menu-builder/menus', [
 			'methods'  => 'GET',
 			'callback' => [ $this, 'get_menus' ],
-			'permission_callback' => [ $this, 'cap' ],
+			'permission_callback' => [ $this, 'read_permissions_check' ],
 		] );
 
 		/* Sections */
 		register_rest_route( self::NS, '/menu-builder/sections', [
 			'methods'  => 'GET',
 			'callback' => [ $this, 'get_sections' ],
-			'args'     => [ 'menu_id' => [ 'type' => 'integer', 'required' => true ] ],
-			'permission_callback' => [ $this, 'cap' ],
+			'args'     => [ 'menu_id' => $id_arg ],
+			'permission_callback' => [ $this, 'read_permissions_check' ],
 		] );
 
 		register_rest_route( self::NS, '/menu-builder/sections/available', [
 			'methods'  => 'GET',
 			'callback' => [ $this, 'get_available_sections' ],
-			'args'     => [ 'menu_id' => [ 'type' => 'integer', 'required' => true ] ],
-			'permission_callback' => [ $this, 'cap' ],
+			'args'     => [ 'menu_id' => $id_arg ],
+			'permission_callback' => [ $this, 'read_permissions_check' ],
 		] );
 
 		register_rest_route( self::NS, '/menu-builder/section/attach', [
 			'methods'  => 'POST',
 			'callback' => [ $this, 'attach_section' ],
 			'args'     => [
-				'menu_id' => [ 'type' => 'integer', 'required' => true ],
-				'section_id' => [ 'type' => 'integer', 'required' => true ],
+				'menu_id' => $id_arg,
+				'section_id' => $id_arg,
 			],
-			'permission_callback' => [ $this, 'cap' ],
+			'permission_callback' => [ $this, 'write_permissions_check' ],
 		] );
 
 		register_rest_route( self::NS, '/menu-builder/section', [
 			'methods'  => 'POST',
 			'callback' => [ $this, 'create_section' ],
 			'args'     => [
-				'name'    => [ 'type' => 'string',  'required' => true ],
-				'parent'  => [ 'type' => 'integer', 'required' => false, 'default' => 0 ],
-				'menu_id' => [ 'type' => 'integer', 'required' => true ],
+				'name'    => [ 'type' => 'string', 'required' => true, 'minLength' => 1, 'sanitize_callback' => 'sanitize_text_field' ],
+				'parent'  => $optional_id_arg,
+				'menu_id' => $id_arg,
 			],
-			'permission_callback' => [ $this, 'cap' ],
+			'permission_callback' => [ $this, 'write_permissions_check' ],
 		] );
 
 		register_rest_route( self::NS, '/menu-builder/sections/order', [
 			'methods'  => 'POST',
 			'callback' => [ $this, 'save_sections_order' ],
 			'args'     => [
-				'menu_id' => [ 'type' => 'integer', 'required' => true ],
+				'menu_id' => $id_arg,
 				// JS sends flat: [{id, parent_id, order}, ...]
-				'tree'    => [ 'type' => 'array',   'required' => true ],
+				'tree'    => [
+					'type' => 'array',
+					'required' => true,
+					'items' => [
+						'type' => 'object',
+						'required' => [ 'id', 'parent_id', 'order' ],
+						'properties' => [
+							'id' => [ 'type' => 'integer', 'minimum' => 1 ],
+							'parent_id' => [ 'type' => 'integer', 'minimum' => 0 ],
+							'order' => [ 'type' => 'integer', 'minimum' => 0 ],
+						],
+						'additionalProperties' => false,
+					],
+				],
 			],
-			'permission_callback' => [ $this, 'cap' ],
+			'permission_callback' => [ $this, 'write_permissions_check' ],
 		] );
 
 		register_rest_route( self::NS, '/menu-builder/section/unassign', [
 			'methods'  => 'POST',
 			'callback' => [ $this, 'unassign_section' ],
 			'args'     => [
-				'menu_id'    => [ 'type' => 'integer', 'required' => true ],
-				'section_id' => [ 'type' => 'integer', 'required' => true ],
+				'menu_id'    => $id_arg,
+				'section_id' => $id_arg,
 			],
-			'permission_callback' => [ $this, 'cap' ],
+			'permission_callback' => [ $this, 'write_permissions_check' ],
 		] );
 
 		/* Items */
@@ -108,53 +123,93 @@ class Menu_Builder_Controller extends \WP_REST_Controller {
 			'methods'  => 'GET',
 			'callback' => [ $this, 'get_items' ],
 			'args'     => [
-				'menu_id'    => [ 'type' => 'integer', 'required' => true ],
+				'menu_id'    => $id_arg,
 				'unassigned' => [ 'type' => 'boolean', 'required' => false, 'default' => false ],
 			],
-			'permission_callback' => [ $this, 'cap' ],
+			'permission_callback' => [ $this, 'read_permissions_check' ],
 		] );
 
 		register_rest_route( self::NS, '/menu-builder/items/order', [
 			'methods'  => 'POST',
 			'callback' => [ $this, 'save_items_order' ],
 			'args'     => [
-				'menu_id' => [ 'type' => 'integer', 'required' => true ],
-				'items'   => [ 'type' => 'array',   'required' => true ], // [{id,section_id,order}, ...]
+				'menu_id' => $id_arg,
+				'items'   => [
+					'type' => 'array',
+					'required' => true,
+					'items' => [
+						'type' => 'object',
+						'required' => [ 'id', 'section_id', 'order' ],
+						'properties' => [
+							'id' => [ 'type' => 'integer', 'minimum' => 1 ],
+							'section_id' => [ 'type' => 'integer', 'minimum' => 1 ],
+							'order' => [ 'type' => 'integer', 'minimum' => 0 ],
+						],
+						'additionalProperties' => false,
+					],
+				], // [{id,section_id,order}, ...]
 			],
-			'permission_callback' => [ $this, 'cap' ],
+			'permission_callback' => [ $this, 'write_permissions_check' ],
 		] );
 
 		register_rest_route( self::NS, '/menu-builder/item/assign-batch', [
 			'methods'  => 'POST',
 			'callback' => [ $this, 'assign_items_batch' ],
 			'args'     => [
-				'menu_id'    => [ 'type' => 'integer', 'required' => true ],
-				'section_id' => [ 'type' => 'integer', 'required' => true ],
-				'ids'        => [ 'type' => 'array',   'required' => true ],
+				'menu_id'    => $id_arg,
+				'section_id' => $id_arg,
+				'ids'        => [ 'type' => 'array', 'required' => true, 'minItems' => 1, 'uniqueItems' => true, 'items' => [ 'type' => 'integer', 'minimum' => 1 ] ],
 			],
-			'permission_callback' => [ $this, 'cap' ],
+			'permission_callback' => [ $this, 'write_permissions_check' ],
 		] );
 
 		register_rest_route( self::NS, '/menu-builder/item/unassign', [
 			'methods'  => 'POST',
 			'callback' => [ $this, 'unassign_item' ],
 			'args'     => [
-				'menu_id' => [ 'type' => 'integer', 'required' => true ],
-				'id' => [ 'type' => 'integer', 'required' => true ],
+				'menu_id' => $id_arg,
+				'id' => $id_arg,
 			],
-			'permission_callback' => [ $this, 'cap' ],
+			'permission_callback' => [ $this, 'write_permissions_check' ],
 		] );
 
-		register_rest_route( self::NS, '/menu-builder/info-blocks', [ 'methods' => 'GET', 'callback' => [ $this, 'get_info_blocks' ], 'args' => [ 'menu_id' => [ 'type' => 'integer', 'required' => true ] ], 'permission_callback' => [ $this, 'cap' ] ] );
-		register_rest_route( self::NS, '/menu-builder/info-blocks/save', [ 'methods' => 'POST', 'callback' => [ $this, 'save_info_blocks' ], 'args' => [ 'menu_id' => [ 'type' => 'integer', 'required' => true ], 'placements' => [ 'type' => 'array', 'required' => true ] ], 'permission_callback' => [ $this, 'cap' ] ] );
+		register_rest_route( self::NS, '/menu-builder/info-blocks', [ 'methods' => 'GET', 'callback' => [ $this, 'get_info_blocks' ], 'args' => [ 'menu_id' => $id_arg ], 'permission_callback' => [ $this, 'read_permissions_check' ] ] );
+		register_rest_route( self::NS, '/menu-builder/info-blocks/save', [
+			'methods' => 'POST',
+			'callback' => [ $this, 'save_info_blocks' ],
+			'args' => [
+				'menu_id' => $id_arg,
+				'placements' => [
+					'type' => 'array',
+					'required' => true,
+					'items' => [
+						'type' => 'object',
+						'required' => [ 'id', 'section_id', 'position', 'order' ],
+						'properties' => [
+							'id' => [ 'type' => 'integer', 'minimum' => 1 ],
+							'section_id' => [ 'type' => 'integer', 'minimum' => 1 ],
+							'position' => [ 'type' => 'string', 'enum' => [ 'above', 'below' ] ],
+							'order' => [ 'type' => 'integer', 'minimum' => 0 ],
+						],
+						'additionalProperties' => false,
+					],
+				],
+			],
+			'permission_callback' => [ $this, 'write_permissions_check' ],
+		] );
 	}
 
-	public function cap( $request ) : bool {
-		if ( $request instanceof \WP_REST_Request && 'GET' !== $request->get_method() ) {
-			return current_user_can( 'manage_categories' );
+	public function read_permissions_check() : bool {
+		return current_user_can( 'edit_posts' );
+	}
+
+	public function write_permissions_check( $request ) {
+		if ( ! current_user_can( 'manage_categories' ) ) {
+			return new \WP_Error( 'jprm_rest_forbidden', __( 'Insufficient permissions.', 'jellopoint-restaurant-menu' ), [ 'status' => 403 ] );
 		}
 
-		return current_user_can( 'edit_posts' );
+		$menu_id = isset( $request['menu_id'] ) ? (int) $request['menu_id'] : 0;
+		return $menu_id > 0 ? $this->check_editable_term( $menu_id, self::TAX_MENU ) : true;
 	}
 
 	/* ============================================================
@@ -207,7 +262,8 @@ class Menu_Builder_Controller extends \WP_REST_Controller {
 		$section_id = (int) $request['section_id'];
 		$term = get_term( $section_id, self::TAX_SECTION );
 		if ( $menu_id <= 0 || ! $term || is_wp_error( $term ) ) { return new \WP_Error( 'jprm_bad_section', __( 'Select a valid existing Section.', 'jellopoint-restaurant-menu' ), [ 'status' => 400 ] ); }
-		if ( ! current_user_can( 'edit_term', $section_id ) ) { return new \WP_Error( 'jprm_perm', __( 'Insufficient permissions.', 'jellopoint-restaurant-menu' ), [ 'status' => 403 ] ); }
+		$section_access = $this->check_editable_term( $section_id, self::TAX_SECTION );
+		if ( is_wp_error( $section_access ) ) { return $section_access; }
 		Menu_Structure_Store::attach_section( $menu_id, $section_id );
 		return rest_ensure_response( [ 'ok' => true, 'id' => $section_id, 'title' => (string) $term->name ] );
 	}
@@ -234,6 +290,8 @@ class Menu_Builder_Controller extends \WP_REST_Controller {
 					[ 'status' => 400 ]
 				);
 			}
+			$parent_access = $this->check_editable_term( $parent, self::TAX_SECTION );
+			if ( is_wp_error( $parent_access ) ) { return $parent_access; }
 		}
 
 		$ins = wp_insert_term( $name, self::TAX_SECTION );
@@ -274,6 +332,8 @@ foreach ( $flat as $row ) {
 			[ 'status' => 400 ]
 		);
 	}
+	$section_access = $this->check_editable_term( $tid, self::TAX_SECTION );
+	if ( is_wp_error( $section_access ) ) { return $section_access; }
 
 	$parent_id = (int) ( $row['parent_id'] ?? 0 );
 	if ( $parent_id === $tid ) {
@@ -302,9 +362,8 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 		if ( $menu_id <= 0 || $section_id <= 0 ) {
 			return new \WP_Error( 'jprm_bad_params', __( 'menu_id and section_id are required.', 'jprm' ), [ 'status' => 400 ] );
 		}
-		if ( ! current_user_can( 'edit_term', $section_id ) ) {
-			return new \WP_Error( 'jprm_perm', __( 'Insufficient permissions.', 'jellopoint-restaurant-menu' ), [ 'status' => 403 ] );
-		}
+		$section_access = $this->check_editable_term( $section_id, self::TAX_SECTION );
+		if ( is_wp_error( $section_access ) ) { return $section_access; }
 		if ( ! in_array( $section_id, Menu_Structure_Store::section_ids( $menu_id ), true ) ) {
 			return new \WP_Error( 'jprm_cross_menu', __( 'This Section is not attached to the selected Menu.', 'jellopoint-restaurant-menu' ), [ 'status' => 400 ] );
 		}
@@ -339,6 +398,7 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 		$placements = Menu_Structure_Store::item_placements( $menu_id );
 		$out = [];
 		foreach ( (array) $q->posts as $pid ) {
+			if ( ! current_user_can( 'read_post', (int) $pid ) ) { continue; }
 			$placement = $placements[ (int) $pid ] ?? null;
 			$belongs = is_array( $placement );
 
@@ -371,7 +431,9 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 			$pid = (int) ( $row['id'] ?? 0 );
 			$section_id = (int) ( $row['section_id'] ?? 0 );
 			if ( $pid <= 0 || ! in_array( $section_id, $section_ids, true ) ) { continue; }
-			if ( ! current_user_can( 'edit_post', $pid ) ) { continue; }
+			if ( self::CPT_ITEM !== get_post_type( $pid ) || ! current_user_can( 'edit_post', $pid ) ) { continue; }
+			$section_access = $this->check_editable_term( $section_id, self::TAX_SECTION );
+			if ( is_wp_error( $section_access ) ) { continue; }
 			$valid[] = [ 'id' => $pid, 'section_id' => $section_id, 'order' => (int) ( $row['order'] ?? 0 ) ];
 			// Additive legacy terms never remove another Menu's placement.
 			wp_set_post_terms( $pid, [ $section_id ], self::TAX_SECTION, true );
@@ -398,12 +460,14 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 				[ 'status' => 400 ]
 			);
 		}
+		$section_access = $this->check_editable_term( $section_id, self::TAX_SECTION );
+		if ( is_wp_error( $section_access ) ) { return $section_access; }
 
 		$allowed = [];
 		foreach ( $ids as $pid ) {
 			$pid = (int) $pid;
 			if ( $pid <= 0 ) continue;
-			if ( ! current_user_can( 'edit_post', $pid ) ) continue;
+			if ( self::CPT_ITEM !== get_post_type( $pid ) || ! current_user_can( 'edit_post', $pid ) ) continue;
 			$allowed[] = $pid;
 			wp_set_post_terms( $pid, [ $section_id ], self::TAX_SECTION, true );
 			wp_set_post_terms( $pid, [ $menu_id ], self::TAX_MENU, true );
@@ -421,6 +485,9 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 		if ( ! current_user_can( 'edit_post', $pid ) ) {
 			return new \WP_Error( 'jprm_perm', __( 'Insufficient permissions.', 'jprm' ), [ 'status' => 403 ] );
 		}
+		if ( self::CPT_ITEM !== get_post_type( $pid ) ) {
+			return new \WP_Error( 'jprm_bad_item', __( 'Select a valid Menu Item.', 'jellopoint-restaurant-menu' ), [ 'status' => 400 ] );
+		}
 		Menu_Structure_Store::unassign_item( $menu_id, $pid );
 		return rest_ensure_response( [ 'ok' => true ] );
 	}
@@ -429,8 +496,17 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 		$menu_id = (int) $request['menu_id'];
 		$query = new \WP_Query( [ 'post_type' => 'jprm_info_block', 'post_status' => 'publish', 'posts_per_page' => -1, 'orderby' => [ 'menu_order' => 'ASC', 'title' => 'ASC' ] ] );
 		$blocks = [];
-		foreach ( (array) $query->posts as $post ) { $blocks[] = [ 'id' => (int) $post->ID, 'title' => (string) $post->post_title ]; }
-		return rest_ensure_response( [ 'blocks' => $blocks, 'placements' => Info_Block_Store::get( $menu_id ) ] );
+		$readable_ids = [];
+		foreach ( (array) $query->posts as $post ) {
+			if ( current_user_can( 'read_post', (int) $post->ID ) ) {
+				$readable_ids[] = (int) $post->ID;
+				$blocks[] = [ 'id' => (int) $post->ID, 'title' => (string) $post->post_title ];
+			}
+		}
+		$placements = array_values( array_filter( Info_Block_Store::get( $menu_id ), static function( array $row ) use ( $readable_ids ) : bool {
+			return in_array( (int) ( $row['id'] ?? 0 ), $readable_ids, true );
+		} ) );
+		return rest_ensure_response( [ 'blocks' => $blocks, 'placements' => $placements ] );
 	}
 
 	public function save_info_blocks( $request ) {
@@ -438,7 +514,7 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 		$sections = Menu_Structure_Store::section_ids( $menu_id ); $valid = [];
 		foreach ( $rows as $row ) {
 			$id = (int) ( $row['id'] ?? 0 ); $section_id = (int) ( $row['section_id'] ?? 0 );
-			if ( $id > 0 && in_array( $section_id, $sections, true ) && 'jprm_info_block' === get_post_type( $id ) ) { $valid[] = $row; }
+			if ( $id > 0 && in_array( $section_id, $sections, true ) && 'jprm_info_block' === get_post_type( $id ) && current_user_can( 'read_post', $id ) ) { $valid[] = $row; }
 		}
 		Info_Block_Store::save( $menu_id, $valid );
 		return rest_ensure_response( [ 'ok' => true, 'count' => count( $valid ) ] );
@@ -447,6 +523,19 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 	/* ============================================================
 	 * Helpers
 	 * ============================================================ */
+
+	/** Confirm that a concrete taxonomy term exists and is editable. */
+	private function check_editable_term( int $term_id, string $taxonomy ) {
+		$term = get_term( $term_id, $taxonomy );
+		if ( ! $term || is_wp_error( $term ) || $taxonomy !== (string) $term->taxonomy ) {
+			return new \WP_Error( 'jprm_term_not_found', __( 'The requested term does not exist.', 'jellopoint-restaurant-menu' ), [ 'status' => 404 ] );
+		}
+		if ( ! current_user_can( 'edit_term', $term_id ) ) {
+			return new \WP_Error( 'jprm_rest_forbidden', __( 'Insufficient permissions.', 'jellopoint-restaurant-menu' ), [ 'status' => 403 ] );
+		}
+
+		return true;
+	}
 
 	/** Cascade owner to the term and all descendants */
 	private function cascade_owner( int $term_id, int $owner_menu_id ) : void {
