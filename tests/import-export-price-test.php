@@ -92,4 +92,43 @@ $result_method = new ReflectionMethod( JPRM_Importer::class, 'result_row' );
 $reported = $result_method->invoke( null, 101, 101, 'Item 101', 'single', '14,50', [], [], '', 'unchanged' );
 jprm_transfer_assert_same( 'unchanged', $reported['action'], 'Dry-run reports must preserve the calculated unchanged action.' );
 
+$preserve_method = new ReflectionMethod( JPRM_Importer::class, 'preserve_price_metadata' );
+$single_preserved = $preserve_method->invoke(
+	null,
+	[ 'mode' => 'single', 'amount_raw' => '16,00', 'label_mode' => 'ref', 'label_ref' => '' ],
+	$items[0]['prices']
+);
+jprm_transfer_assert_same( '16,00', $single_preserved['amount_raw'], 'CSV must still update a single price amount.' );
+jprm_transfer_assert_same( 'custom', $single_preserved['label_mode'], 'CSV must preserve an existing single-price label mode.' );
+jprm_transfer_assert_same( 'Chef', $single_preserved['label_custom'], 'CSV must preserve an existing custom price label.' );
+jprm_transfer_assert_same( 289, $single_preserved['icon_id'], 'CSV must preserve an existing single-price icon.' );
+
+$multi_preserved = $preserve_method->invoke(
+	null,
+	[
+		'mode' => 'multi',
+		'rows' => [
+			[ 'amount' => '10', 'label_ref' => '' ],
+			[ 'amount' => '13', 'label_ref' => '' ],
+		],
+	],
+	$items[1]['prices']
+);
+jprm_transfer_assert_same( '10', $multi_preserved['rows'][0]['amount'], 'CSV must still update the first multi-price amount.' );
+jprm_transfer_assert_same( 'Small', $multi_preserved['rows'][0]['label_ref'], 'CSV must preserve the first multi-price label.' );
+jprm_transfer_assert_same( 'Large', $multi_preserved['rows'][1]['label_custom'], 'CSV must preserve a custom multi-price label.' );
+jprm_transfer_assert_same( 302, $multi_preserved['rows'][1]['icon_id'], 'CSV must preserve a multi-price icon.' );
+
+$csv_parser = new ReflectionMethod( JPRM_Importer::class, 'parse_csv_strict' );
+$csv_report = [ 'errors' => [] ];
+$csv_items = $csv_parser->invokeArgs(
+	null,
+	[
+		"post_id;post_title;post_status;description;menus;sections;Price_Single;Price_Multiple\n101;Soup;publish;;Lunch;Starters;16,00;\n",
+		&$csv_report,
+	]
+);
+jprm_transfer_assert_same( true, $csv_items[0]['_preserve_item_metadata'] ?? false, 'CSV rows must request preservation of unrepresented item metadata.' );
+jprm_transfer_assert_same( false, array_key_exists( 'badges', $csv_items[0] ), 'CSV rows must not represent missing badges as an empty selection.' );
+
 fwrite( STDOUT, "Import/export price compatibility checks passed.\n" );
