@@ -31,6 +31,7 @@ class Plugin {
 		// Elementor.
 		add_action( 'elementor/elements/categories_registered', [ __CLASS__, 'register_elementor_category' ] );
 		add_action( 'elementor/widgets/register', [ __CLASS__, 'register_elementor_widget' ] );
+		add_action( 'admin_notices', [ __CLASS__, 'render_elementor_dependency_notice' ] );
 
 		// Assets for frontend/editor.
 		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'register_assets' ] );
@@ -150,6 +151,28 @@ class Plugin {
 	/* =========================
 	 * Elementor registration
 	 * ========================= */
+
+	/** Explain why the widget is unavailable while keeping the data tools usable. */
+	public static function render_elementor_dependency_notice() : void {
+		if ( ! current_user_can( 'activate_plugins' ) || class_exists( '\Elementor\Plugin' ) || did_action( 'elementor/loaded' ) ) {
+			return;
+		}
+
+		$install_url = current_user_can( 'install_plugins' )
+			? self_admin_url( 'plugin-install.php?s=elementor&tab=search&type=term' )
+			: '';
+		?>
+		<div class="notice notice-warning">
+			<p>
+				<strong><?php esc_html_e( 'JelloPoint Restaurant Menu:', 'jellopoint-restaurant-menu' ); ?></strong>
+				<?php esc_html_e( 'The Elementor widget requires Elementor. Restaurant menu data management remains available without it.', 'jellopoint-restaurant-menu' ); ?>
+				<?php if ( '' !== $install_url ) : ?>
+					<a href="<?php echo esc_url( $install_url ); ?>"><?php esc_html_e( 'Install or activate Elementor', 'jellopoint-restaurant-menu' ); ?></a>
+				<?php endif; ?>
+			</p>
+		</div>
+		<?php
+	}
 
 	public static function register_elementor_category( $elements_manager ) : void {
 		if ( is_object( $elements_manager ) && method_exists( $elements_manager, 'add_category' ) ) {
