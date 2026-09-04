@@ -20,6 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  *   and a sequential `_jprm_section_order` is assigned if missing.
  */
 final class JPRM_Importer {
+	private const MAX_IMPORT_ITEMS = 5000;
 
 	/** Per-run counters: next section order per owner-menu term_id. */
 	private static array $section_order_seq = []; // [ menu_term_id => next_int ]
@@ -72,6 +73,10 @@ final class JPRM_Importer {
 
 		if ( empty( $items ) ) {
 			$report['errors'][] = 'No items found in file.';
+			return $report;
+		}
+		if ( count( $items ) > self::MAX_IMPORT_ITEMS ) {
+			$report['errors'][] = 'Import files may contain no more than 5000 items.';
 			return $report;
 		}
 

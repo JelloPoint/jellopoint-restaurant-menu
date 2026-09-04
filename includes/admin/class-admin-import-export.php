@@ -168,27 +168,33 @@ final class JPRM_Admin_Import_Export {
 
         $create_missing_terms = ! empty( $_POST['create_missing_terms'] );
         $ignore_ids           = ! empty( $_POST['ignore_ids'] );
-        $attach_images        = ! empty( $_POST['attach_images'] ); // reserved
-
-        if ( empty( $_FILES['jprm_import_file'] ) || ! is_array( $_FILES['jprm_import_file'] ) ) {
-            $back = wp_get_referer() ?: admin_url( 'admin.php?page=' . self::PAGE_SLUG );
-            wp_safe_redirect( add_query_arg( 'jprm_ie_msg', rawurlencode( 'No file uploaded.' ), $back ) );
-            exit;
-        }
+		if ( empty( $_FILES['jprm_import_file'] ) || ! is_array( $_FILES['jprm_import_file'] ) ) {
+			self::redirect_import_error( 'No file uploaded.' );
+		}
 
 		$file = $_FILES['jprm_import_file'];
 		$error = isset( $file['error'] ) ? (int) $file['error'] : UPLOAD_ERR_NO_FILE;
-		$size  = isset( $file['size'] ) ? (int) $file['size'] : 0;
 		$name  = isset( $file['name'] ) ? sanitize_file_name( wp_unslash( $file['name'] ) ) : '';
+		$tmp_name = isset( $file['tmp_name'] ) && is_string( $file['tmp_name'] ) ? $file['tmp_name'] : '';
 		$ext   = strtolower( pathinfo( $name, PATHINFO_EXTENSION ) );
 
-		if ( UPLOAD_ERR_OK !== $error || $size <= 0 || $size > self::MAX_IMPORT_BYTES || ! in_array( $ext, [ 'csv', 'json' ], true ) ) {
-			$back = wp_get_referer() ?: admin_url( 'admin.php?page=' . self::PAGE_SLUG );
-			wp_safe_redirect( add_query_arg( 'jprm_ie_msg', rawurlencode( 'Upload a valid CSV or JSON file no larger than 5 MB.' ), $back ) );
-			exit;
+		if ( UPLOAD_ERR_OK !== $error || '' === $tmp_name || ! is_uploaded_file( $tmp_name ) || ! in_array( $ext, [ 'csv', 'json' ], true ) ) {
+			self::redirect_import_error( 'Upload a valid CSV or JSON file.' );
+		}
+
+		clearstatcache( true, $tmp_name );
+		$actual_size = filesize( $tmp_name );
+		if ( false === $actual_size || $actual_size <= 0 || $actual_size > self::MAX_IMPORT_BYTES ) {
+			self::redirect_import_error( 'Upload a non-empty CSV or JSON file no larger than 5 MB.' );
+		}
+
+		$content_error = self::validate_import_file_content( $tmp_name, $ext );
+		if ( '' !== $content_error ) {
+			self::redirect_import_error( $content_error );
 		}
 
 		$file['name'] = $name;
+		$file['size'] = $actual_size;
 
         if ( ! class_exists( '\\JelloPoint\\RestaurantMenu\\Data\\JPRM_Importer' ) ) {
             require_once dirname( __DIR__ ) . '/data/class-importer.php';
@@ -231,6 +237,45 @@ final class JPRM_Admin_Import_Export {
 
 		$back = wp_get_referer() ?: admin_url( 'admin.php?page=' . self::PAGE_SLUG );
 		wp_safe_redirect( add_query_arg( [ 'jprm_ie_report' => $key ], $back ) );
+		exit;
+	}
+
+	/** Validate that the uploaded bytes match the selected strict import format. */
+	public static function validate_import_file_content( string $path, string $extension ) : string {
+		$raw = file_get_contents( $path, false, null, 0, self::MAX_IMPORT_BYTES + 1 );
+		if ( false === $raw || '' === $raw || strlen( $raw ) > self::MAX_IMPORT_BYTES || false !== strpos( $raw, "\0" ) ) {
+			return 'The uploaded file is empty, unreadable, too large, or contains binary data.';
+		}
+
+		$raw = (string) preg_replace( '/^\xEF\xBB\xBF/', '', $raw );
+		if ( 'json' === $extension ) {
+			$decoded = json_decode( $raw, true );
+			if ( JSON_ERROR_NONE !== json_last_error() || ! is_array( $decoded ) || ( ! isset( $decoded['items'] ) && ! isset( $decoded[0] ) ) ) {
+				return 'The JSON file is invalid or does not contain an items array.';
+			}
+			return '';
+		}
+
+		if ( 'csv' !== $extension ) {
+			return 'Only CSV and JSON imports are supported.';
+		}
+
+		$line_end = strpos( $raw, "\n" );
+		$header_line = false === $line_end ? $raw : substr( $raw, 0, $line_end );
+		$delimiter = substr_count( $header_line, ';' ) >= substr_count( $header_line, ',' ) ? ';' : ',';
+		$headers = str_getcsv( rtrim( $header_line, "\r\n" ), $delimiter );
+		$required = [ 'post_id', 'post_title', 'post_status', 'description', 'menus', 'sections', 'Price_Single', 'Price_Multiple' ];
+		if ( array_diff( $required, $headers ) ) {
+			return 'The CSV file does not contain the required JelloPoint import headers.';
+		}
+
+		return '';
+	}
+
+	/** Return safely to the plugin page after a rejected upload. */
+	private static function redirect_import_error( string $message ) : void {
+		$back = wp_get_referer() ?: admin_url( 'admin.php?page=' . self::PAGE_SLUG );
+		wp_safe_redirect( add_query_arg( 'jprm_ie_msg', rawurlencode( $message ), $back ) );
 		exit;
 	}
 
