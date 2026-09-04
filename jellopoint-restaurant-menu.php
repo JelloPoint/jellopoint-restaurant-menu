@@ -1,10 +1,15 @@
 <?php
 /**
- * Plugin Name: JelloPoint – Restaurant Menu
- * Description: Restaurant Menu items, labels and Elementor widget.
- * Version: 2.0.16
- * Author: JelloPoint
- * Text Domain: jellopoint-restaurant-menu
+ * Plugin Name:       JelloPoint – Restaurant Menu
+ * Plugin URI:        https://github.com/JelloPoint/jellopoint-restaurant-menu
+ * Description:       Create and display restaurant menus with sections, flexible prices, dietary labels, and an Elementor widget.
+ * Version:           2.0.16
+ * Requires at least: 6.5
+ * Requires PHP:      7.4
+ * Author:            JelloPoint
+ * License:           GPL v2 or later
+ * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+ * Text Domain:       jellopoint-restaurant-menu
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
