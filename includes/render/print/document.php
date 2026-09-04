@@ -46,5 +46,28 @@ if ( ! empty( $daily['enabled'] ) && 'none' !== (string) $daily['date_type'] ) {
 		<?php endforeach; ?>
 		</div>
 	</main>
+	<script>
+	window.addEventListener('load',function(){
+		var documentElement=document.querySelector('.jprm-print-document');
+		if(!documentElement){return}
+		var millimetre=document.createElement('div');
+		millimetre.style.cssText='position:absolute;visibility:hidden;width:100mm';
+		document.body.appendChild(millimetre);
+		var pixelsPerMillimetre=millimetre.getBoundingClientRect().width/100;
+		millimetre.remove();
+		var pageHeightMillimetres=document.body.classList.contains('jprm-print--landscape')?210:297;
+		var pageHeight=pageHeightMillimetres*pixelsPerMillimetre;
+		var contentHeight=documentElement.scrollHeight;
+		var page=1;
+		do{
+			var guide=document.createElement('div');
+			guide.className='jprm-print-page-break-guide';
+			guide.style.top=(page*pageHeight)+'px';
+			guide.innerHTML='<span><?php echo esc_js( __( 'Page break', 'jellopoint-restaurant-menu' ) ); ?> · <?php echo esc_js( __( 'Page', 'jellopoint-restaurant-menu' ) ); ?> '+(page+1)+'</span>';
+			documentElement.appendChild(guide);
+			page++;
+		}while(page*pageHeight<=contentHeight+1);
+	});
+	</script>
 	<?php if ( $auto_print ) : ?><script>window.addEventListener('load',function(){window.setTimeout(function(){window.print()},250)});</script><?php endif; ?>
 </body></html>

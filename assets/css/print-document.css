@@ -15,8 +15,10 @@ body { margin: 0; color: var(--jprm-text); font-family: Arial, sans-serif; }
 .jprm-print--heading-modern h1, .jprm-print--heading-modern h2 { font-family: 'Trebuchet MS', Arial, sans-serif; }
 .jprm-print--heading-classic h1, .jprm-print--heading-classic h2 { font-family: Garamond, Georgia, serif; }
 .jprm-print--classic { color: var(--jprm-text); }
-.jprm-print-document { width: 210mm; min-height: 297mm; margin: 20px auto; background: var(--jprm-background); padding: var(--jprm-page-top) var(--jprm-page-right) var(--jprm-page-bottom) var(--jprm-page-left); box-shadow: 0 4px 24px rgba(0,0,0,.18); border: var(--jprm-menu-border); border-radius: var(--jprm-menu-radius); }
+.jprm-print-document { position: relative; width: 210mm; min-height: 297mm; margin: 20px auto; background: var(--jprm-background); padding: var(--jprm-page-top) var(--jprm-page-right) var(--jprm-page-bottom) var(--jprm-page-left); box-shadow: 0 4px 24px rgba(0,0,0,.18); border: var(--jprm-menu-border); border-radius: var(--jprm-menu-radius); }
 .jprm-print--landscape .jprm-print-document { width: 297mm; min-height: 210mm; }
+.jprm-print-page-break-guide { position: absolute; z-index: 5; left: 0; right: 0; height: 0; border-top: 2px dashed #d63638; pointer-events: none; }
+.jprm-print-page-break-guide span { position: absolute; right: 8px; bottom: 4px; padding: 2px 6px; color: #8a2424; background: #fff; border-radius: 3px; font: 11px/1.3 Arial, sans-serif; }
 .jprm-print-header { text-align: var(--jprm-header-align); margin-bottom: 12mm; }
 .jprm-print-logo { display: block; max-width: 55mm; max-height: 28mm; object-fit: contain; margin-bottom: 5mm; }
 .jprm-print-header--logo-left .jprm-print-logo { margin-right: auto; }
@@ -61,6 +63,7 @@ body { margin: 0; color: var(--jprm-text); font-family: Arial, sans-serif; }
 @media print {
 	html { background: #fff; }
 	.jprm-print-toolbar { display: none !important; }
+	.jprm-print-page-break-guide { display: none !important; }
 	.jprm-print-document { width: auto !important; min-height: 0 !important; margin: 0; box-shadow: none; padding: 0; }
 	.jprm-print-section { display: inline-block; break-inside: avoid; }
 	.jprm-print-item { break-inside: avoid-page; }

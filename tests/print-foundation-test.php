@@ -69,6 +69,8 @@ jprm_print_assert_same( true, false !== strpos( $template, '--jprm-info-backgrou
 jprm_print_assert_same( true, false !== strpos( $template, 'window.print()' ), 'Print preview must provide the browser PDF/print action.' );
 jprm_print_assert_same( true, false !== strpos( $template, 'auto_print' ), 'Direct PDF/print workflow must support opening the browser dialog automatically.' );
 jprm_print_assert_same( true, false !== strpos( $template, 'Headers and footers' ), 'Preview must explain how to remove browser-added URLs from PDF output.' );
+jprm_print_assert_same( true, false !== strpos( $template, 'jprm-print-page-break-guide' ), 'Screen preview must render visual page-break guides.' );
+jprm_print_assert_same( true, false !== strpos( $css, '.jprm-print-page-break-guide { display: none !important; }' ), 'Page-break guides must never appear in print or PDF output.' );
 jprm_print_assert_same( true, false !== strpos( $css, '@media screen and (max-width: 900px)' ), 'Narrow-screen fallback must never override PDF column settings.' );
 
 fwrite( STDOUT, "Print/PDF foundation checks passed.\n" );
