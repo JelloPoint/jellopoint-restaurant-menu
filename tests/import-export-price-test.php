@@ -131,4 +131,11 @@ $csv_items = $csv_parser->invokeArgs(
 jprm_transfer_assert_same( true, $csv_items[0]['_preserve_item_metadata'] ?? false, 'CSV rows must request preservation of unrepresented item metadata.' );
 jprm_transfer_assert_same( false, array_key_exists( 'badges', $csv_items[0] ), 'CSV rows must not represent missing badges as an empty selection.' );
 
+$normalize_method = new ReflectionMethod( JPRM_Importer::class, 'normalize_newlines' );
+jprm_transfer_assert_same(
+	"Land | Frankrijk\nRegio | Loire\nProducent | Pierre Cherrier",
+	$normalize_method->invoke( null, "Land | Frankrijk\r\nRegio | Loire\rProducent | Pierre Cherrier" ),
+	'CSV and WordPress line endings must compare as identical content.'
+);
+
 fwrite( STDOUT, "Import/export price compatibility checks passed.\n" );

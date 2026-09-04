@@ -292,7 +292,7 @@ final class JPRM_Importer {
 		$title   = sanitize_text_field( (string) ( $it['post_title'] ?? '' ) );
 		$status  = sanitize_key( (string) ( $it['post_status'] ?? 'draft' ) );
 		$status  = in_array( $status, [ 'draft', 'pending', 'publish', 'private' ], true ) ? $status : 'draft';
-		$desc    = wp_kses_post( (string) ( $it['description'] ?? '' ) );
+		$desc    = self::normalize_newlines( wp_kses_post( (string) ( $it['description'] ?? '' ) ) );
 		$tax     = is_array( $it['tax'] ?? null ) ? $it['tax'] : [ 'jprm_menu'=>[], 'jprm_section'=>[] ];
 		$badges  = is_array( $it['badges'] ?? null ) ? $it['badges'] : [];
 		$prices  = is_array( $it['prices'] ?? null ) ? $it['prices'] : [];
@@ -335,7 +335,7 @@ final class JPRM_Importer {
 		$old = [
 			'post_title'  => $is_existing ? sanitize_text_field( (string) get_the_title( $post_id ) ) : '',
 			'post_status' => $is_existing ? (string) get_post_status( $post_id ) : 'draft',
-			'desc'        => $is_existing ? wp_kses_post( (string) get_post_meta( $post_id, 'jprm_desc', true ) ) : '',
+			'desc'        => $is_existing ? self::normalize_newlines( wp_kses_post( (string) get_post_meta( $post_id, 'jprm_desc', true ) ) ) : '',
 			'menu_terms'  => $is_existing ? self::terms_as_names( $post_id, 'jprm_menu' ) : [],
 			'sect_terms'  => $is_existing ? self::terms_as_names( $post_id, 'jprm_section' ) : [],
 			'badges'      => $is_existing ? self::meta_badges( $post_id ) : [],
@@ -720,6 +720,11 @@ final class JPRM_Importer {
 		$incoming['rows'] = $incoming_rows;
 
 		return $incoming;
+	}
+
+	/** Normalize platform-specific line endings before comparison and storage. */
+	private static function normalize_newlines( string $value ): string {
+		return str_replace( [ "\r\n", "\r" ], "\n", $value );
 	}
 
 	private static function canonicalize_rows_strict( array $rows ): array {
