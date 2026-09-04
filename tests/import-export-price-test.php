@@ -29,6 +29,7 @@ $jprm_transfer_meta = [
 ];
 
 $jprm_transfer_options = [];
+$jprm_transfer_writes = 0;
 
 class WP_Query {
 	public array $posts = [ 101, 102 ];
@@ -40,7 +41,8 @@ function get_post_meta( $post_id, $key, $single = false ) {
 	return $jprm_transfer_meta[ $post_id ][ $key ] ?? '';
 }
 function update_post_meta( $post_id, $key, $value ) {
-	global $jprm_transfer_meta;
+	global $jprm_transfer_meta, $jprm_transfer_writes;
+	$jprm_transfer_writes++;
 	$jprm_transfer_meta[ $post_id ][ $key ] = $value;
 	return true;
 }
@@ -53,7 +55,8 @@ function get_option( $key, $default = '' ) {
 	return $jprm_transfer_options[ $key ] ?? $default;
 }
 function update_option( $key, $value ) {
-	global $jprm_transfer_options;
+	global $jprm_transfer_options, $jprm_transfer_writes;
+	$jprm_transfer_writes++;
 	$jprm_transfer_options[ $key ] = $value;
 	return true;
 }
@@ -79,6 +82,8 @@ function jprm_transfer_assert_same( $expected, $actual, string $message ): void 
 $method = new ReflectionMethod( JPRM_Exporter::class, 'collect_items' );
 $items = $method->invoke( null );
 
+jprm_transfer_assert_same( 0, $jprm_transfer_writes, 'Collecting an export must not mutate the database.' );
+jprm_transfer_assert_same( false, array_key_exists( 'uid', $items[0] ), 'Exports must not expose an unused persistent item identifier.' );
 jprm_transfer_assert_same( 'custom', $items[0]['prices']['label_mode'], 'Single custom label mode must survive export.' );
 jprm_transfer_assert_same( 'Chef', $items[0]['prices']['label_custom'], 'Single custom label text must survive export.' );
 jprm_transfer_assert_same( 289, $items[0]['prices']['icon_id'], 'Single custom icon must survive export.' );

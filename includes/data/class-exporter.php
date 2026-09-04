@@ -28,7 +28,6 @@ final class JPRM_Exporter {
 				'version'      => defined( 'JPRM_VERSION' ) ? JPRM_VERSION : '',
 				'exported_utc'  => gmdate( 'c' ),
 				'post_type'     => 'jprm_menu_item',
-				'site_uid'      => self::get_site_uid(),
 			],
 			'items' => $items,
 		];
@@ -54,13 +53,10 @@ final class JPRM_Exporter {
 
 		$out = [];
 		foreach ( (array) $q->posts as $post_id ) {
-			$uid = self::ensure_item_uid( $post_id ); // generate if missing
-
 			$prices = self::prices_for_export( $post_id );
 
 			$out[] = [
 				'post_id'     => (int) $post_id,
-				'uid'         => $uid,
 				'post_title'  => (string) get_the_title( $post_id ),
 				'post_status' => (string) get_post_status( $post_id ),
 				'description' => (string) get_post_meta( $post_id, 'jprm_desc', true ),
@@ -189,33 +185,6 @@ final class JPRM_Exporter {
 	}
 
 	/* ---------------- helpers ---------------- */
-
-	private static function ensure_item_uid( int $post_id ): string {
-		$uid = (string) get_post_meta( $post_id, 'jprm_uid', true );
-		if ( $uid !== '' ) return $uid;
-
-		if ( function_exists( 'wp_generate_uuid4' ) ) {
-			$uid = wp_generate_uuid4();
-		} else {
-			$uid = uniqid( 'jprm_', true );
-		}
-		update_post_meta( $post_id, 'jprm_uid', $uid );
-		return $uid;
-	}
-
-	private static function get_site_uid(): string {
-		$uid = (string) get_option( 'jprm_site_uid', '' );
-		if ( $uid !== '' ) return $uid;
-
-		if ( function_exists( 'wp_generate_uuid4' ) ) {
-			$uid = wp_generate_uuid4();
-		} else {
-			$uid = uniqid( 'jprm_site_', true );
-		}
-
-		update_option( 'jprm_site_uid', $uid );
-		return $uid;
-	}
 
 	private static function terms_as_names( int $post_id, string $taxonomy ): array {
 		$terms = wp_get_object_terms( $post_id, $taxonomy, [ 'fields' => 'names' ] );
