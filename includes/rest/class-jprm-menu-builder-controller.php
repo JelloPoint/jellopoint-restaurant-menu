@@ -275,7 +275,7 @@ class Menu_Builder_Controller extends \WP_REST_Controller {
 		$menu_id = (int)    $request['menu_id'];
 
 		if ( $menu_id <= 0 || $name === '' ) {
-			return new \WP_Error( 'jprm_bad_params', __( 'Name and menu_id are required.', 'jprm' ), [ 'status' => 400 ] );
+			return new \WP_Error( 'jprm_bad_params', __( 'Name and menu_id are required.', 'jellopoint-restaurant-menu' ), [ 'status' => 400 ] );
 		}
 		if ( ! current_user_can( 'manage_categories' ) ) {
 			return new \WP_Error( 'jprm_perm', __( 'Insufficient permissions.', 'jellopoint-restaurant-menu' ), [ 'status' => 403 ] );
@@ -317,7 +317,7 @@ $menu_id = (int) $request['menu_id'];
 $flat    = (array) $request['tree']; // [{id, parent_id, order}]
 
 if ( $menu_id <= 0 || ! is_array( $flat ) ) {
-	return new \WP_Error( 'jprm_bad_params', __( 'menu_id and tree are required.', 'jprm' ), [ 'status' => 400 ] );
+	return new \WP_Error( 'jprm_bad_params', __( 'menu_id and tree are required.', 'jellopoint-restaurant-menu' ), [ 'status' => 400 ] );
 }
 
 $attached_ids = Menu_Structure_Store::section_ids( $menu_id );
@@ -328,7 +328,7 @@ foreach ( $flat as $row ) {
 	if ( ! in_array( $tid, $attached_ids, true ) ) {
 		return new \WP_Error(
 			'jprm_cross_menu',
-			sprintf( __( 'Section %d belongs to another Menu and cannot be moved here.', 'jprm' ), $tid ),
+			sprintf( __( 'Section %d belongs to another Menu and cannot be moved here.', 'jellopoint-restaurant-menu' ), $tid ),
 			[ 'status' => 400 ]
 		);
 	}
@@ -360,7 +360,7 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 		$section_id = (int) $request['section_id'];
 
 		if ( $menu_id <= 0 || $section_id <= 0 ) {
-			return new \WP_Error( 'jprm_bad_params', __( 'menu_id and section_id are required.', 'jprm' ), [ 'status' => 400 ] );
+			return new \WP_Error( 'jprm_bad_params', __( 'menu_id and section_id are required.', 'jellopoint-restaurant-menu' ), [ 'status' => 400 ] );
 		}
 		$section_access = $this->check_editable_term( $section_id, self::TAX_SECTION );
 		if ( is_wp_error( $section_access ) ) { return $section_access; }
@@ -382,7 +382,7 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 		$unassigned = ! empty( $request['unassigned'] );
 
 		if ( $menu_id <= 0 ) {
-			return new \WP_Error( 'jprm_bad_menu', __( 'Missing or invalid menu_id.', 'jprm' ), [ 'status' => 400 ] );
+			return new \WP_Error( 'jprm_bad_menu', __( 'Missing or invalid menu_id.', 'jellopoint-restaurant-menu' ), [ 'status' => 400 ] );
 		}
 
 		$q = new \WP_Query( [
@@ -450,13 +450,13 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 		$ids        = (array) $request['ids'];
 
 		if ( $menu_id <= 0 || $section_id <= 0 || empty( $ids ) ) {
-			return new \WP_Error( 'jprm_bad_params', __( 'menu_id, section_id and ids are required.', 'jprm' ), [ 'status' => 400 ] );
+			return new \WP_Error( 'jprm_bad_params', __( 'menu_id, section_id and ids are required.', 'jellopoint-restaurant-menu' ), [ 'status' => 400 ] );
 		}
 
 		if ( ! in_array( $section_id, Menu_Structure_Store::section_ids( $menu_id ), true ) ) {
 			return new \WP_Error(
 				'jprm_cross_menu',
-				__( 'Target section belongs to another Menu.', 'jprm' ),
+				__( 'Target section belongs to another Menu.', 'jellopoint-restaurant-menu' ),
 				[ 'status' => 400 ]
 			);
 		}
@@ -483,7 +483,7 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 			return new \WP_Error( 'jprm_bad_params', __( 'Missing Menu or item id.', 'jellopoint-restaurant-menu' ), [ 'status' => 400 ] );
 		}
 		if ( ! current_user_can( 'edit_post', $pid ) ) {
-			return new \WP_Error( 'jprm_perm', __( 'Insufficient permissions.', 'jprm' ), [ 'status' => 403 ] );
+			return new \WP_Error( 'jprm_perm', __( 'Insufficient permissions.', 'jellopoint-restaurant-menu' ), [ 'status' => 403 ] );
 		}
 		if ( self::CPT_ITEM !== get_post_type( $pid ) ) {
 			return new \WP_Error( 'jprm_bad_item', __( 'Select a valid Menu Item.', 'jellopoint-restaurant-menu' ), [ 'status' => 400 ] );

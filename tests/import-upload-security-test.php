@@ -3,6 +3,8 @@
 
 define( 'ABSPATH', __DIR__ . '/' );
 
+function __( $text, $domain = '' ) { return $text; }
+
 require_once dirname( __DIR__ ) . '/includes/admin/class-admin-import-export.php';
 require_once dirname( __DIR__ ) . '/includes/data/class-importer.php';
 

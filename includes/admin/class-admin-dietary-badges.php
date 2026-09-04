@@ -36,7 +36,7 @@ class JPRM_Admin_Dietary_Badges {
 
 	public function render_page() {
 		if ( ! current_user_can( $this->capability ) ) {
-			wp_die( esc_html__( 'You do not have permission to access this page.', 'jprm' ) );
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'jellopoint-restaurant-menu' ) );
 		}
 
 		$rows = $this->store->get_rows();
@@ -52,14 +52,14 @@ class JPRM_Admin_Dietary_Badges {
 
 		?>
 		<div class="wrap jprm-wrap">
-			<h1 class="wp-heading-inline"><?php esc_html_e( 'Dietary Badges', 'jprm' ); ?></h1>
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Dietary Badges', 'jellopoint-restaurant-menu' ); ?></h1>
 			<?php $updated = isset( $_GET['updated'] ) ? sanitize_key( wp_unslash( $_GET['updated'] ) ) : ''; ?>
 			<?php if ( 'true' === $updated ) : ?>
 	        <div class="notice notice-success is-dismissible">
-		    <p><?php echo esc_html__( 'Badges saved.', 'jprm' ); ?></p>
+		    <p><?php echo esc_html__( 'Badges saved.', 'jellopoint-restaurant-menu' ); ?></p>
 	    </div>
         <?php endif; ?>
-            <p class="description"><?php esc_html_e( 'Drag rows to reorder. Click the icon to choose or clear. Use the trash to delete a row.', 'jprm' ); ?></p>
+            <p class="description"><?php esc_html_e( 'Drag rows to reorder. Click the icon to choose or clear. Use the trash to delete a row.', 'jellopoint-restaurant-menu' ); ?></p>
 
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="jprm-badges-form">
 				<?php wp_nonce_field( $this->nonce_action, $this->nonce_name ); ?>
@@ -69,10 +69,10 @@ class JPRM_Admin_Dietary_Badges {
 					<thead>
 						<tr>
 							<th style="width:36px;"></th>
-							<th><?php esc_html_e( 'Name', 'jprm' ); ?></th>
-							<th style="width:160px;"><?php esc_html_e( 'Icon', 'jprm' ); ?></th>
-							<th style="width:110px;"><?php esc_html_e( 'Active', 'jprm' ); ?></th>
-							<th style="width:80px;"><?php esc_html_e( 'Actions', 'jprm' ); ?></th>
+							<th><?php esc_html_e( 'Name', 'jellopoint-restaurant-menu' ); ?></th>
+							<th style="width:160px;"><?php esc_html_e( 'Icon', 'jellopoint-restaurant-menu' ); ?></th>
+							<th style="width:110px;"><?php esc_html_e( 'Active', 'jellopoint-restaurant-menu' ); ?></th>
+							<th style="width:80px;"><?php esc_html_e( 'Actions', 'jellopoint-restaurant-menu' ); ?></th>
 						</tr>
 					</thead>
 					<tbody class="jprm-rows">
@@ -89,11 +89,11 @@ class JPRM_Admin_Dietary_Badges {
 							<td colspan="5">
 								<button type="button" class="button button-secondary jprm-add-row">
 									<span class="dashicons dashicons-plus-alt2" style="vertical-align:middle"></span>
-									<?php esc_html_e( 'Add Row', 'jprm' ); ?>
+									<?php esc_html_e( 'Add Row', 'jellopoint-restaurant-menu' ); ?>
 								</button>
 								<button type="submit" class="button button-primary jprm-save">
 									<span class="dashicons dashicons-yes-alt" style="vertical-align:middle"></span>
-									<?php esc_html_e( 'Save Badges', 'jprm' ); ?>
+									<?php esc_html_e( 'Save Badges', 'jellopoint-restaurant-menu' ); ?>
 								</button>
 							</td>
 						</tr>
@@ -162,8 +162,8 @@ class JPRM_Admin_Dietary_Badges {
 				var $row = $(this).closest('tr.jprm-row');
 
 				var frame = wp.media({
-					title: <?php echo wp_json_encode( __( 'Select Badge Icon', 'jprm' ) ); ?>,
-					button: { text: <?php echo wp_json_encode( __( 'Use this icon', 'jprm' ) ); ?> },
+					title: <?php echo wp_json_encode( __( 'Select Badge Icon', 'jellopoint-restaurant-menu' ) ); ?>,
+					button: { text: <?php echo wp_json_encode( __( 'Use this icon', 'jellopoint-restaurant-menu' ) ); ?> },
 					multiple: false
 				});
 
@@ -199,7 +199,7 @@ class JPRM_Admin_Dietary_Badges {
 		$active   = ! empty( $row['active'] );
 		$order    = isset( $row['order'] ) ? (int) $row['order'] : (int) $index;
 
-		$drag_title = esc_attr__( 'Drag to reorder', 'jprm' );
+		$drag_title = esc_attr__( 'Drag to reorder', 'jellopoint-restaurant-menu' );
 		$drag_html  = sprintf( self::ICON_DRAG, $drag_title );
 
 		$preview = $icon_url
@@ -221,10 +221,10 @@ class JPRM_Admin_Dietary_Badges {
 
 			<td class="jprm-cell-icon">
 				<div class="jprm-icon-wrap">
-					<a href="#" class="jprm-choose-icon" title="<?php esc_attr_e( 'Choose icon', 'jprm' ); ?>">
+					<a href="#" class="jprm-choose-icon" title="<?php esc_attr_e( 'Choose icon', 'jellopoint-restaurant-menu' ); ?>">
 						<span class="jprm-icon-preview"><?php echo $preview; // phpcs:ignore ?></span>
 					</a>
-					<a href="#" class="jprm-clear-icon button button-small" title="<?php esc_attr_e( 'Clear icon', 'jprm' ); ?>">
+					<a href="#" class="jprm-clear-icon button button-small" title="<?php esc_attr_e( 'Clear icon', 'jellopoint-restaurant-menu' ); ?>">
 						<?php echo self::ICON_CLEAR; // phpcs:ignore ?>
 					</a>
 				</div>
@@ -235,12 +235,12 @@ class JPRM_Admin_Dietary_Badges {
 			<td class="jprm-cell-active">
 				<label>
 					<input type="checkbox" name="jprm_badges[<?php echo esc_attr( (string) $index ); ?>][active]" value="1" <?php checked( $active ); ?> />
-					<?php esc_html_e( 'Active', 'jprm' ); ?>
+					<?php esc_html_e( 'Active', 'jellopoint-restaurant-menu' ); ?>
 				</label>
 			</td>
 
 			<td class="jprm-cell-actions">
-				<a href="#" class="button button-link-delete jprm-delete" title="<?php esc_attr_e( 'Delete row', 'jprm' ); ?>">
+				<a href="#" class="button button-link-delete jprm-delete" title="<?php esc_attr_e( 'Delete row', 'jellopoint-restaurant-menu' ); ?>">
 					<?php echo self::ICON_TRASH; // phpcs:ignore ?>
 				</a>
 			</td>
@@ -251,7 +251,7 @@ class JPRM_Admin_Dietary_Badges {
 
 	public function handle_post() {
 		if ( ! current_user_can( $this->capability ) ) {
-			wp_die( esc_html__( 'You do not have permission to perform this action.', 'jprm' ) );
+			wp_die( esc_html__( 'You do not have permission to perform this action.', 'jellopoint-restaurant-menu' ) );
 		}
 
 		check_admin_referer( $this->nonce_action, $this->nonce_name );

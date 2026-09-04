@@ -48,12 +48,12 @@ class Sections_Admin {
 		foreach ( $cols as $k => $v ) {
 			$new[ $k ] = $v;
 			if ( 'name' === $k ) {
-				$new['jprm_menu']  = __( 'Menu',  'jprm' );
-				$new['jprm_order'] = __( 'Order', 'jprm' );
+				$new['jprm_menu']  = __( 'Menu', 'jellopoint-restaurant-menu' );
+				$new['jprm_order'] = __( 'Order', 'jellopoint-restaurant-menu' );
 			}
 		}
-		if ( ! isset( $new['jprm_menu'] ) )  $new['jprm_menu']  = __( 'Menu',  'jprm' );
-		if ( ! isset( $new['jprm_order'] ) ) $new['jprm_order'] = __( 'Order', 'jprm' );
+		if ( ! isset( $new['jprm_menu'] ) )  $new['jprm_menu']  = __( 'Menu', 'jellopoint-restaurant-menu' );
+		if ( ! isset( $new['jprm_order'] ) ) $new['jprm_order'] = __( 'Order', 'jellopoint-restaurant-menu' );
 		if ( isset( $new['slug'] ) ) unset( $new['slug'] ); // cleaner UI
 		return $new;
 	}
@@ -94,9 +94,9 @@ class Sections_Admin {
 		] );
 
 		echo '<div class="alignleft actions jprm-filter-wrap">';
-		echo '<label class="screen-reader-text" for="jprm_filter_menu">' . esc_html__( 'Filter by Menu', 'jprm' ) . '</label>';
+		echo '<label class="screen-reader-text" for="jprm_filter_menu">' . esc_html__( 'Filter by Menu', 'jellopoint-restaurant-menu' ) . '</label>';
 		echo '<select name="jprm_filter_menu" id="jprm_filter_menu" class="postform" onchange="this.form.submit()">';
-		echo '<option value="0">' . esc_html__( 'All Menus', 'jprm' ) . '</option>';
+		echo '<option value="0">' . esc_html__( 'All Menus', 'jellopoint-restaurant-menu' ) . '</option>';
 		if ( ! is_wp_error( $menus ) ) {
 			foreach ( $menus as $m ) {
 				printf(
@@ -211,13 +211,13 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 		$menus = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false ] );
 		?>
 		<div class="form-field term-owner-wrap">
-			<label for="jprm_owner_menus"><?php esc_html_e( 'Menus', 'jprm' ); ?></label>
+			<label for="jprm_owner_menus"><?php esc_html_e( 'Menus', 'jellopoint-restaurant-menu' ); ?></label>
 			<select name="jprm_owner_menus[]" id="jprm_owner_menus" multiple size="6">
 				<?php if ( ! is_wp_error( $menus ) ) foreach ( $menus as $m ) : ?>
 					<option value="<?php echo (int) $m->term_id; ?>" data-daily="<?php echo '1' === (string) get_term_meta( (int) $m->term_id, '_jprm_is_daily_menu', true ) ? '1' : '0'; ?>"><?php echo esc_html( $m->name ); ?></option>
 				<?php endforeach; ?>
 			</select>
-			<p class="description"><?php esc_html_e( 'Select one or more Menus. Each Menu keeps its own Section content and order.', 'jprm' ); ?></p>
+			<p class="description"><?php esc_html_e( 'Select one or more Menus. Each Menu keeps its own Section content and order.', 'jellopoint-restaurant-menu' ); ?></p>
 		</div>
 		<div class="form-field term-item-separator-wrap jprm-daily-section-option">
 			<label for="jprm_item_separator"><?php esc_html_e( 'Item Separator Override', 'jellopoint-restaurant-menu' ); ?></label>
@@ -234,10 +234,10 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 		$current = self::menu_ids_for_section( (int) $term->term_id );
 		$item_separator = (string) get_term_meta( $term->term_id, self::META_ITEM_SEPARATOR, true );
 		$disable_item_separator = '1' === (string) get_term_meta( $term->term_id, self::META_DISABLE_ITEM_SEPARATOR, true );
-		$hint = __( 'Select one or more Menus. Each Menu keeps its own Section content and order.', 'jprm' );
+		$hint = __( 'Select one or more Menus. Each Menu keeps its own Section content and order.', 'jellopoint-restaurant-menu' );
 		?>
 		<tr class="form-field term-owner-wrap">
-			<th scope="row"><label for="jprm_owner_menus"><?php esc_html_e( 'Menus', 'jprm' ); ?></label></th>
+			<th scope="row"><label for="jprm_owner_menus"><?php esc_html_e( 'Menus', 'jellopoint-restaurant-menu' ); ?></label></th>
 			<td>
 				<select name="jprm_owner_menus[]" id="jprm_owner_menus" multiple size="6">
 					<?php if ( ! is_wp_error( $menus ) ) foreach ( $menus as $m ) : ?>
@@ -478,7 +478,7 @@ public static function hook_terms_order_and_filter() : void {
 			'orderby'    => 'name',
 			'order'      => 'ASC',
 		] );
-		$options  = '<option value="0">' . esc_html__( 'All Menus', 'jprm' ) . '</option>';
+		$options  = '<option value="0">' . esc_html__( 'All Menus', 'jellopoint-restaurant-menu' ) . '</option>';
 		if ( ! is_wp_error( $menus ) ) {
 			foreach ( $menus as $m ) {
 				$sel = ( $selected === (int) $m->term_id ) ? ' selected' : '';
@@ -501,7 +501,7 @@ public static function hook_terms_order_and_filter() : void {
 		    var wrap = document.createElement('div');
 		    wrap.className = 'alignleft actions jprm-sections-filter';
 		    wrap.innerHTML =
-		      '<label class="screen-reader-text" for="jprm_filter_menu"><?php echo esc_js(__('Filter by Menu','jprm')); ?></label>' +
+		      '<label class="screen-reader-text" for="jprm_filter_menu"><?php echo esc_js(__('Filter by Menu', 'jellopoint-restaurant-menu')); ?></label>' +
 		      '<select name="jprm_filter_menu" id="jprm_filter_menu" class="postform"><?php echo $options; ?></select>';
 		    top.prepend(wrap);
 

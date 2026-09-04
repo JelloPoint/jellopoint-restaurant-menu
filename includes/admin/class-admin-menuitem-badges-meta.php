@@ -25,7 +25,7 @@ class JPRM_MenuItem_Badges_Meta {
 	public function add_metabox() : void {
 		add_meta_box(
 			'jprm_item_badges',
-			__( 'Dietary Badges', 'jprm' ),
+			__( 'Dietary Badges', 'jellopoint-restaurant-menu' ),
 			[ $this, 'render_metabox' ],
 			self::POST_TYPE,
 			'normal',   // left/main column
@@ -78,7 +78,7 @@ class JPRM_MenuItem_Badges_Meta {
 		</style>';
 
 		if ( empty( $map_all ) ) {
-			echo '<p class="description">'.esc_html__( 'No dietary badges defined yet. Add them via JelloPoint → Dietary Badges.', 'jprm' ).'</p>';
+			echo '<p class="description">'.esc_html__( 'No dietary badges defined yet. Add them via JelloPoint → Dietary Badges.', 'jellopoint-restaurant-menu' ).'</p>';
 			return;
 		}
 
@@ -99,7 +99,7 @@ class JPRM_MenuItem_Badges_Meta {
 		}
 		echo '</ul>';
 
-		echo '<p class="help">'.esc_html__( 'Inactive badges are dimmed but remain selectable to preserve existing data.', 'jprm' ).'</p>';
+		echo '<p class="help">'.esc_html__( 'Inactive badges are dimmed but remain selectable to preserve existing data.', 'jellopoint-restaurant-menu' ).'</p>';
 		echo '</div>';
 	}
 

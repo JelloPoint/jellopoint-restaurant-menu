@@ -1179,13 +1179,13 @@ trait Restaurant_Menu_Style {
 		] );
 
 		$this->add_control( 'inline_leader_style', [
-			'label'     => __( 'Leader Style', 'jprm' ),
+			'label'     => __( 'Leader Style', 'jellopoint-restaurant-menu' ),
 			'type'      => \Elementor\Controls_Manager::SELECT,
 			'default'   => 'dotted',
 			'options'   => [
-				'dotted' => __( 'Dotted', 'jprm' ),
-				'dashed' => __( 'Dashed', 'jprm' ),
-				'solid'  => __( 'Solid',  'jprm' ),
+				'dotted' => __( 'Dotted', 'jellopoint-restaurant-menu' ),
+				'dashed' => __( 'Dashed', 'jellopoint-restaurant-menu' ),
+				'solid'  => __( 'Solid', 'jellopoint-restaurant-menu' ),
 			],
 			'condition' => [
 				'labels_layout'        => 'inline',
@@ -1194,7 +1194,7 @@ trait Restaurant_Menu_Style {
 		] );
 
 		$this->add_control( 'inline_leader_color', [
-			'label'     => __( 'Leader Color', 'jprm' ),
+			'label'     => __( 'Leader Color', 'jellopoint-restaurant-menu' ),
 			'type'      => \Elementor\Controls_Manager::COLOR,
 			'selectors' => [
 				'{{WRAPPER}} .jp-layout-inline, {{WRAPPER}} .jp-inline' =>
@@ -1207,7 +1207,7 @@ trait Restaurant_Menu_Style {
 		] );
 
 		$this->add_responsive_control( 'inline_leader_thickness', [
-			'label'      => __( 'Leader Thickness', 'jprm' ),
+			'label'      => __( 'Leader Thickness', 'jellopoint-restaurant-menu' ),
 			'type'       => \Elementor\Controls_Manager::SLIDER,
 			'size_units' => [ 'px' ],
 			'range'      => [ 'px' => [ 'min' => 1, 'max' => 6 ] ],
@@ -1223,7 +1223,7 @@ trait Restaurant_Menu_Style {
 		] );
 
 		$this->add_responsive_control( 'inline_leader_gap', [
-			'label'      => __( 'Leader Gap', 'jprm' ),
+			'label'      => __( 'Leader Gap', 'jellopoint-restaurant-menu' ),
 			'type'       => \Elementor\Controls_Manager::SLIDER,
 			'size_units' => [ 'px' ],
 			'range'      => [ 'px' => [ 'min' => 0, 'max' => 32 ] ],
@@ -1239,7 +1239,7 @@ trait Restaurant_Menu_Style {
 		] );
 
 		$this->add_responsive_control( 'inline_leader_offset', [
-			'label'      => __( 'Leader Vertical Offset', 'jprm' ),
+			'label'      => __( 'Leader Vertical Offset', 'jellopoint-restaurant-menu' ),
 			'type'       => \Elementor\Controls_Manager::SLIDER,
 			'size_units' => [ 'px' ],
 			'range'      => [ 'px' => [ 'min' => -6, 'max' => 6, 'step' => 1 ] ],

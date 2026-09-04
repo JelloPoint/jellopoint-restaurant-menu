@@ -14,7 +14,7 @@ class Badges_Post_Bootstrap {
 		require_once __DIR__ . '/class-admin-dietary-badges.php';
 
 		if ( ! class_exists( '\JPRM_Badges_Store' ) || ! class_exists( '\JPRM_Admin_Dietary_Badges' ) ) {
-			\wp_die( \esc_html__( 'Dietary Badges screen could not be loaded. Missing classes (store/ui).', 'jprm' ) );
+			\wp_die( \esc_html__( 'Dietary Badges screen could not be loaded. Missing classes (store/ui).', 'jellopoint-restaurant-menu' ) );
 		}
 
 		$store = new \JPRM_Badges_Store();
@@ -28,7 +28,7 @@ class Badges_Post_Bootstrap {
 		require_once __DIR__ . '/class-admin-dietary-badges.php';
 
 		if ( ! class_exists( '\JPRM_Badges_Store' ) || ! class_exists( '\JPRM_Admin_Dietary_Badges' ) ) {
-			\wp_die( \esc_html__( 'Dietary Badges save failed. Missing classes (store/ui).', 'jprm' ) );
+			\wp_die( \esc_html__( 'Dietary Badges save failed. Missing classes (store/ui).', 'jellopoint-restaurant-menu' ) );
 		}
 
 		$store = new \JPRM_Badges_Store();
@@ -38,7 +38,7 @@ class Badges_Post_Bootstrap {
 			$ui->handle_post(); // should redirect on success
 		}
 
-		\wp_die( \esc_html__( 'Dietary Badges save handler not found.', 'jprm' ) );
+		\wp_die( \esc_html__( 'Dietary Badges save handler not found.', 'jellopoint-restaurant-menu' ) );
 	}
 
 	/**

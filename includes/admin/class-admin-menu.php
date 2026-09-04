@@ -100,14 +100,14 @@ class Admin_Menu {
 				if ( class_exists( '\JelloPoint\RestaurantMenu\Admin\Badges_Post_Bootstrap' ) ) {
 					\JelloPoint\RestaurantMenu\Admin\Badges_Post_Bootstrap::render_screen();
 				} else {
-					\wp_die( \esc_html__( 'Dietary Badges screen could not be loaded. Missing classes.', 'jprm' ) );
+					\wp_die( \esc_html__( 'Dietary Badges screen could not be loaded. Missing classes.', 'jellopoint-restaurant-menu' ) );
 				}
 			};
 
 			add_submenu_page(
 				$parent,
-				__( 'Dietary Badges', 'jprm' ),
-				__( 'Dietary Badges', 'jprm' ),
+				__( 'Dietary Badges', 'jellopoint-restaurant-menu' ),
+				__( 'Dietary Badges', 'jellopoint-restaurant-menu' ),
 				'manage_options',
 				'jprm-dietary-badges',
 				$render,

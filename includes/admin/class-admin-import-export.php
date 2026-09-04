@@ -142,7 +142,7 @@ final class JPRM_Admin_Import_Export {
 
     /** Export handler. */
     public static function handle_export(): void {
-        if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( 'Unauthorized' ); }
+        if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( esc_html__( 'You do not have permission to perform this action.', 'jellopoint-restaurant-menu' ) ); }
         check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
 
         $format = isset( $_POST['format'] ) && 'csv' === sanitize_key( wp_unslash( $_POST['format'] ) ) ? 'csv' : 'json';
@@ -159,7 +159,7 @@ final class JPRM_Admin_Import_Export {
 
     /** Import handler. */
     public static function handle_import(): void {
-        if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( 'Unauthorized' ); }
+        if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( esc_html__( 'You do not have permission to perform this action.', 'jellopoint-restaurant-menu' ) ); }
         check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
 
         // Explicit action type (buttons set this)
@@ -169,7 +169,7 @@ final class JPRM_Admin_Import_Export {
         $create_missing_terms = ! empty( $_POST['create_missing_terms'] );
         $ignore_ids           = ! empty( $_POST['ignore_ids'] );
 		if ( empty( $_FILES['jprm_import_file'] ) || ! is_array( $_FILES['jprm_import_file'] ) ) {
-			self::redirect_import_error( 'No file uploaded.' );
+			self::redirect_import_error( __( 'No file uploaded.', 'jellopoint-restaurant-menu' ) );
 		}
 
 		$file = $_FILES['jprm_import_file'];
@@ -179,13 +179,13 @@ final class JPRM_Admin_Import_Export {
 		$ext   = strtolower( pathinfo( $name, PATHINFO_EXTENSION ) );
 
 		if ( UPLOAD_ERR_OK !== $error || '' === $tmp_name || ! is_uploaded_file( $tmp_name ) || ! in_array( $ext, [ 'csv', 'json' ], true ) ) {
-			self::redirect_import_error( 'Upload a valid CSV or JSON file.' );
+			self::redirect_import_error( __( 'Upload a valid CSV or JSON file.', 'jellopoint-restaurant-menu' ) );
 		}
 
 		clearstatcache( true, $tmp_name );
 		$actual_size = filesize( $tmp_name );
 		if ( false === $actual_size || $actual_size <= 0 || $actual_size > self::MAX_IMPORT_BYTES ) {
-			self::redirect_import_error( 'Upload a non-empty CSV or JSON file no larger than 5 MB.' );
+			self::redirect_import_error( __( 'Upload a non-empty CSV or JSON file no larger than 5 MB.', 'jellopoint-restaurant-menu' ) );
 		}
 
 		$content_error = self::validate_import_file_content( $tmp_name, $ext );
@@ -221,7 +221,7 @@ final class JPRM_Admin_Import_Export {
 
 	/** Preview or import the bundled demo menu. */
 	public static function handle_demo_import(): void {
-		if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( 'Unauthorized' ); }
+		if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( esc_html__( 'You do not have permission to perform this action.', 'jellopoint-restaurant-menu' ) ); }
 		check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
 
 		$action_type = isset( $_POST['action_type'] ) ? sanitize_key( wp_unslash( $_POST['action_type'] ) ) : 'dry_run';
@@ -244,20 +244,20 @@ final class JPRM_Admin_Import_Export {
 	public static function validate_import_file_content( string $path, string $extension ) : string {
 		$raw = file_get_contents( $path, false, null, 0, self::MAX_IMPORT_BYTES + 1 );
 		if ( false === $raw || '' === $raw || strlen( $raw ) > self::MAX_IMPORT_BYTES || false !== strpos( $raw, "\0" ) ) {
-			return 'The uploaded file is empty, unreadable, too large, or contains binary data.';
+			return __( 'The uploaded file is empty, unreadable, too large, or contains binary data.', 'jellopoint-restaurant-menu' );
 		}
 
 		$raw = (string) preg_replace( '/^\xEF\xBB\xBF/', '', $raw );
 		if ( 'json' === $extension ) {
 			$decoded = json_decode( $raw, true );
 			if ( JSON_ERROR_NONE !== json_last_error() || ! is_array( $decoded ) || ( ! isset( $decoded['items'] ) && ! isset( $decoded[0] ) ) ) {
-				return 'The JSON file is invalid or does not contain an items array.';
+				return __( 'The JSON file is invalid or does not contain an items array.', 'jellopoint-restaurant-menu' );
 			}
 			return '';
 		}
 
 		if ( 'csv' !== $extension ) {
-			return 'Only CSV and JSON imports are supported.';
+			return __( 'Only CSV and JSON imports are supported.', 'jellopoint-restaurant-menu' );
 		}
 
 		$line_end = strpos( $raw, "\n" );
@@ -266,7 +266,7 @@ final class JPRM_Admin_Import_Export {
 		$headers = str_getcsv( rtrim( $header_line, "\r\n" ), $delimiter );
 		$required = [ 'post_id', 'post_title', 'post_status', 'description', 'menus', 'sections', 'Price_Single', 'Price_Multiple' ];
 		if ( array_diff( $required, $headers ) ) {
-			return 'The CSV file does not contain the required JelloPoint import headers.';
+			return __( 'The CSV file does not contain the required JelloPoint import headers.', 'jellopoint-restaurant-menu' );
 		}
 
 		return '';
@@ -281,7 +281,7 @@ final class JPRM_Admin_Import_Export {
 
 	/** Remove content created by the bundled demo importer. */
 	public static function handle_demo_remove(): void {
-		if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( 'Unauthorized' ); }
+		if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( esc_html__( 'You do not have permission to perform this action.', 'jellopoint-restaurant-menu' ) ); }
 		check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
 
 		if ( ! class_exists( '\\JelloPoint\\RestaurantMenu\\Data\\JPRM_Demo_Menu' ) ) {
@@ -290,7 +290,7 @@ final class JPRM_Admin_Import_Export {
 
 		$result = \JelloPoint\RestaurantMenu\Data\JPRM_Demo_Menu::remove();
 		$message = sprintf(
-			'Removed demo content: %d items, %d sections, %d menu.',
+			__( 'Removed demo content: %d items, %d sections, %d menu.', 'jellopoint-restaurant-menu' ),
 			(int) ( $result['items'] ?? 0 ),
 			(int) ( $result['sections'] ?? 0 ),
 			(int) ( $result['menus'] ?? 0 )
@@ -303,7 +303,7 @@ final class JPRM_Admin_Import_Export {
 
 	/** Add missing standard badges, labels, and bundled icons. */
 	public static function handle_install_defaults(): void {
-		if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( 'Unauthorized' ); }
+		if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( esc_html__( 'You do not have permission to perform this action.', 'jellopoint-restaurant-menu' ) ); }
 		check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
 
 		if ( ! class_exists( '\JPRM_Default_Data' ) ) {
@@ -311,7 +311,7 @@ final class JPRM_Admin_Import_Export {
 		}
 		$result = \JPRM_Default_Data::install_missing();
 		$message = sprintf(
-			'Defaults installed: %d badges, %d labels, %d icons added.',
+			__( 'Defaults installed: %d badges, %d labels, %d icons added.', 'jellopoint-restaurant-menu' ),
 			(int) $result['badges_added'],
 			(int) $result['labels_added'],
 			(int) $result['badge_icons_added'] + (int) $result['label_icons_added']

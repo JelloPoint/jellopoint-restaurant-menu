@@ -185,23 +185,23 @@ trait Restaurant_Menu_Controls {
 
 		// --- Items ordering (global) ----------------------------------------------
 		$this->add_control( 'items_orderby', [
-			'label'   => __( 'Items Order By', 'jprm' ),
+			'label'   => __( 'Items Order By', 'jellopoint-restaurant-menu' ),
 			'type'    => \Elementor\Controls_Manager::SELECT,
 			'default' => 'menu_order',
 			'options' => [
-				'menu_order' => __( 'Order (menu order)', 'jprm' ),
-				'title'      => __( 'Title', 'jprm' ),
-				'price'      => __( 'Price', 'jprm' ), // first/primary price; see renderer notes
+				'menu_order' => __( 'Order (menu order)', 'jellopoint-restaurant-menu' ),
+				'title'      => __( 'Title', 'jellopoint-restaurant-menu' ),
+				'price'      => __( 'Price', 'jellopoint-restaurant-menu' ), // first/primary price; see renderer notes
 			],
 		]);
 
 		$this->add_control( 'items_order', [
-			'label'   => __( 'Direction', 'jprm' ),
+			'label'   => __( 'Direction', 'jellopoint-restaurant-menu' ),
 			'type'    => \Elementor\Controls_Manager::SELECT,
 			'default' => 'ASC',
 			'options' => [
-				'ASC'  => __( 'Ascending', 'jprm' ),
-				'DESC' => __( 'Descending', 'jprm' ),
+				'ASC'  => __( 'Ascending', 'jellopoint-restaurant-menu' ),
+				'DESC' => __( 'Descending', 'jellopoint-restaurant-menu' ),
 			],
 		]);
 
@@ -212,7 +212,7 @@ trait Restaurant_Menu_Controls {
 $section_order_repeater = new \Elementor\Repeater();
 
 $section_order_repeater->add_control( 'section_id', [
-    'label'       => __( 'Section', 'jprm' ),
+    'label'       => __( 'Section', 'jellopoint-restaurant-menu' ),
     'type'        => \Elementor\Controls_Manager::SELECT2,
     'options'     => $this->jprm_get_sections_options(), // uses helper on the widget class
     'multiple'    => false,
@@ -220,28 +220,28 @@ $section_order_repeater->add_control( 'section_id', [
 ]);
 
 $section_order_repeater->add_control( 'orderby', [
-    'label'   => __( 'Order items by', 'jprm' ),
+    'label'   => __( 'Order items by', 'jellopoint-restaurant-menu' ),
     'type'    => \Elementor\Controls_Manager::SELECT,
     'default' => 'menu_order',
     'options' => [
-        'menu_order' => __( 'Manual order (menu_order)', 'jprm' ),
-        'title'      => __( 'Title', 'jprm' ),
-        'price'      => __( 'Price (effective)', 'jprm' ),
+        'menu_order' => __( 'Manual order (menu_order)', 'jellopoint-restaurant-menu' ),
+        'title'      => __( 'Title', 'jellopoint-restaurant-menu' ),
+        'price'      => __( 'Price (effective)', 'jellopoint-restaurant-menu' ),
     ],
 ]);
 
 $section_order_repeater->add_control( 'order', [
-    'label'   => __( 'Direction', 'jprm' ),
+    'label'   => __( 'Direction', 'jellopoint-restaurant-menu' ),
     'type'    => \Elementor\Controls_Manager::SELECT,
     'default' => 'ASC',
     'options' => [
-        'ASC'  => __( 'Ascending (A → Z / low → high)', 'jprm' ),
-        'DESC' => __( 'Descending (Z → A / high → low)', 'jprm' ),
+        'ASC'  => __( 'Ascending (A → Z / low → high)', 'jellopoint-restaurant-menu' ),
+        'DESC' => __( 'Descending (Z → A / high → low)', 'jellopoint-restaurant-menu' ),
     ],
 ]);
 
 $this->add_control( 'items_order_overrides', [
-    'label'       => __( 'Item order per Section', 'jprm' ),
+    'label'       => __( 'Item order per Section', 'jellopoint-restaurant-menu' ),
     'type'        => \Elementor\Controls_Manager::REPEATER,
     'fields'      => $section_order_repeater->get_controls(),
     'title_field' => '{{{ section_id }}} — {{{ order }}} / {{{ orderby }}}',
@@ -419,10 +419,10 @@ $this->add_control( 'items_order_overrides', [
 
 		// --- Inline leader (title ↔ price) ------------------------------------------
 		$this->add_control( 'inline_leader_enable', [
-			'label'        => __( 'Leader between Title and Price', 'jprm' ),
+			'label'        => __( 'Leader between Title and Price', 'jellopoint-restaurant-menu' ),
 			'type'         => \Elementor\Controls_Manager::SWITCHER,
-			'label_on'     => __( 'Show', 'jprm' ),
-			'label_off'    => __( 'Hide', 'jprm' ),
+			'label_on'     => __( 'Show', 'jellopoint-restaurant-menu' ),
+			'label_off'    => __( 'Hide', 'jellopoint-restaurant-menu' ),
 			'return_value' => 'yes',
 			'default'      => '',
 			// only makes sense for the Inline template
@@ -698,7 +698,7 @@ $this->end_controls_section();
 		);
 
 		$this->add_responsive_control( 'layout_columns', [
-		'label'        => __( 'Columns', 'jprm' ),
+		'label'        => __( 'Columns', 'jellopoint-restaurant-menu' ),
 		'type'         => \Elementor\Controls_Manager::SELECT,
 		'default'      => '2',          // desktop default
 		'tablet_default' => '2',

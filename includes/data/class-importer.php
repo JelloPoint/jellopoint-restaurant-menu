@@ -50,7 +50,7 @@ final class JPRM_Importer {
 		];
 
 		if ( empty( $file['tmp_name'] ) || ! is_readable( $file['tmp_name'] ) ) {
-			$report['errors'][] = 'Upload failed or file unreadable.';
+			$report['errors'][] = __( 'Upload failed or file unreadable.', 'jellopoint-restaurant-menu' );
 			return $report;
 		}
 
@@ -72,11 +72,11 @@ final class JPRM_Importer {
 		}
 
 		if ( empty( $items ) ) {
-			$report['errors'][] = 'No items found in file.';
+			$report['errors'][] = __( 'No items found in file.', 'jellopoint-restaurant-menu' );
 			return $report;
 		}
 		if ( count( $items ) > self::MAX_IMPORT_ITEMS ) {
-			$report['errors'][] = 'Import files may contain no more than 5000 items.';
+			$report['errors'][] = __( 'Import files may contain no more than 5000 items.', 'jellopoint-restaurant-menu' );
 			return $report;
 		}
 
@@ -111,10 +111,10 @@ final class JPRM_Importer {
 
 	private static function parse_json_export( string $raw, array &$report ): array {
 		$dec = json_decode( $raw, true );
-		if ( ! is_array( $dec ) ) { $report['errors'][] = 'Invalid JSON.'; return []; }
+		if ( ! is_array( $dec ) ) { $report['errors'][] = __( 'Invalid JSON.', 'jellopoint-restaurant-menu' ); return []; }
 		if ( isset( $dec['items'] ) && is_array( $dec['items'] ) ) { return $dec['items']; }
 		if ( isset( $dec[0] ) && is_array( $dec[0] ) ) { return $dec; }
-		$report['errors'][] = 'JSON did not contain an items array.';
+		$report['errors'][] = __( 'JSON did not contain an items array.', 'jellopoint-restaurant-menu' );
 		return [];
 	}
 
@@ -127,7 +127,7 @@ final class JPRM_Importer {
 		// We cannot safely split by "\n" because CSV fields may contain newlines inside quotes.
 		// Use fgetcsv on an in-memory stream instead.
 		$fp = fopen( 'php://temp', 'r+' );
-		if ( ! $fp ) { $report['errors'][] = 'Could not open temp stream for CSV.'; return []; }
+		if ( ! $fp ) { $report['errors'][] = __( 'Could not open temp stream for CSV.', 'jellopoint-restaurant-menu' ); return []; }
 
 		// Strip UTF-8 BOM if present
 		$raw = preg_replace( '/^\xEF\xBB\xBF/', '', $raw );
@@ -137,7 +137,7 @@ final class JPRM_Importer {
 
 		// Read header physical line (safe assumption: headers do not contain embedded newlines)
 		$first = fgets( $fp );
-		if ( $first === false ) { $report['errors'][] = 'Empty CSV.'; fclose($fp); return []; }
+		if ( $first === false ) { $report['errors'][] = __( 'Empty CSV.', 'jellopoint-restaurant-menu' ); fclose($fp); return []; }
 
 		$delimiter = ( substr_count( $first, ';' ) >= substr_count( $first, ',' ) ) ? ';' : ',';
 
@@ -148,7 +148,7 @@ final class JPRM_Importer {
 		$required = [ 'post_id','post_title','post_status','description','menus','sections','Price_Single','Price_Multiple' ];
 		$missing  = array_diff( $required, $headers );
 		if ( $missing ) {
-			$report['errors'][] = 'CSV missing required header(s): ' . implode(', ', $missing);
+			$report['errors'][] = sprintf( __( 'CSV missing required header(s): %s', 'jellopoint-restaurant-menu' ), implode( ', ', $missing ) );
 			fclose($fp);
 			return [];
 		}
@@ -185,7 +185,7 @@ final class JPRM_Importer {
 			// STRICT validation: exactly one of the two must be filled
 			if ( $price_single !== '' && $price_multiple !== '' ) {
 				$rows[] = [
-					'_row_error' => 'Both Price_Single and Price_Multiple provided — only one allowed.',
+					'_row_error' => __( 'Both Price_Single and Price_Multiple provided — only one allowed.', 'jellopoint-restaurant-menu' ),
 					'post_id'     => $post_id,
 					'post_title'  => $post_title,
 					'post_status' => $post_status,
@@ -194,7 +194,7 @@ final class JPRM_Importer {
 			}
 			if ( $price_single === '' && $price_multiple === '' ) {
 				$rows[] = [
-					'_row_error' => 'No price provided — fill Price_Single or Price_Multiple.',
+					'_row_error' => __( 'No price provided — fill Price_Single or Price_Multiple.', 'jellopoint-restaurant-menu' ),
 					'post_id'     => $post_id,
 					'post_title'  => $post_title,
 					'post_status' => $post_status,
@@ -217,7 +217,7 @@ final class JPRM_Importer {
 
 				if ( empty( $parts ) ) {
 					$rows[] = [
-						'_row_error' => 'Price_Multiple contained no amounts (use * to separate, e.g. "2,50*5,00").',
+						'_row_error' => __( 'Price_Multiple contained no amounts (use * to separate, e.g. "2,50*5,00").', 'jellopoint-restaurant-menu' ),
 						'post_id'     => $post_id,
 						'post_title'  => $post_title,
 						'post_status' => $post_status,

@@ -54,15 +54,15 @@ class Menu_Item_List {
 		foreach ( $cols as $key => $label ) {
 			$new[ $key ] = $label;
 			if ( 'title' === $key ) {
-				$new['jprm_menu']    = __( 'Menu', 'jprm' );
-				$new['jprm_section'] = __( 'Section', 'jprm' );
-				$new['jprm_prices']  = __( 'Price(s)', 'jprm' );
+				$new['jprm_menu']    = __( 'Menu', 'jellopoint-restaurant-menu' );
+				$new['jprm_section'] = __( 'Section', 'jellopoint-restaurant-menu' );
+				$new['jprm_prices']  = __( 'Price(s)', 'jellopoint-restaurant-menu' );
 			}
 		}
 		$new += [
-			'jprm_menu'    => __( 'Menu', 'jprm' ),
-			'jprm_section' => __( 'Section', 'jprm' ),
-			'jprm_prices'  => __( 'Price(s)', 'jprm' ),
+			'jprm_menu'    => __( 'Menu', 'jellopoint-restaurant-menu' ),
+			'jprm_section' => __( 'Section', 'jellopoint-restaurant-menu' ),
+			'jprm_prices'  => __( 'Price(s)', 'jellopoint-restaurant-menu' ),
 		];
 		return $new;
 	}
@@ -101,9 +101,9 @@ class Menu_Item_List {
 
 		// MENUS
 		$menus = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false ] );
-		echo '<label for="jprm_filter_menu" class="screen-reader-text">' . esc_html__( 'Filter by Menu', 'jprm' ) . '</label>';
+		echo '<label for="jprm_filter_menu" class="screen-reader-text">' . esc_html__( 'Filter by Menu', 'jellopoint-restaurant-menu' ) . '</label>';
 		echo '<select name="jprm_filter_menu" id="jprm_filter_menu" class="postform">';
-		echo '<option value="0">' . esc_html__( 'All Menus', 'jprm' ) . '</option>';
+		echo '<option value="0">' . esc_html__( 'All Menus', 'jellopoint-restaurant-menu' ) . '</option>';
 		if ( ! is_wp_error( $menus ) ) {
 			foreach ( $menus as $m ) {
 				printf(
@@ -147,9 +147,9 @@ class Menu_Item_List {
 			$opts = $flat;
 		}
 
-		echo '<label for="jprm_filter_section" class="screen-reader-text">' . esc_html__( 'Filter by Section', 'jprm' ) . '</label>';
+		echo '<label for="jprm_filter_section" class="screen-reader-text">' . esc_html__( 'Filter by Section', 'jellopoint-restaurant-menu' ) . '</label>';
 		echo '<select name="jprm_filter_section" id="jprm_filter_section" class="postform">';
-		echo '<option value="0">' . esc_html__( 'All Sections', 'jprm' ) . '</option>';
+		echo '<option value="0">' . esc_html__( 'All Sections', 'jellopoint-restaurant-menu' ) . '</option>';
 		foreach ( $opts as $o ) {
 			$indent = str_repeat( '— ', max( 0, $o['depth'] ) );
 			printf(
@@ -209,8 +209,8 @@ class Menu_Item_List {
 	/* ---------------- Bulk actions ---------------- */
 
 	public static function register_bulk_actions( array $actions ) : array {
-		$actions['jprm_assign_section']   = __( 'Assign to Section…', 'jprm' );
-		$actions['jprm_unassign_section'] = __( 'Unassign from Section', 'jprm' );
+		$actions['jprm_assign_section']   = __( 'Assign to Section…', 'jellopoint-restaurant-menu' );
+		$actions['jprm_unassign_section'] = __( 'Unassign from Section', 'jellopoint-restaurant-menu' );
 		return $actions;
 	}
 
@@ -269,14 +269,14 @@ class Menu_Item_List {
 	public static function bulk_admin_notice() : void {
 		if ( isset( $_GET['jprm_bulk_unassigned'] ) ) {
 			$c = absint( wp_unslash( $_GET['jprm_bulk_unassigned'] ) );
-			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( _n( 'Unassigned %d item.', 'Unassigned %d items.', $c, 'jprm' ), $c ) ) . '</p></div>';
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( _n( 'Unassigned %d item.', 'Unassigned %d items.', $c, 'jellopoint-restaurant-menu' ), $c ) ) . '</p></div>';
 		}
 		if ( isset( $_GET['jprm_bulk_assigned'] ) ) {
 			$c = absint( wp_unslash( $_GET['jprm_bulk_assigned'] ) );
-			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( _n( 'Assigned %d item.', 'Assigned %d items.', $c, 'jprm' ), $c ) ) . '</p></div>';
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( _n( 'Assigned %d item.', 'Assigned %d items.', $c, 'jellopoint-restaurant-menu' ), $c ) ) . '</p></div>';
 		}
 		if ( isset( $_GET['jprm_bulk_error'] ) ) { // phpcs:ignore
-			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Please choose a Section for bulk assign.', 'jprm' ) . '</p></div>';
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Please choose a Section for bulk assign.', 'jellopoint-restaurant-menu' ) . '</p></div>';
 		}
 	}
 
@@ -301,7 +301,7 @@ class Menu_Item_List {
 			/* ------- Bulk-assign section selector ------- */
 			function buildSelectHtml(){
 				var html = '<select name="jprm_target_section" id="jprm_target_section" style="margin-left:6px;">';
-				html += '<option value="0"><?php echo esc_js( __( '— choose Section —', 'jprm' ) ); ?></option>';
+				html += '<option value="0"><?php echo esc_js( __( '— choose Section —', 'jellopoint-restaurant-menu' ) ); ?></option>';
 				<?php
 				if ( ! is_wp_error( $menus ) ) {
 					foreach ( $menus as $m ) {
@@ -443,7 +443,7 @@ class Menu_Item_List {
 				$link      = sprintf(
 					'<a href="#" class="jprm-multi-toggle" data-target="%s">%s</a>',
 					esc_attr( $target_id ),
-					esc_html( sprintf( __( 'Multiple prices (%d)', 'jprm' ), $count ) )
+					esc_html( sprintf( __( 'Multiple prices (%d)', 'jellopoint-restaurant-menu' ), $count ) )
 				);
 
 				$list_html = '<div id="' . esc_attr( $target_id ) . '" style="display:none;margin-top:4px;">' .

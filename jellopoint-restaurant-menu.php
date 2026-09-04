@@ -3,13 +3,14 @@
  * Plugin Name:       JelloPoint – Restaurant Menu
  * Plugin URI:        https://github.com/JelloPoint/jellopoint-restaurant-menu
  * Description:       Create and display restaurant menus with sections, flexible prices, dietary labels, and an Elementor widget.
- * Version:           2.0.25
+ * Version:           2.0.26
  * Requires at least: 6.5
  * Requires PHP:      7.4
  * Author:            JelloPoint
  * License:           GPL v2 or later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       jellopoint-restaurant-menu
+ * Domain Path:       /languages
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -20,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Constants
  * ------------------------------------------------- */
 if ( ! defined( 'JPRM_VERSION' ) ) {
-	define( 'JPRM_VERSION', '2.0.25' );
+	define( 'JPRM_VERSION', '2.0.26' );
 }
 if ( ! defined( 'JPRM_PLUGIN_FILE' ) ) {
 	define( 'JPRM_PLUGIN_FILE', __FILE__ );
@@ -31,6 +32,16 @@ if ( ! defined( 'JPRM_PLUGIN_PATH' ) ) {
 if ( ! defined( 'JPRM_PLUGIN_URL' ) ) {
 	define( 'JPRM_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 }
+
+/** Load bundled translations while remaining compatible with WordPress.org language packs. */
+function jprm_load_textdomain(): void {
+	load_plugin_textdomain(
+		'jellopoint-restaurant-menu',
+		false,
+		dirname( plugin_basename( JPRM_PLUGIN_FILE ) ) . '/languages'
+	);
+}
+add_action( 'init', 'jprm_load_textdomain', 1 );
 
 /* -------------------------------------------------
  * Includes (explicit, fixed paths)
