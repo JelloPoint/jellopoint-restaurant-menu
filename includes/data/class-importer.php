@@ -242,6 +242,7 @@ final class JPRM_Importer {
 			}
 
 			$rows[] = [
+				'_preserve_item_metadata' => true,
 				'post_id'     => $post_id,
 				'post_title'  => $post_title,
 				'post_status' => $post_status,
@@ -250,7 +251,6 @@ final class JPRM_Importer {
 					'jprm_menu'    => $menus,
 					'jprm_section' => $sections,
 				],
-				'badges'      => [],
 				'prices'      => $prices,
 			];
 		}
@@ -292,7 +292,7 @@ final class JPRM_Importer {
 		$title   = sanitize_text_field( (string) ( $it['post_title'] ?? '' ) );
 		$status  = sanitize_key( (string) ( $it['post_status'] ?? 'draft' ) );
 		$status  = in_array( $status, [ 'draft', 'pending', 'publish', 'private' ], true ) ? $status : 'draft';
-		$desc    = wp_kses_post( (string) ( $it['description'] ?? '' ) );
+		$desc    = self::normalize_newlines( wp_kses_post( (string) ( $it['description'] ?? '' ) ) );
 		$tax     = is_array( $it['tax'] ?? null ) ? $it['tax'] : [ 'jprm_menu'=>[], 'jprm_section'=>[] ];
 		$badges  = is_array( $it['badges'] ?? null ) ? $it['badges'] : [];
 		$prices  = is_array( $it['prices'] ?? null ) ? $it['prices'] : [];
@@ -335,12 +335,17 @@ final class JPRM_Importer {
 		$old = [
 			'post_title'  => $is_existing ? sanitize_text_field( (string) get_the_title( $post_id ) ) : '',
 			'post_status' => $is_existing ? (string) get_post_status( $post_id ) : 'draft',
-			'desc'        => $is_existing ? wp_kses_post( (string) get_post_meta( $post_id, 'jprm_desc', true ) ) : '',
+			'desc'        => $is_existing ? self::normalize_newlines( wp_kses_post( (string) get_post_meta( $post_id, 'jprm_desc', true ) ) ) : '',
 			'menu_terms'  => $is_existing ? self::terms_as_names( $post_id, 'jprm_menu' ) : [],
 			'sect_terms'  => $is_existing ? self::terms_as_names( $post_id, 'jprm_section' ) : [],
 			'badges'      => $is_existing ? self::meta_badges( $post_id ) : [],
 			'prices'      => $is_existing ? self::build_prices_payload( $post_id, (string) get_post_meta( $post_id, 'jprm_price_mode', true ) ) : [],
 		];
+		$preserve_item_metadata = $is_existing && ! empty( $it['_preserve_item_metadata'] );
+		if ( $preserve_item_metadata ) {
+			$badges = $old['badges'];
+			$prices = self::preserve_price_metadata( $prices, $old['prices'] );
+		}
 
 		$new_rows = ( $price_mode === 'multi' ) ? (array) ( $prices['rows'] ?? [] ) : [];
 		$single_label_mode = ( (string) ( $prices['label_mode'] ?? 'ref' ) === 'custom' ) ? 'custom' : 'ref';
@@ -670,6 +675,56 @@ final class JPRM_Importer {
 		}
 		if ( ! is_array( $rows ) ) $rows = [];
 		return [ 'mode' => 'multi', 'rows' => self::canonicalize_rows_strict( $rows ) ];
+	}
+
+	/**
+	 * Preserve metadata that the compact CSV format cannot represent.
+	 *
+	 * Amounts always come from the CSV. Labels, icons and their visibility are
+	 * copied only when the existing item uses the same price mode.
+	 */
+	private static function preserve_price_metadata( array $incoming, array $existing ): array {
+		$incoming_mode = (string) ( $incoming['mode'] ?? '' );
+		$existing_mode = (string) ( $existing['mode'] ?? '' );
+		if ( $incoming_mode !== $existing_mode ) {
+			return $incoming;
+		}
+
+		$metadata_keys = [ 'label_mode', 'label_ref', 'label_custom', 'icon_id', 'hide_icon' ];
+		if ( 'single' === $incoming_mode ) {
+			foreach ( $metadata_keys as $key ) {
+				if ( array_key_exists( $key, $existing ) ) {
+					$incoming[ $key ] = $existing[ $key ];
+				}
+			}
+			return $incoming;
+		}
+
+		if ( 'multi' !== $incoming_mode ) {
+			return $incoming;
+		}
+
+		$incoming_rows = is_array( $incoming['rows'] ?? null ) ? array_values( $incoming['rows'] ) : [];
+		$existing_rows = is_array( $existing['rows'] ?? null ) ? array_values( $existing['rows'] ) : [];
+		foreach ( $incoming_rows as $index => &$row ) {
+			if ( ! is_array( $row ) || ! is_array( $existing_rows[ $index ] ?? null ) ) {
+				continue;
+			}
+			foreach ( $metadata_keys as $key ) {
+				if ( array_key_exists( $key, $existing_rows[ $index ] ) ) {
+					$row[ $key ] = $existing_rows[ $index ][ $key ];
+				}
+			}
+		}
+		unset( $row );
+		$incoming['rows'] = $incoming_rows;
+
+		return $incoming;
+	}
+
+	/** Normalize platform-specific line endings before comparison and storage. */
+	private static function normalize_newlines( string $value ): string {
+		return str_replace( [ "\r\n", "\r" ], "\n", $value );
 	}
 
 	private static function canonicalize_rows_strict( array $rows ): array {
