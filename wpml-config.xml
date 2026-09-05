@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wpml-config>
+	<custom-types>
+		<custom-type translate="1">jprm_menu_item</custom-type>
+		<custom-type translate="1">jprm_info_block</custom-type>
+	</custom-types>
+
+	<taxonomies>
+		<taxonomy translate="1">jprm_menu</taxonomy>
+		<taxonomy translate="1">jprm_section</taxonomy>
+	</taxonomies>
+
+	<custom-fields>
+		<custom-field action="translate" style="visual" label="Menu Item Description">jprm_desc</custom-field>
+		<custom-field action="translate" style="visual" label="Info Block Content">jprm_info_block_content</custom-field>
+		<custom-field action="copy">jprm_price</custom-field>
+		<custom-field action="copy">jprm_price_mode</custom-field>
+		<custom-field action="copy">jprm_price_amount</custom-field>
+		<custom-field action="copy">jprm_price_label_mode</custom-field>
+		<custom-field action="copy">jprm_price_label_ref</custom-field>
+		<custom-field action="copy">jprm_price_label_custom</custom-field>
+		<custom-field action="copy">jprm_price_label_icon_id</custom-field>
+		<custom-field action="copy">jprm_prices</custom-field>
+		<custom-field action="copy">jprm_item_badges</custom-field>
+		<custom-field action="copy">jprm_badge</custom-field>
+		<custom-field action="copy">jprm_visible</custom-field>
+		<custom-field action="copy">_jprm_order_in_section</custom-field>
+		<custom-field action="copy">_jprm_demo_menu</custom-field>
+	</custom-fields>
+
+	<custom-term-fields>
+		<custom-term-field action="copy" type="taxonomy-ids" sub-type="jprm_menu">_jprm_menu_term_id</custom-term-field>
+		<custom-term-field action="copy">_jprm_section_order</custom-term-field>
+		<custom-term-field action="copy">_jprm_menu_structure_v2</custom-term-field>
+		<custom-term-field action="copy">_jprm_info_block_placements_v1</custom-term-field>
+		<custom-term-field action="copy">_jprm_is_daily_menu</custom-term-field>
+		<custom-term-field action="copy">_jprm_daily_menu_date</custom-term-field>
+		<custom-term-field action="copy">_jprm_daily_menu_end_date</custom-term-field>
+		<custom-term-field action="copy">_jprm_daily_menu_date_type</custom-term-field>
+		<custom-term-field action="copy">_jprm_daily_menu_fixed_price</custom-term-field>
+		<custom-term-field action="translate">_jprm_daily_menu_item_separator</custom-term-field>
+		<custom-term-field action="translate">_jprm_item_separator</custom-term-field>
+		<custom-term-field action="copy">_jprm_disable_item_separator</custom-term-field>
+		<custom-term-field action="copy">_jprm_demo_menu</custom-term-field>
+	</custom-term-fields>
+
+	<custom-term-fields-texts>
+		<key name="_jprm_menu_structure_v2">
+			<key name="sections">
+				<key name="*">
+					<key name="id" type="taxonomy-ids" sub-type="jprm_section" />
+					<key name="parent_id" type="taxonomy-ids" sub-type="jprm_section" />
+					<key name="items">
+						<key name="*">
+							<key name="id" type="post-ids" sub-type="jprm_menu_item" />
+						</key>
+					</key>
+				</key>
+			</key>
+		</key>
+		<key name="_jprm_info_block_placements_v1">
+			<key name="*">
+				<key name="id" type="post-ids" sub-type="jprm_info_block" />
+				<key name="section_id" type="taxonomy-ids" sub-type="jprm_section" />
+			</key>
+		</key>
+	</custom-term-fields-texts>
+
+	<admin-texts>
+		<key name="jprm_price_labels_v2">
+			<key name="*">
+				<key name="label" />
+				<key name="label_text" />
+			</key>
+		</key>
+		<key name="jprm_dietary_badges">
+			<key name="*">
+				<key name="name" />
+			</key>
+		</key>
+		<key name="jprm_dietary_badges_v1">
+			<key name="*">
+				<key name="name" />
+			</key>
+		</key>
+	</admin-texts>
+
+	<elementor-widgets>
+		<widget name="jprm_restaurant_menu">
+			<fields>
+				<field type="term-ids" sub-type="jprm_menu">menus</field>
+				<field type="term-ids" sub-type="jprm_section">sections</field>
+				<field type="Currency Symbol" editor_type="LINE">jprm_curr_symbol</field>
+				<field type="Inline Below Separator" editor_type="LINE">inline_below_sep_content</field>
+				<field type="Matrix Placeholder" editor_type="LINE">labels_matrix_placeholder</field>
+				<field type="term-ids" sub-type="jprm_section">layout_split_after_section</field>
+				<field type="term-ids" sub-type="jprm_section">layout_split_after_section2</field>
+			</fields>
+			<fields-in-item items_of="items_order_overrides">
+				<field type="term-ids" sub-type="jprm_section">section_id</field>
+			</fields-in-item>
+			<fields-in-item items_of="labels_layout_overrides">
+				<field type="term-ids" sub-type="jprm_section">section_id</field>
+				<field type="Section Separator" editor_type="LINE">separator</field>
+				<field type="Section Placeholder" editor_type="LINE">placeholder</field>
+			</fields-in-item>
+			<fields-in-item items_of="info_blocks">
+				<field type="post-ids" sub-type="jprm_info_block">info_block_id</field>
+				<field type="term-ids" sub-type="jprm_section">section_id</field>
+			</fields-in-item>
+		</widget>
+	</elementor-widgets>
+</wpml-config>

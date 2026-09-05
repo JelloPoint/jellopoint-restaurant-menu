@@ -247,7 +247,7 @@ $this->add_control( 'items_order_overrides', [
     'title_field' => '{{{ section_id }}} — {{{ order }}} / {{{ orderby }}}',
     'description' => __(
         'Optional: override the global item order (by title / price / menu order) for specific Sections.',
-        'jprm'
+        'jellopoint-restaurant-menu'
     ),
 ]);
 

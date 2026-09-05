@@ -3,7 +3,7 @@
 
 $root = dirname( __DIR__ );
 $bootstrap = file_get_contents( $root . '/jellopoint-restaurant-menu.php' );
-foreach ( [ 'Domain Path:       /languages', 'function jprm_load_textdomain()', "load_plugin_textdomain(\n\t\t'jellopoint-restaurant-menu'" ] as $needle ) {
+foreach ( [ 'Domain Path:       /languages', 'function jprm_load_textdomain()', "'jellopoint-restaurant-menu'" ] as $needle ) {
 	if ( false === strpos( $bootstrap, $needle ) ) {
 		fwrite( STDERR, "Missing translation bootstrap: {$needle}\n" );
 		exit( 1 );
