@@ -30,6 +30,21 @@ and update behavior still require acceptance testing before commercial release.
 
 ## Acceptance checks
 
+### Phase 1X-M website approval
+
+The user approved v2.0.36 after testing active Pro access, license deactivation,
+Free Builder behavior, Daily Menu notices in the admin and Elementor preview,
+and restoration after reactivating the same license. The test license still had
+"Block feature access when license expires" enabled despite the plan setting;
+the user was directed to disable it on that license, then confirmed the expiry
+test worked and approved the merge into develop. Pro features must remain usable
+after non-blocking expiry. Restoring the test license's future expiry date was
+requested but has not been explicitly confirmed.
+
+Sandbox checkout/payment, optional data-sharing rejection, API failure and actual
+update delivery/restriction remain release acceptance items. The earlier 1X-L
+pending list above records the status at that phase, not the completed 1X-M tests.
+
 - SDK registration, Account screen and sandbox license activation/deactivation.
 - Reload admin; existing menu entries and frontend remain available.
 - Builder add/remove/save, Multiple Prices, badges and labels retain their data.
