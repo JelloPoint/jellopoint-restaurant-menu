@@ -5,7 +5,7 @@ $meta = [
 	8 => [ 'version' => 1, 'sections' => [ [ 'id' => 11, 'parent_id' => 0, 'order' => 0, 'items' => [] ], [ 'id' => 12, 'parent_id' => 0, 'order' => 1, 'items' => [] ] ] ],
 	9 => [ 'version' => 1, 'sections' => [ [ 'id' => 11, 'parent_id' => 0, 'order' => 0, 'items' => [] ] ] ],
 ];
-$terms = []; $hooks = []; $valid_nonce = true; $can_edit = true;
+$terms = []; $hooks = []; $valid_nonce = true; $can_edit = true; $term_writes = 0;
 class WP_REST_Controller { public $namespace; public $rest_base; }
 class WP_Error {}
 function add_action( $name, $callback, $priority = 10, $args = 1 ) { global $hooks; $hooks[$name][] = [$callback, $args]; }
@@ -13,7 +13,7 @@ function add_filter( ...$args ) { add_action( ...$args ); }
 function do_action( $name, ...$args ) { global $hooks; foreach ( $hooks[$name] ?? [] as $hook ) { call_user_func_array( $hook[0], array_slice( $args, 0, $hook[1] ) ); } }
 function get_post_type( $id ) { return 'jprm_menu_item'; }
 function wp_get_post_terms( $id, $taxonomy, $args = [] ) { global $terms; return $terms[$id][$taxonomy] ?? []; }
-function wp_set_post_terms( $id, $ids, $taxonomy, $append = false ) { global $terms; $terms[$id][$taxonomy] = $append ? array_values(array_unique(array_merge($terms[$id][$taxonomy] ?? [], $ids))) : $ids; return $ids; }
+function wp_set_post_terms( $id, $ids, $taxonomy, $append = false ) { global $terms, $term_writes; $term_writes++; $terms[$id][$taxonomy] = $append ? array_values(array_unique(array_merge($terms[$id][$taxonomy] ?? [], $ids))) : $ids; return $ids; }
 function get_terms( $args ) { return [8, 9]; }
 function term_exists( $id, $taxonomy ) { return in_array( $id, [8,9], true ); }
 function get_term( $id, $taxonomy ) { return (object) ['term_id' => $id, 'taxonomy' => $taxonomy]; }
@@ -58,8 +58,12 @@ assert_terms(100, [8,9], [11]);
 check(11 === Store::item_placements(8)[100]['section_id'], 'Editor did not assign to Builder.');
 edit_item(101, [8 => 11]);
 $before = $meta;
+$writes_before = $term_writes;
 edit_item(100, [8 => 11, 9 => 11]);
 check($before === $meta, 'Unchanged editor save reordered items.');
+check($writes_before === $term_writes, 'Unchanged assignments triggered taxonomy writes.');
+Store::save(8, Store::get(8));
+check($writes_before === $term_writes, 'Unchanged Builder save triggered taxonomy writes.');
 $builder->unassign_item(['menu_id' => 8, 'id' => 100]);
 assert_terms(100, [9], [11]);
 check(!isset(Store::item_placements(8)[100]), 'Builder removal failed.');

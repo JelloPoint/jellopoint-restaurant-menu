@@ -29,6 +29,9 @@ jobs:
       - name: Regression tests
         run: php tests/run.php
 
+      - name: Builder loading lifecycle
+        run: node tests/builder-loading.test.cjs
+
   build:
     needs: compatibility
     runs-on: ubuntu-latest

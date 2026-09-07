@@ -1,6 +1,10 @@
 <?php if ( ! defined( 'ABSPATH' ) ) exit; ?>
 <div class="wrap jprm-menu-builder-wrap">
     <h1><?php esc_html_e('Menu Builder', 'jellopoint-restaurant-menu'); ?></h1>
+    <div id="jprm-loading" role="status" aria-live="polite" style="display:none;">
+        <span class="spinner is-active" aria-hidden="true"></span>
+        <span id="jprm-loading-text"><?php esc_html_e( 'Loading menu…', 'jellopoint-restaurant-menu' ); ?></span>
+    </div>
 
     <div class="jprm-menu-builder-notice jprm-menu-builder-notice--hidden jprm-menu-builder-notice--top"></div>
 
@@ -14,7 +18,6 @@
             <?php esc_html_e('Collapse all', 'jellopoint-restaurant-menu'); ?>
         </button>
 
-        <span class="spinner is-active" id="jprm-loading" style="display:none;"></span>
     </div>
 
     <div class="jprm-columns">
