@@ -97,7 +97,7 @@ Phases 1X-A through 1X-I2 are approved and merged: metadata, Elementor dependenc
 | --- | --- | --- |
 | 1X-J | Distribution documentation and clean build exclusions; shared assignment service and explicit Menu/Section editor in v2.0.30 | ✅ Approved |
 | 1X-J2 | Menu Builder performance and loading feedback; v2.0.31 | ✅ Approved |
-| 1X-K | Free/Pro module catalog and loader foundation; v2.0.32 | 🚧 Awaiting website approval |
+| 1X-K | Free/Pro module catalog and loader foundation; v2.0.32 | ✅ Approved |
 | 1X-L | Freemius integration | ⏳ Planned |
 | 1X-M | Extract remaining embedded Pro paths and enforce access | ⏳ Planned |
 | 1X-N | Independent Free/Pro packaging and distribution checks | ⏳ Planned |
