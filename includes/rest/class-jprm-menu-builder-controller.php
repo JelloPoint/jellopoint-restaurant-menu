@@ -488,6 +488,9 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 	}
 
 	public function get_info_blocks( $request ) {
+		if ( ! \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'print_pdf' ) ) {
+			return new \WP_Error( 'jprm_pro_required', __( 'Print/PDF requires a Pro license.', 'jellopoint-restaurant-menu' ), [ 'status' => 403 ] );
+		}
 		$menu_id = (int) $request['menu_id'];
 		$query = new \WP_Query( [ 'post_type' => 'jprm_info_block', 'post_status' => 'publish', 'posts_per_page' => -1, 'orderby' => [ 'menu_order' => 'ASC', 'title' => 'ASC' ] ] );
 		$blocks = [];
@@ -505,6 +508,9 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 	}
 
 	public function save_info_blocks( $request ) {
+		if ( ! \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'print_pdf' ) ) {
+			return new \WP_Error( 'jprm_pro_required', __( 'Print/PDF requires a Pro license.', 'jellopoint-restaurant-menu' ), [ 'status' => 403 ] );
+		}
 		$menu_id = (int) $request['menu_id']; $rows = (array) $request['placements'];
 		$sections = Menu_Structure_Store::section_ids( $menu_id ); $valid = [];
 		foreach ( $rows as $row ) {

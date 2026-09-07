@@ -41,6 +41,7 @@ final class JPRM_Admin_Import_Export {
 
     /** Add the submenu strictly under the known parent slug (Admin_Menu::PARENT_SLUG). */
     public static function register_menu(): void {
+        if ( ! \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'import_export' ) ) { return; }
         if ( ! class_exists( '\\JelloPoint\\RestaurantMenu\\Admin\\Admin_Menu' ) ) {
             return; // parent class must be loaded first
         }
@@ -63,6 +64,7 @@ final class JPRM_Admin_Import_Export {
 
     /** Render admin page. */
     public static function render_page(): void {
+        \JelloPoint\RestaurantMenu\Modules\Module_Access::require_access( 'import_export' );
         if ( ! current_user_can( self::CAPABILITY ) ) {
             wp_die( esc_html__( 'You do not have permission to access this page.', 'jellopoint-restaurant-menu' ) );
         }
@@ -142,6 +144,7 @@ final class JPRM_Admin_Import_Export {
 
     /** Export handler. */
     public static function handle_export(): void {
+        \JelloPoint\RestaurantMenu\Modules\Module_Access::require_access( 'import_export' );
         if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( esc_html__( 'You do not have permission to perform this action.', 'jellopoint-restaurant-menu' ) ); }
         check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
 
@@ -159,6 +162,7 @@ final class JPRM_Admin_Import_Export {
 
     /** Import handler. */
     public static function handle_import(): void {
+        \JelloPoint\RestaurantMenu\Modules\Module_Access::require_access( 'import_export' );
         if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( esc_html__( 'You do not have permission to perform this action.', 'jellopoint-restaurant-menu' ) ); }
         check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
 
@@ -221,6 +225,7 @@ final class JPRM_Admin_Import_Export {
 
 	/** Preview or import the bundled demo menu. */
 	public static function handle_demo_import(): void {
+		\JelloPoint\RestaurantMenu\Modules\Module_Access::require_access( 'import_export' );
 		if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( esc_html__( 'You do not have permission to perform this action.', 'jellopoint-restaurant-menu' ) ); }
 		check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
 
@@ -281,6 +286,7 @@ final class JPRM_Admin_Import_Export {
 
 	/** Remove content created by the bundled demo importer. */
 	public static function handle_demo_remove(): void {
+		\JelloPoint\RestaurantMenu\Modules\Module_Access::require_access( 'import_export' );
 		if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( esc_html__( 'You do not have permission to perform this action.', 'jellopoint-restaurant-menu' ) ); }
 		check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
 
@@ -303,6 +309,7 @@ final class JPRM_Admin_Import_Export {
 
 	/** Add missing standard badges, labels, and bundled icons. */
 	public static function handle_install_defaults(): void {
+		\JelloPoint\RestaurantMenu\Modules\Module_Access::require_access( 'import_export' );
 		if ( ! current_user_can( self::CAPABILITY ) ) { wp_die( esc_html__( 'You do not have permission to perform this action.', 'jellopoint-restaurant-menu' ) ); }
 		check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
 

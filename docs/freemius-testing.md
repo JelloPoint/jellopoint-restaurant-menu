@@ -38,8 +38,9 @@ and update behavior still require acceptance testing before commercial release.
 - Deactivate/reactivate without losing restaurant data.
 - Verify offline/API-failure behavior and updates in a real WordPress environment.
 
-No module gating is introduced here. A premium build flag is not proof of a
-license. Enforcement and the entitlement policy belong to 1X-M. Free/Pro split,
+1X-M adds module gating. A premium build flag is not proof of a license. The
+non-blocking plan deliberately keeps features available after expiry while
+updates and support are withheld by Freemius. Free/Pro split,
 Free opt-out testing and independent packages remain 1X-N; do not publish this
 combined build to WordPress.org. The gatekeeper marker must remain in this build.
 

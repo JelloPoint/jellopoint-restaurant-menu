@@ -18,11 +18,16 @@ final class Module_Loader {
 
 	public static function boot_admin() : void {
 		if ( ! is_admin() || self::$admin_loaded ) { return; }
+		if ( ! Module_Access::allows( 'import_export' ) && ! Module_Access::allows( 'print_pdf' ) ) { return; }
 		self::load_runtime();
-		require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-import-export.php';
-		\JelloPoint\RestaurantMenu\Admin\JPRM_Admin_Import_Export::bootstrap();
-		require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-print-document.php';
-		\JelloPoint\RestaurantMenu\Admin\Print_Document_Admin::init();
+		if ( Module_Access::allows( 'import_export' ) ) {
+			require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-import-export.php';
+			\JelloPoint\RestaurantMenu\Admin\JPRM_Admin_Import_Export::bootstrap();
+		}
+		if ( Module_Access::allows( 'print_pdf' ) ) {
+			require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-print-document.php';
+			\JelloPoint\RestaurantMenu\Admin\Print_Document_Admin::init();
+		}
 		self::$admin_loaded = true;
 	}
 }

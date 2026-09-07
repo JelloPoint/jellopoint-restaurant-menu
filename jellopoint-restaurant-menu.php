@@ -3,7 +3,7 @@
  * Plugin Name:       JelloPoint – Restaurant Menu
  * Plugin URI:        https://github.com/JelloPoint/jellopoint-restaurant-menu
  * Description:       Create and display restaurant menus with sections, flexible prices, dietary labels, and an Elementor widget.
- * Version:           2.0.33
+ * Version:           2.0.34
  * Requires at least: 6.5
  * Requires PHP:      7.4
  * Author:            JelloPoint
@@ -48,7 +48,7 @@ if ( ! function_exists( 'jprm_fs' ) ) {
  * Constants
  * ------------------------------------------------- */
 if ( ! defined( 'JPRM_VERSION' ) ) {
-	define( 'JPRM_VERSION', '2.0.33' );
+	define( 'JPRM_VERSION', '2.0.34' );
 }
 if ( ! defined( 'JPRM_PLUGIN_FILE' ) ) {
 	define( 'JPRM_PLUGIN_FILE', __FILE__ );
@@ -98,6 +98,7 @@ require_once JPRM_PLUGIN_PATH . 'includes/helpers/prices.php';
 
 // Central module boundary for the combined development distribution.
 require_once JPRM_PLUGIN_PATH . 'includes/modules/class-module-catalog.php';
+require_once JPRM_PLUGIN_PATH . 'includes/modules/class-module-access.php';
 require_once JPRM_PLUGIN_PATH . 'includes/modules/class-module-loader.php';
 \JelloPoint\RestaurantMenu\Modules\Module_Loader::load_runtime();
 

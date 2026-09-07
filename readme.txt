@@ -2,7 +2,7 @@
 Tags: restaurant, menu, elementor, food, prices
 Requires at least: 6.5
 Requires PHP: 7.4
-Stable tag: 2.0.33
+Stable tag: 2.0.34
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -46,6 +46,10 @@ Deactivation retains data. Deleting the plugin retains data by default. Enable t
 Open the printable menu and use your browser's print dialog to save as PDF.
 
 == Changelog ==
+
+= 2.0.34 =
+* Gate Daily/Weekly, Print/PDF and Import/Export entry points behind Pro entitlement.
+* Keep Multiple Prices and stored restaurant data available independently of license status.
 
 = 2.0.33 =
 * Integrate the official Freemius SDK and product configuration for sandbox testing.

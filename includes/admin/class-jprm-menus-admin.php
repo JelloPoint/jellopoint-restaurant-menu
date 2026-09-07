@@ -84,6 +84,7 @@ class Menus_Admin {
 
 	/** Fields shown below the standard New Menu fields. */
 	public static function add_daily_menu_fields() : void {
+		if ( ! \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'daily_weekly_menus' ) ) { return; }
 		wp_nonce_field( self::NONCE_ACTION, self::NONCE_FIELD );
 		?>
 		<div class="form-field jprm-daily-menu-toggle-wrap">
@@ -118,6 +119,7 @@ class Menus_Admin {
 
 	/** Fields shown on the Edit Menu screen. */
 	public static function edit_daily_menu_fields( $term ) : void {
+		if ( ! \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'daily_weekly_menus' ) ) { return; }
 		$term_id = isset( $term->term_id ) ? (int) $term->term_id : 0;
 		$enabled = self::is_daily_menu( $term_id );
 		$date = (string) get_term_meta( $term_id, self::META_DATE, true );
@@ -158,6 +160,7 @@ class Menus_Admin {
 
 	/** Persist validated Daily Menu term metadata. */
 	public static function save_daily_menu_fields( $term_id ) : void {
+		if ( ! \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'daily_weekly_menus' ) ) { return; }
 		if ( empty( $_POST[ self::NONCE_FIELD ] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST[ self::NONCE_FIELD ] ) ), self::NONCE_ACTION ) ) {
 			return;
 		}

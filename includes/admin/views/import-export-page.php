@@ -20,6 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 	<?php endif; ?>
 
 	<div class="jprm-ie-grid">
+		<?php if ( \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'import_export' ) ) : ?>
 		<section class="jprm-card">
 			<h2><?php esc_html_e( 'Export', 'jellopoint-restaurant-menu' ); ?></h2>
 			<form method="post" action="<?php echo esc_url( $export_url ); ?>">
@@ -62,6 +63,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 			</form>
 		</section>
 
+		<?php endif; ?>
 		<section class="jprm-card">
 			<h2><?php esc_html_e( 'Import Demo Menu', 'jellopoint-restaurant-menu' ); ?></h2>
 			<p><?php esc_html_e( 'Create a complete example restaurant menu without changing existing menu items.', 'jellopoint-restaurant-menu' ); ?></p>

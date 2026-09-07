@@ -25,6 +25,7 @@ final class Print_Document_Admin {
 	}
 
 	public static function register_menu() : void {
+		if ( ! \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'print_pdf' ) ) { return; }
 		add_submenu_page(
 			Admin_Menu::PARENT_SLUG,
 			__( 'Print / PDF', 'jellopoint-restaurant-menu' ),
@@ -36,6 +37,7 @@ final class Print_Document_Admin {
 	}
 
 	public static function save() : void {
+		\JelloPoint\RestaurantMenu\Modules\Module_Access::require_access( 'print_pdf' );
 		if ( ! current_user_can( 'edit_posts' ) ) { wp_die( esc_html__( 'You do not have permission to do this.', 'jellopoint-restaurant-menu' ) ); }
 		check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
 		$raw = isset( $_POST['jprm_print'] ) && is_array( $_POST['jprm_print'] ) ? wp_unslash( $_POST['jprm_print'] ) : [];
@@ -45,6 +47,7 @@ final class Print_Document_Admin {
 	}
 
 	public static function render() : void {
+		\JelloPoint\RestaurantMenu\Modules\Module_Access::require_access( 'print_pdf' );
 		if ( ! current_user_can( 'edit_posts' ) ) { wp_die( esc_html__( 'You do not have permission to access this page.', 'jellopoint-restaurant-menu' ) ); }
 		$settings = Print_Document_Settings::get();
 		$menus = get_terms( [ 'taxonomy' => 'jprm_menu', 'hide_empty' => false, 'orderby' => 'name', 'order' => 'ASC' ] );
@@ -107,6 +110,7 @@ final class Print_Document_Admin {
 	}
 
 	public static function preview() : void {
+		\JelloPoint\RestaurantMenu\Modules\Module_Access::require_access( 'print_pdf' );
 		if ( ! current_user_can( 'edit_posts' ) ) { wp_die( esc_html__( 'You do not have permission to access this preview.', 'jellopoint-restaurant-menu' ) ); }
 		if ( 'POST' === (string) ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) {
 			check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );

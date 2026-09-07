@@ -8,7 +8,9 @@ function is_admin() { global $admin_context; return $admin_context; }
 function add_action( $name, $callback, $priority = 10, $args = 1 ) { global $hooks; $hooks[$name][] = $callback; }
 function check_module( bool $ok, string $message ) : void { if ( ! $ok ) { fwrite( STDERR, $message . "\n" ); exit( 1 ); } }
 require_once JPRM_PLUGIN_PATH . 'includes/modules/class-module-catalog.php';
+require_once JPRM_PLUGIN_PATH . 'includes/modules/class-module-access.php';
 require_once JPRM_PLUGIN_PATH . 'includes/modules/class-module-loader.php';
+function jprm_fs() { return new class { public function is_premium() { return true; } public function can_use_premium_code() { return true; } }; }
 use JelloPoint\RestaurantMenu\Modules\Module_Catalog as Catalog;
 use JelloPoint\RestaurantMenu\Modules\Module_Loader as Loader;
 check_module( 'free' === Catalog::tier( 'multiple_prices' ), 'Multiple Prices must remain Free.' );

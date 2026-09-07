@@ -43,9 +43,11 @@ shared translations intact and account for the optional module fields.
 ## Follow-up phases
 
 1. 1X-L: add a Freemius entitlement adapter, with actual product configuration.
-2. 1X-M: extract the remaining embedded Pro paths and enforce module access at
-   loading, admin actions, REST handlers, controls and rendering boundaries.
-3. 1X-N: produce and test independent Free/Pro packages, including a Free package
+2. 1X-M: enforce entitlement at module loading, admin actions, REST handlers,
+   Elementor controls and rendering boundaries. The selected non-blocking plan
+   keeps Pro features usable after expiry while Freemius stops updates/support.
+3. 1X-N: extract remaining embedded paths and produce independent Free/Pro
+   packages, including a Free package
    with Pro files physically absent. Run WordPress.org Plugin Check there.
 4. 1X-O: verify activation, updates, license changes, data retention and releases.
 

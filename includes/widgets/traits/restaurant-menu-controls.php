@@ -282,6 +282,7 @@ $this->add_control( 'items_order_overrides', [
 			'return_value' => 'yes',
 			'default'      => '',
 		] );
+		if ( \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'daily_weekly_menus' ) ) {
 		$this->add_control( 'show_daily_menu_date', [
 			'label'        => __( 'Daily Menu date', 'jellopoint-restaurant-menu' ),
 			'type'         => Controls_Manager::SWITCHER,
@@ -314,6 +315,7 @@ $this->add_control( 'items_order_overrides', [
 			],
 			'condition' => [ 'show_daily_menu_price' => 'yes' ],
 		] );
+		}
 		$this->add_control( 'menu_title_position', [
 			'label'     => __( 'Menu title position', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::SELECT,
