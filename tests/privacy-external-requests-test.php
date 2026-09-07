@@ -1,5 +1,5 @@
 <?php
-/** Standalone checks for privacy-safe, local-only runtime behavior. */
+/** JelloPoint-owned code only. Bundled Freemius performs documented external requests. */
 
 $root = dirname( __DIR__ );
 $runtime_files = array_merge(
@@ -39,4 +39,4 @@ foreach ( [ "'site_uid'", "'uid'         =>", 'wp_generate_uuid4(' ] as $needle 
 	}
 }
 
-echo "Privacy and external-request checks passed.\n";
+echo "JelloPoint-owned data code external-request checks passed (Freemius excluded).\n";

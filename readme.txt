@@ -2,9 +2,9 @@
 Tags: restaurant, menu, elementor, food, prices
 Requires at least: 6.5
 Requires PHP: 7.4
-Stable tag: 2.0.32
-License: GPLv2 or later
-License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Stable tag: 2.0.33
+License: GPLv3
+License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
 Create restaurant menus with sections, multiple prices, dietary badges and an Elementor widget.
 
@@ -17,6 +17,16 @@ Features include single and multiple prices, price labels, dietary badges, icons
 This development distribution also contains Daily/Weekly Menus, Print/PDF and CSV Import/Export. These are intended Pro modules; the separate Free and Pro distributions are still in preparation. Multiple Prices remains a Free feature.
 
 Elementor is required for the website widget. Menu management remains available without Elementor. WPML is optional; an included language configuration registers menu content and widget fields for translation.
+
+== External service: Freemius ==
+
+This Pro development build bundles Freemius SDK 2.13.4 for account registration, license activation, updates, checkout and optional usage-data sharing. The SDK communicates with Freemius services and can transmit site URL, plugin and WordPress/PHP versions, account/contact details and license information as part of these operations. Review its connection and permission screens before proceeding. Restaurant menu content is not explicitly sent by JelloPoint to Freemius.
+
+Service: https://freemius.com/
+Terms: https://freemius.com/terms/
+Privacy: https://freemius.com/privacy/
+
+This is not a WordPress.org-ready Free package. Pro-module access enforcement follows in a later phase. See docs/freemius-testing.md in the source repository before deploying this development build.
 
 == Installation ==
 
@@ -36,6 +46,10 @@ Deactivation retains data. Deleting the plugin retains data by default. Enable t
 Open the printable menu and use your browser's print dialog to save as PDF.
 
 == Changelog ==
+
+= 2.0.33 =
+* Integrate the official Freemius SDK and product configuration for sandbox testing.
+* Include the SDK in Git deployments and built packages; document external service and license notices.
 
 = 2.0.32 =
 * Introduce a central Free/Pro module catalog and module bootstrap.

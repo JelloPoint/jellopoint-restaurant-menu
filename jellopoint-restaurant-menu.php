@@ -3,12 +3,12 @@
  * Plugin Name:       JelloPoint – Restaurant Menu
  * Plugin URI:        https://github.com/JelloPoint/jellopoint-restaurant-menu
  * Description:       Create and display restaurant menus with sections, flexible prices, dietary labels, and an Elementor widget.
- * Version:           2.0.32
+ * Version:           2.0.33
  * Requires at least: 6.5
  * Requires PHP:      7.4
  * Author:            JelloPoint
- * License:           GPL v2 or later
- * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+ * License:           GPL v3
+ * License URI:       https://www.gnu.org/licenses/gpl-3.0.html
  * Text Domain:       jellopoint-restaurant-menu
  * Domain Path:       /languages
  */
@@ -17,11 +17,38 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// Combined Pro development build. Never submit this build to WordPress.org.
+if ( ! function_exists( 'jprm_fs' ) ) {
+	function jprm_fs() {
+		global $jprm_fs;
+		if ( ! isset( $jprm_fs ) ) {
+			require_once dirname( __FILE__ ) . '/vendor/freemius/start.php';
+			$jprm_fs = fs_dynamic_init( array(
+				'id' => '39068',
+				'slug' => 'jellopoint-restaurant-menu',
+				'type' => 'plugin',
+				'public_key' => 'pk_ab73490b9e9945178da3b98c1e82c',
+				'is_premium' => true,
+				'premium_suffix' => 'Pro',
+				'has_premium_version' => true,
+				'has_addons' => false,
+				'has_paid_plans' => true,
+				'is_org_compliant' => true,
+				'wp_org_gatekeeper' => 'OA7#BoRiBNqdf52FvzEf!!074aRLPs8fspif$7K1#4u4Csys1fQlCecVcUTOs2mcpeVHi#C2j9d09fOTvbC0HloPT7fFee5WdS3G',
+				'menu' => array( 'slug' => 'jellopoint', 'support' => false ),
+			) );
+		}
+		return $jprm_fs;
+	}
+	jprm_fs();
+	do_action( 'jprm_fs_loaded' );
+}
+
 /* -------------------------------------------------
  * Constants
  * ------------------------------------------------- */
 if ( ! defined( 'JPRM_VERSION' ) ) {
-	define( 'JPRM_VERSION', '2.0.32' );
+	define( 'JPRM_VERSION', '2.0.33' );
 }
 if ( ! defined( 'JPRM_PLUGIN_FILE' ) ) {
 	define( 'JPRM_PLUGIN_FILE', __FILE__ );
