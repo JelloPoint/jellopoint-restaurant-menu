@@ -11,10 +11,36 @@
     // ?rest_route=...; additional request arguments must therefore use &.
     return url + (root.indexOf('?') === -1 ? '?' : '&') + query;
   }
-  function apiGet(path){ return $.ajax({ url: apiUrl(path), method:'GET', beforeSend:x=>x.setRequestHeader('X-WP-Nonce',JPRM_MENU_BUILDER.nonce) }); }
-  function apiPost(path,data){ return $.ajax({ url: apiUrl(path), method:'POST', contentType:'application/json; charset=utf-8', data:JSON.stringify(data||{}), beforeSend:x=>x.setRequestHeader('X-WP-Nonce',JPRM_MENU_BUILDER.nonce) }); }
+  let pendingRequests = 0, loadingTimer = null;
+  function request(method, path, data){
+    clearTimeout(loadingTimer);
+    pendingRequests++;
+    const labels = JPRM_MENU_BUILDER.labels || {};
+    $('#jprm-loading-text').text(method === 'POST' ? labels.saving : labels.loading);
+    $('.jprm-menu-builder-wrap').attr('aria-busy','true').addClass('jprm-is-loading');
+    $('.jprm-toolbar, .jprm-columns').attr('inert','');
+    $('#jprm-loading').show();
+    return $.ajax({
+      url: apiUrl(path), method, timeout: 60000,
+      contentType: 'application/json; charset=utf-8',
+      data: method === 'POST' ? JSON.stringify(data || {}) : undefined,
+      beforeSend: x => x.setRequestHeader('X-WP-Nonce', JPRM_MENU_BUILDER.nonce)
+    }).fail(x => toast(apiFailToMessage(x), 'error')).always(()=>{
+      pendingRequests--;
+      if (!pendingRequests) loadingTimer = setTimeout(()=>{
+        $('.jprm-menu-builder-wrap').attr('aria-busy','false').removeClass('jprm-is-loading');
+        $('.jprm-toolbar, .jprm-columns').removeAttr('inert');
+        $('#jprm-loading').hide();
+      }, 80);
+    });
+  }
+  function apiGet(path){ return request('GET', path); }
+  function apiPost(path,data){
+    if (!state.ready) return $.Deferred().reject({responseJSON:{message:JPRM_MENU_BUILDER.labels.reload}}).promise();
+    return request('POST', path, data);
+  }
 
-  const state = { menus:[], sections:[], availableSections:[], items:[], unassigned:[], infoBlocks:[], infoPlacements:[], currentMenu:null };
+  const state = { ready:false, menus:[], sections:[], availableSections:[], items:[], unassigned:[], infoBlocks:[], infoPlacements:[], currentMenu:null };
   const INDENT = 28, MAX_DEPTH = 6;
   let drag = null;
 
@@ -60,10 +86,10 @@
     return 'Unknown error';
   }
 
-  function setLoading(on){ $('#jprm-loading')[on?'show':'hide'](); }
+  // Request counting owns the loading state across saves and subsequent refreshes.
 
   function loadMenus(){
-    setLoading(true);
+
     return apiGet('menu-builder/menus').done(res=>{
       state.menus = res.menus||[];
       const $sel = $('#jprm-menu-select').empty();
@@ -71,13 +97,13 @@
       state.menus.forEach(m=>$sel.append($('<option>').val(m.id).text(m.title)));
       if(!state.currentMenu) state.currentMenu = state.menus[0].id;
       $sel.val(state.currentMenu);
-    }).always(()=>setLoading(false));
+    });
   }
-  function loadSections(){ if(!state.currentMenu){ $('#jprm-tree').empty(); return $.Deferred().resolve().promise(); } setLoading(true); return apiGet('menu-builder/sections?menu_id='+state.currentMenu).done(res=>{ state.sections = res.sections||[]; }).always(()=>setLoading(false)); }
+  function loadSections(){ if(!state.currentMenu){ $('#jprm-tree').empty(); return $.Deferred().resolve().promise(); }  return apiGet('menu-builder/sections?menu_id='+state.currentMenu).done(res=>{ state.sections = res.sections||[]; }); }
   function loadAvailableSections(){ if(!state.currentMenu){ state.availableSections=[]; return $.Deferred().resolve().promise(); } return apiGet('menu-builder/sections/available?menu_id='+state.currentMenu).done(res=>{ state.availableSections=res.sections||[]; fillExistingSectionSelect(); }); }
   function loadItems(){ if(!state.currentMenu){ state.items=[]; return $.Deferred().resolve().promise(); } return apiGet('menu-builder/items?menu_id='+state.currentMenu).done(res=>{ state.items = res.items||[]; }); }
   function loadUnassigned(){ if(!state.currentMenu){ state.unassigned=[]; return $.Deferred().resolve().promise(); } return apiGet('menu-builder/items?menu_id='+state.currentMenu+'&unassigned=1').done(res=>{ state.unassigned = res.items||[]; }); }
-  function loadInfoBlocks(){ if(!state.currentMenu) return $.Deferred().resolve().promise(); return apiGet('menu-builder/info-blocks?menu_id='+state.currentMenu).done(res=>{state.infoBlocks=res.blocks||[];state.infoPlacements=res.placements||[];renderInfoBlocks();}); }
+  function loadInfoBlocks(){ if(!state.currentMenu) return $.Deferred().resolve().promise(); return apiGet('menu-builder/info-blocks?menu_id='+state.currentMenu).done(res=>{state.infoBlocks=res.blocks||[];state.infoPlacements=res.placements||[];}); }
   function renderInfoBlocks(){
 	const names={}; state.infoBlocks.forEach(b=>names[b.id]=b.title);
 	const sections={}; state.sections.forEach(s=>sections[s.id]=s.title);
@@ -85,7 +111,7 @@
 	const $sections=$('#jprm-info-section').empty(); state.sections.forEach(s=>$sections.append($('<option>').val(s.id).text(s.title)));
 	const $list=$('#jprm-info-placements').empty(); state.infoPlacements.forEach((p,i)=>{$list.append($('<p>').text((names[p.id]||'#'+p.id)+' — '+(p.position==='below'?'Below ':'Above ')+(sections[p.section_id]||'Section')).append($('<button type="button" class="button-link-delete" style="margin-left:8px">Remove</button>').on('click',()=>{state.infoPlacements.splice(i,1);saveInfoBlocks();})));});
   }
-  function saveInfoBlocks(){ return apiPost('menu-builder/info-blocks/save',{menu_id:state.currentMenu,placements:state.infoPlacements}).then(()=>loadInfoBlocks()); }
+  function saveInfoBlocks(){ return apiPost('menu-builder/info-blocks/save',{menu_id:state.currentMenu,placements:state.infoPlacements}).then(()=>loadInfoBlocks()).then(()=>renderInfoBlocks()); }
 
   function applyIndent($li, depth){ $li.attr('data-depth',depth).css('margin-left',(depth*INDENT)+'px'); }
   function clampDepth(depth,$ph){ depth=Math.max(0,Math.min(MAX_DEPTH,depth)); const $prev=$ph.prev('.jprm-item'); if($prev.length){ const pd=parseInt($prev.attr('data-depth'),10)||0; depth=Math.min(depth,pd+1); } else depth=0; return depth; }
@@ -210,7 +236,7 @@
   function persistSectionsOnly(){
     if(!state.currentMenu) return;
     const tree = buildTreeFromDOM();
-    // silent save (no spinner during drag)
+    // Keep feedback visible through the follow-up refresh.
     apiPost('menu-builder/sections/order', { tree, menu_id: state.currentMenu })
       .then(()=> loadSections().then(()=>{ // normalise depths/parents
         renderList();
@@ -224,6 +250,13 @@
     if(!state.currentMenu) return;
     const items = buildItemsPayloadFromDOM();
     apiPost('menu-builder/items/order', { menu_id: state.currentMenu, items })
+      .done(()=>{
+        const placements = {}; items.forEach(item=>{ placements[item.id] = item; });
+        state.items.forEach(item=>{
+          const placement = placements[item.id];
+          if (placement) { item.section_id = placement.section_id; item.order_in_section = placement.order; }
+        });
+      })
       .fail(x => toast(apiFailToMessage(x)));
   }
 
@@ -373,11 +406,11 @@
     if(!state.currentMenu||!sectionId) return;
     if($(this).data('action')==='section-unassign'){
       if(!confirm('Unassign this section from the menu?')) return;
-      setLoading(true);
+
       apiPost('menu-builder/section/unassign',{menu_id:state.currentMenu,section_id:sectionId})
-        .done(()=> chainLoadAndRender(true))
+        .then(()=> chainLoadAndRender(true))
         .fail(x=>toast(apiFailToMessage(x)))
-        .always(()=>setLoading(false));
+        ;
     }
   });
 
@@ -386,16 +419,28 @@
     const id=parseInt($(this).closest('li.is-item').attr('data-id'),10); if(!id) return;
     if($(this).data('action')==='item-unassign'){
       if(!confirm('Remove this item from its section?')) return;
-      setLoading(true);
+
       apiPost('menu-builder/item/unassign',{menu_id:state.currentMenu,id})
         .done(()=> chainLoadAndRender(false))
         .fail(x=>toast(apiFailToMessage(x)))
-        .always(()=>setLoading(false));
+        ;
     }
   });
 
   function chainLoadAndRender(expand){
-    return loadSections().then(()=>loadAvailableSections()).then(()=>loadItems()).then(()=>loadUnassigned()).then(()=>loadInfoBlocks()).then(()=>{ renderList(); renderInfoBlocks(); if(expand) expandAll(); else setToggleAllLabel(false); });
+    state.ready = false;
+    // These endpoints depend only on currentMenu, not on each other's responses.
+    return $.when(loadSections(), loadAvailableSections(), loadItems(), loadUnassigned(), loadInfoBlocks())
+      .then(()=>{
+        renderList(); renderInfoBlocks();
+        if(expand) expandAll(); else setToggleAllLabel(false);
+        state.ready = true;
+      }).fail(()=>{
+        // Never allow a partial load to overwrite a different Menu with stale rows.
+        state.ready = false;
+        $('#jprm-tree').empty();
+        $('#jprm-save').prop('disabled',true);
+      }).done(()=>$('#jprm-save').prop('disabled',false));
   }
 
   $(document).on('change','#jprm-menu-select',function(){ state.currentMenu=parseInt($(this).val(),10)||null; chainLoadAndRender(true); });
@@ -405,22 +450,22 @@
     const title=$('#jprm-new-section-title').val().trim();
     if(!title) return toast('Please enter a section title.');
     if(!state.currentMenu) return toast('Select a Menu first.');
-    setLoading(true);
+
     apiPost('menu-builder/section',{name:title,parent:0,menu_id:state.currentMenu})
-      .done(()=>{ $('#jprm-new-section-title').val(''); chainLoadAndRender(true); })
+      .then(()=>{ $('#jprm-new-section-title').val(''); return chainLoadAndRender(true); })
       .fail(x=>toast(apiFailToMessage(x)))
-      .always(()=>setLoading(false));
+      ;
   });
 
   $('#jprm-attach-section').on('click',function(){
     const sectionId=parseInt($('#jprm-existing-section').val(),10)||0;
     if(!state.currentMenu) return toast('Select a Menu first.');
     if(!sectionId) return toast('Choose an existing Section first.');
-    setLoading(true);
+
     apiPost('menu-builder/section/attach',{menu_id:state.currentMenu,section_id:sectionId})
-      .done(()=>chainLoadAndRender(true))
+      .then(()=>chainLoadAndRender(true))
       .fail(x=>toast(apiFailToMessage(x),'error'))
-      .always(()=>setLoading(false));
+      ;
   });
 
   $('#jprm-save').on('click',function(){
@@ -429,7 +474,7 @@
     const tree = buildTreeFromDOM();
     const itemsPayload = buildItemsPayloadFromDOM();
 
-    setLoading(true);
+
     apiPost('menu-builder/sections/order',{tree,menu_id:state.currentMenu})
       .then(()=>apiPost('menu-builder/items/order',{menu_id:state.currentMenu,items:itemsPayload}))
       .then(function(res){
@@ -438,7 +483,7 @@
         return chainLoadAndRender(true);
       })
       .fail(x=>toast(apiFailToMessage(x), 'error'))
-      .always(()=>setLoading(false));
+      ;
   });
 
 
@@ -448,15 +493,15 @@
     const secId=parseInt($('#jprm-item-target-section').val(),10)||0;
     const ids=$('#jprm-unassigned-list input[type="checkbox"]:checked').map(function(){return parseInt($(this).attr('data-id'),10);}).get();
     if(!secId||!ids.length) return toast('Choose a section and at least one item.');
-    setLoading(true);
+
     apiPost('menu-builder/item/assign-batch',{menu_id:state.currentMenu,section_id:secId,ids})
-      .done(()=>chainLoadAndRender(false))
+      .then(()=>chainLoadAndRender(false))
       .fail(x=>toast(apiFailToMessage(x)))
-      .always(()=>setLoading(false));
+      ;
   });
 
   $('#jprm-new-info-block').attr('href',JPRM_MENU_BUILDER.admin_new_info_block_url);
   $('#jprm-add-info-block').on('click',function(){const id=parseInt($('#jprm-info-block').val(),10)||0,sectionId=parseInt($('#jprm-info-section').val(),10)||0;if(!id||!sectionId)return toast('Choose an Info Block and Section.');state.infoPlacements.push({id:id,section_id:sectionId,position:$('#jprm-info-position').val(),order:state.infoPlacements.length});saveInfoBlocks().then(()=>toast('Info Block added.'));});
 
-  $(function(){ loadMenus().then(()=>loadSections()).then(()=>loadAvailableSections()).then(()=>loadItems()).then(()=>loadUnassigned()).then(()=>loadInfoBlocks()).then(()=>{ renderList(); renderInfoBlocks(); expandAll(); }); });
+  $(function(){ loadMenus().then(()=>chainLoadAndRender(true)); });
 })(jQuery);

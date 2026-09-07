@@ -1,4 +1,7 @@
 /* Layout */
+#jprm-loading { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:100000; background:#fff; border:1px solid #2271b1; border-radius:6px; padding:12px 20px; box-shadow:0 3px 16px #0003; color:#1d2327; }
+#jprm-loading .spinner { float:none; margin:0 8px 0 0; vertical-align:middle; }
+.jprm-is-loading .jprm-columns, .jprm-is-loading .jprm-toolbar { opacity:.65; pointer-events:none; }
 .jprm-columns { display:grid; grid-template-columns:2fr 1fr; gap:16px; align-items:start; }
 @media (max-width:1024px){ .jprm-columns{ grid-template-columns:1fr; } }
 .jprm-toolbar { display:flex; gap:8px; align-items:center; margin-bottom:12px; }

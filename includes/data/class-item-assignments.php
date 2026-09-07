@@ -37,7 +37,21 @@ final class Item_Assignments {
 				foreach ( $section['items'] as $item ) { $affected[ (int) $item['id'] ] = true; }
 			}
 		}
-		foreach ( array_keys( $affected ) as $post_id ) { self::project_item( $post_id, $structures ); }
+		// Index once instead of scanning every Menu again for each affected item.
+		$index = [];
+		foreach ( $structures as $id => $structure ) {
+			foreach ( $structure['sections'] as $section ) {
+				foreach ( $section['items'] as $item ) {
+					$pid = (int) $item['id'];
+					if ( ! isset( $affected[ $pid ] ) ) { continue; }
+					$index[ $pid ]['menus'][] = (int) $id;
+					$index[ $pid ]['sections'][] = (int) $section['id'];
+				}
+			}
+		}
+		foreach ( array_keys( $affected ) as $post_id ) {
+			self::write_terms( $post_id, $index[ $post_id ]['menus'] ?? [], $index[ $post_id ]['sections'] ?? [] );
+		}
 	}
 
 	public static function project_item( int $post_id, array $structures ) : void {
@@ -50,8 +64,18 @@ final class Item_Assignments {
 				}
 			}
 		}
-		wp_set_post_terms( $post_id, array_values( array_unique( $menus ) ), 'jprm_menu', false );
-		wp_set_post_terms( $post_id, array_values( array_unique( $sections ) ), 'jprm_section', false );
+		self::write_terms( $post_id, $menus, $sections );
+	}
+
+	private static function write_terms( int $post_id, array $menus, array $sections ) : void {
+		foreach ( [ 'jprm_menu' => $menus, 'jprm_section' => $sections ] as $taxonomy => $ids ) {
+			$ids = array_values( array_unique( array_map( 'intval', $ids ) ) );
+			$current = wp_get_post_terms( $post_id, $taxonomy, [ 'fields' => 'ids' ] );
+			if ( is_wp_error( $current ) ) { continue; }
+			$current = array_map( 'intval', $current );
+			sort( $ids ); sort( $current );
+			if ( $ids !== $current ) { wp_set_post_terms( $post_id, $ids, $taxonomy, false ); }
+		}
 	}
 
 	/** Resolve flat import terms only when they identify complete, unambiguous placements. */

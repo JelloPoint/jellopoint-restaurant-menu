@@ -65,6 +65,11 @@ class Menu_Builder {
             'root'               => esc_url_raw( rest_url( 'jprm/v1' ) ),
             'nonce'              => wp_create_nonce( 'wp_rest' ),
             'debug'              => false,
+            'labels' => [
+                'loading' => __( 'Loading menu…', 'jellopoint-restaurant-menu' ),
+                'saving' => __( 'Saving changes…', 'jellopoint-restaurant-menu' ),
+                'reload' => __( 'Reload the Menu before saving changes.', 'jellopoint-restaurant-menu' ),
+            ],
             'admin_new_item_url' => admin_url( 'post-new.php?post_type=jprm_menu_item' ),
 			'admin_new_info_block_url' => admin_url( 'post-new.php?post_type=jprm_info_block' ),
         ] );
