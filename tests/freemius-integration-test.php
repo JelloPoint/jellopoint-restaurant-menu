@@ -21,8 +21,8 @@ $sdk = json_decode( file_get_contents( $root . '/vendor/freemius/composer.json' 
 fs_check( $sdk['license'] === 'GPL-3.0-only', 'Review SDK licensing after upgrade.' );
 foreach ( [ 'ci-dev.yml', 'ci-harden.yml' ] as $workflow ) {
 	$build = file_get_contents( $root . '/.github/workflows/' . $workflow );
-	fs_check( strpos( $build, "--include '/vendor/freemius/***'" ) !== false, 'Build must include SDK.' );
-	fs_check( strpos( $build, "--exclude '/vendor/*'" ) !== false, 'Build must omit dev dependencies.' );
+	fs_check( strpos( $build, 'php tools/build-packages.php' ) !== false, 'CI must use the audited edition builder.' );
+	fs_check( strpos( $build, 'php tests/package-distribution-test.php' ) !== false, 'CI must verify actual packages.' );
 }
 $readme = file_get_contents( $root . '/readme.txt' );
 fs_check( strpos( $readme, 'External service: Freemius' ) !== false, 'External service disclosure missing.' );

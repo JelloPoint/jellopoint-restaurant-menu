@@ -210,10 +210,12 @@ class Menu_Item_List {
 	public static function bulk_admin_notice() : void {
 		if ( isset( $_GET['jprm_bulk_unassigned'] ) ) {
 			$c = absint( wp_unslash( $_GET['jprm_bulk_unassigned'] ) );
+			/* translators: %d: number of menu items. */
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( _n( 'Unassigned %d item.', 'Unassigned %d items.', $c, 'jellopoint-restaurant-menu' ), $c ) ) . '</p></div>';
 		}
 		if ( isset( $_GET['jprm_bulk_assigned'] ) ) {
 			$c = absint( wp_unslash( $_GET['jprm_bulk_assigned'] ) );
+			/* translators: %d: number of menu items. */
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( _n( 'Assigned %d item.', 'Assigned %d items.', $c, 'jellopoint-restaurant-menu' ), $c ) ) . '</p></div>';
 		}
 		if ( isset( $_GET['jprm_bulk_error'] ) ) { // phpcs:ignore
@@ -380,6 +382,7 @@ class Menu_Item_List {
 				$link      = sprintf(
 					'<a href="#" class="jprm-multi-toggle" data-target="%s">%s</a>',
 					esc_attr( $target_id ),
+					/* translators: %d: number of prices. */
 					esc_html( sprintf( __( 'Multiple prices (%d)', 'jellopoint-restaurant-menu' ), $count ) )
 				);
 

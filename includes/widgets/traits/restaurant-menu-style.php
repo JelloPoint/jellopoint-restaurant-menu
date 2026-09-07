@@ -354,6 +354,8 @@ trait Restaurant_Menu_Style {
 			]
 		);
 
+// JPRM_PRO_BEGIN:daily-style
+		if ( \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'daily_weekly_menus' ) ) {
 		$this->add_control(
 			'jprm_daily_menu_heading',
 			[
@@ -402,6 +404,8 @@ trait Restaurant_Menu_Style {
 			'selectors' => [ '{{WRAPPER}} .jp-menu__daily-price' => 'color: {{VALUE}};' ],
 		] );
 
+		}
+// JPRM_PRO_END:daily-style
 		// Line height for items & matrix cells
 		$this->add_responsive_control(
 			'jprm_item_line_height',

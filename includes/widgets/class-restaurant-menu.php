@@ -183,11 +183,13 @@ final class Restaurant_Menu extends Widget_Base {
 
         $show_menu_title = ( isset( $s['show_menu_title'] ) && $s['show_menu_title'] === 'yes' );
         $show_menu_desc  = ( isset( $s['show_menu_description'] ) && $s['show_menu_description'] === 'yes' );
+// JPRM_PRO_BEGIN:daily-settings
 		$show_daily_date = ( ! isset( $s['show_daily_menu_date'] ) || 'yes' === $s['show_daily_menu_date'] );
 		$daily_auto_schedule = ( ! isset( $s['daily_menu_auto_schedule'] ) || 'yes' === $s['daily_menu_auto_schedule'] );
 		$show_daily_price = ( ! isset( $s['show_daily_menu_price'] ) || 'yes' === $s['show_daily_menu_price'] );
 		$daily_price_position = isset( $s['daily_menu_price_position'] ) && in_array( $s['daily_menu_price_position'], [ 'beside_date', 'below_date', 'bottom_menu' ], true ) ? (string) $s['daily_menu_price_position'] : 'beside_date';
 		$daily_menu = $menu_term ? self::jprm_daily_menu_display_data( (int) $menu_term->term_id ) : [];
+// JPRM_PRO_END:daily-settings
 		if ( ! empty( $daily_menu['enabled'] ) && ! \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'daily_weekly_menus' ) ) {
 			if ( self::jprm_is_editor_preview() ) {
 				echo '<div class="jp-menu--empty jp-menu--license-notice" role="status">' . esc_html__( 'This is a Daily/Weekly Menu and is hidden on the website because Pro access is unavailable. Your menu settings and content are preserved. Reactivate your Pro license to display it again. This message is only visible in the Elementor editor or preview.', 'jellopoint-restaurant-menu' ) . '</div>';
@@ -202,6 +204,7 @@ final class Restaurant_Menu extends Widget_Base {
             return;
         }
 
+// JPRM_PRO_BEGIN:daily-schedule
 		if ( $daily_auto_schedule && ! empty( $daily_menu['enabled'] ) && ! self::jprm_daily_menu_is_active( $daily_menu ) ) {
 			$is_editor = false;
 			if ( class_exists( '\\Elementor\\Plugin' ) ) {
@@ -217,6 +220,7 @@ final class Restaurant_Menu extends Widget_Base {
 			}
 		}
 
+// JPRM_PRO_END:daily-schedule
 		$structured_item_ids = null;
 		if ( $menu_term && Menu_Structure_Store::has_explicit( (int) $menu_term->term_id ) ) {
 			$structured_item_ids = [];
@@ -489,10 +493,12 @@ final class Restaurant_Menu extends Widget_Base {
             'menu_term'           => $menu_term,
             'show_menu_title'     => $show_menu_title,
             'show_menu_desc'      => $show_menu_desc,
+// JPRM_PRO_BEGIN:daily-context
 			'daily_menu'         => $daily_menu,
 			'show_daily_date'    => $show_daily_date,
 			'show_daily_price'   => $show_daily_price,
 			'daily_price_position' => $daily_price_position,
+// JPRM_PRO_END:daily-context
             'menu_pos'            => $menu_pos,
 
             // Sections + items
@@ -568,6 +574,7 @@ final class Restaurant_Menu extends Widget_Base {
 	}
 
 	/** Read and format Daily Menu term metadata for presentation. */
+// JPRM_PRO_BEGIN:daily-methods
 	private static function jprm_daily_menu_display_data( int $term_id ) : array {
 		if ( $term_id <= 0 || '1' !== (string) get_term_meta( $term_id, '_jprm_is_daily_menu', true ) ) { return []; }
 		$start = (string) get_term_meta( $term_id, '_jprm_daily_menu_date', true );
@@ -621,6 +628,7 @@ final class Restaurant_Menu extends Widget_Base {
 		return $today >= $start && $today <= $end;
 	}
 
+// JPRM_PRO_END:daily-methods
     /* =========================
      * Data helpers
      * ========================= */

@@ -13,6 +13,18 @@ final class Settings {
 	public static function init() : void {
 		add_action( 'admin_init', [ __CLASS__, 'register_settings' ] );
 		add_action( 'admin_menu', [ __CLASS__, 'register_menu' ], 80 );
+		add_action( 'admin_post_jprm_restore_defaults', [ __CLASS__, 'restore_defaults' ] );
+	}
+
+	/** Free onboarding; never depends on the Pro import engine or uploads. */
+	public static function restore_defaults() : void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'jellopoint-restaurant-menu' ), '', [ 'response' => 403 ] );
+		}
+		check_admin_referer( 'jprm_restore_defaults' );
+		\JPRM_Default_Data::install_missing();
+		wp_safe_redirect( admin_url( 'admin.php?page=jprm-settings&defaults-restored=1' ) );
+		exit;
 	}
 
 	public static function register_settings() : void {
@@ -51,6 +63,9 @@ final class Settings {
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'JelloPoint Settings', 'jellopoint-restaurant-menu' ); ?></h1>
+			<?php if ( isset( $_GET['defaults-restored'] ) ) : ?>
+				<div class="notice notice-success"><p><?php esc_html_e( 'Missing default badges, price labels and icons have been restored. Existing customizations are retained.', 'jellopoint-restaurant-menu' ); ?></p></div>
+			<?php endif; ?>
 			<form method="post" action="options.php">
 				<?php settings_fields( self::SETTINGS_GROUP ); ?>
 				<table class="form-table" role="presentation">
@@ -69,6 +84,13 @@ final class Settings {
 					</tr>
 				</table>
 				<?php submit_button(); ?>
+			</form>
+			<h2><?php esc_html_e( 'Default badges and price labels', 'jellopoint-restaurant-menu' ); ?></h2>
+			<p><?php esc_html_e( 'Add missing bundled defaults without replacing your existing badges or price labels.', 'jellopoint-restaurant-menu' ); ?></p>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="jprm_restore_defaults" />
+				<?php wp_nonce_field( 'jprm_restore_defaults' ); ?>
+				<?php submit_button( __( 'Restore missing defaults', 'jellopoint-restaurant-menu' ), 'secondary' ); ?>
 			</form>
 		</div>
 		<?php

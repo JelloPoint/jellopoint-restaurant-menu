@@ -46,6 +46,7 @@ class Menus_Admin {
 	add_filter( 'wp_insert_term_args', [ __CLASS__, 'sanitize_parent_arg' ], 999, 2 );
 	}
 
+// JPRM_PRO_BEGIN:daily-admin
 	/** Drop the "slug" column in the list table */
 	public static function columns( $cols ) {
 		if ( isset( $cols['slug'] ) ) unset( $cols['slug'] );
@@ -248,6 +249,7 @@ class Menus_Admin {
 		<?php
 	}
 
+// JPRM_PRO_END:daily-admin
 	/**
 	 * Keep only valid wp_terms columns: name, slug, term_group.
 	 * DO NOT pass 'parent' here — that belongs in wp_term_taxonomy and is handled from $args.

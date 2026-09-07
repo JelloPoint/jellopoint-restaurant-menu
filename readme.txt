@@ -1,8 +1,9 @@
-=== JelloPoint Restaurant Menu ===
+=== JelloPoint – Restaurant Menu Pro ===
 Tags: restaurant, menu, elementor, food, prices
 Requires at least: 6.5
+Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2.0.36
+Stable tag: 2.0.37
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -14,19 +15,19 @@ Manage Menu Items, Menus, Sections and reusable Info Blocks centrally. Display y
 
 Features include single and multiple prices, price labels, dietary badges, icons, section ordering and responsive presentation controls.
 
-This development distribution also contains Daily/Weekly Menus, Print/PDF and CSV Import/Export. These are intended Pro modules; the separate Free and Pro distributions are still in preparation. Multiple Prices remains a Free feature.
+This source checkout is the Pro edition. The build process creates separate Free and Pro packages.
 
 Elementor is required for the website widget. Menu management remains available without Elementor. WPML is optional; an included language configuration registers menu content and widget fields for translation.
 
 == External service: Freemius ==
 
-This Pro development build bundles Freemius SDK 2.13.4 for account registration, license activation, updates, checkout and optional usage-data sharing. The SDK communicates with Freemius services and can transmit site URL, plugin and WordPress/PHP versions, account/contact details and license information as part of these operations. Review its connection and permission screens before proceeding. Restaurant menu content is not explicitly sent by JelloPoint to Freemius.
+The plugin bundles Freemius SDK 2.13.4 for account registration, license activation, updates, checkout and optional usage-data sharing. The SDK communicates with Freemius services and can transmit site URL, plugin and WordPress/PHP versions, account/contact details and license information as part of these operations. Review its connection and permission screens before proceeding. Free menu management does not require a license or optional usage-data sharing. Restaurant menu content is not explicitly sent by JelloPoint to Freemius.
 
 Service: https://freemius.com/
 Terms: https://freemius.com/terms/
 Privacy: https://freemius.com/privacy/
 
-This is not a WordPress.org-ready Free package. Pro-module access enforcement follows in a later phase. See docs/freemius-testing.md in the source repository before deploying this development build.
+Source and distribution instructions: https://github.com/JelloPoint/jellopoint-restaurant-menu
 
 == Installation ==
 
@@ -43,9 +44,14 @@ Deactivation retains data. Deleting the plugin retains data by default. Enable t
 
 = How is a PDF created? =
 
-Open the printable menu and use your browser's print dialog to save as PDF.
+In Pro, open the printable menu and use your browser's print dialog to save as PDF.
 
 == Changelog ==
+
+= 2.0.37 =
+* Build separate Free and Pro distributions with Pro implementations physically excluded from Free.
+* Safely handle activation when both editions are installed and preserve existing content.
+* Make missing default badges, price labels and icons restorable under Settings in both editions.
 
 = 2.0.36 =
 * Explain retained Daily/Weekly menus without Pro access in the menu editor and authorized Elementor preview, without displaying notices to website visitors.

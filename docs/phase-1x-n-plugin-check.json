@@ -1,0 +1,1837 @@
+{
+  "environment": {
+    "wordpress": "7.1",
+    "php": "8.2.12",
+    "pluginCheck": "2.1.0",
+    "edition": "free",
+    "pluginVersion": "2.0.37",
+    "mode": "WP-CLI static checks (runtime checks not enabled)",
+    "date": "2026-09-07"
+  },
+  "findings": [
+    {
+      "file": "includes/admin/class-admin-menuitem-meta.php",
+      "line": 182,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/admin/class-admin-menuitem-meta.php",
+      "line": 188,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/admin/class-admin-menuitem-meta.php",
+      "line": 248,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/admin/class-admin-menuitem-meta.php",
+      "line": 490,
+      "type": "WARNING",
+      "code": "WordPress.Security.ValidatedSanitizedInput.InputNotSanitized"
+    },
+    {
+      "file": "includes/admin/class-admin-menuitem-meta.php",
+      "line": 526,
+      "type": "WARNING",
+      "code": "WordPress.Security.ValidatedSanitizedInput.InputNotSanitized"
+    },
+    {
+      "file": "includes/admin/class-item-placement-sync.php",
+      "line": 31,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/admin/class-item-placement-sync.php",
+      "line": 32,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/admin/class-item-placement-sync.php",
+      "line": 32,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/admin/class-item-placement-sync.php",
+      "line": 54,
+      "type": "WARNING",
+      "code": "WordPress.Security.ValidatedSanitizedInput.MissingUnslash"
+    },
+    {
+      "file": "includes/admin/class-item-placement-sync.php",
+      "line": 54,
+      "type": "WARNING",
+      "code": "WordPress.Security.ValidatedSanitizedInput.InputNotSanitized"
+    },
+    {
+      "file": "includes/admin/class-item-placement-sync.php",
+      "line": 68,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-menu-item-list.php",
+      "line": 89,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/admin/class-jprm-menu-item-list.php",
+      "line": 99,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-menu-item-list.php",
+      "line": 99,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-menu-item-list.php",
+      "line": 100,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-menu-item-list.php",
+      "line": 100,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-menu-item-list.php",
+      "line": 171,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-menu-item-list.php",
+      "line": 171,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-menu-item-list.php",
+      "line": 172,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-menu-item-list.php",
+      "line": 172,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-menu-item-list.php",
+      "line": 211,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-menu-item-list.php",
+      "line": 212,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-menu-item-list.php",
+      "line": 216,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-menu-item-list.php",
+      "line": 217,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 88,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 88,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 124,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 125,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 126,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 127,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 130,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 130,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 131,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 131,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 139,
+      "type": "WARNING",
+      "code": "WordPress.DB.SlowDBQuery.slow_db_query_meta_query"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 152,
+      "type": "WARNING",
+      "code": "WordPress.DB.SlowDBQuery.slow_db_query_meta_query"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 157,
+      "type": "WARNING",
+      "code": "WordPress.DB.SlowDBQuery.slow_db_query_meta_key"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 180,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 180,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 181,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 181,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 319,
+      "type": "WARNING",
+      "code": "WordPress.DB.DirectDatabaseQuery.DirectQuery"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 319,
+      "type": "WARNING",
+      "code": "WordPress.DB.DirectDatabaseQuery.NoCaching"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 349,
+      "type": "WARNING",
+      "code": "WordPress.DB.SlowDBQuery.slow_db_query_meta_query"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 401,
+      "type": "WARNING",
+      "code": "WordPress.DB.SlowDBQuery.slow_db_query_meta_key"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 406,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 406,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 410,
+      "type": "WARNING",
+      "code": "WordPress.DB.SlowDBQuery.slow_db_query_meta_query"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 420,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 420,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 432,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 432,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-sections-admin.php",
+      "line": 464,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/data/class-labels-store.php",
+      "line": 66,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/data/class-labels-store.php",
+      "line": 66,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/data/class-labels-store.php",
+      "line": 97,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/data/class-labels-store.php",
+      "line": 97,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/data/class-labels-store.php",
+      "line": 123,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/data/class-labels-store.php",
+      "line": 134,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/data/class-labels-store.php",
+      "line": 134,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/data/class-labels-store.php",
+      "line": 298,
+      "type": "WARNING",
+      "code": "WordPress.Security.ValidatedSanitizedInput.InputNotSanitized"
+    },
+    {
+      "file": "includes/data/class-labels-store.php",
+      "line": 397,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/data/class-labels-store.php",
+      "line": 397,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/data/class-labels-store.php",
+      "line": 398,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/data/class-labels-store.php",
+      "line": 398,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/data/class-labels-store.php",
+      "line": 399,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/data/class-labels-store.php",
+      "line": 400,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/data/class-labels-store.php",
+      "line": 400,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/data/class-labels-store.php",
+      "line": 404,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/data/class-labels-store.php",
+      "line": 405,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/data/class-labels-store.php",
+      "line": 406,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/data/class-labels-store.php",
+      "line": 410,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/class-price-renderer.php",
+      "line": 75,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/class-price-renderer.php",
+      "line": 75,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/class-price-renderer.php",
+      "line": 75,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/class-price-renderer.php",
+      "line": 75,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/class-price-renderer.php",
+      "line": 75,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/class-price-renderer.php",
+      "line": 75,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/class-price-renderer.php",
+      "line": 75,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/class-price-renderer.php",
+      "line": 96,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/class-price-renderer.php",
+      "line": 96,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/class-price-renderer.php",
+      "line": 96,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/class-price-renderer.php",
+      "line": 96,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/class-price-renderer.php",
+      "line": 96,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/class-price-renderer.php",
+      "line": 96,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/class-price-renderer.php",
+      "line": 96,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/partials/info-blocks.php",
+      "line": 66,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/partials/info-blocks.php",
+      "line": 102,
+      "type": "WARNING",
+      "code": "WordPress.DB.SlowDBQuery.slow_db_query_meta_query"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 16,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 18,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 19,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 20,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 21,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 22,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 23,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 26,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 27,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 28,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 31,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 34,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 38,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 98,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 99,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 101,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 103,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 108,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 110,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 119,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 121,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 125,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 134,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 137,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 138,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 142,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 143,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 144,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 145,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 151,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 155,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 156,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 163,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline-below.php",
+      "line": 170,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 22,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 24,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 25,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 26,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 27,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 28,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 29,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 31,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 32,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 35,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 36,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 37,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 40,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 41,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 102,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 105,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 106,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 108,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 110,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 115,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 116,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 118,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 124,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 126,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 161,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 162,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 163,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 172,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 174,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/templates/inline.php",
+      "line": 183,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 15,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 16,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 18,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 19,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 20,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 21,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 22,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 25,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 26,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 27,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 30,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 31,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 242,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 243,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 244,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 245,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 248,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 249,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 251,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 251,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 252,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 254,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 256,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 258,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 260,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 294,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 304,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 305,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 311,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 318,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 319,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 321,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 322,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 327,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 329,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 330,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 332,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 334,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 345,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 347,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 363,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 368,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 370,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 383,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 384,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 386,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/matrix.php",
+      "line": 391,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 44,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 45,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 46,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 47,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 48,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 50,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 51,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 53,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 54,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 56,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 57,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 59,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 60,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 61,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 62,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 63,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 66,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 67,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 68,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 69,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 71,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 73,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 75,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 76,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 77,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 79,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 80,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 81,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 84,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 85,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 86,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 88,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 89,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 90,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 91,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 92,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 93,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 96,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 99,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 103,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 104,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 106,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 108,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 110,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 113,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 131,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 137,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 138,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 139,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 140,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 143,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 144,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 146,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 148,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 150,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 159,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 161,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 164,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 166,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 174,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 179,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 180,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 183,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 186,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 188,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 193,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 194,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 196,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 197,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 198,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 200,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 201,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 204,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 205,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 210,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 217,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 280,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 282,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 329,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 383,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 383,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 560,
+      "type": "ERROR",
+      "code": "WordPress.Security.EscapeOutput.OutputNotEscaped"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 571,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 576,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 576,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/render/templates/menu.php",
+      "line": 581,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/admin/class-admin-dietary-badges.php",
+      "line": 49,
+      "type": "WARNING",
+      "code": "WordPress.WP.EnqueuedResourceParameters.MissingVersion"
+    },
+    {
+      "file": "includes/admin/class-admin-dietary-badges.php",
+      "line": 56,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-admin-dietary-badges.php",
+      "line": 56,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-admin-settings.php",
+      "line": 66,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-menu-builder.php",
+      "line": 42,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/admin/class-jprm-menu-builder.php",
+      "line": 42,
+      "type": "WARNING",
+      "code": "WordPress.Security.NonceVerification.Recommended"
+    },
+    {
+      "file": "includes/class-plugin.php",
+      "line": 221,
+      "type": "WARNING",
+      "code": "WordPress.Security.ValidatedSanitizedInput.InputNotSanitized"
+    },
+    {
+      "file": "jellopoint-restaurant-menu.php",
+      "line": 69,
+      "type": "WARNING",
+      "code": "PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound"
+    },
+    {
+      "file": "uninstall.php",
+      "line": 69,
+      "type": "WARNING",
+      "code": "WordPress.DB.DirectDatabaseQuery.DirectQuery"
+    },
+    {
+      "file": "uninstall.php",
+      "line": 69,
+      "type": "WARNING",
+      "code": "WordPress.DB.DirectDatabaseQuery.NoCaching"
+    },
+    {
+      "file": "uninstall.php",
+      "line": 81,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "uninstall.php",
+      "line": 82,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/admin/class-admin-bulk-price-labels.php",
+      "line": 883,
+      "type": "WARNING",
+      "code": "WordPress.DB.SlowDBQuery.slow_db_query_tax_query"
+    },
+    {
+      "file": "includes/admin/class-admin-bulk-price-labels.php",
+      "line": 939,
+      "type": "WARNING",
+      "code": "WordPress.DB.SlowDBQuery.slow_db_query_tax_query"
+    },
+    {
+      "file": "includes/data/class-menu-structure-store.php",
+      "line": 226,
+      "type": "WARNING",
+      "code": "WordPress.DB.SlowDBQuery.slow_db_query_tax_query"
+    },
+    {
+      "file": "includes/widgets/class-restaurant-menu.php",
+      "line": 584,
+      "type": "WARNING",
+      "code": "WordPress.DB.SlowDBQuery.slow_db_query_tax_query"
+    },
+    {
+      "file": "includes/widgets/traits/restaurant-menu-controls.php",
+      "line": 44,
+      "type": "WARNING",
+      "code": "WordPress.DB.SlowDBQuery.slow_db_query_tax_query"
+    },
+    {
+      "file": "includes/admin/save/class-menuitem-v3-writer.php",
+      "line": 16,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    },
+    {
+      "file": "includes/admin/save/class-menuitem-v3-writer.php",
+      "line": 24,
+      "type": "WARNING",
+      "code": "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound"
+    }
+  ]
+}

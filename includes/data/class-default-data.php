@@ -5,6 +5,27 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 if ( ! class_exists( 'JPRM_Default_Data' ) ) :
 class JPRM_Default_Data {
+	/** Resolve bundled icons against the running edition, without rewriting saved data. */
+	public static function init() : void {
+		add_filter( 'option_jprm_dietary_badges', [ __CLASS__, 'resolve_bundled_icons' ] );
+		add_filter( 'option_jprm_price_labels_v2', [ __CLASS__, 'resolve_bundled_icons' ] );
+	}
+
+	public static function resolve_bundled_icons( $rows ) {
+		if ( ! is_array( $rows ) ) { return $rows; }
+		foreach ( $rows as &$row ) {
+			if ( ! is_array( $row ) || ! empty( $row['icon_id'] ) ) { continue; }
+			$url = (string) ( $row['icon_url'] ?? '' );
+			if ( wp_parse_url( $url, PHP_URL_HOST ) !== wp_parse_url( JPRM_PLUGIN_URL, PHP_URL_HOST ) ) { continue; }
+			$path = (string) wp_parse_url( $url, PHP_URL_PATH );
+			if ( preg_match( '~/jellopoint-restaurant-menu(?:-premium)?/assets/icons/defaults/([a-z-]+\.svg)$~', $path, $match ) && is_file( dirname( __DIR__, 2 ) . '/assets/icons/defaults/' . $match[1] ) ) {
+				$row['icon_url'] = self::icon_url( $match[1] );
+			}
+		}
+		unset( $row );
+		return $rows;
+	}
+
 	/** Return the standard badge rows. */
 	public static function badge_defaults() : array {
 		$rows = [

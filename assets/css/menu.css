@@ -10,9 +10,11 @@
 .jp-menu__content { min-width: 0; }
 .jp-menu__title { margin: 0; }
 .jp-menu__desc { opacity: .85; }
+/* JPRM_PRO_BEGIN:daily-css-separator */
 .jp-menu__item-separator { margin: .45rem 0 .8rem; color: var(--jprm-muted, inherit); font-style: italic; text-align: center; }
 .jp-menu__item-separator--matrix { grid-column: 1 / -1; }
 
+/* JPRM_PRO_END:daily-css-separator */
 /* =====================================================================
    Design presets
    These are a base layer. Elementor Style-tab selectors can override them.
@@ -33,11 +35,13 @@
 }
 .jprm-menu-preset .jp-menu__meta--global { margin: 0 0 2rem; text-align: center; }
 .jprm-menu-preset .jp-menu__meta--global .jp-menu__title { color: var(--jprm-accent); }
+/* JPRM_PRO_BEGIN:daily-css-meta */
 .jprm-menu-preset .jp-menu__daily-meta { display: flex; justify-content: center; align-items: baseline; flex-wrap: wrap; gap: .5rem 1rem; margin-top: .75rem; }
 .jprm-menu-preset .jp-menu__daily-date { color: var(--jprm-muted); }
 .jprm-menu-preset .jp-menu__daily-price { color: var(--jprm-accent); font-weight: 700; }
 .jprm-menu-preset .jp-menu__daily-meta--price-below { flex-direction: column; align-items: center; }
 .jprm-menu-preset .jp-menu__meta--bottom { margin: 2rem 0 0; text-align: center; }
+/* JPRM_PRO_END:daily-css-meta */
 .jprm-menu-preset .jp-menu__meta-desc,
 .jprm-menu-preset .jp-menu__desc,
 .jprm-menu-preset .jp-section__desc { color: var(--jprm-muted); }
@@ -532,6 +536,7 @@
 .jp-layout-inline .jp-menu__content{ flex:0 1 auto; min-width:0; }
 .jp-layout-inline .jp-menu__titlewrap{ display:flex; width:100%; align-items:baseline; gap:.35rem; }
 
+/* JPRM_PRO_BEGIN:daily-css-width */
 /* Daily Menus with a fixed price use the full item width. */
 .jp-layout-inline--no-prices .jp-grid--inline {
   grid-template-columns: minmax(0, 1fr);
@@ -551,6 +556,7 @@
   display: none;
 }
 
+/* JPRM_PRO_END:daily-css-width */
 /* Price group stays compact on the right */
 .jp-layout-inline .jp-menu__pricegroup{
   flex:0 0 auto;
@@ -716,6 +722,7 @@
   }
 }
 
+/* JPRM_PRO_BEGIN:daily-css-final */
 /* Daily Menu final layout override: no reserved leader/price columns. */
 .jp-layout-inline.jp-layout-inline--no-prices .jp-grid.jp-grid--inline {
   grid-template-columns: minmax(0, 1fr) !important;
@@ -738,6 +745,7 @@
 .jp-layout-inline.jp-layout-inline--no-prices .jp-right-pricegroup {
   display: none !important;
 }
+/* JPRM_PRO_END:daily-css-final */
 
 
 

@@ -173,6 +173,7 @@ class Menu_Builder_Controller extends \WP_REST_Controller {
 			'permission_callback' => [ $this, 'write_permissions_check' ],
 		] );
 
+// JPRM_PRO_BEGIN:print-routes
 		register_rest_route( self::NS, '/menu-builder/info-blocks', [ 'methods' => 'GET', 'callback' => [ $this, 'get_info_blocks' ], 'args' => [ 'menu_id' => $id_arg ], 'permission_callback' => [ $this, 'read_permissions_check' ] ] );
 		register_rest_route( self::NS, '/menu-builder/info-blocks/save', [
 			'methods' => 'POST',
@@ -197,6 +198,7 @@ class Menu_Builder_Controller extends \WP_REST_Controller {
 			],
 			'permission_callback' => [ $this, 'write_permissions_check' ],
 		] );
+// JPRM_PRO_END:print-routes
 	}
 
 	public function read_permissions_check() : bool {
@@ -328,6 +330,7 @@ foreach ( $flat as $row ) {
 	if ( ! in_array( $tid, $attached_ids, true ) ) {
 		return new \WP_Error(
 			'jprm_cross_menu',
+			/* translators: %d: section term ID. */
 			sprintf( __( 'Section %d belongs to another Menu and cannot be moved here.', 'jellopoint-restaurant-menu' ), $tid ),
 			[ 'status' => 400 ]
 		);
@@ -487,6 +490,7 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 		return rest_ensure_response( [ 'ok' => true ] );
 	}
 
+// JPRM_PRO_BEGIN:print-rest-methods
 	public function get_info_blocks( $request ) {
 		if ( ! \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'print_pdf' ) ) {
 			return new \WP_Error( 'jprm_pro_required', __( 'Print/PDF requires a Pro license.', 'jellopoint-restaurant-menu' ), [ 'status' => 403 ] );
@@ -521,6 +525,7 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 		return rest_ensure_response( [ 'ok' => true, 'count' => count( $valid ) ] );
 	}
 
+// JPRM_PRO_END:print-rest-methods
 	/* ============================================================
 	 * Helpers
 	 * ============================================================ */

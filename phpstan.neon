@@ -5,7 +5,8 @@ includes:
 parameters:
   level: 2
   paths: [ . ]
-  excludePaths: [ vendor/*, node_modules/*, .github/* ]
+  # Generated artifacts and the real-WordPress fixture are checked separately.
+  excludePaths: [ vendor/*, node_modules/*, .github/*, package/*, tests/fixtures/edition-wordpress-smoke.php ]
 
   stubFiles:
     - vendor/php-stubs/wordpress-stubs/wordpress-stubs.php

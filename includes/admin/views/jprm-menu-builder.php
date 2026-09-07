@@ -81,6 +81,7 @@
                 </p>
             </div>
 
+<!-- JPRM_PRO_BEGIN:print-builder-panel -->
 			<?php if ( \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'print_pdf' ) ) : ?>
 			<div class="card" style="margin-top:16px;">
 				<h2><?php esc_html_e( 'Print/PDF Info Blocks', 'jellopoint-restaurant-menu' ); ?></h2>
@@ -92,6 +93,7 @@
 				<div id="jprm-info-placements"></div>
 			</div>
 			<?php endif; ?>
+<!-- JPRM_PRO_END:print-builder-panel -->
         </div>
     </div>
     <div class="jprm-menu-builder-notice jprm-menu-builder-notice--hidden jprm-menu-builder-notice--bottom"></div>

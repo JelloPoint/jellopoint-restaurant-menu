@@ -1,0 +1,113 @@
+{
+  "baselineCommit": "8f399c7",
+  "currentErrors": 21,
+  "baselineErrors": 21,
+  "unchanged": true,
+  "findings": [
+    {
+      "file": "includes/class-plugin.php",
+      "message": "Ignored error pattern #^is_wp_error\\(WP_Term\\) will always evaluate to false\\.$# in path [source] was not matched in reported errors.",
+      "identifier": "ignore.unmatched"
+    },
+    {
+      "file": "includes/class-plugin.php",
+      "message": "is_wp_error(array<int|string, int|string>|WP_Term) will always evaluate to false.",
+      "identifier": "function.impossibleType"
+    },
+    {
+      "file": "includes/class-plugin.php",
+      "message": "is_wp_error(array<int|string, int|string>|WP_Term) will always evaluate to false.",
+      "identifier": "function.impossibleType"
+    },
+    {
+      "file": "includes/data/class-importer.php",
+      "message": "Call to an undefined method WP_Error::get_error_message().",
+      "identifier": "method.notFound"
+    },
+    {
+      "file": "includes/data/class-importer.php",
+      "message": "Ignored error pattern #^is_wp_error\\(WP_Term\\) will always evaluate to false\\.$# in path [source] was not matched in reported errors.",
+      "identifier": "ignore.unmatched"
+    },
+    {
+      "file": "includes/data/class-importer.php",
+      "message": "is_wp_error(array<int|string, int|string>|WP_Term) will always evaluate to false.",
+      "identifier": "function.impossibleType"
+    },
+    {
+      "file": "includes/data/class-importer.php",
+      "message": "is_wp_error(array<int|string, int|string>|WP_Term) will always evaluate to false.",
+      "identifier": "function.impossibleType"
+    },
+    {
+      "file": "includes/data/class-importer.php",
+      "message": "is_wp_error(array<int|string, int|string>|WP_Term) will always evaluate to false.",
+      "identifier": "function.impossibleType"
+    },
+    {
+      "file": "includes/data/class-importer.php",
+      "message": "is_wp_error(array<int|string, int|string>|WP_Term) will always evaluate to false.",
+      "identifier": "function.impossibleType"
+    },
+    {
+      "file": "includes/data/class-importer.php",
+      "message": "is_wp_error(array<int|string, int|string>|WP_Term) will always evaluate to false.",
+      "identifier": "function.impossibleType"
+    },
+    {
+      "file": "includes/data/class-importer.php",
+      "message": "is_wp_error(array<int|string, int|string>|WP_Term) will always evaluate to false.",
+      "identifier": "function.impossibleType"
+    },
+    {
+      "file": "includes/data/class-item-assignments.php",
+      "message": "is_wp_error(array<int|string, int|string>|WP_Term) will always evaluate to false.",
+      "identifier": "function.impossibleType"
+    },
+    {
+      "file": "includes/data/class-item-assignments.php",
+      "message": "is_wp_error(array<int|string, int|string>|WP_Term) will always evaluate to false.",
+      "identifier": "function.impossibleType"
+    },
+    {
+      "file": "includes/rest/class-jprm-menu-builder-controller.php",
+      "message": "Access to an undefined property JelloPoint\\RestaurantMenu\\REST\\Menu_Builder_Controller::$namespace.",
+      "identifier": "property.notFound"
+    },
+    {
+      "file": "includes/rest/class-jprm-menu-builder-controller.php",
+      "message": "Access to an undefined property JelloPoint\\RestaurantMenu\\REST\\Menu_Builder_Controller::$rest_base.",
+      "identifier": "property.notFound"
+    },
+    {
+      "file": "includes/rest/class-jprm-menu-builder-controller.php",
+      "message": "Call to an undefined method WP_Error::get_error_message().",
+      "identifier": "method.notFound"
+    },
+    {
+      "file": "includes/rest/class-jprm-menu-builder-controller.php",
+      "message": "Call to an undefined method WP_Error::get_error_message().",
+      "identifier": "method.notFound"
+    },
+    {
+      "file": "includes/rest/class-jprm-menu-builder-controller.php",
+      "message": "Call to an undefined method WP_Error::get_error_message().",
+      "identifier": "method.notFound"
+    },
+    {
+      "file": "jellopoint-restaurant-menu.php",
+      "message": "Function fs_dynamic_init not found.",
+      "identifier": "function.notFound"
+    },
+    {
+      "file": "tests/rest-permissions-test.php",
+      "message": "Constructor of class WP_Error has an unused parameter $message.",
+      "identifier": "constructor.unusedParameter"
+    },
+    {
+      "file": "tests/uninstall-readiness-test.php",
+      "message": "Offset 'post_query' on array{} on left side of ?? does not exist.",
+      "identifier": "nullCoalesce.offset"
+    }
+  ]
+}

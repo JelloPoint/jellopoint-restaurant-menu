@@ -3,21 +3,24 @@ namespace JelloPoint\RestaurantMenu\Modules;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-/** Bootstrap the combined development distribution; license gating follows separately. */
+/** Edition-specific bootstrap; build regions remove Pro dependencies from Free. */
 final class Module_Loader {
 	private static $runtime_loaded = false;
 	private static $admin_loaded = false;
 
 	public static function load_runtime() : void {
 		if ( self::$runtime_loaded ) { return; }
+// JPRM_PRO_BEGIN:print-runtime
 		require_once JPRM_PLUGIN_PATH . 'includes/data/class-print-document-settings.php';
 		require_once JPRM_PLUGIN_PATH . 'includes/data/class-print-document-builder.php';
 		require_once JPRM_PLUGIN_PATH . 'includes/render/class-print-document-renderer.php';
+// JPRM_PRO_END:print-runtime
 		self::$runtime_loaded = true;
 	}
 
 	public static function boot_admin() : void {
 		if ( ! is_admin() || self::$admin_loaded ) { return; }
+// JPRM_PRO_BEGIN:pro-admin-loader
 		if ( ! Module_Access::allows( 'import_export' ) && ! Module_Access::allows( 'print_pdf' ) ) { return; }
 		self::load_runtime();
 		if ( Module_Access::allows( 'import_export' ) ) {
@@ -28,6 +31,7 @@ final class Module_Loader {
 			require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-print-document.php';
 			\JelloPoint\RestaurantMenu\Admin\Print_Document_Admin::init();
 		}
+// JPRM_PRO_END:pro-admin-loader
 		self::$admin_loaded = true;
 	}
 }

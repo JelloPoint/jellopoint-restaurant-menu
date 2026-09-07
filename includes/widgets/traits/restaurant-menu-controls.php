@@ -282,6 +282,7 @@ $this->add_control( 'items_order_overrides', [
 			'return_value' => 'yes',
 			'default'      => '',
 		] );
+// JPRM_PRO_BEGIN:daily-controls
 		if ( \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'daily_weekly_menus' ) ) {
 		$this->add_control( 'show_daily_menu_date', [
 			'label'        => __( 'Daily Menu date', 'jellopoint-restaurant-menu' ),
@@ -316,6 +317,7 @@ $this->add_control( 'items_order_overrides', [
 			'condition' => [ 'show_daily_menu_price' => 'yes' ],
 		] );
 		}
+// JPRM_PRO_END:daily-controls
 		$this->add_control( 'menu_title_position', [
 			'label'     => __( 'Menu title position', 'jellopoint-restaurant-menu' ),
 			'type'      => Controls_Manager::SELECT,
@@ -472,8 +474,7 @@ $this->add_control( 'labels_mobile_behaviour', [
         'per_section'  => __( 'Per Section Layouts',  'jellopoint-restaurant-menu' ),
     ],
     'description' => __(
-        'Choose how Matrix sections behave on smaller screens. '
-        . '“Per Section Layouts” keeps Matrix on mobile; the others force a single layout everywhere.',
+        'Choose how Matrix sections behave on smaller screens. “Per Section Layouts” keeps Matrix on mobile; the others force a single layout everywhere.',
         'jellopoint-restaurant-menu'
     ),
 ] );

@@ -69,26 +69,12 @@ jobs:
       - name: PHPStan (blocking)
         run: composer stan
 
-      - name: Build ZIP (clean)
-        shell: bash
+      - name: Build and verify separate Free and Pro packages
         run: |
-          set -euxo pipefail
-          PLUGDIR="jellopoint-restaurant-menu"
-          WORKDIR="$(pwd)/package"
-          mkdir -p "$WORKDIR/$PLUGDIR"
-          rsync -a --delete \
-            --include '/vendor/' --include '/vendor/freemius/***' --exclude '/vendor/*' --exclude 'node_modules' \
-            --exclude '.git*' --exclude '.github' \
-            --exclude '*.zip' \
-            --exclude 'composer.*' --exclude 'phpcs.xml' --exclude 'phpstan.neon' \
-            --exclude 'phpstan-baseline.neon' \
-            --exclude 'stubs' \
-            --exclude 'package' --exclude 'tests' --exclude 'docs' \
-            --exclude '.vscode' --exclude '.idea' --exclude '.agents' --exclude '.codex' \
-            --exclude 'AGENTS.md' --exclude 'CONTRIBUTING.md' \
-            ./ "$WORKDIR/$PLUGDIR/"
-          cd "$WORKDIR"
-          zip -r "$GITHUB_WORKSPACE/${PLUGDIR}.zip" "$PLUGDIR"
+          php tools/build-packages.php package/distributions
+          php tests/package-distribution-test.php package/distributions
+          node tests/builder-loading.test.cjs package/distributions/jellopoint-restaurant-menu free
+          node tests/builder-loading.test.cjs package/distributions/jellopoint-restaurant-menu-premium pro
 
       - name: Read plugin version from header
         id: ver
@@ -114,7 +100,7 @@ jobs:
             - Branch: ${{ github.ref_name }}
             - Commit: ${{ github.sha }}
           files: |
-            jellopoint-restaurant-menu.zip
+            package/distributions/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -122,4 +108,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: jellopoint-restaurant-menu
-          path: jellopoint-restaurant-menu.zip
+          path: package/distributions/*.zip

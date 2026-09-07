@@ -1,7 +1,10 @@
 const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
-const source = fs.readFileSync(require('node:path').join(__dirname, '../includes/admin/assets/jprm-menu-builder.js'), 'utf8');
+const path = require('node:path');
+const root = process.argv[2] ? path.resolve(process.argv[2]) : path.join(__dirname, '..');
+const freePackage = process.argv[3] === 'free';
+const source = fs.readFileSync(path.join(root, 'includes/admin/assets/jprm-menu-builder.js'), 'utf8');
 const elements = new Map(), requests = [], timers = new Map();
 let timerId = 0;
 function $(selector) {
@@ -57,9 +60,14 @@ const before = requests.length;
 context.JPRM_MENU_BUILDER.can_print = false;
 assert.doesNotThrow(() => api.loadInfoBlocks());
 assert.equal(requests.length, before, 'Free Builder called a Pro-only endpoint');
-assert.equal(api.state.infoPlacements.length, 0, 'Stale Pro placements retained in UI');
+if (!freePackage) assert.equal(api.state.infoPlacements.length, 0, 'Stale Pro placements retained in UI');
 context.JPRM_MENU_BUILDER.can_print = true;
 api.loadInfoBlocks();
-assert.equal(requests.length, before + 1, 'Pro Builder did not load placements');
-assert.match(requests.at(-1).options.url, /info-blocks\?menu_id=42/);
+if (freePackage) {
+  assert.equal(requests.length, before, 'Free artifact must not contain a Pro request even with a forged flag');
+  assert.doesNotMatch(source, /menu-builder\/info-blocks/);
+} else {
+  assert.equal(requests.length, before + 1, 'Pro Builder did not load placements');
+  assert.match(requests.at(-1).options.url, /info-blocks\?menu_id=42/);
+}
 console.log('Builder loading lifecycle and Free/Pro request checks passed.');

@@ -635,8 +635,8 @@ final class JPRM_Admin_Bulk_Price_Labels {
 			);
 		} else {
 			if ( $dry_run ) {
-				/* translators: %d: number of price rows that would change */
 				$message = sprintf(
+					/* translators: %d: number of price rows that would change. */
 					_n(
 						'Preview: %d price row would be updated (no changes saved).',
 						'Preview: %d price rows would be updated (no changes saved).',
@@ -646,8 +646,8 @@ final class JPRM_Admin_Bulk_Price_Labels {
 					$total_changed
 				);
 			} else {
-				/* translators: %d: number of price rows changed */
 				$message = sprintf(
+					/* translators: %d: number of price rows changed. */
 					_n(
 						'Updated labels on %d price row.',
 						'Updated labels on %d price rows.',

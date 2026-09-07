@@ -26,8 +26,10 @@ $label_presentation = (string) ( $sctx['label_presentation'] ?? 'icon_text' );
 $label_position     = (string) ( $sctx['label_position']     ?? 'right' );
 $label_map          = is_array( $sctx['label_map']     ?? null ) ? $sctx['label_map']     : [];
 $currency_opts      = is_array( $sctx['currency_opts'] ?? null ) ? $sctx['currency_opts'] : [];
+// JPRM_PRO_BEGIN:daily-inline-context
 $show_item_prices   = (string) ( $sctx['show_item_prices'] ?? 'yes' ) === 'yes';
 $item_separator     = trim( (string) ( $sctx['item_separator'] ?? '' ) );
+// JPRM_PRO_END:daily-inline-context
 
 $leader_enabled = (string) ( $sctx['inline_leader_enable'] ?? 'no' ) === 'yes';
 $leader_style   = isset( $sctx['inline_leader_style'] ) ? (string) $sctx['inline_leader_style'] : 'dotted';
@@ -101,15 +103,20 @@ if ( ! function_exists( 'jprm_label_chip_inline' ) ) {
  *   </li>
  */
 $layout_classes = 'jp-inline jp-layout-inline';
+// JPRM_PRO_BEGIN:daily-inline-layout
 if ( ! $show_item_prices ) {
 	$layout_classes .= ' jp-layout-inline--no-prices';
 }
+
+// JPRM_PRO_END:daily-inline-layout
 echo '<div class="' . esc_attr( $layout_classes ) . '">';
 
 foreach ( $items as $item_index => $post ) {
+// JPRM_PRO_BEGIN:daily-inline-separator
 	if ( $item_separator !== '' && $item_index > 0 ) {
 		echo '<div class="jp-menu__item-separator">' . esc_html( $item_separator ) . '</div>';
 	}
+// JPRM_PRO_END:daily-inline-separator
 	$pid   = (int) $post->ID;
 	$title = get_the_title( $pid );
 	$desc  = get_post_meta( $pid, 'jprm_desc', true );
