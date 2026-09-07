@@ -29,6 +29,18 @@ final class Restaurant_Menu extends Widget_Base {
     public function get_script_depends() { return []; }
 
     /* ===== Partials / helpers ===== */
+
+	/** License explanations are only visible to editors in Elementor editing/preview. */
+	private static function jprm_is_editor_preview() : bool {
+		if ( ! current_user_can( 'edit_posts' ) || ! class_exists( '\\Elementor\\Plugin' ) ) { return false; }
+		try {
+			$elementor = \Elementor\Plugin::$instance;
+			return ( isset( $elementor->editor ) && $elementor->editor->is_edit_mode() )
+				|| ( isset( $elementor->preview ) && $elementor->preview->is_preview_mode() );
+		} catch ( \Throwable $e ) {
+			return false;
+		}
+	}
     private static function require_price_partial_once() : void {
         static $loaded = false; if ( $loaded ) return;
         $path = dirname( __DIR__ ) . '/render/partials/price-block.php';
@@ -176,7 +188,12 @@ final class Restaurant_Menu extends Widget_Base {
 		$show_daily_price = ( ! isset( $s['show_daily_menu_price'] ) || 'yes' === $s['show_daily_menu_price'] );
 		$daily_price_position = isset( $s['daily_menu_price_position'] ) && in_array( $s['daily_menu_price_position'], [ 'beside_date', 'below_date', 'bottom_menu' ], true ) ? (string) $s['daily_menu_price_position'] : 'beside_date';
 		$daily_menu = $menu_term ? self::jprm_daily_menu_display_data( (int) $menu_term->term_id ) : [];
-		if ( ! empty( $daily_menu['enabled'] ) && ! \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'daily_weekly_menus' ) ) { return; }
+		if ( ! empty( $daily_menu['enabled'] ) && ! \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'daily_weekly_menus' ) ) {
+			if ( self::jprm_is_editor_preview() ) {
+				echo '<div class="jp-menu--empty jp-menu--license-notice" role="status">' . esc_html__( 'This is a Daily/Weekly Menu and is hidden on the website because Pro access is unavailable. Your menu settings and content are preserved. Reactivate your Pro license to display it again. This message is only visible in the Elementor editor or preview.', 'jellopoint-restaurant-menu' ) . '</div>';
+			}
+			return;
+		}
 		$menu_placements = $menu_term ? Menu_Structure_Store::item_placements( (int) $menu_term->term_id ) : [];
         $menu_pos        = isset( $s['menu_title_position'] ) ? (string) $s['menu_title_position'] : 'above_menu';
 

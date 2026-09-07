@@ -119,8 +119,13 @@ class Menus_Admin {
 
 	/** Fields shown on the Edit Menu screen. */
 	public static function edit_daily_menu_fields( $term ) : void {
-		if ( ! \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'daily_weekly_menus' ) ) { return; }
 		$term_id = isset( $term->term_id ) ? (int) $term->term_id : 0;
+		if ( ! \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'daily_weekly_menus' ) ) {
+			if ( self::is_daily_menu( $term_id ) ) {
+				echo '<tr class="form-field"><th scope="row">' . esc_html__( 'Daily Menu', 'jellopoint-restaurant-menu' ) . '</th><td><div class="notice notice-warning inline"><p>' . esc_html__( 'This menu was created as a Daily/Weekly Menu. Its settings and content are preserved, but editing its Daily/Weekly settings and displaying it require Pro access. Reactivate your Pro license to use this menu again.', 'jellopoint-restaurant-menu' ) . '</p></div></td></tr>';
+			}
+			return;
+		}
 		$enabled = self::is_daily_menu( $term_id );
 		$date = (string) get_term_meta( $term_id, self::META_DATE, true );
 		$date_type = (string) get_term_meta( $term_id, self::META_DATE_TYPE, true );
