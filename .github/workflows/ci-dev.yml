@@ -107,6 +107,9 @@ jobs:
             --exclude 'composer.*' --exclude 'phpcs.xml' --exclude 'phpstan.neon' \
             --exclude 'phpstan-baseline.neon' \
             --exclude 'stubs' \
+            --exclude 'package' --exclude 'tests' --exclude 'docs' \
+            --exclude '.vscode' --exclude '.idea' --exclude '.agents' --exclude '.codex' \
+            --exclude 'AGENTS.md' --exclude 'CONTRIBUTING.md' \
             ./ "$WORKDIR/$PLUGDIR/"
           cd "$WORKDIR"
           zip -r "$GITHUB_WORKSPACE/${PLUGDIR}.zip" "$PLUGDIR"

@@ -87,7 +87,20 @@ The website display remains powered by Elementor. Print and PDF use dedicated te
 | Area | Scope | Status |
 | --- | --- | --- |
 | Elementor Atomic | Add compatibility with Elementor V4 Atomic styling without breaking the current widget | 🗂️ Later |
-| WPML | Explicit multilingual handling for menus, sections, relationships, and stored Elementor IDs | 🗂️ Later |
+| WPML (1X-I2) | Explicit multilingual handling for menus, sections, relationships, and stored Elementor IDs; v2.0.27 | ✅ Approved |
+
+## Commercialization rework
+
+Phases 1X-A through 1X-I2 are approved and merged: metadata, Elementor dependency handling, uninstall, REST permissions, import security and data preservation, escaping, privacy, licenses, logo preview, i18n and WPML.
+
+| Phase | Scope | Status |
+| --- | --- | --- |
+| 1X-J | Distribution documentation and clean build exclusions; v2.0.28 | 🚧 Awaiting website approval |
+| Next | Separate Free/Pro packaging and Freemius integration | ⏳ Planned |
+
+Daily/Weekly Menus, Print/PDF and Import/Export are intended Pro modules. Multiple Prices remains Free.
+
+Before WordPress.org submission: finish the Free distribution, confirm the actual WordPress.org contributor account and tested WordPress version, and run Plugin Check on that distribution. The current combined development package is not a submission-ready Free release.
 
 ## Phase workflow
 

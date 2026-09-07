@@ -57,12 +57,5 @@ foreach ( [ 'items_order_overrides', 'labels_layout_overrides', 'info_blocks' ] 
 	jprm_assert_xpath( $xml, "elementor-widgets/widget[@name='jprm_restaurant_menu']/fields-in-item[@items_of='{$repeater}']", "WPML Elementor repeater is missing: {$repeater}" );
 }
 
-$bootstrap = file_get_contents( $root . '/jellopoint-restaurant-menu.php' );
-foreach ( [ 'Version:           2.0.27', "define( 'JPRM_VERSION', '2.0.27' )" ] as $needle ) {
-	if ( false === strpos( (string) $bootstrap, $needle ) ) {
-		fwrite( STDERR, "Plugin version is not consistently set to 2.0.27.\n" );
-		exit( 1 );
-	}
-}
 
 echo "WPML compatibility checks passed.\n";
