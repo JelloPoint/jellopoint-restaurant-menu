@@ -15,9 +15,18 @@ paste it into chat, plugin files, Git or a public screenshot. Do not enable thes
 settings on customer/production websites. Remove them before production use.
 
 Deploy the feature branch using Plesk Git. Confirm version 2.0.33, then open
-JelloPoint and inspect the SDK connection/license screen. Use sandbox credentials
-and licenses only; do not purchase through a production checkout. If no sandbox
-license is available, stop and configure one in Freemius before proceeding.
+JelloPoint and inspect the SDK connection/license screen. A manually created
+dashboard license can be used for activation testing without a purchase. This
+does not verify sandbox checkout or prove the license is a sandbox entity.
+For payment testing, use an explicitly identified sandbox checkout only.
+
+## Website approval (2026-09-07)
+
+The user confirmed activation and the requested functional checks worked, then
+approved merging 1X-L into develop. Activation used a manually created dashboard
+license, not a sandbox purchase. Release Plans remains off. Sandbox payments,
+license expiration/deactivation, optional data-sharing rejection, API failure
+and update behavior still require acceptance testing before commercial release.
 
 ## Acceptance checks
 
