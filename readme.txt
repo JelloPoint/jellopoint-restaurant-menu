@@ -2,7 +2,7 @@
 Tags: restaurant, menu, elementor, food, prices
 Requires at least: 6.5
 Requires PHP: 7.4
-Stable tag: 2.0.29
+Stable tag: 2.0.30
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -36,6 +36,12 @@ Deactivation retains data. Deleting the plugin retains data by default. Enable t
 Open the printable menu and use your browser's print dialog to save as PDF.
 
 == Changelog ==
+
+= 2.0.30 =
+* Use explicit Menu-to-Section pairs in the item editor, with one Section per Menu.
+* Synchronize Builder additions, moves, removals and Section detachments with item taxonomy assignments.
+* Route import assignments through the shared placement service and reject ambiguous rows.
+* Use Menu Builder for batch assignments; remove the unscoped Section bulk actions and taxonomy quick-edit controls.
 
 = 2.0.29 =
 * Synchronize item-editor Menu and Section selections with Menu Builder placements.

@@ -2,6 +2,7 @@
 /** Standalone checks for the Phase 10D per-Menu structure store. */
 
 define( 'ABSPATH', __DIR__ . '/' );
+function do_action( ...$args ) {}
 
 $jprm_structure_meta = [];
 $jprm_term_meta = [

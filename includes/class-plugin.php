@@ -81,6 +81,7 @@ class Plugin {
 				[ 'jprm_menu_item' ],
 				[
 					'label'        => __( 'Menus', 'jellopoint-restaurant-menu' ),
+					'show_in_quick_edit' => false,
 					'public'       => true,
 					'show_ui'      => true,
 					'show_in_rest' => true,
@@ -94,6 +95,7 @@ class Plugin {
 				[ 'jprm_menu_item' ],
 				[
 					'label'        => __( 'Sections', 'jellopoint-restaurant-menu' ),
+					'show_in_quick_edit' => false,
 					'public'       => true,
 					'show_ui'      => true,
 					'show_in_rest' => true,

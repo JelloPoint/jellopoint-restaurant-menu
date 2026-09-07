@@ -25,7 +25,14 @@ final class Menu_Structure_Store {
 	/** Save a complete normalized Menu structure. */
 	public static function save( int $menu_id, array $structure ) : bool {
 		if ( $menu_id <= 0 ) { return false; }
-		$result = update_term_meta( $menu_id, self::META_KEY, self::normalize( $structure ) );
+		$previous = self::get( $menu_id );
+		$structure = self::normalize( $structure );
+		do_action( 'jprm_before_structure_save', $menu_id );
+		$result = update_term_meta( $menu_id, self::META_KEY, $structure );
+		if ( false !== $result || $structure === $previous ) {
+			do_action( 'jprm_structure_saved', $menu_id, $previous, $structure );
+			return true;
+		}
 		return false !== $result;
 	}
 

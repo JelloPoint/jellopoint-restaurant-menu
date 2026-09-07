@@ -435,9 +435,6 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 			$section_access = $this->check_editable_term( $section_id, self::TAX_SECTION );
 			if ( is_wp_error( $section_access ) ) { continue; }
 			$valid[] = [ 'id' => $pid, 'section_id' => $section_id, 'order' => (int) ( $row['order'] ?? 0 ) ];
-			// Additive legacy terms never remove another Menu's placement.
-			wp_set_post_terms( $pid, [ $section_id ], self::TAX_SECTION, true );
-			wp_set_post_terms( $pid, [ $menu_id ], self::TAX_MENU, true );
 		}
 		Menu_Structure_Store::save_items( $menu_id, $valid );
 		return rest_ensure_response( [ 'ok' => true, 'count' => count( $valid ), 'msg' => __( 'Menu layout saved.', 'jellopoint-restaurant-menu' ) ] );
@@ -469,8 +466,6 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 			if ( $pid <= 0 ) continue;
 			if ( self::CPT_ITEM !== get_post_type( $pid ) || ! current_user_can( 'edit_post', $pid ) ) continue;
 			$allowed[] = $pid;
-			wp_set_post_terms( $pid, [ $section_id ], self::TAX_SECTION, true );
-			wp_set_post_terms( $pid, [ $menu_id ], self::TAX_MENU, true );
 		}
 		Menu_Structure_Store::assign_items( $menu_id, $section_id, $allowed );
 		return rest_ensure_response( [ 'ok' => true, 'assigned' => count( $allowed ) ] );

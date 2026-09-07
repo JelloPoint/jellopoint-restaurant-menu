@@ -123,7 +123,7 @@ class Menu_Item_List {
 			$by_id = [];
 			foreach ( $sections as $t ) {
 				$owner = intval( get_term_meta( $t->term_id, self::META_MENU_OWNER, true ) );
-				if ( $sel_menu_id && $owner !== $sel_menu_id ) continue;
+				if ( $sel_menu_id && ! in_array( (int) $t->term_id, \JelloPoint\RestaurantMenu\Data\Menu_Structure_Store::section_ids( $sel_menu_id ), true ) ) continue;
 				$by_id[ $t->term_id ] = [ 'term' => $t, 'children' => [] ];
 			}
 			foreach ( $by_id as $id => &$node ) {
@@ -180,26 +180,13 @@ class Menu_Item_List {
 				'terms'            => [ $section_id ],
 				'include_children' => true,
 			];
-		} elseif ( $menu_id ) {
-			$all = get_terms( [ 'taxonomy' => self::TAX_SECTION, 'hide_empty' => false, 'fields' => 'ids' ] );
-			$ids = [];
-			if ( ! is_wp_error( $all ) ) {
-				foreach ( $all as $tid ) {
-					if ( intval( get_term_meta( $tid, self::META_MENU_OWNER, true ) ) === $menu_id ) {
-						$ids[] = intval( $tid );
-					}
-				}
-			}
-			$ids = array_values( array_unique( $ids ) );
-			$tax_query[] = $ids ? [
-				'taxonomy'         => self::TAX_SECTION,
-				'field'            => 'term_id',
-				'terms'            => $ids,
-				'include_children' => true,
-			] : [
-				'taxonomy' => self::TAX_SECTION,
-				'field'    => 'term_id',
-				'terms'    => [ -1 ],
+		}
+		if ( $menu_id ) {
+			$tax_query[] = [
+				'taxonomy' => self::TAX_MENU,
+				'field' => 'term_id',
+				'terms' => [ $menu_id ],
+				'include_children' => false,
 			];
 		}
 
@@ -209,61 +196,15 @@ class Menu_Item_List {
 	/* ---------------- Bulk actions ---------------- */
 
 	public static function register_bulk_actions( array $actions ) : array {
-		$actions['jprm_assign_section']   = __( 'Assign to Section…', 'jellopoint-restaurant-menu' );
-		$actions['jprm_unassign_section'] = __( 'Unassign from Section', 'jellopoint-restaurant-menu' );
+		// A Section alone cannot identify a placement in a shared Menu structure.
+		// Use Menu Builder's scoped batch assignment instead.
+		unset( $actions['jprm_assign_section'], $actions['jprm_unassign_section'] );
 		return $actions;
 	}
 
 	public static function handle_bulk_actions( string $redirect_url, string $action, array $post_ids ) : string {
-		if ( $action !== 'jprm_assign_section' && $action !== 'jprm_unassign_section' ) {
-			return $redirect_url;
-		}
-
-		$done = 0;
-
-		if ( 'jprm_unassign_section' === $action ) {
-			foreach ( $post_ids as $pid ) {
-				if ( ! current_user_can( 'edit_post', $pid ) ) continue;
-				wp_set_post_terms( $pid, [], self::TAX_SECTION, false );
-				delete_post_meta( $pid, self::META_SECTION_ORDER );
-				$done++;
-			}
-			return add_query_arg( [ 'jprm_bulk_unassigned' => $done ], $redirect_url );
-		}
-
-		$target_section = isset( $_REQUEST['jprm_target_section'] ) ? absint( wp_unslash( $_REQUEST['jprm_target_section'] ) ) : 0;
-		if ( $target_section <= 0 ) {
-			return add_query_arg( [ 'jprm_bulk_error' => 1 ], $redirect_url );
-		}
-
-		// Append to end of that section's order
-		$existing = new \WP_Query( [
-			'post_type'      => self::CPT,
-			'posts_per_page' => -1,
-			'post_status'    => 'any',
-			'tax_query'      => [[
-				'taxonomy' => self::TAX_SECTION,
-				'field'    => 'term_id',
-				'terms'    => [ $target_section ],
-				'include_children' => false,
-			]],
-			'fields'         => 'ids',
-			'no_found_rows'  => true,
-		] );
-		$next = 0;
-		foreach ( (array) $existing->posts as $sid ) {
-			$next = max( $next, intval( get_post_meta( $sid, self::META_SECTION_ORDER, true ) ) );
-		}
-
-		foreach ( $post_ids as $pid ) {
-			if ( ! current_user_can( 'edit_post', $pid ) ) continue;
-			wp_set_post_terms( $pid, [ $target_section ], self::TAX_SECTION, false );
-			$next++;
-			update_post_meta( $pid, self::META_SECTION_ORDER, $next );
-			$done++;
-		}
-
-		return add_query_arg( [ 'jprm_bulk_assigned' => $done ], $redirect_url );
+		// Stale submissions of unscoped Section actions must not change placements.
+		return $redirect_url;
 	}
 
 	public static function bulk_admin_notice() : void {
@@ -355,13 +296,9 @@ class Menu_Item_List {
 	/* ---------------- Helpers ---------------- */
 
 	private static function derive_menu_name_for_item( int $post_id ) : string {
-		$terms = wp_get_post_terms( $post_id, self::TAX_SECTION, [ 'fields' => 'all' ] );
-		if ( is_wp_error( $terms ) || empty( $terms ) ) return '';
-		$first = $terms[0];
-		$owner_menu_id = intval( get_term_meta( $first->term_id, self::META_MENU_OWNER, true ) );
-		if ( ! $owner_menu_id ) return '';
-		$m = get_term( $owner_menu_id, self::TAX_MENU );
-		return ( $m && ! is_wp_error( $m ) ) ? $m->name : '';
+		$terms = wp_get_post_terms( $post_id, self::TAX_MENU, [ 'fields' => 'all' ] );
+		if ( is_wp_error( $terms ) || empty( $terms ) ) { return ''; }
+		return implode( ', ', array_map( static function( $term ) : string { return (string) $term->name; }, $terms ) );
 	}
 
 	/**

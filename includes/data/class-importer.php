@@ -386,8 +386,51 @@ final class JPRM_Importer {
 		$new_terms_created = [ 'menus' => $missing_menus, 'sections' => $missing_sections ];
 
 		$changed = self::diff_any( $old, $new );
+		$assignment_plan = null;
+		if ( $missing_menus || $missing_sections ) {
+			if ( ! $create_terms || 1 !== count( $new['menu_terms'] ) || 1 !== count( $new['sect_terms'] ) ) {
+				return self::result_row( $existing_id, 0, $title, $price_mode, $price_summary, $new, $new_terms_created,
+					'Create or pair these Menus and Sections in Menu Builder first. Automatic creation requires exactly one Menu and one Section.', 'skipped' );
+			}
+		}
+		if ( [] === $missing_menus && [] === $missing_sections ) {
+			$assignment_plan = Item_Assignments::plan_names( (int) $post_id, $new['menu_terms'], $new['sect_terms'] );
+			if ( false === $assignment_plan ) {
+				return self::result_row( $existing_id, 0, $title, $price_mode, $price_summary, $new, $new_terms_created,
+					'Cannot determine one Section per Menu. Set the assignments in Menu Builder and export again.', 'skipped' );
+			}
+		}
 
 		if ( ! $dry ) {
+			// Create missing terms (strict names only)
+			if ( $create_terms ) {
+				$menu_ids = self::ensure_terms_return_ids( 'jprm_menu', $new['menu_terms'] );
+				$sect_ids = self::ensure_terms_return_ids( 'jprm_section', $new['sect_terms'] );
+
+				// Link each NEW section to the first available menu
+				$owner_menu_id = $menu_ids ? (int) reset( $menu_ids ) : 0;
+				if ( $owner_menu_id ) {
+					foreach ( $sect_ids as $sid ) {
+						if ( ! get_term_meta( $sid, '_jprm_menu_term_id', true ) ) {
+							update_term_meta( $sid, '_jprm_menu_term_id', $owner_menu_id );
+						}
+					}
+				}
+			}
+
+			// Use the same assignments as the editor and Builder; do not write independent checkboxes.
+			if ( null === $assignment_plan && 1 === count( $new['menu_terms'] ) && 1 === count( $new['sect_terms'] ) ) {
+				$menu = get_term_by( 'name', $new['menu_terms'][0], 'jprm_menu' );
+				$section = get_term_by( 'name', $new['sect_terms'][0], 'jprm_section' );
+				if ( $menu && ! is_wp_error( $menu ) && $section && ! is_wp_error( $section ) ) {
+					Menu_Structure_Store::attach_section( (int) $menu->term_id, (int) $section->term_id );
+				}
+			}
+			if ( null === $assignment_plan ) { $assignment_plan = Item_Assignments::plan_names( (int) $post_id, $new['menu_terms'], $new['sect_terms'] ); }
+			if ( false === $assignment_plan ) {
+				return self::result_row( $existing_id, 0, $title, $price_mode, $price_summary, $new, $new_terms_created,
+					'Cannot determine Menu assignments. Use Menu Builder to assign Sections.', 'skipped' );
+			}
 			// Create missing post
 			if ( ! $is_existing ) {
 				$post_id = wp_insert_post( [
@@ -411,25 +454,10 @@ final class JPRM_Importer {
 				}
 			}
 
-			// Create missing terms (strict names only)
-			if ( $create_terms ) {
-				$menu_ids = self::ensure_terms_return_ids( 'jprm_menu', $new['menu_terms'] );
-				$sect_ids = self::ensure_terms_return_ids( 'jprm_section', $new['sect_terms'] );
-
-				// Link each NEW section to the first available menu
-				$owner_menu_id = $menu_ids ? (int) reset( $menu_ids ) : 0;
-				if ( $owner_menu_id ) {
-					foreach ( $sect_ids as $sid ) {
-						if ( ! get_term_meta( $sid, '_jprm_menu_term_id', true ) ) {
-							update_term_meta( $sid, '_jprm_menu_term_id', $owner_menu_id );
-						}
-					}
-				}
+			if ( false === $assignment_plan || ! Item_Assignments::replace( (int) $post_id, $assignment_plan ) ) {
+				return self::result_row( $existing_id, 0, $title, $price_mode, $price_summary, $new, $new_terms_created,
+					'Menu assignments could not be applied. Select one Section per Menu in Menu Builder.', 'skipped' );
 			}
-
-			// Assign terms by name (keeps strict behavior)
-			self::assign_terms_if_changed( $post_id, 'jprm_menu',    $new['menu_terms'] );
-			self::assign_terms_if_changed( $post_id, 'jprm_section', $new['sect_terms'] );
 
 			// Post basics
 			if ( $changed['post_title'] || $changed['post_status'] ) {
