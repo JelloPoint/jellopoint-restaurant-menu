@@ -50,7 +50,7 @@ $builder = file_get_contents( dirname( __DIR__ ) . '/includes/data/class-print-d
 $renderer = file_get_contents( dirname( __DIR__ ) . '/includes/render/class-print-document-renderer.php' );
 $template = file_get_contents( dirname( __DIR__ ) . '/includes/render/print/document.php' );
 $css = file_get_contents( dirname( __DIR__ ) . '/assets/css/print-document.css' );
-jprm_print_assert_same( true, false !== strpos( $main, 'class-print-document-builder.php' ), 'The print document pipeline must load in every context.' );
+jprm_print_assert_same( true, false !== strpos( $main, 'Module_Loader::load_runtime()' ), 'The shared module runtime must load in every context.' );
 jprm_print_assert_same( true, false !== strpos( $admin, 'admin_post_jprm_save_print_document' ), 'The settings form must use a protected admin handler.' );
 jprm_print_assert_same( true, false !== strpos( $admin, 'wp_enqueue_media' ), 'Logo selection must use the WordPress Media Library.' );
 jprm_print_assert_same( true, false !== strpos( $builder, 'Menu_Structure_Store::get' ), 'Print data must reuse the canonical per-Menu structure.' );

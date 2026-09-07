@@ -2,7 +2,7 @@
 Tags: restaurant, menu, elementor, food, prices
 Requires at least: 6.5
 Requires PHP: 7.4
-Stable tag: 2.0.31
+Stable tag: 2.0.32
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -36,6 +36,10 @@ Deactivation retains data. Deleting the plugin retains data by default. Enable t
 Open the printable menu and use your browser's print dialog to save as PDF.
 
 == Changelog ==
+
+= 2.0.32 =
+* Introduce a central Free/Pro module catalog and module bootstrap.
+* Keep all features enabled in the combined development distribution pending license integration and separate packaging.
 
 = 2.0.31 =
 * Load independent Builder data requests concurrently.

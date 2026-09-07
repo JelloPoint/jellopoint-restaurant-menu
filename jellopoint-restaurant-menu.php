@@ -3,7 +3,7 @@
  * Plugin Name:       JelloPoint – Restaurant Menu
  * Plugin URI:        https://github.com/JelloPoint/jellopoint-restaurant-menu
  * Description:       Create and display restaurant menus with sections, flexible prices, dietary labels, and an Elementor widget.
- * Version:           2.0.31
+ * Version:           2.0.32
  * Requires at least: 6.5
  * Requires PHP:      7.4
  * Author:            JelloPoint
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Constants
  * ------------------------------------------------- */
 if ( ! defined( 'JPRM_VERSION' ) ) {
-	define( 'JPRM_VERSION', '2.0.31' );
+	define( 'JPRM_VERSION', '2.0.32' );
 }
 if ( ! defined( 'JPRM_PLUGIN_FILE' ) ) {
 	define( 'JPRM_PLUGIN_FILE', __FILE__ );
@@ -58,10 +58,7 @@ require_once JPRM_PLUGIN_PATH . 'includes/data/class-menu-structure-store.php';
 require_once JPRM_PLUGIN_PATH . 'includes/data/class-item-assignments.php';
 \JelloPoint\RestaurantMenu\Data\Item_Assignments::init();
 require_once JPRM_PLUGIN_PATH . 'includes/data/class-info-block-store.php';
-require_once JPRM_PLUGIN_PATH . 'includes/data/class-print-document-settings.php';
-require_once JPRM_PLUGIN_PATH . 'includes/data/class-print-document-builder.php';
 require_once JPRM_PLUGIN_PATH . 'includes/data/class-badges-store.php';
-require_once JPRM_PLUGIN_PATH . 'includes/render/class-print-document-renderer.php';
 
 // Storage
 require_once JPRM_PLUGIN_PATH . 'includes/storage/class-price-repository.php';
@@ -71,6 +68,11 @@ require_once JPRM_PLUGIN_PATH . 'includes/render/class-price-renderer.php';
 
 /** Thin helper wrappers (provide stable global functions for the widget) */
 require_once JPRM_PLUGIN_PATH . 'includes/helpers/prices.php';
+
+// Central module boundary for the combined development distribution.
+require_once JPRM_PLUGIN_PATH . 'includes/modules/class-module-catalog.php';
+require_once JPRM_PLUGIN_PATH . 'includes/modules/class-module-loader.php';
+\JelloPoint\RestaurantMenu\Modules\Module_Loader::load_runtime();
 
 /** Plugin core */
 require_once JPRM_PLUGIN_PATH . 'includes/class-plugin.php';
@@ -116,12 +118,7 @@ if ( is_admin() ) {
     require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-bulk-price-labels.php';
     \JelloPoint\RestaurantMenu\Admin\JPRM_Admin_Bulk_Price_Labels::bootstrap();
 
-    // includes/admin/class-admin-import-export.php
-	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-import-export.php';
-    \JelloPoint\RestaurantMenu\Admin\JPRM_Admin_Import_Export::bootstrap();
-
-	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-print-document.php';
-	\JelloPoint\RestaurantMenu\Admin\Print_Document_Admin::init();
+	\JelloPoint\RestaurantMenu\Modules\Module_Loader::boot_admin();
 	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-info-blocks.php';
 	\JelloPoint\RestaurantMenu\Admin\Info_Blocks_Admin::init();
 
