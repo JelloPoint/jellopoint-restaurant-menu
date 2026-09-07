@@ -24,6 +24,7 @@ $.ajax = options => {
   const failure = [], complete = [];
   const request = { options,
     fail(fn) { failure.push(fn); return this; },
+    done() { return this; },
     always(fn) { complete.push(fn); return this; },
     settle(error) { if (error) failure.forEach(fn => fn(error)); complete.forEach(fn => fn()); }
   };
@@ -31,7 +32,7 @@ $.ajax = options => {
 };
 const context = {jQuery:$, document:{}, JPRM_MENU_BUILDER:{root:'/api',labels:{loading:'Loading',saving:'Saving'}},
   setTimeout(fn) { timers.set(++timerId, fn); return timerId; }, clearTimeout(id) { timers.delete(id); }};
-vm.runInNewContext(source.replace('})(jQuery);', 'globalThis.builderTest = {apiGet, apiPost, state}; })(jQuery);'), context);
+vm.runInNewContext(source.replace('})(jQuery);', 'globalThis.builderTest = {apiGet, apiPost, state, loadInfoBlocks}; })(jQuery);'), context);
 const api = context.builderTest;
 const flushTimers = () => { for (const fn of timers.values()) fn(); timers.clear(); };
 api.state.ready = true;
@@ -49,4 +50,16 @@ requests[2].settle({responseJSON:{message:'Failed'}}); flushTimers();
 assert.equal($('#jprm-loading').visible, false);
 assert.equal($('.jprm-toolbar, .jprm-columns').attributes.inert, undefined);
 assert.equal($('.jprm-menu-builder-wrap').attributes['aria-busy'], 'false');
-console.log('Builder loading lifecycle checks passed.');
+$.Deferred = () => { const result = {resolve() { return result; }, promise() { return result; }}; return result; };
+api.state.currentMenu = 42;
+api.state.infoBlocks = [{id: 1}]; api.state.infoPlacements = [{id: 1}];
+const before = requests.length;
+context.JPRM_MENU_BUILDER.can_print = false;
+assert.doesNotThrow(() => api.loadInfoBlocks());
+assert.equal(requests.length, before, 'Free Builder called a Pro-only endpoint');
+assert.equal(api.state.infoPlacements.length, 0, 'Stale Pro placements retained in UI');
+context.JPRM_MENU_BUILDER.can_print = true;
+api.loadInfoBlocks();
+assert.equal(requests.length, before + 1, 'Pro Builder did not load placements');
+assert.match(requests.at(-1).options.url, /info-blocks\?menu_id=42/);
+console.log('Builder loading lifecycle and Free/Pro request checks passed.');

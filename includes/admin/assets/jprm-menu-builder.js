@@ -103,7 +103,13 @@
   function loadAvailableSections(){ if(!state.currentMenu){ state.availableSections=[]; return $.Deferred().resolve().promise(); } return apiGet('menu-builder/sections/available?menu_id='+state.currentMenu).done(res=>{ state.availableSections=res.sections||[]; fillExistingSectionSelect(); }); }
   function loadItems(){ if(!state.currentMenu){ state.items=[]; return $.Deferred().resolve().promise(); } return apiGet('menu-builder/items?menu_id='+state.currentMenu).done(res=>{ state.items = res.items||[]; }); }
   function loadUnassigned(){ if(!state.currentMenu){ state.unassigned=[]; return $.Deferred().resolve().promise(); } return apiGet('menu-builder/items?menu_id='+state.currentMenu+'&unassigned=1').done(res=>{ state.unassigned = res.items||[]; }); }
-  function loadInfoBlocks(){ if(!state.currentMenu) return $.Deferred().resolve().promise(); return apiGet('menu-builder/info-blocks?menu_id='+state.currentMenu).done(res=>{state.infoBlocks=res.blocks||[];state.infoPlacements=res.placements||[];}); }
+  function loadInfoBlocks(){
+    if(!state.currentMenu || JPRM_MENU_BUILDER.can_print !== true){
+      state.infoBlocks=[]; state.infoPlacements=[];
+      return $.Deferred().resolve().promise();
+    }
+    return apiGet('menu-builder/info-blocks?menu_id='+state.currentMenu).done(res=>{state.infoBlocks=res.blocks||[];state.infoPlacements=res.placements||[];});
+  }
   function renderInfoBlocks(){
 	const names={}; state.infoBlocks.forEach(b=>names[b.id]=b.title);
 	const sections={}; state.sections.forEach(s=>sections[s.id]=s.title);

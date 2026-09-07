@@ -65,6 +65,7 @@ class Menu_Builder {
             'root'               => esc_url_raw( rest_url( 'jprm/v1' ) ),
             'nonce'              => wp_create_nonce( 'wp_rest' ),
             'debug'              => false,
+            'can_print'          => \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'print_pdf' ),
             'labels' => [
                 'loading' => __( 'Loading menu…', 'jellopoint-restaurant-menu' ),
                 'saving' => __( 'Saving changes…', 'jellopoint-restaurant-menu' ),
