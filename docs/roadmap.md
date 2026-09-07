@@ -95,7 +95,7 @@ Phases 1X-A through 1X-I2 are approved and merged: metadata, Elementor dependenc
 
 | Phase | Scope | Status |
 | --- | --- | --- |
-| 1X-J | Distribution documentation and clean build exclusions; v2.0.28 | 🚧 Awaiting website approval |
+| 1X-J | Distribution documentation and clean build exclusions; item-editor placement synchronization fix in v2.0.29 | 🚧 Awaiting website approval |
 | Next | Separate Free/Pro packaging and Freemius integration | ⏳ Planned |
 
 Daily/Weekly Menus, Print/PDF and Import/Export are intended Pro modules. Multiple Prices remains Free.
