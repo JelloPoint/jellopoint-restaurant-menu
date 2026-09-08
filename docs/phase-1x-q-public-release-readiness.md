@@ -103,9 +103,7 @@ WordPress.org submission; the Pro artifact is only for Freemius processing.
 ## Remaining manual acceptance
 
 1. Confirm the exact WordPress.org contributor username.
-2. Change the audited 2.0.40 Freemius deployment from Unreleased to Beta and
-   accept the Beta update on the existing test website.
-3. Keep `Release Plans` disabled and do not publish a normal deployment.
+2. Keep `Release Plans` disabled and do not publish a normal deployment.
 
 ## Freemius processing acceptance
 
@@ -128,3 +126,14 @@ All other 275 files were byte-identical. The processed package retained version
 `uninstall.php`; it contained no secret key. All 205 PHP files passed syntax,
 the packaged Builder test passed, and the actual WordPress 7.1 / Elementor 4.2.4
 Pro smoke test passed with data retained.
+
+## Website Beta update acceptance
+
+The audited 2.0.40 deployment was changed from Unreleased to Beta. After the
+test installation rejoined the Freemius Beta Program, WordPress offered and
+installed the real 2.0.39 to 2.0.40 premium update.
+
+The website retained exactly one active JelloPoint plugin, the Beta label, the
+original active test license and all existing restaurant data. Ordinary menu
+frontend output, Elementor preview, Daily Menu, Print/PDF and Import/Export were
+manually confirmed operational. No Plesk/source deployment was used.
