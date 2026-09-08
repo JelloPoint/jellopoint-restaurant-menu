@@ -100,10 +100,22 @@ The checks used the current stable WordPress 7.1 release and current Plugin
 Check 2.1.0. The Free artifact remains the only candidate eligible for the later
 WordPress.org submission; the Pro artifact is only for Freemius processing.
 
-## Remaining manual acceptance
+## WordPress.org submission identity
 
-1. Confirm the exact WordPress.org contributor username.
-2. Keep `Release Plans` disabled and do not publish a normal deployment.
+- Contributor username confirmed by the account owner: `jellopoint`.
+- `Tested up to`: WordPress 7.1, verified as the current stable release during
+  this phase.
+- Only the independent Free artifact is eligible for the later WordPress.org
+  submission.
+
+The public profile was not independently verified during this phase; the later
+WordPress.org submission flow will validate the account login and permissions.
+
+## Phase approval and retained safeguards
+
+All 1X-Q acceptance checks are complete. Keep `Release Plans` disabled and do
+not publish a normal Freemius deployment or submit to WordPress.org until those
+actions are explicitly approved in a later phase.
 
 ## Freemius processing acceptance
 
