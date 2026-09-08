@@ -101,7 +101,8 @@ Phases 1X-A through 1X-I2 are approved and merged: metadata, Elementor dependenc
 | 1X-L | Freemius SDK integration; v2.0.33 | ✅ Activation and functional website tests approved; payment and license-lifecycle tests pending |
 | 1X-M | Pro module access enforcement; v2.0.36 | ✅ Website tests approved: active, deactivated, reactivated and expired non-blocking license; Daily notices |
 | 1X-N | Independent Free/Pro packaging and distribution checks; v2.0.37 | ✅ Website tests approved and merged; Plugin Check findings remain a commercial-release gate |
-| 1X-O | Commercial release acceptance and WordPress.org Plugin Check cleanup; v2.0.38 | 🧪 Branch ready for website acceptance; external release tests remain off/live-safe |
+| 1X-O | Commercial release acceptance and WordPress.org Plugin Check cleanup; v2.0.38 | ✅ Website acceptance approved and merged; external release tests remain off/live-safe |
+| 1X-P | Private Freemius beta deployment and premium updater acceptance; v2.0.39 | 🧪 Verified release candidate ready; private beta/update website acceptance pending |
 
 See [Free/Pro architecture](free-pro-architecture.md) for module ownership,
 remaining extraction dependencies and the limits of the combined 1X-K build.
