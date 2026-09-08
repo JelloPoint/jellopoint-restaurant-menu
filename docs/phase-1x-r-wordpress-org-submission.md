@@ -126,3 +126,24 @@ Before uploading, the account owner must:
 2. allow email from `plugins@wordpress.org`;
 3. compare the selected ZIP checksum with the value above;
 4. explicitly approve submitting that exact ZIP for review.
+
+## WordPress.org submission acceptance
+
+Submitted on 8 September 2026 after explicit approval by the account owner:
+
+- Account: `jellopoint` (`info@jellopoint.com`)
+- Submitted file: `jellopoint-restaurant-menu.zip`
+- Submitted version: 2.0.41
+- Initial assigned slug: `jellopoint-restaurant-menu`
+- Automated Plugin Scanning: PASS
+- Review status: **Awaiting Review**
+
+WordPress.org sent a verification email to the account address. The initial
+slug remains subject to the manual review, and no second submission should be
+made while this one is pending. Reviewer questions or requested corrections
+must be handled by replying to the WordPress.org review email and, when needed,
+uploading a revised candidate through the existing submission.
+
+This submission does not enable Freemius `Release Plans`, change the Beta
+deployment, publish a normal Freemius release or create a public WordPress.org
+SVN release. Those actions remain separately gated.
