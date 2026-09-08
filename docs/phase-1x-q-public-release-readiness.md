@@ -48,3 +48,18 @@ Any finding that changes runtime code requires normal automated checks and a
 separate website acceptance before merging. Passing this phase does not itself
 authorize `Release Plans`, a production checkout, a normal Freemius release or
 a WordPress.org submission.
+
+## Intended annual EUR pricing
+
+The following Pro pricing matrix was selected for later sandbox verification:
+
+| Activations | Annual total | Effective price per site | Discount versus separate single-site licenses |
+| ---: | ---: | ---: | ---: |
+| 1 | EUR 29 | EUR 29.00 | — |
+| 3 | EUR 49 | EUR 16.33 | 43.7% |
+| 10 | EUR 89 | EUR 8.90 | 69.3% |
+| 25 | EUR 119 | EUR 4.76 | 83.6% |
+
+These are total prices per license tier, not per-site inputs. Monthly and
+lifetime pricing remain out of scope unless explicitly added later. Freemius
+`Release Plans` stays disabled while the matrix is configured and tested.
