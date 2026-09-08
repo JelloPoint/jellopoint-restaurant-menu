@@ -103,6 +103,7 @@ Phases 1X-A through 1X-I2 are approved and merged: metadata, Elementor dependenc
 | 1X-N | Independent Free/Pro packaging and distribution checks; v2.0.37 | ✅ Website tests approved and merged; Plugin Check findings remain a commercial-release gate |
 | 1X-O | Commercial release acceptance and WordPress.org Plugin Check cleanup; v2.0.38 | ✅ Website acceptance approved and merged; external release tests remain off/live-safe |
 | 1X-P | Private Freemius beta deployment, updater and sandbox checkout acceptance; v2.0.39 | ✅ Paid package, real Beta update, sandbox payment/subscription and purchased-license activation approved; test mode removed safely |
+| 1X-Q | Public-release package and launch-safety readiness; v2.0.40 | ✅ Approved; packages, privacy/offline behavior, real Beta update and WordPress.org submission identity accepted; no public release authorized |
 
 See [Free/Pro architecture](free-pro-architecture.md) for module ownership,
 remaining extraction dependencies and the limits of the combined 1X-K build.
@@ -112,7 +113,10 @@ independent builds and outstanding WordPress.org acceptance checks.
 
 Daily/Weekly Menus, Print/PDF and Import/Export are intended Pro modules. Multiple Prices remains Free.
 
-Before WordPress.org submission: confirm the actual WordPress.org contributor account and tested WordPress version. Optional data-sharing rejection/API-unavailable rechecks remain launch checks. Release Plans and normal public deployment remain disabled until explicitly approved.
+The WordPress.org contributor username is confirmed as `jellopoint`, and the
+Free artifact was tested against WordPress 7.1. Release Plans, normal public
+deployment and WordPress.org submission remain disabled until explicitly
+approved in a later phase.
 
 ## Phase workflow
 
