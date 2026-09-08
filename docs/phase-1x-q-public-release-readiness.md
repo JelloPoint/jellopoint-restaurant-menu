@@ -103,7 +103,28 @@ WordPress.org submission; the Pro artifact is only for Freemius processing.
 ## Remaining manual acceptance
 
 1. Confirm the exact WordPress.org contributor username.
-2. Confirm the four configured annual EUR prices in a fresh sandbox checkout.
-3. Upload the verified Pro artifact to Freemius as a new 2.0.40 Beta deployment,
-   inspect the processed Paid ZIP and accept the Beta update on the test website.
-4. Keep `Release Plans` disabled and do not publish a normal deployment.
+2. Change the audited 2.0.40 Freemius deployment from Unreleased to Beta and
+   accept the Beta update on the existing test website.
+3. Keep `Release Plans` disabled and do not publish a normal deployment.
+
+## Freemius processing acceptance
+
+The four annual EUR tiers were visible in the hosted sandbox checkout. No
+additional transaction was made. Freemius then processed the verified Pro
+artifact as 2.0.40; its generated Paid ZIP has SHA-256:
+
+`7232AD973D04EE7708B8311CACA7DCB4938647462A363B007EED1EC5F0B37988`
+
+The source Pro directory contained 277 files and the generated Paid directory
+276 files. Exactly two expected processing differences were found:
+
+1. Freemius transformed the main plugin file, adding its Update URI and live
+   deployment state, normalizing the integration snippet and wrapping runtime
+   bootstrap in its parallel-edition guard.
+2. Freemius removed `vendor/freemius/README.md`, which is not a runtime file.
+
+All other 275 files were byte-identical. The processed package retained version
+2.0.40, the premium identity, the uninstall hook class and no root
+`uninstall.php`; it contained no secret key. All 205 PHP files passed syntax,
+the packaged Builder test passed, and the actual WordPress 7.1 / Elementor 4.2.4
+Pro smoke test passed with data retained.
