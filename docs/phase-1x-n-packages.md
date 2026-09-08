@@ -1,7 +1,7 @@
 # Fase 1X-N — Free/Pro packages and distribution checks
 
 Version **2.0.37**. Branch `feature/phase-1x-n-free-pro-packages`.
-Implementation and local tests complete; website approval and merge pending.
+Implementation, local tests and Plesk website tests approved on 2026-09-08.
 This is **not** a WordPress.org submission approval or commercial release.
 
 ## Packages and source deployment
@@ -113,6 +113,10 @@ contributor account, then complete payment/privacy/API-failure/update tests in
 1X-O. A green smoke test is not a WordPress.org approval.
 
 ## Website test through Plesk
+
+The user deployed the feature branch and confirmed on 2026-09-08 that the
+requested website checks worked correctly. This approves the implementation for
+`develop`; the separate WordPress.org Plugin Check findings remain unresolved.
 
 1. Back up database and plugin files; retain the approved 2.0.36 rollback point.
 2. Deploy `feature/phase-1x-n-free-pro-packages`; confirm **2.0.37** and Pro access.

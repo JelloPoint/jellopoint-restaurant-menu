@@ -100,7 +100,7 @@ Phases 1X-A through 1X-I2 are approved and merged: metadata, Elementor dependenc
 | 1X-K | Free/Pro module catalog and loader foundation; v2.0.32 | ✅ Approved |
 | 1X-L | Freemius SDK integration; v2.0.33 | ✅ Activation and functional website tests approved; payment and license-lifecycle tests pending |
 | 1X-M | Pro module access enforcement; v2.0.36 | ✅ Website tests approved: active, deactivated, reactivated and expired non-blocking license; Daily notices |
-| 1X-N | Independent Free/Pro packaging and distribution checks; v2.0.37 | 🚧 Implemented and locally tested; website approval pending; Plugin Check findings remain a release gate |
+| 1X-N | Independent Free/Pro packaging and distribution checks; v2.0.37 | ✅ Website tests approved and merged; Plugin Check findings remain a commercial-release gate |
 | 1X-O | Commercial release acceptance | ⏳ Planned |
 
 See [Free/Pro architecture](free-pro-architecture.md) for module ownership,
