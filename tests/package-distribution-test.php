@@ -46,9 +46,10 @@ foreach ( ['free' => false, 'pro' => true] as $edition => $premium ) {
 	package_check( false !== strpos( $main, "'is_premium' => " . ( $premium ? 'true' : 'false' ) ), "$edition SDK identity is wrong." );
 	package_check( $premium === ( false !== strpos( $main, "'wp_org_gatekeeper'" ) ), "$edition gatekeeper is wrong." );
 	package_check( false !== strpos( $main, 'set_basename( ' . ( $premium ? 'true' : 'false' ) ), 'Double activation wrapper missing.' );
-	foreach ( ['includes/storage/class-price-schema.php', 'includes/render/class-price-renderer.php', 'includes/admin/class-admin-info-blocks.php', 'includes/data/class-default-data.php', 'vendor/freemius/LICENSE.txt', 'wpml-config.xml', 'uninstall.php'] as $shared ) {
+	foreach ( ['includes/storage/class-price-schema.php', 'includes/render/class-price-renderer.php', 'includes/admin/class-admin-info-blocks.php', 'includes/data/class-default-data.php', 'includes/class-uninstaller.php', 'vendor/freemius/LICENSE.txt', 'wpml-config.xml'] as $shared ) {
 		package_check( is_file( "$dir/$shared" ), "Shared file missing: $shared" );
 	}
+	package_check( ! is_file( "$dir/uninstall.php" ), 'Freemius packages must not contain root uninstall.php.' );
 	foreach ( JPRM_Package_Builder::PRO_FILES as $pro_file ) { package_check( $premium === is_file( "$dir/$pro_file" ), "Wrong edition: $pro_file" ); }
 	$builder = file_get_contents( "$dir/includes/admin/assets/jprm-menu-builder.js" );
 	package_check( $premium === ( false !== strpos( $builder, 'menu-builder/info-blocks' ) ), 'Print placement JS has wrong edition.' );

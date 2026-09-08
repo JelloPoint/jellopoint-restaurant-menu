@@ -51,6 +51,7 @@ In Pro, open the printable menu and use your browser's print dialog to save as P
 = 2.0.39 =
 * Provide an audited Free/Pro release candidate for private Freemius beta update testing.
 * Keep Elementor Section Override and Info Block Position choices scoped to the selected Menu's saved hierarchy.
+* Run optional data cleanup through Freemius' uninstall lifecycle while preserving the default data-retention policy.
 
 = 2.0.38 =
 * Resolve all blocking WordPress Plugin Check findings in the Free distribution.

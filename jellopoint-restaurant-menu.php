@@ -65,6 +65,10 @@ if ( ! defined( 'JPRM_PLUGIN_URL' ) ) {
 	define( 'JPRM_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 }
 
+// Freemius owns the WordPress uninstall hook; JelloPoint runs afterwards.
+require_once JPRM_PLUGIN_PATH . 'includes/class-uninstaller.php';
+\JelloPoint\RestaurantMenu\Uninstaller::register( jprm_fs() );
+
 /* -------------------------------------------------
  * Includes (explicit, fixed paths)
  * ------------------------------------------------- */

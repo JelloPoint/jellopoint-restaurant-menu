@@ -13,6 +13,9 @@ payment. `Release Plans` stays disabled.
   creating the Freemius deployment. Do not deploy this branch through Plesk;
   the update from 2.0.38 to 2.0.39 must arrive through Freemius.
 - Upload only the locally built and verified **Pro** ZIP to Freemius.
+- The package has no root `uninstall.php`. Freemius owns the WordPress uninstall
+  hook and invokes JelloPoint's cleanup through `after_uninstall`. Cleanup still
+  requires the existing explicit setting; its default remains OFF.
 - Mark 2.0.39 as a **Beta Release**, not as a normal public release. The test
   installation must explicitly join the Freemius Beta Program.
 - Freemius may display an automatically generated Free download. Do not publish,
@@ -46,6 +49,7 @@ gates from 1X-O remain required.
 | PHP 7.4–8.4 compatibility and coding standards | PASS |
 | PHPStan against the accepted baseline | PASS — no new finding |
 | Free/Pro manifests, ZIP contents, checksums and PHP syntax | PASS |
+| Freemius uninstall package rule and opt-in cleanup lifecycle | PASS |
 | Local WordPress 7.1 / Elementor 4.2.4 Free → Pro → Free | PASS — content retained |
 | WordPress Plugin Check 2.1.0 on Free | PASS — 0 errors; 58 reviewed warnings |
 
