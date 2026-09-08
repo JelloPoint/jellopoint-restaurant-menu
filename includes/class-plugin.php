@@ -206,8 +206,7 @@ class Plugin {
 
 	/**
 	 * Returns Sections for the selected Menu (Elementor editor).
-	 * Uses ONLY the term-meta key: _jprm_menu_term_id (int menu term_id).
-	 * If no sections are mapped yet, falls back to ALL sections (hierarchical).
+	 * Uses the per-Menu Builder structure, including its hierarchy and order.
 	 */
 	public static function ajax_sections_by_menu() : void {
 		// Keep the editor usable even on nonce/capability issues.
@@ -218,11 +217,14 @@ class Plugin {
 			wp_send_json_error( [ 'message' => __( 'Invalid request.', 'jellopoint-restaurant-menu' ) ], 403 );
 		}
 
-		$menu_raw = isset( $_REQUEST['menu'] ) ? wp_unslash( $_REQUEST['menu'] ) : '';
+		$menu_raw = isset( $_REQUEST['menu'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['menu'] ) ) : '';
 		$menu_id  = self::normalize_menu_to_id( $menu_raw );
 
 		if ( $menu_id <= 0 ) {
 			wp_send_json_success( self::all_sections_map(), 200 );
+		}
+		if ( class_exists( '\\JelloPoint\\RestaurantMenu\\Data\\Menu_Structure_Store' ) ) {
+			wp_send_json_success( \JelloPoint\RestaurantMenu\Data\Menu_Structure_Store::section_options( $menu_id ), 200 );
 		}
 
 		$ids = self::get_section_ids_from_meta( $menu_id );
@@ -238,8 +240,8 @@ class Plugin {
 			}
 		}
 
-		// Fallback: all sections, hierarchical.
-		wp_send_json_success( self::all_sections_map(), 200 );
+		// A selected Menu without mapped Sections must not leak Sections from another Menu.
+		wp_send_json_success( [], 200 );
 	}
 
 	/* =========================

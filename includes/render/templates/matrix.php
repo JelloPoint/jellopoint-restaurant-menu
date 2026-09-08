@@ -1,6 +1,9 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+// Included renderer template: these variables remain scoped to the caller.
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
+
 /**
  * Matrix (per-section)
  * Expects $_section_ctx = [
@@ -310,8 +313,9 @@ echo '<div class="jp-matrix__row jp-matrix__row--header">';
 			'icon_html' => (string) ( $cols[ $k ]['icon_html'] ?? '' ),
 			'icon_url'  => (string) ( $cols[ $k ]['icon_url']  ?? '' ),
 		];
+		// Header helper escapes text/URLs and returns fixed markup, including SVG masks.
 		echo '<div class="jp-matrix__cell jp-matrix__cell--head" data-label-key="' . esc_attr( $k ) . '">'
-			. jprm_matrix_header_cell( $meta, $label_presentation )
+			. jprm_matrix_header_cell( $meta, $label_presentation ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			. '</div>';
 	}
 echo '</div>';
@@ -360,7 +364,7 @@ foreach ( $items as $item_index => $post ) {
 					if ( $badges_position === 'before' && $badges_html !== '' ) {
 						echo $badges_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 					}
-					echo '<span class="jp-menu__title">' . esc_html( $title ) . '</span>';
+				echo '<span class="jp-menu__title">' . esc_html( $title ) . '</span>';
 					if ( $badges_position !== 'before' && $badges_html !== '' ) {
 						echo $badges_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 					}
@@ -368,12 +372,16 @@ foreach ( $items as $item_index => $post ) {
 			}
 
 			if ( is_string( $desc ) && $desc !== '' ) {
-				echo '<div class="jp-menu__desc">' . wpautop( wp_kses_post( $desc ) ) . '</div>';
+				echo '<div class="jp-menu__desc">' . wp_kses_post( wpautop( wp_kses_post( $desc ) ) ) . '</div>';
 			}
 
 			// Unlabeled prices warning block
 			if ( $has_any_label && ! empty( $unlabeled_prices ) ) {
-				echo "\n<!-- jprm-matrix-unlabeled #{$pid}: " . esc_html( implode( ', ', $unlabeled_prices ) ) . " -->\n";
+				printf(
+					"\n<!-- jprm-matrix-unlabeled #%d: %s -->\n",
+					absint( $pid ),
+					esc_html( implode( ', ', $unlabeled_prices ) )
+				);
 				echo '<div class="jp-matrix__unlabeled">';
 				foreach ( $unlabeled_prices as $fmt ) {
 					echo '<div class="jp-matrix__unlabeled-price" title="' .
@@ -396,7 +404,7 @@ foreach ( $items as $item_index => $post ) {
 					: '';
 			}
 			echo '<div class="jp-matrix__cell jp-matrix__cell--value" data-label-key="' . esc_attr( $k ) . '">'
-				. $val
+				. wp_kses_post( $val )
 				. '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		}
 

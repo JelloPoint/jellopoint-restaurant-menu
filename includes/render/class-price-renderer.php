@@ -72,7 +72,8 @@ class Price_Renderer {
 
                 $price_html = self::format_price_display( $price, $currency );
 
-                echo self::row_html( $price_html, $label_text, $icon_id, $icon_url, $presentation, $order_class, $hide );
+				// row_html() escapes all leaf values before assembling the fixed menu markup.
+				echo self::row_html( $price_html, $label_text, $icon_id, $icon_url, $presentation, $order_class, $hide ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
             }
         }
         // MULTI
@@ -93,7 +94,8 @@ class Price_Renderer {
 
                 $price_html = self::format_price_display( $price, $currency );
 
-                echo self::row_html( $price_html, $label_text, $icon_id, $icon_url, $presentation, $order_class, $hide );
+				// row_html() escapes all leaf values before assembling the fixed menu markup.
+				echo self::row_html( $price_html, $label_text, $icon_id, $icon_url, $presentation, $order_class, $hide ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
             }
         }
 

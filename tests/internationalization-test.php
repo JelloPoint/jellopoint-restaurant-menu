@@ -4,11 +4,15 @@
 $root = dirname( __DIR__ );
 $bootstrap = file_get_contents( $root . '/jellopoint-restaurant-menu.php' );
 $bootstrap = str_replace( "\r\n", "\n", $bootstrap );
-foreach ( [ 'Domain Path:       /languages', 'function jprm_load_textdomain()', "load_plugin_textdomain(\n\t\t'jellopoint-restaurant-menu'" ] as $needle ) {
+foreach ( [ 'Domain Path:       /languages', 'Text Domain:       jellopoint-restaurant-menu' ] as $needle ) {
 	if ( false === strpos( $bootstrap, $needle ) ) {
 		fwrite( STDERR, "Missing translation bootstrap: {$needle}\n" );
 		exit( 1 );
 	}
+}
+if ( false !== strpos( $bootstrap, 'load_plugin_textdomain(' ) ) {
+	fwrite( STDERR, "WordPress.org language packs must use just-in-time translation loading.\n" );
+	exit( 1 );
 }
 
 $php_files = array_merge(

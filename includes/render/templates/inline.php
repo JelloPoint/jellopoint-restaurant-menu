@@ -1,6 +1,9 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+// Included renderer template: these variables remain scoped to the caller.
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
+
 /**
  * Inline (per-section)
  * Expects $_section_ctx = [
@@ -183,9 +186,10 @@ foreach ( $items as $item_index => $post ) {
 				];
 
 				echo '<div class="jp-price-row">';
-					echo '<span class="jp-chip">' . jprm_label_chip_inline( $lbl, $label_presentation ) . '</span>';
+					// The helper escapes text and URLs while assembling the label markup.
+					echo '<span class="jp-chip">' . jprm_label_chip_inline( $lbl, $label_presentation ) . '</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 					if ( $price !== '' ) {
-						echo '<span class="jp-price">' . $price . '</span>';
+						echo '<span class="jp-price">' . wp_kses_post( $price ) . '</span>';
 					}
 				echo '</div>';
 			}
@@ -194,7 +198,7 @@ foreach ( $items as $item_index => $post ) {
 		// LEFT column, row 2: Description (under title)
 		echo '<div class="jp-left-desc">';
 			if ( is_string( $desc ) && $desc !== '' ) {
-				echo '<div class="jp-menu__desc">' . wpautop( wp_kses_post( $desc ) ) . '</div>';
+				echo '<div class="jp-menu__desc">' . wp_kses_post( wpautop( wp_kses_post( $desc ) ) ) . '</div>';
 			}
 		echo '</div>';
 

@@ -18,11 +18,15 @@ function get_term_meta( $term_id, $key, $single = false ) {
 }
 function update_term_meta( $term_id, $key, $value ) { global $jprm_structure_meta; $jprm_structure_meta[ $term_id ] = $value; return true; }
 function get_terms( $args ) {
-	return [
-		(object) [ 'term_id' => 11, 'parent' => 0 ],
-		(object) [ 'term_id' => 12, 'parent' => 11 ],
-		(object) [ 'term_id' => 13, 'parent' => 0 ],
+	$terms = [
+		(object) [ 'term_id' => 11, 'parent' => 0, 'name' => 'Drinks' ],
+		(object) [ 'term_id' => 12, 'parent' => 0, 'name' => 'Wine' ],
+		(object) [ 'term_id' => 13, 'parent' => 0, 'name' => 'Multi Test' ],
+		(object) [ 'term_id' => 14, 'parent' => 0, 'name' => 'Beer' ],
 	];
+	if ( ! isset( $args['include'] ) ) { return $terms; }
+	$include = array_map( 'intval', (array) $args['include'] );
+	return array_values( array_filter( $terms, static function( $term ) use ( $include ) { return in_array( (int) $term->term_id, $include, true ); } ) );
 }
 function is_wp_error( $value ) { return false; }
 function wp_get_post_terms( $post_id, $taxonomy, $args = [] ) { return 501 === $post_id ? [ 12 ] : [ 11 ]; }
@@ -50,6 +54,18 @@ $legacy = Menu_Structure_Store::get( 8 );
 jprm_structure_assert_same( [ 12, 11 ], array_column( $legacy['sections'], 'id' ), 'Legacy sections must be ordered and restricted to their owner Menu.' );
 jprm_structure_assert_same( [ [ 'id' => 501, 'order' => 0 ] ], $legacy['sections'][0]['items'], 'Legacy item ordering must normalize densely.' );
 jprm_structure_assert_same( false, Menu_Structure_Store::has_explicit( 8 ), 'Legacy reads must not mutate Menu metadata.' );
+
+$jprm_structure_meta[8] = [ 'version' => 1, 'sections' => [
+	[ 'id' => 11, 'parent_id' => 0, 'order' => 0, 'items' => [] ],
+	[ 'id' => 12, 'parent_id' => 11, 'order' => 1, 'items' => [] ],
+	[ 'id' => 14, 'parent_id' => 11, 'order' => 2, 'items' => [] ],
+] ];
+jprm_structure_assert_same(
+	[ 11 => 'Drinks', 12 => '— Wine', 14 => '— Beer' ],
+	Menu_Structure_Store::section_options( 8 ),
+	'Section choices must use the selected Menu hierarchy and exclude Sections from other Menus.'
+);
+unset( $jprm_structure_meta[8] );
 
 $dirty = [ 'sections' => [
 	[ 'id' => 21, 'parent_id' => 22, 'order' => 8, 'items' => [ [ 'id' => 601, 'order' => 9 ], [ 'id' => 601, 'order' => 1 ] ] ],

@@ -515,7 +515,7 @@ public static function hook_terms_order_and_filter() : void {
 		    wrap.className = 'alignleft actions jprm-sections-filter';
 		    wrap.innerHTML =
 		      '<label class="screen-reader-text" for="jprm_filter_menu"><?php echo esc_js(__('Filter by Menu', 'jellopoint-restaurant-menu')); ?></label>' +
-		      '<select name="jprm_filter_menu" id="jprm_filter_menu" class="postform"><?php echo $options; ?></select>';
+		      '<select name="jprm_filter_menu" id="jprm_filter_menu" class="postform"><?php echo wp_kses( $options, [ 'option' => [ 'value' => true, 'selected' => true ] ] ); ?></select>';
 		    top.prepend(wrap);
 
 		    var sel = wrap.querySelector('#jprm_filter_menu');

@@ -86,7 +86,8 @@ class Menu_Item_List {
 			return;
 		}
 		if ( 'jprm_prices' === $col ) {
-			echo self::render_prices_cell( $post_id ); // already escaped inside
+			// Every dynamic fragment is escaped while the cell markup is assembled.
+			echo self::render_prices_cell( $post_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			return;
 		}
 	}

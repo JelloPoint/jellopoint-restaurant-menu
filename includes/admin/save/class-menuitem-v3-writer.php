@@ -13,17 +13,17 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 // --- Ensure storage classes are loaded (Price_Schema + Price_Repository) ---
 if ( ! class_exists( 'JelloPoint\\RestaurantMenu\\Storage\\Price_Schema' ) ) {
     // Adjust the path if your file lives elsewhere:
-    $p = dirname( __DIR__, 2 ) . '/storage/class-price-schema.php';
-    if ( is_readable( $p ) ) {
-        require_once $p;
+	$jprm_storage_path = dirname( __DIR__, 2 ) . '/storage/class-price-schema.php';
+	if ( is_readable( $jprm_storage_path ) ) {
+		require_once $jprm_storage_path;
     }
 }
 
 if ( ! class_exists( 'JelloPoint\\RestaurantMenu\\Storage\\Price_Repository' ) ) {
     // Adjust the path if your file lives elsewhere:
-    $p = dirname( __DIR__, 2 ) . '/storage/class-price-repository.php';
-    if ( is_readable( $p ) ) {
-        require_once $p;
+	$jprm_storage_path = dirname( __DIR__, 2 ) . '/storage/class-price-repository.php';
+	if ( is_readable( $jprm_storage_path ) ) {
+		require_once $jprm_storage_path;
     }
 }
 

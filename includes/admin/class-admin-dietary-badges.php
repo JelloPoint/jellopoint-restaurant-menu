@@ -46,7 +46,7 @@ class JPRM_Admin_Dietary_Badges {
 		wp_enqueue_script( 'jquery-ui-sortable' );
 
 		$style_handle = 'jprm-admin-badges-inline';
-		wp_register_style( $style_handle, false );
+		wp_register_style( $style_handle, false, [], JPRM_VERSION );
 		wp_enqueue_style( $style_handle );
 		wp_add_inline_style( $style_handle, $this->inline_css() );
 

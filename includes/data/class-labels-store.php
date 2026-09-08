@@ -120,7 +120,8 @@ class JPRM_Labels_Store {
         echo '</tr></thead><tbody id="jprm-labels-tbody">';
 
         if ( empty($rows) ) {
-            echo self::row_html( 0, [
+            // row_html() escapes each stored value and returns the fixed admin row markup.
+            echo self::row_html( 0, [ // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
                 'id' => '',
                 'label' => '',
                 'slug' => '',
@@ -131,7 +132,8 @@ class JPRM_Labels_Store {
             ] );
         } else {
             foreach ( $rows as $i => $row ) {
-                echo self::row_html( $i, $row );
+                // row_html() escapes each stored value and returns the fixed admin row markup.
+                echo self::row_html( $i, $row ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
             }
         }
 
@@ -295,7 +297,8 @@ class JPRM_Labels_Store {
         if ( ! current_user_can( 'manage_options' ) ) return;
 
         $rows = isset( $_POST['labels'] ) && is_array( $_POST['labels'] )
-            ? wp_unslash( $_POST['labels'] )
+			// sanitize_row() applies the context-specific sanitizer to every value below.
+			? wp_unslash( $_POST['labels'] ) // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
             : [];
         $clean = [];
         $seen_ids = [];
@@ -370,12 +373,12 @@ class JPRM_Labels_Store {
 
     /** Render a single <tr>. */
     protected static function row_html( int $index, array $row ) : string {
-        $id    = esc_attr( (string)($row['id'] ?? '') );
-        $slug  = esc_attr( (string)($row['slug'] ?? '') );
-        $label = esc_attr( (string)($row['label'] ?? '') );
-        if ( $label === '' ) { $label = esc_attr( (string)($row['label_text'] ?? '') ); }
+		$id    = (string) ( $row['id'] ?? '' );
+		$slug  = (string) ( $row['slug'] ?? '' );
+		$label = (string) ( $row['label'] ?? '' );
+		if ( $label === '' ) { $label = (string) ( $row['label_text'] ?? '' ); }
         $icon  = (int)($row['icon_id'] ?? 0);
-        $icon_url = esc_url( (string)($row['icon_url'] ?? '') );
+		$icon_url = (string) ( $row['icon_url'] ?? '' );
         $act   = ! empty($row['active']);
         $order = (int)($row['order'] ?? $index);
 
@@ -384,7 +387,7 @@ class JPRM_Labels_Store {
             $img = wp_get_attachment_image( $icon, [28,28], false );
             if ( is_string($img) ) { $preview = $img; }
         } elseif ( $icon_url !== '' ) {
-            $preview = '<img src="' . $icon_url . '" alt="" />';
+            $preview = '<img src="' . esc_url( $icon_url ) . '" alt="" />';
         } else {
             $preview = '<span class="dashicons dashicons-format-image" title="'.esc_attr__('Choose icon','jellopoint-restaurant-menu').'"></span>';
         }
@@ -394,20 +397,20 @@ class JPRM_Labels_Store {
         <tr class="jprm-row">
             <td class="col-drag"><span class="dashicons dashicons-menu jprm-drag" title="<?php echo esc_attr__( 'Drag', 'jellopoint-restaurant-menu' ); ?>"></span></td>
             <td>
-                <input type="text" class="regular-text" name="labels[<?php echo $index; ?>][label]" value="<?php echo $label; ?>" />
-                <input type="hidden" name="labels[<?php echo $index; ?>][id]" value="<?php echo $id; ?>" />
-                <input type="hidden" name="labels[<?php echo $index; ?>][order]" value="<?php echo esc_attr($order); ?>" />
-                <input type="hidden" name="labels[<?php echo $index; ?>][slug]" value="<?php echo $slug; ?>" />
+				<input type="text" class="regular-text" name="labels[<?php echo esc_attr( (string) $index ); ?>][label]" value="<?php echo esc_attr( $label ); ?>" />
+				<input type="hidden" name="labels[<?php echo esc_attr( (string) $index ); ?>][id]" value="<?php echo esc_attr( $id ); ?>" />
+				<input type="hidden" name="labels[<?php echo esc_attr( (string) $index ); ?>][order]" value="<?php echo esc_attr($order); ?>" />
+				<input type="hidden" name="labels[<?php echo esc_attr( (string) $index ); ?>][slug]" value="<?php echo esc_attr( $slug ); ?>" />
             </td>
             <td>
                 <div class="jprm-icon-wrap">
-                    <span class="jprm-icon-preview" role="button" tabindex="0"><?php echo $preview; ?></span>
-                    <input type="hidden" name="labels[<?php echo $index; ?>][icon_id]" value="<?php echo esc_attr($icon); ?>" />
-                    <input type="hidden" name="labels[<?php echo $index; ?>][icon_url]" value="<?php echo esc_url($icon_url); ?>" />
+					<span class="jprm-icon-preview" role="button" tabindex="0"><?php echo wp_kses_post( $preview ); ?></span>
+					<input type="hidden" name="labels[<?php echo esc_attr( (string) $index ); ?>][icon_id]" value="<?php echo esc_attr($icon); ?>" />
+					<input type="hidden" name="labels[<?php echo esc_attr( (string) $index ); ?>][icon_url]" value="<?php echo esc_url($icon_url); ?>" />
                     <button type="button" class="button jprm-icon-btn jprm-icon-clear" title="<?php echo esc_attr__('Clear icon','jellopoint-restaurant-menu'); ?>"><span class="dashicons dashicons-no"></span><span class="screen-reader-text"><?php echo esc_html__('Clear','jellopoint-restaurant-menu'); ?></span></button>
                 </div>
             </td>
-            <td><label><input type="checkbox" name="labels[<?php echo $index; ?>][active]" value="1" <?php checked( $act, true ); ?> /> <?php echo esc_html__( 'Active', 'jellopoint-restaurant-menu' ); ?></label></td>
+			<td><label><input type="checkbox" name="labels[<?php echo esc_attr( (string) $index ); ?>][active]" value="1" <?php checked( $act, true ); ?> /> <?php echo esc_html__( 'Active', 'jellopoint-restaurant-menu' ); ?></label></td>
             <td class="jprm-actions">
                 <button type="button" class="button jprm-icon-btn jprm-row-delete" title="<?php echo esc_attr__('Delete row','jellopoint-restaurant-menu'); ?>"><span class="dashicons dashicons-trash"></span><span class="screen-reader-text"><?php echo esc_html__('Delete','jellopoint-restaurant-menu'); ?></span></button>
             </td>
