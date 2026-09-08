@@ -1,13 +1,14 @@
 === JelloPoint – Restaurant Menu Pro ===
+Contributors: jellopoint
 Tags: restaurant, menu, elementor, food, prices
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2.0.40
+Stable tag: 2.0.41
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-Create restaurant menus with sections, multiple prices, dietary badges and an Elementor widget.
+Create flexible restaurant menus with sections, multiple prices, dietary badges and an Elementor widget.
 
 == Description ==
 
@@ -21,7 +22,7 @@ Elementor is required for the website widget. Menu management remains available 
 
 == External service: Freemius ==
 
-The plugin bundles Freemius SDK 2.13.4 for account registration, license activation, updates, checkout and optional usage-data sharing. The SDK communicates with Freemius services and can transmit site URL, plugin and WordPress/PHP versions, account/contact details and license information as part of these operations. Review its connection and permission screens before proceeding. Free menu management does not require a license or optional usage-data sharing. Restaurant menu content is not explicitly sent by JelloPoint to Freemius.
+The plugin bundles Freemius SDK 2.13.4 for optional account registration, Pro checkout and license activation, Pro updates and support, and optional usage-data sharing. The Free edition works without connecting to Freemius and receives plugin updates only through WordPress.org. Freemius communication starts when a site administrator explicitly chooses a connection, checkout or license action. The SDK can then transmit the site URL, plugin and WordPress/PHP versions, account/contact details and license information required for the selected operation. Review its connection and permission screens before proceeding. Free menu management and display do not require a license or usage-data sharing. Restaurant menu content is not explicitly sent by JelloPoint to Freemius.
 
 Service: https://freemius.com/
 Terms: https://freemius.com/terms/
@@ -38,6 +39,14 @@ Source and distribution instructions: https://github.com/JelloPoint/jellopoint-r
 
 == Frequently Asked Questions ==
 
+= Is Elementor required? =
+
+Elementor is required to place the restaurant menu widget on a website page. You can still manage restaurant menu content in WordPress without Elementor.
+
+= Does the Free edition require an account or license? =
+
+No. Free menu management and display do not require a license or optional usage-data sharing. You can skip the Freemius connection screen and use the Free edition.
+
 = Does deactivation or deletion remove restaurant data? =
 
 Deactivation retains data. Deleting the plugin retains data by default. Enable the explicit delete-data option under JelloPoint Settings only if you want plugin data removed during uninstall.
@@ -47,6 +56,9 @@ Deactivation retains data. Deleting the plugin retains data by default. Enable t
 In Pro, open the printable menu and use your browser's print dialog to save as PDF.
 
 == Changelog ==
+
+= 2.0.41 =
+* Prepare the verified Free package and directory metadata for WordPress.org submission.
 
 = 2.0.40 =
 * Prepare final public-release Free and Pro artifacts and launch-safety acceptance.
