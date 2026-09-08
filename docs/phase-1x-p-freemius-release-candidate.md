@@ -72,6 +72,27 @@ gates from 1X-O remain required.
 8. Leave the Beta Program after acceptance unless continued beta updates are
    intentionally wanted.
 
+## Acceptance result
+
+Approved on 8 September 2026.
+
+- Freemius accepted and processed the verified Pro package as version 2.0.39.
+- The Freemius-generated Paid ZIP was compared with the source Pro package;
+  only the expected SDK/deployment processing changes were present.
+- The generated Paid ZIP passed PHP syntax and local WordPress/Elementor Pro
+  activation, functional and Free rollback checks with data retained.
+- The test website received 2.0.39 through the Freemius Beta Program from the
+  existing 2.0.38 installation.
+- WordPress showed one active JelloPoint plugin after the update, marked Beta;
+  no duplicate Free or Premium installation was created.
+- The active license, existing restaurant data, ordinary and Daily menus,
+  Elementor, Builder, labels/badges, Print/PDF and Import/Export remained
+  operational after the update.
+
+Phase 1X-P is approved. The deployment remains a Beta Release and `Release
+Plans` remains disabled; neither the paid plan nor a public release is enabled
+by this acceptance.
+
 ## Remaining external checks
 
 After the updater is approved, perform the separate sandbox checkout using the
