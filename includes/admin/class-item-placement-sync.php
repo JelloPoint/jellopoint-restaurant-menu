@@ -28,8 +28,8 @@ final class Item_Placement_Sync {
 		foreach ( $menus as $menu ) {
 			$id = (int) $menu->term_id;
 			$current = Menu_Structure_Store::item_placements( $id )[ (int) $post->ID ]['section_id'] ?? 0;
-			echo '<p><label for="jprm-placement-' . $id . '">' . esc_html( $menu->name ) . '</label> ';
-			echo '<select id="jprm-placement-' . $id . '" name="jprm_placements[' . $id . ']">';
+			echo '<p><label for="jprm-placement-' . esc_attr( (string) $id ) . '">' . esc_html( $menu->name ) . '</label> ';
+			echo '<select id="jprm-placement-' . esc_attr( (string) $id ) . '" name="jprm_placements[' . esc_attr( (string) $id ) . ']">';
 			echo '<option value="0">' . esc_html__( 'Not assigned', 'jellopoint-restaurant-menu' ) . '</option>';
 			foreach ( Menu_Structure_Store::get( $id )['sections'] as $row ) {
 				$section = get_term( $row['id'], 'jprm_section' );
@@ -51,7 +51,9 @@ final class Item_Placement_Sync {
 			if ( ! $taxonomy || ! current_user_can( $taxonomy->cap->assign_terms ) ) { return; }
 		}
 		$pairs = [];
-		foreach ( $_POST['jprm_placements'] as $menu_id => $section_id ) {
+		// Each key/value pair is scalar-validated and normalized in the loop below.
+		$posted_placements = wp_unslash( $_POST['jprm_placements'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		foreach ( $posted_placements as $menu_id => $section_id ) {
 			if ( ! ctype_digit( (string) $menu_id ) || ! is_scalar( $section_id ) || ! ctype_digit( (string) $section_id ) ) {
 				add_filter( 'redirect_post_location', [ __CLASS__, 'warning_redirect' ] ); return;
 			}

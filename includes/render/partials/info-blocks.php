@@ -62,8 +62,8 @@ function jprm_infoblocks_render_rows( array $rows, string $position ) : string {
 		}
 
 		if ( $html !== '' ) {
-			// Intentionally raw: this field is a deliberate HTML field in the widget.
-			echo '<div class="jprm-infoblock__content">' . $html . '</div>';
+			// This deliberate rich-text field is limited to WordPress post HTML.
+			echo '<div class="jprm-infoblock__content">' . wp_kses_post( $html ) . '</div>';
 		}
 
 		echo '</div>';

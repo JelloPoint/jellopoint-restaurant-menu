@@ -1,6 +1,9 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+// Included renderer template: these variables remain scoped to the caller.
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
+
 /**
  * Inline-Below (per section): one horizontal line of label/price pairs
  * placed FULL-WIDTH directly under the title/description.
@@ -124,13 +127,13 @@ foreach ($items as $item_index => $post) {
 	echo '<div class="jp-menu__content">';
 		if ($title !== '') {
 			echo '<div class="jp-menu__titlewrap">';
-				if ($badges_position === 'before' && $badges_html !== '') echo $badges_html;
+				if ($badges_position === 'before' && $badges_html !== '') echo $badges_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Render helper escapes badge fields.
 				echo '<span class="jp-menu__title">'.esc_html($title).'</span>';
-				if ($badges_position !== 'before' && $badges_html !== '') echo $badges_html;
+				if ($badges_position !== 'before' && $badges_html !== '') echo $badges_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Render helper escapes badge fields.
 			echo '</div>';
 		}
 		if ( is_string( $desc ) && $desc !== '' ) {
-				echo '<div class="jp-menu__desc">' . wpautop( wp_kses_post( $desc ) ) . '</div>';
+				echo '<div class="jp-menu__desc">' . wp_kses_post( wpautop( wp_kses_post( $desc ) ) ) . '</div>';
 			}
 	echo '</div>';
 
@@ -175,7 +178,8 @@ foreach ($items as $item_index => $post) {
 				}
 			}
 
-			echo implode('', $pairs);
+			// Pair fragments contain only fixed markup plus values escaped above.
+			echo implode('', $pairs); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 
 		echo '</div>'; // .jp-inline-below__line
 	echo '</div>'; // .jp-menu__pricegroup--below

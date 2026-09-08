@@ -218,7 +218,7 @@ class Plugin {
 			wp_send_json_error( [ 'message' => __( 'Invalid request.', 'jellopoint-restaurant-menu' ) ], 403 );
 		}
 
-		$menu_raw = isset( $_REQUEST['menu'] ) ? wp_unslash( $_REQUEST['menu'] ) : '';
+		$menu_raw = isset( $_REQUEST['menu'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['menu'] ) ) : '';
 		$menu_id  = self::normalize_menu_to_id( $menu_raw );
 
 		if ( $menu_id <= 0 ) {

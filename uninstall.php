@@ -78,9 +78,9 @@ function jprm_uninstall_site_data() : void {
 }
 
 if ( is_multisite() ) {
-	$site_ids = get_sites( [ 'fields' => 'ids', 'number' => 0 ] );
-	foreach ( $site_ids as $site_id ) {
-		switch_to_blog( (int) $site_id );
+	$jprm_site_ids = get_sites( [ 'fields' => 'ids', 'number' => 0 ] );
+	foreach ( $jprm_site_ids as $jprm_site_id ) {
+		switch_to_blog( (int) $jprm_site_id );
 		jprm_uninstall_site_data();
 		restore_current_blog();
 	}

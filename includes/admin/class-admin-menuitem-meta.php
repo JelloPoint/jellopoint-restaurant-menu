@@ -179,13 +179,16 @@ class JPRM_Admin_MenuItem_Meta {
 		echo '<div class="jprm-inline">';
 			echo '<select id="jprm_price_label_mode" name="jprm_price_label_mode" style="display:none;"><option value="ref" '.selected($lm,'ref',false).'>ref</option><option value="custom" '.selected($lm,'custom',false).'>custom</option></select>';
 			echo '<div class="jprm-mode-switch" id="jprm_single_mode_switch"><span class="jprm-pill '.($lm==='ref'?'active':'').'" data-mode="ref">'.esc_html__('Preset','jellopoint-restaurant-menu').'</span><span class="jprm-pill '.($lm==='custom'?'active':'').'" data-mode="custom">'.esc_html__('Custom','jellopoint-restaurant-menu').'</span></div>';
-			echo '<select id="jprm_price_label_ref" name="jprm_price_label_ref">'.$single_opts.'</select> ';
+			echo '<select id="jprm_price_label_ref" name="jprm_price_label_ref">' . wp_kses(
+				$single_opts,
+				[ 'option' => [ 'value' => true, 'selected' => true, 'data-icon' => true ] ]
+			) . '</select> ';
 			printf('<input type="text" id="jprm_price_label_custom" name="jprm_price_label_custom" value="%s" class="regular-text" placeholder="%s" %s />',
 				esc_attr($lcus), esc_attr__('Custom label','jellopoint-restaurant-menu'), $lm==='custom'?'':'style="display:none;"');
 			echo '<div id="jprm_single_icon_preview" title="'.esc_attr__('Change icon','jellopoint-restaurant-menu').'" style="cursor:pointer;">';
 				if ($initial_url) echo '<img src="'.esc_url($initial_url).'" width="32" />'; else echo '<span class="jprm-icon-ph"><span class="dashicons dashicons-format-image"></span></span>';
 			echo '</div>';
-			printf('<input type="hidden" id="jprm_price_label_icon_id" name="jprm_price_label_icon_id" value="%d" data-url="%s" />', $icon, esc_attr($custom_url));
+			printf('<input type="hidden" id="jprm_price_label_icon_id" name="jprm_price_label_icon_id" value="%d" data-url="%s" />', absint( $icon ), esc_attr($custom_url));
 		echo '</div>';
 		echo '</td></tr>';
 
@@ -245,7 +248,7 @@ class JPRM_Admin_MenuItem_Meta {
 								<span class="jprm-pill <?php echo $lmd==='custom'?'active':''; ?>" data-mode="custom"><?php echo esc_html__('Custom','jellopoint-restaurant-menu'); ?></span>
 							</div>
 							<span class="inline-field">
-								<select class="label-ref"><?php echo $row_opts; ?></select>
+								<select class="label-ref"><?php echo wp_kses( $row_opts, [ 'option' => [ 'value' => true, 'selected' => true, 'data-icon' => true ] ] ); ?></select>
 								<input type="text" class="label-custom" value="<?php echo esc_attr($lct); ?>" placeholder="<?php echo esc_attr__('Custom label','jellopoint-restaurant-menu'); ?>" />
 							</span>
 						</div>
@@ -487,7 +490,7 @@ class JPRM_Admin_MenuItem_Meta {
 		if ( ! current_user_can('edit_post',$post_id) ) return;
 
 		// WYSIWYG content: unslash then allow safe HTML
-		$raw_desc = isset( $_POST['jprm_desc'] ) ? wp_unslash( $_POST['jprm_desc'] ) : '';
+		$raw_desc = isset( $_POST['jprm_desc'] ) ? wp_kses_post( wp_unslash( $_POST['jprm_desc'] ) ) : '';
 		update_post_meta($post_id,'jprm_desc', wp_kses_post($raw_desc));
 
 		// Clean up legacy toggle meta if it exists (safe no-op if not present)
@@ -523,7 +526,7 @@ class JPRM_Admin_MenuItem_Meta {
 			delete_post_meta($post_id,'jprm_prices');
 
 		}else{
-			$json = isset( $_POST['jprm_prices'] ) ? wp_unslash( $_POST['jprm_prices'] ) : '[]';
+			$json = isset( $_POST['jprm_prices'] ) ? sanitize_text_field( wp_unslash( $_POST['jprm_prices'] ) ) : '[]';
 			$rows = json_decode( $json, true );
 			$out  = [];
 			if (is_array($rows)){

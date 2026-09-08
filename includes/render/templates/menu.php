@@ -1,6 +1,9 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+// Included renderer template: these variables remain scoped to the caller.
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
+
 /**
  * Menu dispatcher (strict main heading switches + hierarchical template inheritance).
  *
@@ -366,7 +369,8 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 
 	// ------- ABOVE info blocks ------- //
 	if ( ! empty( $ib_map[ $tid ]['above'] ) ) {
-		echo '<li class="jp-menu__infoblock-li">' . jprm_infoblocks_render_group( $ib_map[ $tid ]['above'], 'above' ) . '</li>';
+		// The renderer applies contextual escaping to every Info Block field.
+		echo '<li class="jp-menu__infoblock-li">' . jprm_infoblocks_render_group( $ib_map[ $tid ]['above'], 'above' ) . '</li>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
 	// ------- Section header HTML (now lives INSIDE the box) ------- //
@@ -417,10 +421,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 			'jp-menu__section-box',
 			'jp-menu__section--level-' . (int) $level,
 		];
-		$wrapper_class_attr = esc_attr( implode( ' ', $wrapper_classes ) );
-		$data_id_attr       = ' data-section-id="' . (int) $tid . '"';
-
-		echo '<li class="' . $wrapper_class_attr . '"' . $data_id_attr . '>';
+		echo '<li class="' . esc_attr( implode( ' ', $wrapper_classes ) ) . '" data-section-id="' . esc_attr( (string) $tid ) . '">';
 
 		// Header (if any)
 		echo $header_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
@@ -597,7 +598,8 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 
 	// ------- BELOW info blocks ------- //
 	if ( ! empty( $ib_map[ $tid ]['below'] ) ) {
-		echo '<li class="jp-menu__infoblock-li">' . jprm_infoblocks_render_group( $ib_map[ $tid ]['below'], 'below' ) . '</li>';
+		// The renderer applies contextual escaping to every Info Block field.
+		echo '<li class="jp-menu__infoblock-li">' . jprm_infoblocks_render_group( $ib_map[ $tid ]['below'], 'below' ) . '</li>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 };
 

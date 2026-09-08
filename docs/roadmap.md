@@ -101,7 +101,7 @@ Phases 1X-A through 1X-I2 are approved and merged: metadata, Elementor dependenc
 | 1X-L | Freemius SDK integration; v2.0.33 | ✅ Activation and functional website tests approved; payment and license-lifecycle tests pending |
 | 1X-M | Pro module access enforcement; v2.0.36 | ✅ Website tests approved: active, deactivated, reactivated and expired non-blocking license; Daily notices |
 | 1X-N | Independent Free/Pro packaging and distribution checks; v2.0.37 | ✅ Website tests approved and merged; Plugin Check findings remain a commercial-release gate |
-| 1X-O | Commercial release acceptance | ⏳ Planned |
+| 1X-O | Commercial release acceptance and WordPress.org Plugin Check cleanup; v2.0.38 | 🧪 Branch ready for website acceptance; external release tests remain off/live-safe |
 
 See [Free/Pro architecture](free-pro-architecture.md) for module ownership,
 remaining extraction dependencies and the limits of the combined 1X-K build.
@@ -111,7 +111,7 @@ independent builds and outstanding WordPress.org acceptance checks.
 
 Daily/Weekly Menus, Print/PDF and Import/Export are intended Pro modules. Multiple Prices remains Free.
 
-Before WordPress.org submission: finish the Free distribution, confirm the actual WordPress.org contributor account and tested WordPress version, and run Plugin Check on that distribution. The current combined development package is not a submission-ready Free release.
+Before WordPress.org submission: confirm the actual WordPress.org contributor account and tested WordPress version, complete the 1X-O website acceptance, and perform the remaining Freemius sandbox/update tests. Release Plans remains disabled until those checks are explicitly approved.
 
 ## Phase workflow
 

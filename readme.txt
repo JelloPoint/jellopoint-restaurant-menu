@@ -3,7 +3,7 @@ Tags: restaurant, menu, elementor, food, prices
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2.0.37
+Stable tag: 2.0.38
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -47,6 +47,11 @@ Deactivation retains data. Deleting the plugin retains data by default. Enable t
 In Pro, open the printable menu and use your browser's print dialog to save as PDF.
 
 == Changelog ==
+
+= 2.0.38 =
+* Resolve all blocking WordPress Plugin Check findings in the Free distribution.
+* Harden contextual escaping for menu layouts, labels, prices, Info Blocks and admin assignment fields.
+* Use WordPress just-in-time translation loading for WordPress.org language packs.
 
 = 2.0.37 =
 * Build separate Free and Pro distributions with Pro implementations physically excluded from Free.
