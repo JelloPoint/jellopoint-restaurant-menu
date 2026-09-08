@@ -93,10 +93,27 @@ Phase 1X-P is approved. The deployment remains a Beta Release and `Release
 Plans` remains disabled; neither the paid plan nor a public release is enabled
 by this acceptance.
 
-## Remaining external checks
+## Sandbox checkout acceptance
 
-After the updater is approved, perform the separate sandbox checkout using the
-Freemius sandbox link and test payment details. Then repeat optional data-sharing
-rejection and API-unavailable behavior. Only after explicit approval may the paid
-plan or a normal deployment be released. WordPress.org submission remains a
-separate final step using the independently built Free ZIP.
+The hosted Freemius sandbox checkout was approved on 8 September 2026:
+
+- The checkout URL was explicitly in sandbox mode and showed the intended Pro,
+  single-site, annual EUR 39 purchase.
+- Freemius processed the test payment and created the expected sandbox payment,
+  annual subscription and one-site license; the license email was received.
+- The purchased sandbox license activated successfully on the test website and
+  retained access to the Pro modules. Freemius counted it as one production
+  activation because the public test-domain name is not classified as a local or
+  staging hostname; this did not turn the sandbox transaction into a live sale.
+- The sandbox license was deactivated after acceptance. The temporary Freemius
+  development-mode, email-activation bypass and product secret-key constants
+  were removed from `wp-config.php`.
+- After leaving sandbox mode, Freemius Debug was no longer active and the
+  original test license was successfully restored with Pro access intact.
+
+The updater, checkout, payment, subscription and purchased-license activation
+flow are therefore accepted. Optional data-sharing rejection/API-unavailable
+rechecks and any public launch remain separate release decisions. `Release Plans`
+and normal public deployment must stay disabled until explicitly approved.
+WordPress.org submission remains a separate final step using the independently
+built Free ZIP.
