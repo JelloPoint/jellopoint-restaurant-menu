@@ -104,6 +104,44 @@ final class Menu_Structure_Store {
 		return array_map( 'intval', array_column( self::get( $menu_id )['sections'], 'id' ) );
 	}
 
+	/** Return Section choices in the exact hierarchy and order saved for one Menu. */
+	public static function section_options( int $menu_id ) : array {
+		$sections = self::get( $menu_id )['sections'];
+		if ( [] === $sections ) { return []; }
+
+		$terms = get_terms( [
+			'taxonomy'   => self::TAX_SECTION,
+			'hide_empty' => false,
+			'include'    => array_map( 'intval', array_column( $sections, 'id' ) ),
+		] );
+		if ( is_wp_error( $terms ) || ! is_array( $terms ) ) { return []; }
+
+		$names = [];
+		foreach ( $terms as $term ) {
+			$names[ (int) $term->term_id ] = (string) $term->name;
+		}
+
+		$children = [];
+		foreach ( $sections as $section ) {
+			$id = (int) $section['id'];
+			if ( ! isset( $names[ $id ] ) ) { continue; }
+			$parent_id = (int) $section['parent_id'];
+			if ( $parent_id <= 0 || ! isset( $names[ $parent_id ] ) ) { $parent_id = 0; }
+			$children[ $parent_id ][] = $id;
+		}
+
+		$options = [];
+		$walk = static function( int $parent_id, int $depth ) use ( &$walk, &$options, $children, $names ) : void {
+			foreach ( $children[ $parent_id ] ?? [] as $section_id ) {
+				$options[ $section_id ] = str_repeat( '— ', $depth ) . $names[ $section_id ];
+				$walk( $section_id, $depth + 1 );
+			}
+		};
+		$walk( 0, 0 );
+
+		return $options;
+	}
+
 	public static function attach_section( int $menu_id, int $section_id, int $parent_id = 0 ) : bool {
 		if ( $menu_id <= 0 || $section_id <= 0 ) { return false; }
 		$structure = self::get( $menu_id );

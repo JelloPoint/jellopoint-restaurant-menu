@@ -137,8 +137,8 @@
     if (!sel || sel.tagName !== 'SELECT' || !map || typeof map !== 'object') return false;
 
     var sig  = optionsSignature(map);
-    var prev = sel.getAttribute('data-jprm-sig') || '';
-    if (sig === prev) return false;
+    var prev = sel.getAttribute('data-jprm-sig');
+    if (prev !== null && sig === prev) return false;
 
     var wasMultiple = !!sel.multiple;
     var selected = getSelectedValues(sel);
@@ -264,8 +264,10 @@
       }
       if (!relevant) return;
       bindMenuChange(root);
-      // If we already have a map, mirror instantly; otherwise refresh DS once
-      if (state.lastMap) applyMapToMirrors(root, state.lastMap);
+      // Reuse a cached map only when it belongs to the currently selected Menu.
+      var ms = menuSelect(root);
+      var currentMenuId = (ms && parseInt(ms.value||0,10)) || 0;
+      if (state.lastMap && state.lastMenuId === currentMenuId) applyMapToMirrors(root, state.lastMap);
       else scheduleRefresh(root);
     });
     mo.observe(root, { childList:true, subtree:true });
