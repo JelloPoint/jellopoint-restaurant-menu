@@ -83,16 +83,17 @@ Verified on 8 September 2026:
 | PHP 7.4–8.4 compatibility | PASS |
 | PHPStan | PASS against the accepted baseline; the same 21 recorded findings and no new finding |
 | Generated Free package metadata and root-folder structure | PASS |
+| Official interactive WordPress.org readme validator | PASS; no errors or warnings, only optional-section notes |
 | Pro-module exclusion and Multiple Prices retention | PASS |
 | Plugin Check 2.1.0 on the actual Free package | PASS; 0 errors and the same 58 reviewed warnings |
 | WordPress 7.1 / Elementor 4.2.4 actual Free runtime | PASS |
 | SDK, Builder permissions, three layouts, badges, Multiple Prices and Info Blocks | PASS |
 | Anonymous Free use | PASS; tracking prohibited and tracking not allowed |
 
-The public web readme validator did not return a machine-readable result to the
-non-authenticated automated request. Readme structure and required values are
-therefore enforced by the package regression test, and the interactive
-WordPress.org validator remains a final manual check before upload.
+The official interactive validator accepted the generated Free readme. It only
+reported informational notes for the absent Upgrade Notice, Screenshots and
+donation link sections. These optional sections are intentionally omitted until
+there is matching release information or reviewed directory artwork.
 
 ## Candidate Free artifact
 
@@ -105,8 +106,8 @@ WordPress.org validator remains a final manual check before upload.
 Local ignored path:
 `package/phase-1x-r-wordpress-org-submission-final/jellopoint-restaurant-menu.zip`
 
-The artifact must be rebuilt and its checksum re-recorded if any tracked file
-changes after this point.
+The artifact must be rebuilt and its checksum re-recorded if any packaged source
+file changes after this point.
 
 ## Proposed submission overview
 
@@ -123,6 +124,5 @@ Before uploading, the account owner must:
 1. log in to WordPress.org as `jellopoint` and confirm the account email is
    current and monitored;
 2. allow email from `plugins@wordpress.org`;
-3. run the interactive readme validator on the generated Free readme;
-4. compare the selected ZIP checksum with the value above;
-5. explicitly approve submitting that exact ZIP for review.
+3. compare the selected ZIP checksum with the value above;
+4. explicitly approve submitting that exact ZIP for review.

@@ -104,7 +104,7 @@ Phases 1X-A through 1X-I2 are approved and merged: metadata, Elementor dependenc
 | 1X-O | Commercial release acceptance and WordPress.org Plugin Check cleanup; v2.0.38 | ✅ Website acceptance approved and merged; external release tests remain off/live-safe |
 | 1X-P | Private Freemius beta deployment, updater and sandbox checkout acceptance; v2.0.39 | ✅ Paid package, real Beta update, sandbox payment/subscription and purchased-license activation approved; test mode removed safely |
 | 1X-Q | Public-release package and launch-safety readiness; v2.0.40 | ✅ Approved; packages, privacy/offline behavior, real Beta update and WordPress.org submission identity accepted; no public release authorized |
-| 1X-R | WordPress.org submission package and directory metadata; v2.0.41 | 🧪 Candidate ready; automated Free-package and local runtime acceptance passed, manual readme validation and submission approval pending |
+| 1X-R | WordPress.org submission package and directory metadata; v2.0.41 | 🧪 Candidate ready; Free-package, local runtime and official readme validation passed, submission approval pending |
 
 See [Free/Pro architecture](free-pro-architecture.md) for module ownership,
 remaining extraction dependencies and the limits of the combined 1X-K build.
