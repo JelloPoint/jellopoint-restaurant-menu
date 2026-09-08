@@ -57,8 +57,8 @@ The following Pro pricing matrix was selected for later sandbox verification:
 | ---: | ---: | ---: | ---: |
 | 1 | EUR 29 | EUR 29.00 | — |
 | 3 | EUR 49 | EUR 16.33 | 43.7% |
-| 10 | EUR 89 | EUR 8.90 | 69.3% |
-| 25 | EUR 119 | EUR 4.76 | 83.6% |
+| 10 | EUR 99 | EUR 9.90 | 65.9% |
+| 25 | EUR 149 | EUR 5.96 | 79.4% |
 
 These are total prices per license tier, not per-site inputs. Monthly and
 lifetime pricing remain out of scope unless explicitly added later. Freemius
