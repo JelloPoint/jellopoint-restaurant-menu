@@ -1,12 +1,13 @@
 <?php
-/** Standalone checks for opt-in uninstall behaviour. */
+/** Standalone checks for Freemius-compatible opt-in uninstall behaviour. */
 
+define( 'ABSPATH', __DIR__ . '/' );
 $root = dirname( __DIR__ );
 $main = file_get_contents( $root . '/jellopoint-restaurant-menu.php' );
 $settings = file_get_contents( $root . '/includes/admin/class-admin-settings.php' );
-$uninstall = file_get_contents( $root . '/uninstall.php' );
+$uninstaller = file_get_contents( $root . '/includes/class-uninstaller.php' );
 
-foreach ( [ 'main' => $main, 'settings' => $settings, 'uninstall' => $uninstall ] as $label => $source ) {
+foreach ( [ 'main' => $main, 'settings' => $settings, 'uninstaller' => $uninstaller ] as $label => $source ) {
 	if ( false === $source ) {
 		fwrite( STDERR, "Could not read {$label} source.\n" );
 		exit( 1 );
@@ -15,15 +16,16 @@ foreach ( [ 'main' => $main, 'settings' => $settings, 'uninstall' => $uninstall 
 
 $checks = [
 	'settings bootstrap'      => [ $main, 'Settings::init()' ],
+	'Freemius registration'   => [ $main, 'Uninstaller::register( jprm_fs() )' ],
 	'default disabled'        => [ $settings, "'default'           => false" ],
 	'settings capability'     => [ $settings, "current_user_can( 'manage_options' )" ],
-	'uninstall guard'         => [ $uninstall, "defined( 'WP_UNINSTALL_PLUGIN' )" ],
-	'explicit opt-in'         => [ $uninstall, "'1' !== (string) get_option( 'jprm_delete_data_on_uninstall', '0' )" ],
-	'menu item deletion'      => [ $uninstall, "'jprm_menu_item'" ],
-	'Info Block deletion'     => [ $uninstall, "'jprm_info_block'" ],
-	'menu taxonomy deletion'  => [ $uninstall, "'jprm_menu', 'jprm_section'" ],
-	'multisite support'       => [ $uninstall, 'switch_to_blog' ],
-	'import report cleanup'   => [ $uninstall, '_transient_jprm_ie_report_' ],
+	'after uninstall hook'    => [ $uninstaller, "'after_uninstall'" ],
+	'explicit opt-in'         => [ $uninstaller, "'1' !== (string) get_option( 'jprm_delete_data_on_uninstall', '0' )" ],
+	'menu item deletion'      => [ $uninstaller, "'jprm_menu_item'" ],
+	'Info Block deletion'     => [ $uninstaller, "'jprm_info_block'" ],
+	'menu taxonomy deletion'  => [ $uninstaller, "'jprm_menu', 'jprm_section'" ],
+	'multisite support'       => [ $uninstaller, 'switch_to_blog' ],
+	'import report cleanup'   => [ $uninstaller, '_transient_jprm_ie_report_' ],
 ];
 
 foreach ( $checks as $label => [ $source, $needle ] ) {
@@ -31,6 +33,11 @@ foreach ( $checks as $label => [ $source, $needle ] ) {
 		fwrite( STDERR, "Missing {$label}.\n" );
 		exit( 1 );
 	}
+}
+
+if ( is_file( $root . '/uninstall.php' ) ) {
+	fwrite( STDERR, "Freemius deployment must not contain a root uninstall.php.\n" );
+	exit( 1 );
 }
 
 $jprm_delete_enabled = false;
@@ -75,6 +82,11 @@ function flush_rewrite_rules() {
 }
 function is_multisite() { return false; }
 
+class JPRM_Uninstall_Freemius_Stub {
+	public array $actions = [];
+	public function add_action( $tag, $callback ) { $this->actions[ $tag ] = $callback; }
+}
+
 class JPRM_Uninstall_WPDB_Stub {
 	public string $options = 'wp_options';
 	public function esc_like( $value ) { return addcslashes( $value, '_%\\' ); }
@@ -86,16 +98,25 @@ class JPRM_Uninstall_WPDB_Stub {
 }
 
 $wpdb = new JPRM_Uninstall_WPDB_Stub();
-define( 'WP_UNINSTALL_PLUGIN', true );
-require $root . '/uninstall.php';
+require $root . '/includes/class-uninstaller.php';
 
+use JelloPoint\RestaurantMenu\Uninstaller;
+
+$freemius = new JPRM_Uninstall_Freemius_Stub();
+Uninstaller::register( $freemius );
+if ( [ Uninstaller::class, 'after_uninstall' ] !== ( $freemius->actions['after_uninstall'] ?? null ) ) {
+	fwrite( STDERR, "Freemius after_uninstall callback was not registered.\n" );
+	exit( 1 );
+}
+
+Uninstaller::after_uninstall();
 if ( [] !== $jprm_uninstall_calls ) {
 	fwrite( STDERR, "Data was removed without opt-in.\n" );
 	exit( 1 );
 }
 
 $jprm_delete_enabled = true;
-jprm_uninstall_site_data();
+Uninstaller::after_uninstall();
 
 $runtime_checks = [
 	'two posts permanently deleted' => 2 === count( $jprm_uninstall_calls['posts'] ?? [] ) && true === $jprm_uninstall_calls['posts'][0][1],
@@ -114,4 +135,4 @@ foreach ( $runtime_checks as $label => $passed ) {
 	}
 }
 
-echo "Uninstall-readiness checks passed.\n";
+echo "Freemius uninstall-readiness checks passed.\n";

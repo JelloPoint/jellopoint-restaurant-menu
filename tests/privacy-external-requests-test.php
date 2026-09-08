@@ -3,7 +3,7 @@
 
 $root = dirname( __DIR__ );
 $runtime_files = array_merge(
-	[ $root . '/jellopoint-restaurant-menu.php', $root . '/uninstall.php' ],
+	[ $root . '/jellopoint-restaurant-menu.php' ],
 	glob( $root . '/includes/*.php' ) ?: [],
 	glob( $root . '/includes/*/*.php' ) ?: [],
 	glob( $root . '/includes/*/*/*.php' ) ?: []
