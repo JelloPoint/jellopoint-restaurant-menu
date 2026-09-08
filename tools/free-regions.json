@@ -1,0 +1,150 @@
+{
+  "daily-admin": {
+    "file": "includes/admin/class-jprm-menus-admin.php",
+    "free": "\tpublic static function columns( $cols ) { unset( $cols['slug'] ); return $cols; }\n\tpublic static function column_content( $content, $column_name, $term_id ) { return $content; }\n\tpublic static function add_daily_menu_fields() : void {}\n\tpublic static function save_daily_menu_fields( $term_id ) : void {}\n\tpublic static function edit_daily_menu_fields( $term ) : void {\n\t\t$term_id = isset( $term->term_id ) ? (int) $term->term_id : 0;\n\t\tif ( ! \\JelloPoint\\RestaurantMenu\\Modules\\Module_Access::allows( 'daily_weekly_menus' ) ) {\n\t\t\tif ( self::is_daily_menu( $term_id ) ) {\n\t\t\t\techo '<tr class=\"form-field\"><th scope=\"row\">' . esc_html__( 'Daily Menu', 'jellopoint-restaurant-menu' ) . '</th><td><div class=\"notice notice-warning inline\"><p>' . esc_html__( 'This menu was created as a Daily/Weekly Menu. Its settings and content are preserved, but editing its Daily/Weekly settings and displaying it require Pro access. Reactivate your Pro license to use this menu again.', 'jellopoint-restaurant-menu' ) . '</p></div></td></tr>';\n\t\t\t}\n\t\t\treturn;\n\t\t}\n\t}\n\tprivate static function is_daily_menu( int $term_id ) : bool { return '1' === (string) get_term_meta( $term_id, self::META_IS_DAILY, true ); }\n\n"
+  },
+  "daily-settings": {
+    "file": "includes/widgets/class-restaurant-menu.php",
+    "free": "\t\t$daily_menu = $menu_term && '1' === (string) get_term_meta( (int) $menu_term->term_id, '_jprm_is_daily_menu', true ) ? [ 'enabled' => true ] : [];\n"
+  },
+  "daily-schedule": {
+    "file": "includes/widgets/class-restaurant-menu.php",
+    "free": ""
+  },
+  "daily-context": {
+    "file": "includes/widgets/class-restaurant-menu.php",
+    "free": ""
+  },
+  "daily-methods": {
+    "file": "includes/widgets/class-restaurant-menu.php",
+    "free": ""
+  },
+  "daily-controls": {
+    "file": "includes/widgets/traits/restaurant-menu-controls.php",
+    "free": ""
+  },
+  "daily-style": {
+    "file": "includes/widgets/traits/restaurant-menu-style.php",
+    "free": ""
+  },
+  "print-routes": {
+    "file": "includes/rest/class-jprm-menu-builder-controller.php",
+    "free": ""
+  },
+  "print-rest-methods": {
+    "file": "includes/rest/class-jprm-menu-builder-controller.php",
+    "free": ""
+  },
+  "print-builder-functions": {
+    "file": "includes/admin/assets/jprm-menu-builder.js",
+    "free": "  function loadInfoBlocks(){ return $.Deferred().resolve().promise(); }\n  function renderInfoBlocks(){}\n\n"
+  },
+  "print-builder-events": {
+    "file": "includes/admin/assets/jprm-menu-builder.js",
+    "free": ""
+  },
+  "print-builder-panel": {
+    "file": "includes/admin/views/jprm-menu-builder.php",
+    "free": ""
+  },
+  "print-runtime": {
+    "file": "includes/modules/class-module-loader.php",
+    "free": ""
+  },
+  "pro-admin-loader": {
+    "file": "includes/modules/class-module-loader.php",
+    "free": ""
+  },
+  "daily-heading-function": {
+    "file": "includes/render/templates/menu.php",
+    "free": "if ( ! function_exists( 'jprm_render_menu_meta' ) ) {\n\tfunction jprm_render_menu_meta( $menu_term, bool $show_title, bool $show_desc, string $scope = 'global' ) : string {\n\t\tif ( ! $menu_term ) { return ''; }\n\t\t$title = is_object( $menu_term ) ? (string) ( $menu_term->name ?? '' ) : (string) ( $menu_term['name'] ?? '' );\n\t\t$desc = is_object( $menu_term ) ? (string) ( $menu_term->description ?? '' ) : (string) ( $menu_term['description'] ?? '' );\n\t\tif ( ! $show_title && ( ! $show_desc || '' === $desc ) ) { return ''; }\n\t\t$out = '<li class=\"jp-menu__meta jp-menu__meta--' . esc_attr( $scope ) . '\">';\n\t\tif ( $show_title && '' !== $title ) { $out .= '<h2 class=\"jp-menu__title\">' . esc_html( $title ) . '</h2>'; }\n\t\tif ( $show_desc && '' !== $desc ) { $out .= '<div class=\"jp-menu__desc\">' . jprm_render_rich_text( $desc ) . '</div>'; }\n\t\treturn $out . '</li>';\n\t}\n}\n\n"
+  },
+  "daily-render-context": {
+    "file": "includes/render/templates/menu.php",
+    "free": "$show_item_prices = true;\n"
+  },
+  "daily-render-closure": {
+    "file": "includes/render/templates/menu.php",
+    "free": "\t$show_item_prices,\n"
+  },
+  "daily-item-separator": {
+    "file": "includes/render/templates/menu.php",
+    "free": "\t$item_separator = '';\n"
+  },
+  "daily-bottom-price": {
+    "file": "includes/render/templates/menu.php",
+    "free": ""
+  },
+  "heading-above": {
+    "file": "includes/render/templates/menu.php",
+    "free": "if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'above_menu' ) {\n\techo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore\n}\n\n"
+  },
+  "heading-column": {
+    "file": "includes/render/templates/menu.php",
+    "free": "\tif ( 0 === (int) $col_idx && 'first_column' === $menu_pos && $menu_term && ( $show_menu_title || $show_menu_desc ) ) {\n\t\techo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'column' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped\n\t}\n"
+  },
+  "heading-below": {
+    "file": "includes/render/templates/menu.php",
+    "free": "if ( $menu_term && ( $show_menu_title || $show_menu_desc ) && $menu_pos === 'below_menu' ) {\n\techo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global' ); // phpcs:ignore\n}\n\n"
+  },
+  "daily-section-add": {
+    "file": "includes/admin/class-jprm-sections-admin.php",
+    "free": ""
+  },
+  "daily-section-edit": {
+    "file": "includes/admin/class-jprm-sections-admin.php",
+    "free": ""
+  },
+  "daily-section-read": {
+    "file": "includes/admin/class-jprm-sections-admin.php",
+    "free": ""
+  },
+  "daily-section-save": {
+    "file": "includes/admin/class-jprm-sections-admin.php",
+    "free": "\tprivate static function save_item_separator( int $term_id ) : void {}\n\n"
+  },
+  "daily-css-separator": {
+    "file": "assets/css/menu.css",
+    "free": ""
+  },
+  "daily-css-meta": {
+    "file": "assets/css/menu.css",
+    "free": ""
+  },
+  "daily-css-final": {
+    "file": "assets/css/menu.css",
+    "free": ""
+  },
+  "daily-css-width": {
+    "file": "assets/css/menu.css",
+    "free": ""
+  },
+  "daily-inline-context": {
+    "file": "includes/render/templates/inline.php",
+    "free": "$show_item_prices = true;\n"
+  },
+  "daily-inline-separator": {
+    "file": "includes/render/templates/inline.php",
+    "free": ""
+  },
+  "daily-inline-layout": {
+    "file": "includes/render/templates/inline.php",
+    "free": ""
+  },
+  "daily-inline-below-context": {
+    "file": "includes/render/templates/inline-below.php",
+    "free": "$show_item_prices = true;\n"
+  },
+  "daily-inline-below-separator": {
+    "file": "includes/render/templates/inline-below.php",
+    "free": ""
+  },
+  "daily-matrix-context": {
+    "file": "includes/render/templates/matrix.php",
+    "free": "$show_item_prices = true;\n"
+  },
+  "daily-matrix-separator": {
+    "file": "includes/render/templates/matrix.php",
+    "free": ""
+  }
+}

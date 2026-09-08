@@ -103,6 +103,7 @@
   function loadAvailableSections(){ if(!state.currentMenu){ state.availableSections=[]; return $.Deferred().resolve().promise(); } return apiGet('menu-builder/sections/available?menu_id='+state.currentMenu).done(res=>{ state.availableSections=res.sections||[]; fillExistingSectionSelect(); }); }
   function loadItems(){ if(!state.currentMenu){ state.items=[]; return $.Deferred().resolve().promise(); } return apiGet('menu-builder/items?menu_id='+state.currentMenu).done(res=>{ state.items = res.items||[]; }); }
   function loadUnassigned(){ if(!state.currentMenu){ state.unassigned=[]; return $.Deferred().resolve().promise(); } return apiGet('menu-builder/items?menu_id='+state.currentMenu+'&unassigned=1').done(res=>{ state.unassigned = res.items||[]; }); }
+// JPRM_PRO_BEGIN:print-builder-functions
   function loadInfoBlocks(){
     if(!state.currentMenu || JPRM_MENU_BUILDER.can_print !== true){
       state.infoBlocks=[]; state.infoPlacements=[];
@@ -119,6 +120,7 @@
   }
   function saveInfoBlocks(){ return apiPost('menu-builder/info-blocks/save',{menu_id:state.currentMenu,placements:state.infoPlacements}).then(()=>loadInfoBlocks()).then(()=>renderInfoBlocks()); }
 
+// JPRM_PRO_END:print-builder-functions
   function applyIndent($li, depth){ $li.attr('data-depth',depth).css('margin-left',(depth*INDENT)+'px'); }
   function clampDepth(depth,$ph){ depth=Math.max(0,Math.min(MAX_DEPTH,depth)); const $prev=$ph.prev('.jprm-item'); if($prev.length){ const pd=parseInt($prev.attr('data-depth'),10)||0; depth=Math.min(depth,pd+1); } else depth=0; return depth; }
 
@@ -506,8 +508,10 @@
       ;
   });
 
+// JPRM_PRO_BEGIN:print-builder-events
   $('#jprm-new-info-block').attr('href',JPRM_MENU_BUILDER.admin_new_info_block_url);
   $('#jprm-add-info-block').on('click',function(){const id=parseInt($('#jprm-info-block').val(),10)||0,sectionId=parseInt($('#jprm-info-section').val(),10)||0;if(!id||!sectionId)return toast('Choose an Info Block and Section.');state.infoPlacements.push({id:id,section_id:sectionId,position:$('#jprm-info-position').val(),order:state.infoPlacements.length});saveInfoBlocks().then(()=>toast('Info Block added.'));});
 
+// JPRM_PRO_END:print-builder-events
   $(function(){ loadMenus().then(()=>chainLoadAndRender(true)); });
 })(jQuery);

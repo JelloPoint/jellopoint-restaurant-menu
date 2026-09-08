@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name:       JelloPoint – Restaurant Menu
+ * Plugin Name:       JelloPoint – Restaurant Menu Pro
  * Plugin URI:        https://github.com/JelloPoint/jellopoint-restaurant-menu
  * Description:       Create and display restaurant menus with sections, flexible prices, dietary labels, and an Elementor widget.
- * Version:           2.0.36
+ * Version:           2.0.37
  * Requires at least: 6.5
  * Requires PHP:      7.4
  * Author:            JelloPoint
@@ -17,7 +17,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// Combined Pro development build. Never submit this build to WordPress.org.
+// The repository is the Pro edition. tools/build-packages.php creates Free.
+// Follow the SDK's parallel-activation wrapper: never bootstrap two editions.
+if ( function_exists( 'jprm_fs' ) ) {
+	jprm_fs()->set_basename( true, __FILE__ );
+} else {
 if ( ! function_exists( 'jprm_fs' ) ) {
 	function jprm_fs() {
 		global $jprm_fs;
@@ -26,6 +30,7 @@ if ( ! function_exists( 'jprm_fs' ) ) {
 			$jprm_fs = fs_dynamic_init( array(
 				'id' => '39068',
 				'slug' => 'jellopoint-restaurant-menu',
+				'premium_slug' => 'jellopoint-restaurant-menu-premium',
 				'type' => 'plugin',
 				'public_key' => 'pk_ab73490b9e9945178da3b98c1e82c',
 				'is_premium' => true,
@@ -48,7 +53,7 @@ if ( ! function_exists( 'jprm_fs' ) ) {
  * Constants
  * ------------------------------------------------- */
 if ( ! defined( 'JPRM_VERSION' ) ) {
-	define( 'JPRM_VERSION', '2.0.36' );
+	define( 'JPRM_VERSION', '2.0.37' );
 }
 if ( ! defined( 'JPRM_PLUGIN_FILE' ) ) {
 	define( 'JPRM_PLUGIN_FILE', __FILE__ );
@@ -81,6 +86,7 @@ require_once JPRM_PLUGIN_PATH . 'includes/storage/class-price-schema.php';
 require_once JPRM_PLUGIN_PATH . 'includes/data/class-price-schema.php';
 require_once JPRM_PLUGIN_PATH . 'includes/data/class-labels-store.php';
 require_once JPRM_PLUGIN_PATH . 'includes/data/class-default-data.php';
+JPRM_Default_Data::init();
 require_once JPRM_PLUGIN_PATH . 'includes/data/class-menu-structure-store.php';
 require_once JPRM_PLUGIN_PATH . 'includes/data/class-item-assignments.php';
 \JelloPoint\RestaurantMenu\Data\Item_Assignments::init();
@@ -179,3 +185,4 @@ function jprm_deactivate(): void {
 
 register_activation_hook( __FILE__, 'jprm_activate' );
 register_deactivation_hook( __FILE__, 'jprm_deactivate' );
+} // Only one edition boots per request.

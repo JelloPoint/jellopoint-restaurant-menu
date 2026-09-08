@@ -219,6 +219,8 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 			</select>
 			<p class="description"><?php esc_html_e( 'Select one or more Menus. Each Menu keeps its own Section content and order.', 'jellopoint-restaurant-menu' ); ?></p>
 		</div>
+<!-- JPRM_PRO_BEGIN:daily-section-add -->
+		<?php if ( \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'daily_weekly_menus' ) ) : ?>
 		<div class="form-field term-item-separator-wrap jprm-daily-section-option">
 			<label for="jprm_item_separator"><?php esc_html_e( 'Item Separator Override', 'jellopoint-restaurant-menu' ); ?></label>
 			<input type="text" name="jprm_item_separator" id="jprm_item_separator" value="" placeholder="or" />
@@ -226,14 +228,18 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 			<p class="description"><?php esc_html_e( 'Leave empty to use the Daily Menu default.', 'jellopoint-restaurant-menu' ); ?></p>
 		</div>
 		<?php self::item_separator_dependency_script(); ?>
+		<?php endif; ?>
+<!-- JPRM_PRO_END:daily-section-add -->
 		<?php
 	}
 
 	public static function edit_field( $term, $taxonomy ) {
 		$menus   = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false ] );
 		$current = self::menu_ids_for_section( (int) $term->term_id );
+// JPRM_PRO_BEGIN:daily-section-read
 		$item_separator = (string) get_term_meta( $term->term_id, self::META_ITEM_SEPARATOR, true );
 		$disable_item_separator = '1' === (string) get_term_meta( $term->term_id, self::META_DISABLE_ITEM_SEPARATOR, true );
+// JPRM_PRO_END:daily-section-read
 		$hint = __( 'Select one or more Menus. Each Menu keeps its own Section content and order.', 'jellopoint-restaurant-menu' );
 		?>
 		<tr class="form-field term-owner-wrap">
@@ -249,11 +255,15 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 				<p class="description"><?php echo esc_html( $hint ); ?></p>
 			</td>
 		</tr>
+<!-- JPRM_PRO_BEGIN:daily-section-edit -->
+		<?php if ( \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'daily_weekly_menus' ) ) : ?>
 		<tr class="form-field term-item-separator-wrap jprm-daily-section-option">
 			<th scope="row"><label for="jprm_item_separator"><?php esc_html_e( 'Item Separator Override', 'jellopoint-restaurant-menu' ); ?></label></th>
 			<td><input type="text" name="jprm_item_separator" id="jprm_item_separator" value="<?php echo esc_attr( $item_separator ); ?>" placeholder="or" /><p><label><input type="checkbox" name="jprm_disable_item_separator" value="1" <?php checked( $disable_item_separator ); ?> /> <?php esc_html_e( 'Do not show separators in this Section', 'jellopoint-restaurant-menu' ); ?></label></p><p class="description"><?php esc_html_e( 'Leave empty to use the Daily Menu default.', 'jellopoint-restaurant-menu' ); ?></p></td>
 		</tr>
 		<?php self::item_separator_dependency_script(); ?>
+		<?php endif; ?>
+<!-- JPRM_PRO_END:daily-section-edit -->
 		<?php
 	}
 
@@ -301,7 +311,9 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 		return $menu_ids;
 	}
 
+// JPRM_PRO_BEGIN:daily-section-save
 	private static function save_item_separator( int $term_id ) : void {
+		if ( ! \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'daily_weekly_menus' ) ) { return; }
 		if ( ! isset( $_POST['jprm_item_separator'] ) ) { return; }
 		$value = sanitize_text_field( wp_unslash( $_POST['jprm_item_separator'] ) );
 		$disabled = ! empty( $_POST['jprm_disable_item_separator'] );
@@ -329,6 +341,7 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 		<?php
 	}
 
+// JPRM_PRO_END:daily-section-save
 	/**
 	 * Ensure a section has an order value for its owning menu.
 	 * Without _jprm_section_order set, get_terms() queries that sort by meta_key

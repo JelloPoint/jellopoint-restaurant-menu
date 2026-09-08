@@ -1,5 +1,9 @@
 # Phase 1X-K — module boundaries (2.0.32)
 
+Historical foundation notes. The extraction and separate builds were implemented
+in [1X-N (2.0.37)](phase-1x-n-packages.md); that document is the current packaging
+contract. The earlier "required" work below describes the 1X-K starting point.
+
 This is the combined development distribution. All existing features remain
 available. The catalog describes product ownership, not license entitlement.
 There is deliberately no Free-mode switch until all embedded Pro paths have

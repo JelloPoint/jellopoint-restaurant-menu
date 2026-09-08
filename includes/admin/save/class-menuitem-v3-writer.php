@@ -8,6 +8,8 @@ namespace JelloPoint\RestaurantMenu\Admin\Save;
 use JelloPoint\RestaurantMenu\Storage\Price_Schema;
 use JelloPoint\RestaurantMenu\Storage\Price_Repository;
 
+if ( ! defined( 'ABSPATH' ) ) { exit; }
+
 // --- Ensure storage classes are loaded (Price_Schema + Price_Repository) ---
 if ( ! class_exists( 'JelloPoint\\RestaurantMenu\\Storage\\Price_Schema' ) ) {
     // Adjust the path if your file lives elsewhere:

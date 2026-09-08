@@ -1,0 +1,56 @@
+name: Free and Pro WordPress smoke tests
+
+on:
+  push:
+    branches: [develop, main, 'feature/**']
+  pull_request:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+jobs:
+  wordpress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: local-qa-only
+          MYSQL_DATABASE: jprm_qa
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -plocal-qa-only"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mysqli, zip
+          tools: wp-cli
+          coverage: none
+      - name: Build the two artifacts
+        run: |
+          php tools/build-packages.php package/distributions
+          php tests/package-distribution-test.php package/distributions
+      - name: Install disposable WordPress and Elementor
+        run: |
+          wp core download --path=package/wordpress
+          wp config create --path=package/wordpress --dbname=jprm_qa --dbuser=root --dbpass=local-qa-only --dbhost=127.0.0.1
+          wp config set WP_ENVIRONMENT_TYPE local --path=package/wordpress
+          wp config set DISABLE_WP_CRON true --raw --path=package/wordpress
+          wp core install --path=package/wordpress --url=http://localhost --title=JPRM-QA --admin_user=jprm_qa --admin_password="$(openssl rand -hex 24)" --admin_email=qa@example.test --skip-email
+          wp plugin install elementor --activate --path=package/wordpress
+          wp config set WP_HTTP_BLOCK_EXTERNAL true --raw --path=package/wordpress
+      - name: Free to Pro to Free without deleting data
+        run: |
+          wp plugin install package/distributions/jellopoint-restaurant-menu.zip --activate --path=package/wordpress
+          wp eval-file tests/fixtures/edition-wordpress-smoke.php seed --path=package/wordpress --user=jprm_qa
+          wp eval-file tests/fixtures/edition-wordpress-smoke.php free --path=package/wordpress --user=jprm_qa
+          wp plugin install package/distributions/jellopoint-restaurant-menu-premium.zip --activate --path=package/wordpress
+          wp eval-file tests/fixtures/edition-wordpress-smoke.php pro --path=package/wordpress --user=jprm_qa
+          wp plugin deactivate jellopoint-restaurant-menu-premium --path=package/wordpress
+          wp plugin activate jellopoint-restaurant-menu --path=package/wordpress
+          wp eval-file tests/fixtures/edition-wordpress-smoke.php free --path=package/wordpress --user=jprm_qa

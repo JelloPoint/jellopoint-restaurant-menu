@@ -1,5 +1,9 @@
 # Phase 1X-L: Freemius sandbox integration (2.0.33)
 
+For current separate-edition packaging and local round-trip results, see
+[Phase 1X-N](phase-1x-n-packages.md). This page retains the earlier website
+approvals and the online license/payment checks still needed before release.
+
 Product 39068; Pro plan `pro`; initial offer EUR 39 annually for one site.
 The user-supplied dashboard snippet initializes bundled SDK 2.13.4 early in the
 main plugin. No secret or sandbox constant is shipped. Release Plans remains off.

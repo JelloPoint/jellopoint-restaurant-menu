@@ -18,8 +18,10 @@ $items = is_array( $sctx['items'] ?? null ) ? $sctx['items'] : [];
 $label_presentation = (string) ( $sctx['label_presentation'] ?? 'icon_text' );
 $label_map          = is_array( $sctx['label_map'] ?? null ) ? $sctx['label_map'] : [];
 $currency_opts      = is_array( $sctx['currency_opts'] ?? null ) ? $sctx['currency_opts'] : [];
+// JPRM_PRO_BEGIN:daily-matrix-context
 $show_item_prices   = (string) ( $sctx['show_item_prices'] ?? 'yes' ) === 'yes';
 $item_separator     = trim( (string) ( $sctx['item_separator'] ?? '' ) );
+// JPRM_PRO_END:daily-matrix-context
 $matrix_placeholder = (string) ( $sctx['matrix_placeholder'] ?? '' );
 
 // BADGES
@@ -317,9 +319,11 @@ echo '</div>';
 
 /* body rows */
 foreach ( $items as $item_index => $post ) {
+// JPRM_PRO_BEGIN:daily-matrix-separator
 	if ( $item_separator !== '' && $item_index > 0 ) {
 		echo '<div class="jp-menu__item-separator jp-menu__item-separator--matrix">' . esc_html( $item_separator ) . '</div>';
 	}
+// JPRM_PRO_END:daily-matrix-separator
 	$pid   = (int) $post->ID;
 	$title = get_the_title( $pid );
 	$desc  = get_post_meta( $pid, 'jprm_desc', true );
