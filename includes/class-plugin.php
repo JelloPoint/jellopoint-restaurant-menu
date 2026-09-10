@@ -40,6 +40,7 @@ class Plugin {
 
 		// Identify the installed Premium build without tying the label to license state.
 		add_action( 'admin_footer-plugins.php', [ __CLASS__, 'render_plugin_edition_badge' ] );
+		add_action( 'admin_notices', [ __CLASS__, 'render_inactive_free_edition_notice' ] );
 
 		// Editor AJAX for Sections -> Menu filtering.
 		add_action( 'wp_ajax_jprm_sections_by_menu', [ __CLASS__, 'ajax_sections_by_menu' ] );
@@ -88,6 +89,46 @@ class Plugin {
 				}
 			}() );
 		</script>
+		<?php
+	}
+
+	/** Explain the inactive Free companion left behind after a Premium upgrade. */
+	public static function render_inactive_free_edition_notice() : void {
+		global $pagenow;
+
+		$sdk = function_exists( 'jprm_fs' ) ? jprm_fs() : null;
+		if ( 'plugins.php' !== $pagenow || ! current_user_can( 'delete_plugins' ) || ! is_object( $sdk ) || ! method_exists( $sdk, 'is_premium' ) || ! $sdk->is_premium() ) {
+			return;
+		}
+
+		$free_basename = 'jellopoint-restaurant-menu/jellopoint-restaurant-menu.php';
+		$plugins       = get_plugins();
+		if ( ! isset( $plugins[ $free_basename ] ) || is_plugin_active( $free_basename ) ) {
+			return;
+		}
+
+		$free_version = isset( $plugins[ $free_basename ]['Version'] ) ? (string) $plugins[ $free_basename ]['Version'] : '';
+		$delete_data  = '1' === (string) get_option( 'jprm_delete_data_on_uninstall', '0' );
+		?>
+		<div class="notice notice-warning jprm-inactive-free-edition-notice">
+			<p>
+				<strong><?php esc_html_e( 'JelloPoint – Restaurant Menu PRO is active.', 'jellopoint-restaurant-menu' ); ?></strong>
+				<?php
+				if ( '' !== $free_version ) {
+					echo ' ' . esc_html( sprintf( __( 'The Free edition (version %s) is still installed but inactive.', 'jellopoint-restaurant-menu' ), $free_version ) );
+				} else {
+					echo ' ' . esc_html__( 'The Free edition is still installed but inactive.', 'jellopoint-restaurant-menu' );
+				}
+
+				if ( $delete_data ) {
+					echo ' ' . esc_html__( 'Do not delete it while the delete-data-on-uninstall setting is enabled; disable that setting first to preserve your restaurant data.', 'jellopoint-restaurant-menu' );
+				} else {
+					echo ' ' . esc_html__( 'You can safely delete the inactive Free plugin; your restaurant data will be retained.', 'jellopoint-restaurant-menu' );
+				}
+				?>
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=jprm-settings' ) ); ?>"><?php esc_html_e( 'Review data-removal setting', 'jellopoint-restaurant-menu' ); ?></a>
+			</p>
+		</div>
 		<?php
 	}
 

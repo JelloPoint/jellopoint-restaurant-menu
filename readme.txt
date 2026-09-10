@@ -3,7 +3,7 @@ Tags: restaurant, menu, elementor, food, prices
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2.0.41
+Stable tag: 2.0.42
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -47,6 +47,10 @@ Deactivation retains data. Deleting the plugin retains data by default. Enable t
 In Pro, open the printable menu and use your browser's print dialog to save as PDF.
 
 == Changelog ==
+
+= 2.0.42 =
+* Prevent Freemius from adding a second Pro suffix to the neutral plugin name; Premium builds remain identified by the PRO badge.
+* Explain when an inactive Free companion remains installed after upgrading to the Premium edition.
 
 = 2.0.41 =
 * Use one neutral plugin name for both editions and label only the installed Premium build with a PRO badge on the Plugins screen.

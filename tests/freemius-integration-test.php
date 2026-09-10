@@ -13,6 +13,7 @@ $config = eval( 'return ' . $match[1] . ';' );
 fs_check( $config['id'] === '39068' && $config['slug'] === 'jellopoint-restaurant-menu', 'Incorrect product.' );
 fs_check( $config['menu']['slug'] === 'jellopoint', 'Incorrect admin parent.' );
 fs_check( $config['is_premium'] && $config['has_paid_plans'] && ! $config['has_addons'], 'Incorrect Pro configuration.' );
+fs_check( '' === $config['premium_suffix'], 'Freemius must not append a Pro suffix to the neutral plugin name.' );
 fs_check( ! empty( $config['wp_org_gatekeeper'] ), 'Combined Pro build needs submission safeguard.' );
 foreach ( [ 'start.php', 'require.php', 'config.php', 'LICENSE.txt', 'includes/class-freemius.php' ] as $file ) {
 	fs_check( is_file( $root . '/vendor/freemius/' . $file ), 'Missing SDK file: ' . $file );
