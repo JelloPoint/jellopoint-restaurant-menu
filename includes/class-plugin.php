@@ -38,8 +38,57 @@ class Plugin {
 		add_action( 'elementor/editor/after_enqueue_styles', [ __CLASS__, 'enqueue_editor_styles' ] );
 		add_action( 'elementor/editor/after_enqueue_scripts', [ __CLASS__, 'enqueue_elementor_editor_assets' ] );
 
+		// Identify the installed Premium build without tying the label to license state.
+		add_action( 'admin_footer-plugins.php', [ __CLASS__, 'render_plugin_edition_badge' ] );
+
 		// Editor AJAX for Sections -> Menu filtering.
 		add_action( 'wp_ajax_jprm_sections_by_menu', [ __CLASS__, 'ajax_sections_by_menu' ] );
+	}
+
+	/** Add the Premium build label beside the plugin title on the Plugins screen. */
+	public static function render_plugin_edition_badge() : void {
+		$sdk = function_exists( 'jprm_fs' ) ? jprm_fs() : null;
+		if ( ! is_object( $sdk ) || ! method_exists( $sdk, 'is_premium' ) || ! $sdk->is_premium() ) {
+			return;
+		}
+
+		$plugin_basename = plugin_basename( JPRM_PLUGIN_FILE );
+		?>
+		<style>
+			.jprm-plugin-edition-badge {
+				display: inline-block;
+				margin-left: 6px;
+				padding: 1px 5px;
+				border-radius: 3px;
+				background: #6747c7;
+				color: #fff;
+				font-size: 10px;
+				font-weight: 600;
+				line-height: 1.5;
+				vertical-align: 1px;
+			}
+		</style>
+		<script>
+			( function() {
+				var basename = <?php echo wp_json_encode( $plugin_basename ); ?>;
+				var rows = document.querySelectorAll( '.wp-list-table.plugins tr[data-plugin]' );
+
+				for ( var i = 0; i < rows.length; i++ ) {
+					if ( basename !== rows[i].getAttribute( 'data-plugin' ) ) {
+						continue;
+					}
+
+					var title = rows[i].querySelector( '.plugin-title > strong:first-child' );
+					if ( title && ! title.querySelector( '.jprm-plugin-edition-badge' ) ) {
+						var badge = document.createElement( 'span' );
+						badge.className = 'jprm-plugin-edition-badge';
+						badge.textContent = 'PRO';
+						title.appendChild( badge );
+					}
+				}
+			}() );
+		</script>
+		<?php
 	}
 
 	/* =========================

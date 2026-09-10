@@ -47,7 +47,6 @@ final class JPRM_Package_Builder {
 		if ( null !== $active ) { throw new RuntimeException( "Unclosed region: $active" ); }
 		$text = implode( "\n", $output );
 		if ( ! $premium && 'jellopoint-restaurant-menu.php' === $path ) {
-			$text = self::replace_once( $text, 'Restaurant Menu Pro', 'Restaurant Menu' );
 			$text = self::replace_once( $text, "'is_premium' => true", "'is_premium' => false" );
 			$text = self::replace_once( $text, 'set_basename( true, __FILE__ )', 'set_basename( false, __FILE__ )' );
 			$text = preg_replace( "/^.*'wp_org_gatekeeper' => .*\n/m", '', $text, 1, $count );
@@ -97,7 +96,6 @@ final class JPRM_Package_Builder {
 					$content = self::transform( $content, $path, $premium, $regions, $seen );
 				}
 				if ( 'readme.txt' === $path ) {
-					if ( ! $premium ) { $content = self::replace_once( $content, '=== JelloPoint – Restaurant Menu Pro ===', '=== JelloPoint – Restaurant Menu ===' ); }
 					$content = str_replace( 'This source checkout is the Pro edition. The build process creates separate Free and Pro packages.', $premium ? 'Pro edition: Daily/Weekly Menus, Print/PDF and CSV/JSON Import/Export require Pro access. A non-blocking expired license retains these features; updates and support require renewal.' : 'Free edition: includes Multiple Prices, labels, badges, Menu Builder and reusable Info Blocks. Daily/Weekly Menus, Print/PDF and CSV/JSON Import/Export are available separately in Pro and are not included in this package.', $content );
 				}
 				if ( 'php' === pathinfo( $path, PATHINFO_EXTENSION ) ) { token_get_all( $content, TOKEN_PARSE ); }

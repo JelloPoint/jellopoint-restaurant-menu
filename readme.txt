@@ -1,9 +1,9 @@
-=== JelloPoint – Restaurant Menu Pro ===
+=== JelloPoint – Restaurant Menu ===
 Tags: restaurant, menu, elementor, food, prices
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2.0.40
+Stable tag: 2.0.41
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -27,7 +27,7 @@ Service: https://freemius.com/
 Terms: https://freemius.com/terms/
 Privacy: https://freemius.com/privacy/
 
-Source and distribution instructions: https://github.com/JelloPoint/jellopoint-restaurant-menu
+Product information: https://jellopoint.com/
 
 == Installation ==
 
@@ -47,6 +47,9 @@ Deactivation retains data. Deleting the plugin retains data by default. Enable t
 In Pro, open the printable menu and use your browser's print dialog to save as PDF.
 
 == Changelog ==
+
+= 2.0.41 =
+* Use one neutral plugin name for both editions and label only the installed Premium build with a PRO badge on the Plugins screen.
 
 = 2.0.40 =
 * Prepare final public-release Free and Pro artifacts and launch-safety acceptance.

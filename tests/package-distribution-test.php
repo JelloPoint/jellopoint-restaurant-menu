@@ -43,7 +43,11 @@ foreach ( ['free' => false, 'pro' => true] as $edition => $premium ) {
 	sort( $expected ); sort( $actual );
 	package_check( $actual === $expected, "$edition manifest differs." );
 	$main = file_get_contents( "$dir/jellopoint-restaurant-menu.php" );
+	package_check( false !== strpos( $main, 'Plugin Name:       JelloPoint – Restaurant Menu' ), "$edition plugin name is wrong." );
+	package_check( false === strpos( $main, 'Plugin Name:       JelloPoint – Restaurant Menu Pro' ), "$edition plugin name is hard-coded as Pro." );
 	package_check( false !== strpos( $main, "'is_premium' => " . ( $premium ? 'true' : 'false' ) ), "$edition SDK identity is wrong." );
+	package_check( false !== strpos( $main, "Version:           2.0.41" ), "$edition plugin version is wrong." );
+	package_check( false !== strpos( $main, "define( 'JPRM_VERSION', '2.0.41' )" ), "$edition runtime version is wrong." );
 	package_check( $premium === ( false !== strpos( $main, "'wp_org_gatekeeper'" ) ), "$edition gatekeeper is wrong." );
 	package_check( false !== strpos( $main, 'set_basename( ' . ( $premium ? 'true' : 'false' ) ), 'Double activation wrapper missing.' );
 	foreach ( ['includes/storage/class-price-schema.php', 'includes/render/class-price-renderer.php', 'includes/admin/class-admin-info-blocks.php', 'includes/data/class-default-data.php', 'includes/class-uninstaller.php', 'vendor/freemius/LICENSE.txt', 'wpml-config.xml'] as $shared ) {
