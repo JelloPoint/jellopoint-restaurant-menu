@@ -23,11 +23,13 @@ class Price_Schema {
         return isset($cfg['mode']) && $cfg['mode'] === 'single' && !empty($cfg['price']);
     }
 
+// JPRM_PRO_BEGIN:multiple-prices-data-method
     /** Convenience: iterate multi rows (label_ref, value, hide_icon). */
-    public static function iter_rows( array $cfg ) : array {
-        if ( isset($cfg['mode']) && $cfg['mode'] === 'multi' && !empty($cfg['rows']) && is_array($cfg['rows']) ) {
+    public static function iter_rows__premium_only( array $cfg ) : array {
+		if ( isset($cfg['mode']) && $cfg['mode'] === 'multi' && !empty($cfg['rows']) && is_array($cfg['rows']) ) {
             return $cfg['rows'];
         }
         return [];
     }
+// JPRM_PRO_END:multiple-prices-data-method
 }

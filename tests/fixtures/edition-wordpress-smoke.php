@@ -41,7 +41,8 @@ if ( 'seed' === $mode ) { update_option( 'jprm_qa_snapshot', $hash ); echo "QA c
 jprm_qa_check( get_option( 'jprm_qa_snapshot' ) === $hash, 'Content changed across edition switch.' );
 $premium = 'pro' === $mode;
 jprm_qa_check( jprm_fs()->is_premium() === $premium, 'Wrong running SDK edition.' );
-jprm_qa_check( Module_Access::allows( 'multiple_prices' ), 'Multiple Prices unavailable.' );
+$multiple_prices_allowed = Module_Access::allows( 'multiple_prices' );
+if ( ! $premium ) { jprm_qa_check( ! $multiple_prices_allowed, 'Free build granted Multiple Prices access.' ); }
 jprm_qa_check( Module_Access::allows( 'info_blocks' ), 'Info Blocks unavailable.' );
 
 $routes = rest_get_server()->get_routes();
@@ -79,7 +80,20 @@ $blocks = Info_Block_Store::data_for_widget( [['info_block_id' => $ids['info']]]
 jprm_qa_check( false !== strpos( $blocks[0]['content_html'], 'QA reusable content' ), 'Free reusable Info Blocks failed.' );
 require_once JPRM_PLUGIN_PATH . 'includes/render/partials/price-block.php';
 $prices = jprm_get_pricegroup_data( $ids['item'] );
-jprm_qa_check( count( $prices ) === 2, 'Multiple Prices lost rows.' );
+jprm_qa_check( $multiple_prices_allowed ? 2 === count( $prices ) : [] === $prices, 'Multiple Prices frontend data has wrong access state.' );
+if ( ! $premium ) {
+	$price_meta_before = [];
+	foreach ( ['jprm_price', 'jprm_price_mode', 'jprm_prices'] as $key ) { $price_meta_before[$key] = get_post_meta( $ids['item'], $key, true ); }
+	require_once JPRM_PLUGIN_PATH . 'includes/admin/class-admin-menuitem-meta.php';
+	require_once JPRM_PLUGIN_PATH . 'includes/admin/save/class-menuitem-v3-writer.php';
+	$original_post = $_POST;
+	$_POST = ['jprm_single_price_editor' => '1', 'jprm_price_amount' => '1.00'];
+	$save_single = new ReflectionMethod( 'JPRM_Admin_MenuItem_Meta', 'save_single_pricing' );
+	$save_single->invoke( null, $ids['item'] );
+	\JelloPoint\RestaurantMenu\Admin\Save\MenuItem_V3_Writer::write_v3( $ids['item'], get_post( $ids['item'] ) );
+	$_POST = $original_post;
+	foreach ( $price_meta_before as $key => $value ) { jprm_qa_check( $value === get_post_meta( $ids['item'], $key, true ), 'Free item save changed retained Multiple Prices data.' ); }
+}
 
 // Render all actual Free templates with database-backed content.
 require_once JPRM_PLUGIN_PATH . 'includes/render/partials/info-blocks.php';
@@ -96,7 +110,8 @@ foreach ( ['inline', 'inline_below', 'matrix'] as $layout ) {
 	];
 	ob_start(); include JPRM_PLUGIN_PATH . 'includes/render/templates/menu.php'; $html = ob_get_clean();
 	jprm_qa_check( false !== strpos( $html, 'QA Wine' ), "Item missing from $layout output." );
-	jprm_qa_check( false !== strpos( $html, '8.50' ) || false !== strpos( $html, '8,50' ), "Price missing from $layout output." );
+	$has_price = false !== strpos( $html, '8.50' ) || false !== strpos( $html, '8,50' );
+	jprm_qa_check( $multiple_prices_allowed === $has_price, "Multiple Prices visibility is wrong in $layout output." );
 }
 if ( class_exists( '\Elementor\Plugin' ) ) {
 	$elementor = \Elementor\Plugin::$instance;
@@ -113,7 +128,8 @@ if ( class_exists( '\Elementor\Plugin' ) ) {
 	ob_start(); $widget->render(); $widget_html = ob_get_clean();
 	jprm_qa_check( false !== strpos( $widget_html, 'QA Wine' ), 'Actual Elementor widget failed to render.' );
 	jprm_qa_check( false !== strpos( $widget_html, 'Vegan' ), 'Dietary badge missing from actual widget.' );
-	jprm_qa_check( false !== strpos( $widget_html, 'Glass' ) && false !== strpos( $widget_html, 'Bottle' ), 'Price labels missing from actual widget.' );
+	$has_multiple_labels = false !== strpos( $widget_html, 'Glass' ) && false !== strpos( $widget_html, 'Bottle' );
+	jprm_qa_check( $multiple_prices_allowed === $has_multiple_labels, 'Multiple Price labels have wrong access state.' );
 	$daily_widget = $elementor->elements_manager->create_element_instance( [
 		'id' => 'jprmdailyqa', 'elType' => 'widget', 'widgetType' => 'jprm_restaurant_menu', 'settings' => ['menus' => (string) $ids['daily']],
 	] );
@@ -128,4 +144,4 @@ if ( class_exists( '\Elementor\Plugin' ) ) {
 	}
 	echo "Actual Elementor widget registration, controls, frontend rendering and Daily editor-only warning passed.\n";
 }
-echo "$mode: SDK bootstrap, Builder/permissions, three frontend layouts, Multiple Prices, Info Blocks, Daily warning and edition-switch data retention passed.\n";
+echo "$mode: SDK bootstrap, Builder/permissions, three frontend layouts, price edition boundary, Info Blocks, Daily warning and edition-switch data retention passed.\n";

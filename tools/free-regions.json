@@ -146,5 +146,65 @@
   "daily-matrix-separator": {
     "file": "includes/render/templates/matrix.php",
     "free": ""
+  },
+  "multiple-prices-normalize": {
+    "file": "includes/storage/class-price-schema.php",
+    "free": ""
+  },
+  "multiple-prices-schema-method": {
+    "file": "includes/storage/class-price-schema.php",
+    "free": ""
+  },
+  "multiple-prices-validation": {
+    "file": "includes/storage/class-price-schema.php",
+    "free": ""
+  },
+  "multiple-prices-data-method": {
+    "file": "includes/data/class-price-schema.php",
+    "free": "    public static function iter_rows( array $cfg ) : array { return []; }\n"
+  },
+  "multiple-prices-renderer": {
+    "file": "includes/render/class-price-renderer.php",
+    "free": ""
+  },
+  "multiple-prices-structured-render": {
+    "file": "includes/render/partials/price-block.php",
+    "free": ""
+  },
+  "multiple-prices-admin-editor": {
+    "file": "includes/admin/class-admin-menuitem-meta.php",
+    "free": ""
+  },
+  "multiple-prices-admin-save": {
+    "file": "includes/admin/class-admin-menuitem-meta.php",
+    "free": ""
+  },
+  "multiple-prices-writer": {
+    "file": "includes/admin/save/class-menuitem-v3-writer.php",
+    "free": "        return;\n"
+  },
+  "multiple-prices-list-cell": {
+    "file": "includes/admin/class-jprm-menu-item-list.php",
+    "free": ""
+  },
+  "multiple-prices-elementor-style": {
+    "file": "includes/widgets/traits/restaurant-menu-style.php",
+    "free": ""
+  },
+  "multiple-prices-bulk-fallback": {
+    "file": "includes/admin/class-admin-bulk-price-labels.php",
+    "free": ""
+  },
+  "multiple-prices-bulk-update": {
+    "file": "includes/admin/class-admin-bulk-price-labels.php",
+    "free": ""
+  },
+  "multiple-prices-bulk-parse": {
+    "file": "includes/admin/class-admin-bulk-price-labels.php",
+    "free": ""
+  },
+  "multiple-prices-bulk-legacy": {
+    "file": "includes/admin/class-admin-bulk-price-labels.php",
+    "free": ""
   }
 }

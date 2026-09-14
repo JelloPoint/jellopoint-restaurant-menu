@@ -3,6 +3,8 @@
 
 define( 'ABSPATH', __DIR__ . '/' );
 
+function jprm_fs() { return new class { public function can_use_premium_code__premium_only() { return true; } }; }
+
 function esc_attr( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
 function esc_html( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
 function esc_url( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }

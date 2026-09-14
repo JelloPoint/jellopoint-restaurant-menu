@@ -826,6 +826,8 @@ trait Restaurant_Menu_Style {
 			]
 		);
 
+// JPRM_PRO_BEGIN:multiple-prices-elementor-style
+		if ( jprm_fs()->can_use_premium_code__premium_only() ) {
 		// Vertical gap between multiple price rows
 		$this->add_responsive_control(
 			'jprm_price_rows_gap',
@@ -850,6 +852,8 @@ trait Restaurant_Menu_Style {
 				],
 			]
 		);
+		}
+// JPRM_PRO_END:multiple-prices-elementor-style
 
 		/* --- Inline --- */
 		$this->add_control(

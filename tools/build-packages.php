@@ -97,7 +97,10 @@ final class JPRM_Package_Builder {
 					$content = self::transform( $content, $path, $premium, $regions, $seen );
 				}
 				if ( 'readme.txt' === $path ) {
-					$content = str_replace( 'This source checkout is the Pro edition. The build process creates separate Free and Pro packages.', $premium ? 'Pro edition: Daily/Weekly Menus, Print/PDF and CSV/JSON Import/Export require Pro access. A non-blocking expired license retains these features; updates and support require renewal.' : 'Free edition: includes Multiple Prices, labels, badges, Menu Builder and reusable Info Blocks. Daily/Weekly Menus, Print/PDF and CSV/JSON Import/Export are available separately in Pro and are not included in this package.', $content );
+					$remove = $premium ? 'fs_free_only' : 'fs_premium_only';
+					$keep   = $premium ? 'fs_premium_only' : 'fs_free_only';
+					$content = preg_replace( '~\[//\]: # ' . $remove . '_begin\R.*?\[//\]: # ' . $remove . '_end\R*~s', '', $content );
+					$content = preg_replace( '~\[//\]: # ' . $keep . '_(?:begin|end)\R?~', '', $content );
 				}
 				if ( 'php' === pathinfo( $path, PATHINFO_EXTENSION ) ) { token_get_all( $content, TOKEN_PARSE ); }
 				if ( ! is_dir( dirname( "$dir/$path" ) ) ) { mkdir( dirname( "$dir/$path" ), 0775, true ); }

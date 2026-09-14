@@ -3,6 +3,8 @@
 
 define( 'ABSPATH', __DIR__ . '/' );
 
+function jprm_fs() { return new class { public function can_use_premium_code__premium_only() { return true; } }; }
+
 $jprm_transfer_meta = [
 	101 => [
 		'jprm_price' => json_encode( [

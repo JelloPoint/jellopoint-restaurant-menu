@@ -102,7 +102,16 @@ class JPRM_Admin_MenuItem_Meta {
 		echo '</div>';
 	}
 
-	public static function render_pricing($post){
+	public static function render_pricing( $post ) : void {
+		if ( jprm_fs()->can_use_premium_code__premium_only() ) {
+			self::render_multiple_pricing__premium_only( $post );
+			return;
+		}
+		self::render_single_pricing( $post );
+	}
+
+// JPRM_PRO_BEGIN:multiple-prices-admin-editor
+	private static function render_multiple_pricing__premium_only( $post ) : void {
 		/* --- single price fields --- */
 		$mode   = get_post_meta($post->ID,'jprm_price_mode',true) ?: 'single';
 		$amount = get_post_meta($post->ID,'jprm_price_amount',true);
@@ -118,7 +127,7 @@ class JPRM_Admin_MenuItem_Meta {
 		if (!is_array($rows)) $rows = [];
 
 		/* --- labels store (predefined) --- */
-		$labels = class_exists('JPRM_Labels_Store') ? JPRM_Labels_Store::all() : [];
+		$labels = self::labels_store_all();
 		$label_map = [];
 		foreach ($labels as $L){
 			$label_map[(string)($L['id']??'')] = [
@@ -452,6 +461,60 @@ class JPRM_Admin_MenuItem_Meta {
 		<?php
 		wp_add_inline_script( 'jprm-menuitem-meta-compliance', ob_get_clean() );
 	}
+// JPRM_PRO_END:multiple-prices-admin-editor
+
+	private static function render_single_pricing( $post ) : void {
+		if ( self::has_saved_multiple_prices( (int) $post->ID ) ) {
+			echo '<div class="notice notice-warning inline"><p>'
+				. esc_html__( 'This item contains Multiple Prices. The stored prices are preserved, but displaying and editing them require Pro access.', 'jellopoint-restaurant-menu' )
+				. '</p></div>';
+			return;
+		}
+
+		$amount = get_post_meta( $post->ID, 'jprm_price_amount', true );
+		$lm     = get_post_meta( $post->ID, 'jprm_price_label_mode', true ) ?: 'ref';
+		$lref   = (string) get_post_meta( $post->ID, 'jprm_price_label_ref', true );
+		$lcus   = get_post_meta( $post->ID, 'jprm_price_label_custom', true );
+		$icon   = (int) get_post_meta( $post->ID, 'jprm_price_label_icon_id', true );
+		$labels = self::labels_store_all();
+		$options = '<option value="">' . esc_html__( 'Select…', 'jellopoint-restaurant-menu' ) . '</option>';
+		foreach ( $labels as $label ) {
+			$id   = (string) ( $label['id'] ?? '' );
+			$text = (string) ( $label['label'] ?? $id );
+			$options .= '<option value="' . esc_attr( $id ) . '" ' . selected( $lref, $id, false ) . '>' . esc_html( $text ) . '</option>';
+		}
+
+		echo '<input type="hidden" name="jprm_single_price_editor" value="1" />';
+		echo '<table class="form-table"><tbody>';
+		echo '<tr><th><label>' . esc_html__( 'Price', 'jellopoint-restaurant-menu' ) . '</label></th><td>';
+		printf( '<input type="text" name="jprm_price_amount" value="%s" class="regular-text" style="width:110px" placeholder="%s" />', esc_attr( $amount ), esc_attr( '€ 7,50' ) );
+		echo '</td></tr>';
+		echo '<tr><th><label>' . esc_html__( 'Price Label', 'jellopoint-restaurant-menu' ) . '</label></th><td>';
+		echo '<select id="jprm_price_label_mode" name="jprm_price_label_mode" style="display:none;"><option value="ref" ' . selected( $lm, 'ref', false ) . '>ref</option><option value="custom" ' . selected( $lm, 'custom', false ) . '>custom</option></select>';
+		echo '<div class="jprm-inline"><div class="jprm-mode-switch" id="jprm_single_mode_switch"><span class="jprm-pill ' . ( 'ref' === $lm ? 'active' : '' ) . '" data-mode="ref">' . esc_html__( 'Preset', 'jellopoint-restaurant-menu' ) . '</span><span class="jprm-pill ' . ( 'custom' === $lm ? 'active' : '' ) . '" data-mode="custom">' . esc_html__( 'Custom', 'jellopoint-restaurant-menu' ) . '</span></div>';
+		echo '<select id="jprm_price_label_ref" name="jprm_price_label_ref"' . ( 'custom' === $lm ? ' style="display:none;"' : '' ) . '>' . wp_kses( $options, [ 'option' => [ 'value' => true, 'selected' => true ] ] ) . '</select>';
+		printf( '<input type="text" id="jprm_price_label_custom" name="jprm_price_label_custom" value="%s" class="regular-text" placeholder="%s"%s />', esc_attr( $lcus ), esc_attr__( 'Custom label', 'jellopoint-restaurant-menu' ), 'custom' === $lm ? '' : ' style="display:none;"' );
+		printf( '<input type="hidden" id="jprm_price_label_icon_id" name="jprm_price_label_icon_id" value="%d" />', absint( $icon ) );
+		echo '</div></td></tr></tbody></table>';
+
+		wp_add_inline_script( 'jprm-menuitem-meta-compliance', "jQuery(function($){var s=$('#jprm_single_mode_switch'),m=$('#jprm_price_label_mode'),r=$('#jprm_price_label_ref'),c=$('#jprm_price_label_custom');s.on('click','.jprm-pill',function(){var v=$(this).data('mode');m.val(v);s.find('.jprm-pill').removeClass('active');$(this).addClass('active');r.toggle(v==='ref');c.toggle(v==='custom');});});" );
+	}
+
+	private static function has_saved_multiple_prices( int $post_id ) : bool {
+		if ( 'multi' === (string) get_post_meta( $post_id, 'jprm_price_mode', true ) ) {
+			return true;
+		}
+		$raw = get_post_meta( $post_id, 'jprm_price', true );
+		if ( is_string( $raw ) && '' !== $raw ) {
+			$decoded = json_decode( $raw, true );
+			if ( is_array( $decoded ) ) { $raw = $decoded; }
+		}
+		return is_array( $raw ) && 'multi' === ( $raw['mode'] ?? '' );
+	}
+
+	private static function labels_store_all() : array {
+		return class_exists( 'JPRM_Labels_Store' ) ? JPRM_Labels_Store::all() : [];
+	}
 
 	public static function render_visibility($post){
 		$badge = get_post_meta($post->ID,'jprm_badge',true);
@@ -487,6 +550,8 @@ class JPRM_Admin_MenuItem_Meta {
 		update_post_meta($post_id,'jprm_badge', $badge);
 		update_post_meta($post_id,'jprm_visible', ( 'yes' === $visible ) ? 'yes' : 'no');
 
+// JPRM_PRO_BEGIN:multiple-prices-admin-save
+		if ( jprm_fs()->can_use_premium_code__premium_only() ) {
 		$price_mode = isset( $_POST['jprm_price_mode'] ) ? sanitize_key( wp_unslash( $_POST['jprm_price_mode'] ) ) : 'single';
 		$mode = ( 'multi' === $price_mode ) ? 'multi' : 'single';
 		update_post_meta($post_id,'jprm_price_mode',$mode);
@@ -538,6 +603,35 @@ class JPRM_Admin_MenuItem_Meta {
 			delete_post_meta($post_id,'jprm_price_label_custom');
 			delete_post_meta($post_id,'jprm_price_label_icon_id');
 		}
+			return;
+		}
+// JPRM_PRO_END:multiple-prices-admin-save
+		self::save_single_pricing( (int) $post_id );
+	}
+
+	private static function save_single_pricing( int $post_id ) : void {
+		if ( self::has_saved_multiple_prices( $post_id ) || empty( $_POST['jprm_single_price_editor'] ) ) {
+			return;
+		}
+		update_post_meta( $post_id, 'jprm_price_mode', 'single' );
+		$amount = isset( $_POST['jprm_price_amount'] ) ? sanitize_text_field( wp_unslash( $_POST['jprm_price_amount'] ) ) : '';
+		update_post_meta( $post_id, 'jprm_price_amount', $amount );
+		$label_mode = isset( $_POST['jprm_price_label_mode'] ) ? sanitize_key( wp_unslash( $_POST['jprm_price_label_mode'] ) ) : 'ref';
+		$label_mode = 'custom' === $label_mode ? 'custom' : 'ref';
+		update_post_meta( $post_id, 'jprm_price_label_mode', $label_mode );
+		if ( 'ref' === $label_mode ) {
+			$label_ref = isset( $_POST['jprm_price_label_ref'] ) ? sanitize_text_field( wp_unslash( $_POST['jprm_price_label_ref'] ) ) : '';
+			update_post_meta( $post_id, 'jprm_price_label_ref', $label_ref );
+			delete_post_meta( $post_id, 'jprm_price_label_custom' );
+			delete_post_meta( $post_id, 'jprm_price_label_icon_id' );
+		} else {
+			$custom = isset( $_POST['jprm_price_label_custom'] ) ? sanitize_text_field( wp_unslash( $_POST['jprm_price_label_custom'] ) ) : '';
+			$icon   = isset( $_POST['jprm_price_label_icon_id'] ) ? absint( wp_unslash( $_POST['jprm_price_label_icon_id'] ) ) : 0;
+			update_post_meta( $post_id, 'jprm_price_label_custom', $custom );
+			update_post_meta( $post_id, 'jprm_price_label_icon_id', $icon );
+			delete_post_meta( $post_id, 'jprm_price_label_ref' );
+		}
+		delete_post_meta( $post_id, 'jprm_prices' );
 	}
 }}
 JPRM_Admin_MenuItem_Meta::init();

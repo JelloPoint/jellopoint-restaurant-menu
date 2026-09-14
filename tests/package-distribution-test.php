@@ -47,8 +47,8 @@ foreach ( ['free' => false, 'pro' => true] as $edition => $premium ) {
 	package_check( false === strpos( $main, 'Plugin Name:       JelloPoint – Restaurant Menu Pro' ), "$edition plugin name is hard-coded as Pro." );
 	package_check( false !== strpos( $main, "'is_premium' => " . ( $premium ? 'true' : 'false' ) ), "$edition SDK identity is wrong." );
 	package_check( false !== strpos( $main, "'premium_suffix' => ''" ), "$edition can receive an automatic Premium name suffix." );
-	package_check( false !== strpos( $main, "Version:           2.0.43" ), "$edition plugin version is wrong." );
-	package_check( false !== strpos( $main, "define( 'JPRM_VERSION', '2.0.43' )" ), "$edition runtime version is wrong." );
+	package_check( false !== strpos( $main, "Version:           2.0.44" ), "$edition plugin version is wrong." );
+	package_check( false !== strpos( $main, "define( 'JPRM_VERSION', '2.0.44' )" ), "$edition runtime version is wrong." );
 	package_check( $premium === ( false !== strpos( $main, "'wp_org_gatekeeper'" ) ), "$edition gatekeeper is wrong." );
 	package_check( false !== strpos( $main, 'set_basename( ' . ( $premium ? 'true' : 'false' ) ), 'Double activation wrapper missing.' );
 	foreach ( ['includes/storage/class-price-schema.php', 'includes/render/class-price-renderer.php', 'includes/admin/class-admin-info-blocks.php', 'includes/data/class-default-data.php', 'includes/class-uninstaller.php', 'vendor/freemius/LICENSE.txt', 'wpml-config.xml'] as $shared ) {
@@ -58,5 +58,15 @@ foreach ( ['free' => false, 'pro' => true] as $edition => $premium ) {
 	foreach ( JPRM_Package_Builder::PRO_FILES as $pro_file ) { package_check( $premium === is_file( "$dir/$pro_file" ), "Wrong edition: $pro_file" ); }
 	$builder = file_get_contents( "$dir/includes/admin/assets/jprm-menu-builder.js" );
 	package_check( $premium === ( false !== strpos( $builder, 'menu-builder/info-blocks' ) ), 'Print placement JS has wrong edition.' );
+	$price_schema = file_get_contents( "$dir/includes/storage/class-price-schema.php" );
+	$price_editor = file_get_contents( "$dir/includes/admin/class-admin-menuitem-meta.php" );
+	$price_style  = file_get_contents( "$dir/includes/widgets/traits/restaurant-menu-style.php" );
+	package_check( $premium === ( false !== strpos( $price_schema, 'normalize_multi__premium_only' ) ), 'Multiple Prices schema has wrong edition.' );
+	package_check( $premium === ( false !== strpos( $price_editor, 'function render_multiple_pricing__premium_only' ) ), 'Multiple Prices editor has wrong edition.' );
+	package_check( $premium === ( false !== strpos( $price_style, 'jprm_price_rows_gap' ) ), 'Multiple Prices Elementor controls have wrong edition.' );
+	if ( ! $premium ) {
+		package_check( false === strpos( $price_editor, 'id="jprm2-prices-table"' ), 'Multiple Prices UI leaked into Free.' );
+		package_check( false !== strpos( $price_editor, 'stored prices are preserved' ), 'Free downgrade data-retention notice missing.' );
+	}
 	echo "$edition: manifest, archive, checksums, PHP syntax, SDK identity and physical module separation passed.\n";
 }

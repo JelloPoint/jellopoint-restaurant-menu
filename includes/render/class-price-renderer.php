@@ -76,9 +76,10 @@ class Price_Renderer {
 				echo self::row_html( $price_html, $label_text, $icon_id, $icon_url, $presentation, $order_class, $hide ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
             }
         }
-        // MULTI
-        else {
-            foreach ( Price_Schema::iter_rows( $cfg ) as $row ) {
+// JPRM_PRO_BEGIN:multiple-prices-renderer
+		// MULTI
+		if ( jprm_fs()->can_use_premium_code__premium_only() ) {
+			foreach ( Price_Schema::iter_rows__premium_only( $cfg ) as $row ) {
                 if ( ! is_array( $row ) ) continue;
 
                 $price = self::sanitize_price_string( $row['value'] ?? '' ); // schema: value
@@ -97,7 +98,8 @@ class Price_Renderer {
 				// row_html() escapes all leaf values before assembling the fixed menu markup.
 				echo self::row_html( $price_html, $label_text, $icon_id, $icon_url, $presentation, $order_class, $hide ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
             }
-        }
+		}
+// JPRM_PRO_END:multiple-prices-renderer
 
         echo '</div>';
         return ob_get_clean();

@@ -3,6 +3,8 @@
 
 define( 'ABSPATH', __DIR__ . '/' );
 
+function jprm_fs() { return new class { public function can_use_premium_code__premium_only() { return true; } }; }
+
 set_error_handler(
 	static function ( int $severity, string $message, string $file, int $line ): bool {
 		throw new ErrorException( $message, 0, $severity, $file, $line );

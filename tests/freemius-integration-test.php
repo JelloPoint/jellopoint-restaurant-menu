@@ -28,4 +28,18 @@ foreach ( [ 'ci-dev.yml', 'ci-harden.yml' ] as $workflow ) {
 $readme = file_get_contents( $root . '/readme.txt' );
 fs_check( strpos( $readme, 'External service: Freemius' ) !== false, 'External service disclosure missing.' );
 fs_check( strpos( $readme, 'License: GPLv3' ) !== false, 'Combined package license missing.' );
+foreach ( [
+	'includes/storage/class-price-schema.php',
+	'includes/render/class-price-renderer.php',
+	'includes/render/partials/price-block.php',
+	'includes/admin/class-admin-menuitem-meta.php',
+	'includes/admin/class-jprm-menu-item-list.php',
+	'includes/admin/save/class-menuitem-v3-writer.php',
+	'includes/admin/class-admin-bulk-price-labels.php',
+	'includes/widgets/traits/restaurant-menu-style.php',
+] as $premium_source ) {
+	$content = file_get_contents( $root . '/' . $premium_source );
+	fs_check( false !== strpos( $content, 'can_use_premium_code__premium_only' ) || false !== strpos( $content, '__premium_only(' ), 'Freemius cannot identify Multiple Prices premium code in ' . $premium_source );
+}
+fs_check( false !== strpos( $readme, 'fs_free_only_begin' ) && false !== strpos( $readme, 'fs_premium_only_begin' ), 'Freemius readme edition markers missing.' );
 echo "Freemius configuration and package checks passed; WordPress sandbox testing still required.\n";

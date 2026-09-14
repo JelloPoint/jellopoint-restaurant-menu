@@ -25,10 +25,14 @@ class Price_Schema {
 			$normalized = self::normalize_single( $cfg );
 			return self::is_valid( $normalized ) ? $normalized : [];
 		}
-		if ( 'multi' === $mode ) {
-			$normalized = self::normalize_multi( is_array( $cfg['rows'] ?? null ) ? $cfg['rows'] : [] );
-			return self::is_valid( $normalized ) ? $normalized : [];
+// JPRM_PRO_BEGIN:multiple-prices-normalize
+		if ( jprm_fs()->can_use_premium_code__premium_only() ) {
+			if ( 'multi' === $mode ) {
+				$normalized = self::normalize_multi__premium_only( is_array( $cfg['rows'] ?? null ) ? $cfg['rows'] : [] );
+				return self::is_valid( $normalized ) ? $normalized : [];
+			}
 		}
+// JPRM_PRO_END:multiple-prices-normalize
 
 		return [];
 	}
@@ -66,7 +70,8 @@ class Price_Schema {
      *  - icon_id (int)
      *  - hide_icon (bool)
      */
-    public static function normalize_multi( array $rows ) : array {
+// JPRM_PRO_BEGIN:multiple-prices-schema-method
+    public static function normalize_multi__premium_only( array $rows ) : array {
         $out_rows = [];
         foreach ( $rows as $r ) {
             if ( ! is_array($r) ) continue;
@@ -91,6 +96,7 @@ class Price_Schema {
             'rows' => $out_rows,
         ];
     }
+// JPRM_PRO_END:multiple-prices-schema-method
 
     /** Validate minimal structure. */
     public static function is_valid( array $cfg ) : bool {
@@ -98,13 +104,17 @@ class Price_Schema {
         if ( $cfg['mode'] === 'single' ) {
             return isset($cfg['price']) && $cfg['price'] !== '';
         }
-        if ( $cfg['mode'] === 'multi' ) {
-            if ( empty($cfg['rows']) || ! is_array($cfg['rows']) ) return false;
-            foreach ( $cfg['rows'] as $r ) {
-                if ( ! is_array($r) || ($r['value'] ?? '') === '' ) return false;
-            }
-            return true;
-        }
+// JPRM_PRO_BEGIN:multiple-prices-validation
+		if ( jprm_fs()->can_use_premium_code__premium_only() ) {
+			if ( $cfg['mode'] === 'multi' ) {
+				if ( empty($cfg['rows']) || ! is_array($cfg['rows']) ) return false;
+				foreach ( $cfg['rows'] as $r ) {
+					if ( ! is_array($r) || ($r['value'] ?? '') === '' ) return false;
+				}
+				return true;
+			}
+		}
+// JPRM_PRO_END:multiple-prices-validation
         return false;
     }
 

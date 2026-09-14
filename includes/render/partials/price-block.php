@@ -177,9 +177,11 @@ if ( ! function_exists( 'jprm_get_pricegroup_data' ) ) {
 			];
 		}
 
+// JPRM_PRO_BEGIN:multiple-prices-structured-render
 		// MULTI
-		if ( $cfg['mode'] === 'multi' && ! empty( $cfg['rows'] ) ) {
-			foreach ( $cfg['rows'] as $row ) {
+		if ( jprm_fs()->can_use_premium_code__premium_only() ) {
+			if ( $cfg['mode'] === 'multi' && ! empty( $cfg['rows'] ) ) {
+				foreach ( $cfg['rows'] as $row ) {
 				$raw = (string) ( $row['value'] ?? '' );
 				if ( $raw === '' ) continue;
 
@@ -202,8 +204,10 @@ if ( ! function_exists( 'jprm_get_pricegroup_data' ) ) {
 					'amount'     => $amount,
 					'formatted'  => $formatted,
 				];
+				}
 			}
 		}
+// JPRM_PRO_END:multiple-prices-structured-render
 // Normalize label_id for text-only labels so Matrix can align columns.
 // We mirror the header's behavior in menu.php, which uses:
 // $lid = crc32('t:' . (string) $r['label_text'])

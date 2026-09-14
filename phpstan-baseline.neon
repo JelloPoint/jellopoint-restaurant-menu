@@ -31,11 +31,6 @@ parameters:
 			path: includes/admin/class-jprm-menu-item-list.php
 
 		-
-			message: "#^Call to an undefined static method JelloPoint\\\\RestaurantMenu\\\\Storage\\\\Price_Schema\\:\\:normalize_multi\\(\\)\\.$#"
-			count: 1
-			path: includes/admin/save/class-menuitem-v3-writer.php
-
-		-
 			message: "#^Call to an undefined static method JelloPoint\\\\RestaurantMenu\\\\Storage\\\\Price_Schema\\:\\:normalize_single\\(\\)\\.$#"
 			count: 1
 			path: includes/admin/save/class-menuitem-v3-writer.php

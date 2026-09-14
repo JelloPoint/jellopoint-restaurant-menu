@@ -3,19 +3,25 @@ Tags: restaurant, menu, elementor, food, prices
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2.0.43
+Stable tag: 2.0.44
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-Create restaurant menus with sections, multiple prices, dietary badges and an Elementor widget.
+Create restaurant menus with sections, price labels, dietary badges and an Elementor widget.
 
 == Description ==
 
 Manage Menu Items, Menus, Sections and reusable Info Blocks centrally. Display your restaurant menu using the JelloPoint Restaurant Menu Elementor widget.
 
-Features include single and multiple prices, price labels, dietary badges, icons, section ordering and responsive presentation controls.
+Core menu features include single prices, price labels, dietary badges, icons, section ordering and responsive presentation controls.
 
-This source checkout is the Pro edition. The build process creates separate Free and Pro packages.
+[//]: # fs_free_only_begin
+Multiple Prices, Daily/Weekly Menus, Print/PDF and CSV/JSON Import/Export are available in Pro and are not included in this Free package.
+[//]: # fs_free_only_end
+
+[//]: # fs_premium_only_begin
+The Pro edition adds Multiple Prices, Daily/Weekly Menus, Print/PDF and CSV/JSON Import/Export. A non-blocking expired license retains these features; updates and support require renewal.
+[//]: # fs_premium_only_end
 
 Elementor is required for the website widget. Menu management remains available without Elementor. WPML is optional; an included language configuration registers menu content and widget fields for translation.
 
@@ -47,6 +53,11 @@ Deactivation retains data. Deleting the plugin retains data by default. Enable t
 In Pro, open the printable menu and use your browser's print dialog to save as PDF.
 
 == Changelog ==
+
+= 2.0.44 =
+* Move Multiple Prices to Pro while keeping single prices fully available in Free.
+* Preserve stored Multiple Prices data across Free/Pro edition or license changes.
+* Add Freemius-compatible premium code markers for the Multiple Prices implementation.
 
 = 2.0.43 =
 * Address WordPress.org review feedback for request sanitization, term-save authorization and scoped admin notices.
@@ -85,7 +96,7 @@ In Pro, open the printable menu and use your browser's print dialog to save as P
 
 = 2.0.34 =
 * Gate Daily/Weekly, Print/PDF and Import/Export entry points behind Pro entitlement.
-* Keep Multiple Prices and stored restaurant data available independently of license status.
+* Keep stored restaurant data available independently of license status.
 
 = 2.0.33 =
 * Integrate the official Freemius SDK and product configuration for sandbox testing.

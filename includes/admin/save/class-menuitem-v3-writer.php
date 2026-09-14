@@ -101,6 +101,9 @@ class MenuItem_V3_Writer {
             return;
         }
 
+// JPRM_PRO_BEGIN:multiple-prices-writer
+		if ( jprm_fs()->can_use_premium_code__premium_only() ) {
+
         // MULTI mode – read rows JSON from admin UI
         $rows_raw = get_post_meta( $post_id, 'jprm_prices', true );
         $rows = [];
@@ -138,9 +141,11 @@ class MenuItem_V3_Writer {
             return;
         }
 
-        $cfg = Price_Schema::normalize_multi( $norm_rows );
-        // Always overwrite to reflect latest admin state
-        Price_Repository::set( $post_id, $cfg );
+		$cfg = Price_Schema::normalize( [ 'mode' => 'multi', 'rows' => $norm_rows ] );
+		// Always overwrite to reflect latest admin state
+		Price_Repository::set( $post_id, $cfg );
+		}
+// JPRM_PRO_END:multiple-prices-writer
     }
 }
 MenuItem_V3_Writer::init();

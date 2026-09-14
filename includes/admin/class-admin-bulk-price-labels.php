@@ -700,6 +700,8 @@ final class JPRM_Admin_Bulk_Price_Labels {
 			}
 		}
 
+// JPRM_PRO_BEGIN:multiple-prices-bulk-fallback
+		if ( jprm_fs()->can_use_premium_code__premium_only() ) {
 		// Fallback: build from jprm_prices (multi rows).
 		if ( ! is_array( $struct ) ) {
 			$prices_meta = get_post_meta( $post_id, 'jprm_prices', true );
@@ -743,6 +745,8 @@ final class JPRM_Admin_Bulk_Price_Labels {
 				}
 			}
 		}
+		}
+// JPRM_PRO_END:multiple-prices-bulk-fallback
 
 		// Final fallback: legacy single mode only.
 		if ( ! is_array( $struct ) ) {
@@ -797,6 +801,8 @@ final class JPRM_Admin_Bulk_Price_Labels {
 			return $changed;
 		}
 
+// JPRM_PRO_BEGIN:multiple-prices-bulk-update
+		if ( jprm_fs()->can_use_premium_code__premium_only() ) {
 		if ( 'multi' === $mode ) {
 			if ( empty( $struct['rows'] ) || ! is_array( $struct['rows'] ) ) {
 				return 0;
@@ -851,6 +857,8 @@ final class JPRM_Admin_Bulk_Price_Labels {
 
 			return $changed;
 		}
+		}
+// JPRM_PRO_END:multiple-prices-bulk-update
 
 		return 0;
 	}
@@ -1009,7 +1017,10 @@ final class JPRM_Admin_Bulk_Price_Labels {
 				}
 
 				self::add_price_row( $rows, $amount, $label_ref, $labels_index, $struct );
-			} elseif ( 'multi' === $mode && ! empty( $struct['rows'] ) && is_array( $struct['rows'] ) ) {
+			}
+// JPRM_PRO_BEGIN:multiple-prices-bulk-parse
+			if ( jprm_fs()->can_use_premium_code__premium_only() ) {
+			if ( 'multi' === $mode && ! empty( $struct['rows'] ) && is_array( $struct['rows'] ) ) {
 				foreach ( $struct['rows'] as $row ) {
 					if ( ! is_array( $row ) ) {
 						continue;
@@ -1019,8 +1030,12 @@ final class JPRM_Admin_Bulk_Price_Labels {
 					self::add_price_row( $rows, $amount, $label_ref, $labels_index, $row );
 				}
 			}
+			}
+// JPRM_PRO_END:multiple-prices-bulk-parse
 		}
 
+// JPRM_PRO_BEGIN:multiple-prices-bulk-legacy
+		if ( jprm_fs()->can_use_premium_code__premium_only() ) {
 		// 2) If no result yet, try jprm_prices (array of rows).
 		if ( empty( $rows ) ) {
 			$prices_meta = get_post_meta( $post_id, 'jprm_prices', true );
@@ -1051,6 +1066,8 @@ final class JPRM_Admin_Bulk_Price_Labels {
 				}
 			}
 		}
+		}
+// JPRM_PRO_END:multiple-prices-bulk-legacy
 
 		// 3) Legacy single mode fields as last fallback.
 		if ( empty( $rows ) ) {

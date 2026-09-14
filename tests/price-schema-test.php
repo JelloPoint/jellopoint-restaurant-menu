@@ -7,6 +7,8 @@
 
 define( 'ABSPATH', __DIR__ . '/' );
 
+function jprm_fs() { return new class { public function can_use_premium_code__premium_only() { return true; } }; }
+
 $jprm_test_meta = [];
 
 function get_post_meta( $post_id, $key, $single = false ) {

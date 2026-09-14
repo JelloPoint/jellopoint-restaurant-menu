@@ -13,8 +13,7 @@ require_once JPRM_PLUGIN_PATH . 'includes/modules/class-module-loader.php';
 function jprm_fs() { return new class { public function is_premium() { return true; } public function can_use_premium_code() { return true; } }; }
 use JelloPoint\RestaurantMenu\Modules\Module_Catalog as Catalog;
 use JelloPoint\RestaurantMenu\Modules\Module_Loader as Loader;
-check_module( 'free' === Catalog::tier( 'multiple_prices' ), 'Multiple Prices must remain Free.' );
-foreach ( [ 'daily_weekly_menus', 'print_pdf', 'import_export' ] as $id ) {
+foreach ( [ 'multiple_prices', 'daily_weekly_menus', 'print_pdf', 'import_export' ] as $id ) {
 	check_module( Catalog::is_pro( $id ), 'Incorrect module ownership: ' . $id );
 }
 check_module( null === Catalog::tier( 'unknown' ), 'Unknown modules must not be classified as Free.' );

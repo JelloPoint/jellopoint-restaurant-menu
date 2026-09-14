@@ -302,6 +302,14 @@ class Menu_Item_List {
 	 *    (also supports rows[].label if present)
 	 */
 	private static function render_prices_cell( int $post_id ) : string {
+		if ( jprm_fs()->can_use_premium_code__premium_only() ) {
+			return self::render_multiple_prices_cell__premium_only( $post_id );
+		}
+		return self::render_single_prices_cell( $post_id );
+	}
+
+// JPRM_PRO_BEGIN:multiple-prices-list-cell
+	private static function render_multiple_prices_cell__premium_only( int $post_id ) : string {
 		$raw = get_post_meta( $post_id, self::META_PRICE_PRIMARY, true );
 
 		// If it's a JSON string, decode to array
@@ -374,6 +382,23 @@ class Menu_Item_List {
 		}
 
 		return '—';
+	}
+// JPRM_PRO_END:multiple-prices-list-cell
+
+	private static function render_single_prices_cell( int $post_id ) : string {
+		$raw = get_post_meta( $post_id, self::META_PRICE_PRIMARY, true );
+		if ( is_string( $raw ) && '' !== $raw ) {
+			$decoded = json_decode( $raw, true );
+			if ( is_array( $decoded ) ) { $raw = $decoded; }
+		}
+		if ( is_array( $raw ) && 'single' === ( $raw['mode'] ?? '' ) ) {
+			$price = (string) ( $raw['price'] ?? '' );
+			return '' !== $price ? esc_html( $price ) : '—';
+		}
+		if ( is_array( $raw ) && 'multi' === ( $raw['mode'] ?? '' ) ) {
+			return esc_html__( 'Multiple Prices data retained — Pro required', 'jellopoint-restaurant-menu' );
+		}
+		return is_scalar( $raw ) && '' !== (string) $raw ? esc_html( (string) $raw ) : '—';
 	}
 
 	/**
