@@ -96,8 +96,10 @@ class Menu_Item_List {
 	public static function filters( string $post_type ) : void {
 		if ( $post_type !== self::CPT ) return;
 
-		$sel_menu_id    = isset( $_GET['jprm_filter_menu'] ) ? absint( wp_unslash( $_GET['jprm_filter_menu'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list-table filter.
-		$sel_section_id = isset( $_GET['jprm_filter_section'] ) ? absint( wp_unslash( $_GET['jprm_filter_section'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list-table filter.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list-table filter.
+		$sel_menu_id = isset( $_GET['jprm_filter_menu'] ) ? absint( wp_unslash( $_GET['jprm_filter_menu'] ) ) : 0;
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list-table filter.
+		$sel_section_id = isset( $_GET['jprm_filter_section'] ) ? absint( wp_unslash( $_GET['jprm_filter_section'] ) ) : 0;
 
 		// MENUS
 		$menus = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false ] );
@@ -168,8 +170,10 @@ class Menu_Item_List {
 		if ( $pagenow !== 'edit.php' ) return;
 		if ( empty( $q->query ) || ( $q->get( 'post_type' ) !== self::CPT ) ) return;
 
-		$menu_id    = isset( $_GET['jprm_filter_menu'] ) ? absint( wp_unslash( $_GET['jprm_filter_menu'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list-table filter.
-		$section_id = isset( $_GET['jprm_filter_section'] ) ? absint( wp_unslash( $_GET['jprm_filter_section'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list-table filter.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list-table filter.
+		$menu_id = isset( $_GET['jprm_filter_menu'] ) ? absint( wp_unslash( $_GET['jprm_filter_menu'] ) ) : 0;
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list-table filter.
+		$section_id = isset( $_GET['jprm_filter_section'] ) ? absint( wp_unslash( $_GET['jprm_filter_section'] ) ) : 0;
 
 		$tax_query = (array) $q->get( 'tax_query', [] );
 
@@ -208,17 +212,22 @@ class Menu_Item_List {
 	}
 
 	public static function bulk_admin_notice() : void {
-		if ( isset( $_GET['jprm_bulk_unassigned'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect status.
-			$c = absint( wp_unslash( $_GET['jprm_bulk_unassigned'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect status.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect status.
+		if ( isset( $_GET['jprm_bulk_unassigned'] ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect status.
+			$c = absint( wp_unslash( $_GET['jprm_bulk_unassigned'] ) );
 			/* translators: %d: number of menu items. */
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( _n( 'Unassigned %d item.', 'Unassigned %d items.', $c, 'jellopoint-restaurant-menu' ), $c ) ) . '</p></div>';
 		}
-		if ( isset( $_GET['jprm_bulk_assigned'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect status.
-			$c = absint( wp_unslash( $_GET['jprm_bulk_assigned'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect status.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect status.
+		if ( isset( $_GET['jprm_bulk_assigned'] ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect status.
+			$c = absint( wp_unslash( $_GET['jprm_bulk_assigned'] ) );
 			/* translators: %d: number of menu items. */
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( _n( 'Assigned %d item.', 'Assigned %d items.', $c, 'jellopoint-restaurant-menu' ), $c ) ) . '</p></div>';
 		}
-		$bulk_error = isset( $_GET['jprm_bulk_error'] ) ? sanitize_key( wp_unslash( $_GET['jprm_bulk_error'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect status.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect status.
+		$bulk_error = isset( $_GET['jprm_bulk_error'] ) ? sanitize_key( wp_unslash( $_GET['jprm_bulk_error'] ) ) : '';
 		if ( '' !== $bulk_error ) {
 			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Please choose a Section for bulk assign.', 'jellopoint-restaurant-menu' ) . '</p></div>';
 		}

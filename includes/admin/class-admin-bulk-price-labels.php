@@ -173,8 +173,10 @@ final class JPRM_Admin_Bulk_Price_Labels {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'jellopoint-restaurant-menu' ) );
 		}
 
-		$current_menu    = isset( $_GET['filter_menu'] ) ? absint( wp_unslash( $_GET['filter_menu'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only page filter.
-		$current_section = isset( $_GET['filter_section'] ) ? absint( wp_unslash( $_GET['filter_section'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only page filter.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only page filter.
+		$current_menu = isset( $_GET['filter_menu'] ) ? absint( wp_unslash( $_GET['filter_menu'] ) ) : 0;
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only page filter.
+		$current_section = isset( $_GET['filter_section'] ) ? absint( wp_unslash( $_GET['filter_section'] ) ) : 0;
 
 		// Label registry (id => row).
 		$labels_index = self::load_price_labels_index();
