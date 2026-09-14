@@ -72,8 +72,8 @@ class Price_Renderer {
 
                 $price_html = self::format_price_display( $price, $currency );
 
-				// row_html() escapes all leaf values before assembling the fixed menu markup.
-				echo self::row_html( $price_html, $label_text, $icon_id, $icon_url, $presentation, $order_class, $hide ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				// row_html() escapes its leaves; enforce the final fixed-markup boundary as well.
+				echo wp_kses_post( self::row_html( $price_html, $label_text, $icon_id, $icon_url, $presentation, $order_class, $hide ) );
             }
         }
 // JPRM_PRO_BEGIN:multiple-prices-renderer
@@ -95,8 +95,8 @@ class Price_Renderer {
 
                 $price_html = self::format_price_display( $price, $currency );
 
-				// row_html() escapes all leaf values before assembling the fixed menu markup.
-				echo self::row_html( $price_html, $label_text, $icon_id, $icon_url, $presentation, $order_class, $hide ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				// row_html() escapes its leaves; enforce the final fixed-markup boundary as well.
+				echo wp_kses_post( self::row_html( $price_html, $label_text, $icon_id, $icon_url, $presentation, $order_class, $hide ) );
             }
 		}
 // JPRM_PRO_END:multiple-prices-renderer

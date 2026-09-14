@@ -87,7 +87,7 @@ class Sections_Admin {
 	public static function toolbar_filter( $taxonomy ) : void {
 		if ( $taxonomy !== self::TAX_SECTION ) return;
 
-		$selected = isset( $_GET['jprm_filter_menu'] ) ? absint( wp_unslash( $_GET['jprm_filter_menu'] ) ) : 0;
+		$selected = isset( $_GET['jprm_filter_menu'] ) ? absint( wp_unslash( $_GET['jprm_filter_menu'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list-table filter.
 		$menus    = get_terms( [
 			'taxonomy'   => self::TAX_MENU,
 			'hide_empty' => false,
@@ -121,16 +121,16 @@ class Sections_Admin {
 		$taxonomies = (array) ( $q->query_vars['taxonomy'] ?? [] );
 		if ( ! in_array( self::TAX_SECTION, $taxonomies, true ) ) return;
 
-		// Read menu param robustly
+		// Read menu and ordering parameters without changing state.
 		$menu_id = 0;
-		if ( isset( $_GET['jprm_filter_menu'] ) ) {
-			$menu_id = absint( wp_unslash( $_GET['jprm_filter_menu'] ) );
-		} elseif ( isset( $_REQUEST['jprm_filter_menu'] ) ) { // fallback
-			$menu_id = absint( wp_unslash( $_REQUEST['jprm_filter_menu'] ) );
+		if ( isset( $_GET['jprm_filter_menu'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list-table filter.
+			$menu_id = absint( wp_unslash( $_GET['jprm_filter_menu'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list-table filter.
+		} elseif ( isset( $_REQUEST['jprm_filter_menu'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list-table fallback.
+			$menu_id = absint( wp_unslash( $_REQUEST['jprm_filter_menu'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list-table fallback.
 		}
 
-		$orderby = isset( $_GET['orderby'] ) ? sanitize_key( wp_unslash( $_GET['orderby'] ) ) : '';
-		$order   = isset( $_GET['order'] ) ? strtoupper( sanitize_key( wp_unslash( $_GET['order'] ) ) ) : 'ASC';
+		$orderby = isset( $_GET['orderby'] ) ? sanitize_key( wp_unslash( $_GET['orderby'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Native list-table sorting.
+		$order   = isset( $_GET['order'] ) ? strtoupper( sanitize_key( wp_unslash( $_GET['order'] ) ) ) : 'ASC'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Native list-table sorting.
 
 		// Default: TREE (no menu filter + not sorting by Order)
 		if ( $menu_id <= 0 && $orderby !== 'jprm_order' ) {
@@ -179,8 +179,8 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 
 	global $wpdb;
 
-	$selected_menu = isset( $_GET['jprm_filter_menu'] ) ? absint( wp_unslash( $_GET['jprm_filter_menu'] ) ) : 0;
-	$orderby       = isset( $_GET['orderby'] ) ? sanitize_key( wp_unslash( $_GET['orderby'] ) ) : '';
+	$selected_menu = isset( $_GET['jprm_filter_menu'] ) ? absint( wp_unslash( $_GET['jprm_filter_menu'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list-table filter.
+	$orderby       = isset( $_GET['orderby'] ) ? sanitize_key( wp_unslash( $_GET['orderby'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Native list-table sorting.
 	$orderby_clicked = ( 'jprm_order' === $orderby );
 
 	// COUNT(*) passes must never receive ORDER BY injections (Core doesn't add one there).
@@ -330,6 +330,8 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 
 // JPRM_PRO_BEGIN:daily-section-save
 	private static function save_item_separator( int $term_id ) : void {
+		// can_save() verifies the section nonce before calling this helper.
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( ! \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'daily_weekly_menus' ) ) { return; }
 		if ( ! isset( $_POST['jprm_item_separator'] ) ) { return; }
 		$value = sanitize_text_field( wp_unslash( $_POST['jprm_item_separator'] ) );
@@ -337,6 +339,7 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 		if ( '' === $value ) { delete_term_meta( $term_id, self::META_ITEM_SEPARATOR ); }
 		else { update_term_meta( $term_id, self::META_ITEM_SEPARATOR, $value ); }
 		update_term_meta( $term_id, self::META_DISABLE_ITEM_SEPARATOR, $disabled ? '1' : '0' );
+		// phpcs:enable WordPress.Security.NonceVerification
 	}
 
 	private static function item_separator_dependency_script() : void {
@@ -460,7 +463,7 @@ public static function hook_terms_order_and_filter() : void {
 		$args['order']    = 'ASC';
 
 		// Respect toolbar filter
-		$menu_id = isset( $_GET['jprm_filter_menu'] ) ? absint( wp_unslash( $_GET['jprm_filter_menu'] ) ) : 0;
+		$menu_id = isset( $_GET['jprm_filter_menu'] ) ? absint( wp_unslash( $_GET['jprm_filter_menu'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list-table filter.
 		if ( $menu_id > 0 ) {
 			$mq   = isset( $args['meta_query'] ) && is_array( $args['meta_query'] ) ? $args['meta_query'] : [];
 			$mq[] = [ 'key' => self::META_MENU_OWNER, 'value' => (string) $menu_id ];
@@ -474,13 +477,13 @@ public static function hook_terms_order_and_filter() : void {
 	/* ================= UI polish + self-healing injector ================= */
 
 	public static function enqueue_admin_assets() : void {
-		$tax = isset( $_GET['taxonomy'] ) ? sanitize_key( wp_unslash( $_GET['taxonomy'] ) ) : '';
+		$tax = isset( $_GET['taxonomy'] ) ? sanitize_key( wp_unslash( $_GET['taxonomy'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only current-screen selector.
 		if ( $tax !== self::TAX_SECTION ) return;
 
 		wp_enqueue_style( 'jprm-sections-admin', JPRM_PLUGIN_URL . 'assets/admin/sections-admin.css', [], JPRM_VERSION );
 		wp_enqueue_script( 'jprm-sections-admin', JPRM_PLUGIN_URL . 'assets/admin/sections-admin.js', [], JPRM_VERSION, true );
 
-		$selected = isset( $_GET['jprm_filter_menu'] ) ? absint( wp_unslash( $_GET['jprm_filter_menu'] ) ) : 0;
+		$selected = isset( $_GET['jprm_filter_menu'] ) ? absint( wp_unslash( $_GET['jprm_filter_menu'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list-table filter.
 		if ( $selected > 0 ) self::backfill_missing_orders_for_menu( (int) $selected );
 		$menus    = get_terms( [
 			'taxonomy'   => self::TAX_MENU,

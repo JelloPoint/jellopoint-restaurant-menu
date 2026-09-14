@@ -610,6 +610,8 @@ class JPRM_Admin_MenuItem_Meta {
 	}
 
 	private static function save_single_pricing( int $post_id ) : void {
+		// save() verifies jprm_meta before calling this helper.
+		// phpcs:disable WordPress.Security.NonceVerification
 		if ( self::has_saved_multiple_prices( $post_id ) || empty( $_POST['jprm_single_price_editor'] ) ) {
 			return;
 		}
@@ -632,6 +634,7 @@ class JPRM_Admin_MenuItem_Meta {
 			delete_post_meta( $post_id, 'jprm_price_label_ref' );
 		}
 		delete_post_meta( $post_id, 'jprm_prices' );
+		// phpcs:enable WordPress.Security.NonceVerification
 	}
 }}
 JPRM_Admin_MenuItem_Meta::init();

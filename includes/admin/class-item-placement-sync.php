@@ -67,7 +67,7 @@ final class Item_Placement_Sync {
 	}
 
 	public static function notice() : void {
-		if ( empty( $_GET['jprm_placement_review'] ) ) { return; }
+		if ( empty( $_GET['jprm_placement_review'] ) ) { return; } // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect status.
 		echo '<div class="notice notice-warning"><p>' . esc_html__( 'Menu assignments could not be saved. Reload the item and select a Section belonging to each Menu, then save again.', 'jellopoint-restaurant-menu' ) . '</p></div>';
 	}
 }

@@ -85,6 +85,7 @@ class Plugin {
 				<strong><?php esc_html_e( 'JelloPoint – Restaurant Menu PRO is active.', 'jellopoint-restaurant-menu' ); ?></strong>
 				<?php
 				if ( '' !== $free_version ) {
+					/* translators: %s: installed Free edition version number. */
 					echo ' ' . esc_html( sprintf( __( 'The Free edition (version %s) is still installed but inactive.', 'jellopoint-restaurant-menu' ), $free_version ) );
 				} else {
 					echo ' ' . esc_html__( 'The Free edition is still installed but inactive.', 'jellopoint-restaurant-menu' );

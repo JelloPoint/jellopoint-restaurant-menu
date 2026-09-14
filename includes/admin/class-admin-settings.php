@@ -63,7 +63,9 @@ final class Settings {
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'JelloPoint Settings', 'jellopoint-restaurant-menu' ); ?></h1>
-			<?php $defaults_restored = isset( $_GET['defaults-restored'] ) ? absint( wp_unslash( $_GET['defaults-restored'] ) ) : 0; ?>
+			<?php
+			$defaults_restored = isset( $_GET['defaults-restored'] ) ? absint( wp_unslash( $_GET['defaults-restored'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect status.
+			?>
 			<?php if ( 1 === $defaults_restored ) : ?>
 				<div class="notice notice-success"><p><?php esc_html_e( 'Missing default badges, price labels and icons have been restored. Existing customizations are retained.', 'jellopoint-restaurant-menu' ); ?></p></div>
 			<?php endif; ?>

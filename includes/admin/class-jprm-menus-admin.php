@@ -175,12 +175,12 @@ class Menus_Admin {
 		if ( ! current_user_can( 'manage_categories' ) || ! current_user_can( 'edit_term', $term_id ) ) { return; }
 
 		$enabled = ! empty( $_POST['jprm_is_daily_menu'] );
-		$date = self::sanitize_date( isset( $_POST['jprm_daily_menu_date'] ) ? wp_unslash( $_POST['jprm_daily_menu_date'] ) : '' );
+		$date = self::sanitize_date( isset( $_POST['jprm_daily_menu_date'] ) ? sanitize_text_field( wp_unslash( $_POST['jprm_daily_menu_date'] ) ) : '' );
 		$date_type_raw = isset( $_POST['jprm_daily_menu_date_type'] ) ? sanitize_key( wp_unslash( $_POST['jprm_daily_menu_date_type'] ) ) : 'single';
 		$date_type = in_array( $date_type_raw, [ 'none', 'single', 'range' ], true ) ? $date_type_raw : 'single';
 		if ( 'none' === $date_type ) { $date = ''; }
-		$end_date = self::sanitize_end_date( $date, isset( $_POST['jprm_daily_menu_end_date'] ) ? wp_unslash( $_POST['jprm_daily_menu_end_date'] ) : '', $date_type );
-		$price = self::sanitize_price( isset( $_POST['jprm_daily_menu_fixed_price'] ) ? wp_unslash( $_POST['jprm_daily_menu_fixed_price'] ) : '' );
+		$end_date = self::sanitize_end_date( $date, isset( $_POST['jprm_daily_menu_end_date'] ) ? sanitize_text_field( wp_unslash( $_POST['jprm_daily_menu_end_date'] ) ) : '', $date_type );
+		$price = self::sanitize_price( isset( $_POST['jprm_daily_menu_fixed_price'] ) ? sanitize_text_field( wp_unslash( $_POST['jprm_daily_menu_fixed_price'] ) ) : '' );
 		$item_separator = isset( $_POST['jprm_daily_menu_item_separator'] ) ? sanitize_text_field( wp_unslash( $_POST['jprm_daily_menu_item_separator'] ) ) : '';
 
 		update_term_meta( $term_id, self::META_IS_DAILY, $enabled ? '1' : '0' );
@@ -278,7 +278,7 @@ class Menus_Admin {
 
 	/** Load taxonomy-screen behaviour through WordPress' asset API. */
 	public static function enqueue_assets() : void {
-		$taxonomy = isset( $_GET['taxonomy'] ) ? sanitize_key( wp_unslash( $_GET['taxonomy'] ) ) : '';
+		$taxonomy = isset( $_GET['taxonomy'] ) ? sanitize_key( wp_unslash( $_GET['taxonomy'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only current-screen selector.
 		if ( self::TAX !== $taxonomy ) { return; }
 
 		wp_enqueue_style( 'jprm-menus-admin', JPRM_PLUGIN_URL . 'assets/admin/menus-admin.css', [], JPRM_VERSION );
@@ -286,8 +286,8 @@ class Menus_Admin {
 		wp_localize_script( 'jprm-menus-admin', 'jprmMenusAdmin', [
 			'addMenu'     => __( 'Add Menu', 'jellopoint-restaurant-menu' ),
 			'searchMenus' => __( 'Search Menus', 'jellopoint-restaurant-menu' ),
-			'category'    => __( 'Category', 'default' ),
-			'categories'  => __( 'Categories', 'default' ),
+			'category'    => __( 'Category', 'jellopoint-restaurant-menu' ),
+			'categories'  => __( 'Categories', 'jellopoint-restaurant-menu' ),
 			'menu'        => __( 'Menu', 'jellopoint-restaurant-menu' ),
 			'menus'       => __( 'Menus', 'jellopoint-restaurant-menu' ),
 		] );

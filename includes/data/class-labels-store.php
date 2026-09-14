@@ -63,7 +63,7 @@ class JPRM_Labels_Store {
     }
 
     public static function enqueue_assets( $hook ) : void {
-        $page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+        $page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only current-page selector.
         if ( self::PAGE_SLUG === $page ) {
             wp_enqueue_media();
             wp_enqueue_script( 'jquery' );
@@ -104,7 +104,7 @@ class JPRM_Labels_Store {
 
         $rows    = self::all();
         usort( $rows, function($a,$b){ return (int)($a['order'] ?? 0) <=> (int)($b['order'] ?? 0); } );
-        $updated = isset( $_GET['updated'] ) ? absint( wp_unslash( $_GET['updated'] ) ) : 0;
+        $updated = isset( $_GET['updated'] ) ? absint( wp_unslash( $_GET['updated'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect status.
 
         echo '<div class="wrap">';
         echo '<h1>' . esc_html__( 'Price Labels', 'jellopoint-restaurant-menu' ) . '</h1>';

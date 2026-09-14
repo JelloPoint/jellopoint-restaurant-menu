@@ -8,6 +8,7 @@ function jprm_fs() { return new class { public function can_use_premium_code__pr
 function esc_attr( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
 function esc_html( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
 function esc_url( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
+function wp_kses_post( $value ) { return (string) $value; }
 function wp_get_attachment_image( $id, $size, $icon, $attrs ) {
 	return '<img data-id="' . (int) $id . '" class="' . esc_attr( $attrs['class'] ?? '' ) . '">';
 }

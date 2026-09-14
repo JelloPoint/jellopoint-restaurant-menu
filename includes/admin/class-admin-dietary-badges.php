@@ -64,7 +64,9 @@ class JPRM_Admin_Dietary_Badges {
 		?>
 		<div class="wrap jprm-wrap">
 			<h1 class="wp-heading-inline"><?php esc_html_e( 'Dietary Badges', 'jellopoint-restaurant-menu' ); ?></h1>
-			<?php $updated = isset( $_GET['updated'] ) ? sanitize_key( wp_unslash( $_GET['updated'] ) ) : ''; ?>
+			<?php
+			$updated = isset( $_GET['updated'] ) ? sanitize_key( wp_unslash( $_GET['updated'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect status.
+			?>
 			<?php if ( 'true' === $updated ) : ?>
 	        <div class="notice notice-success is-dismissible">
 		    <p><?php echo esc_html__( 'Badges saved.', 'jellopoint-restaurant-menu' ); ?></p>

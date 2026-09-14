@@ -17,14 +17,14 @@ class Sections_UX {
 	}
 
 	public static function enqueue_assets() : void {
-		$taxonomy = isset( $_GET['taxonomy'] ) ? sanitize_key( wp_unslash( $_GET['taxonomy'] ) ) : '';
+		$taxonomy = isset( $_GET['taxonomy'] ) ? sanitize_key( wp_unslash( $_GET['taxonomy'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only current-screen selector.
 		if ( self::TAX !== $taxonomy ) { return; }
 
 		wp_enqueue_style( 'jprm-sections-ux', JPRM_PLUGIN_URL . 'assets/admin/sections-ux.css', [], JPRM_VERSION );
 		wp_enqueue_script( 'jprm-sections-ux', JPRM_PLUGIN_URL . 'assets/admin/sections-ux.js', [], JPRM_VERSION, true );
 		wp_localize_script( 'jprm-sections-ux', 'jprmSectionsUx', [
 			'addSection'    => __( 'Add Section', 'jellopoint-restaurant-menu' ),
-			'category'      => __( 'Category', 'default' ),
+			'category'      => __( 'Category', 'jellopoint-restaurant-menu' ),
 			'section'       => __( 'Section', 'jellopoint-restaurant-menu' ),
 			'parentSection' => __( 'Parent Section', 'jellopoint-restaurant-menu' ),
 		] );
