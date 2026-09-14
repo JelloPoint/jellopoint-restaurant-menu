@@ -39,7 +39,7 @@ class Plugin {
 		add_action( 'elementor/editor/after_enqueue_scripts', [ __CLASS__, 'enqueue_elementor_editor_assets' ] );
 
 		// Identify the installed Premium build without tying the label to license state.
-		add_action( 'admin_footer-plugins.php', [ __CLASS__, 'render_plugin_edition_badge' ] );
+		add_action( 'admin_enqueue_scripts', [ __CLASS__, 'enqueue_plugin_edition_badge' ] );
 		add_action( 'admin_notices', [ __CLASS__, 'render_inactive_free_edition_notice' ] );
 
 		// Editor AJAX for Sections -> Menu filtering.
@@ -47,49 +47,19 @@ class Plugin {
 	}
 
 	/** Add the Premium build label beside the plugin title on the Plugins screen. */
-	public static function render_plugin_edition_badge() : void {
+	public static function enqueue_plugin_edition_badge( string $hook_suffix ) : void {
 		$sdk = function_exists( 'jprm_fs' ) ? jprm_fs() : null;
-		if ( ! is_object( $sdk ) || ! method_exists( $sdk, 'is_premium' ) || ! $sdk->is_premium() ) {
+		if ( 'plugins.php' !== $hook_suffix || ! is_object( $sdk ) || ! method_exists( $sdk, 'is_premium' ) || ! $sdk->is_premium() ) {
 			return;
 		}
 
-		$plugin_basename = plugin_basename( JPRM_PLUGIN_FILE );
-		?>
-		<style>
-			.jprm-plugin-edition-badge {
-				display: inline-block;
-				margin-left: 6px;
-				padding: 1px 5px;
-				border-radius: 3px;
-				background: #6747c7;
-				color: #fff;
-				font-size: 10px;
-				font-weight: 600;
-				line-height: 1.5;
-				vertical-align: 1px;
-			}
-		</style>
-		<script>
-			( function() {
-				var basename = <?php echo wp_json_encode( $plugin_basename ); ?>;
-				var rows = document.querySelectorAll( '.wp-list-table.plugins tr[data-plugin]' );
-
-				for ( var i = 0; i < rows.length; i++ ) {
-					if ( basename !== rows[i].getAttribute( 'data-plugin' ) ) {
-						continue;
-					}
-
-					var title = rows[i].querySelector( '.plugin-title > strong:first-child' );
-					if ( title && ! title.querySelector( '.jprm-plugin-edition-badge' ) ) {
-						var badge = document.createElement( 'span' );
-						badge.className = 'jprm-plugin-edition-badge';
-						badge.textContent = 'PRO';
-						title.appendChild( badge );
-					}
-				}
-			}() );
-		</script>
-		<?php
+		wp_enqueue_style( 'jprm-plugin-edition-badge', JPRM_PLUGIN_URL . 'assets/admin/plugin-edition-badge.css', [], JPRM_VERSION );
+		wp_enqueue_script( 'jprm-plugin-edition-badge', JPRM_PLUGIN_URL . 'assets/admin/plugin-edition-badge.js', [], JPRM_VERSION, true );
+		wp_localize_script(
+			'jprm-plugin-edition-badge',
+			'jprmPluginEditionBadge',
+			[ 'basename' => plugin_basename( JPRM_PLUGIN_FILE ) ]
+		);
 	}
 
 	/** Explain the inactive Free companion left behind after a Premium upgrade. */
@@ -247,6 +217,17 @@ class Plugin {
 	/** Explain why the widget is unavailable while keeping the data tools usable. */
 	public static function render_elementor_dependency_notice() : void {
 		if ( ! current_user_can( 'activate_plugins' ) || class_exists( '\Elementor\Plugin' ) || did_action( 'elementor/loaded' ) ) {
+			return;
+		}
+
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		$is_jprm_screen = $screen && (
+			in_array( (string) $screen->post_type, [ 'jprm_menu_item', 'jprm_info_block' ], true )
+			|| in_array( (string) $screen->taxonomy, [ 'jprm_menu', 'jprm_section' ], true )
+			|| false !== strpos( (string) $screen->id, 'jellopoint' )
+			|| false !== strpos( (string) $screen->id, 'jprm' )
+		);
+		if ( ! $screen || ( 'plugins' !== (string) $screen->id && ! $is_jprm_screen ) ) {
 			return;
 		}
 

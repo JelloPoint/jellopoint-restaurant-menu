@@ -5,6 +5,7 @@ declare(strict_types=1);
 final class JPRM_Package_Builder {
 	public const PRO_FILES = [
 		'assets/admin/import-export.css', 'assets/admin/import-export.js',
+		'assets/admin/print-document.css', 'assets/admin/print-document.js',
 		'assets/css/print-document.css',
 		'includes/admin/class-admin-import-export.php',
 		'includes/admin/class-admin-print-document.php',

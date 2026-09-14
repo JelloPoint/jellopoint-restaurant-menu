@@ -21,7 +21,15 @@ final class Print_Document_Admin {
 	}
 
 	public static function enqueue_assets() : void {
-		if ( isset( $_GET['page'] ) && self::PAGE_SLUG === sanitize_key( wp_unslash( $_GET['page'] ) ) ) { wp_enqueue_media(); }
+		if ( ! isset( $_GET['page'] ) || self::PAGE_SLUG !== sanitize_key( wp_unslash( $_GET['page'] ) ) ) { return; }
+		wp_enqueue_media();
+		wp_enqueue_style( 'jprm-print-document-admin', JPRM_PLUGIN_URL . 'assets/admin/print-document.css', [], JPRM_VERSION );
+		wp_enqueue_script( 'jprm-print-document-admin', JPRM_PLUGIN_URL . 'assets/admin/print-document.js', [ 'jquery', 'media-editor' ], JPRM_VERSION, true );
+		wp_localize_script( 'jprm-print-document-admin', 'jprmPrintDocument', [
+			'noLogo'     => __( 'No logo selected', 'jellopoint-restaurant-menu' ),
+			'chooseLogo' => __( 'Choose Logo', 'jellopoint-restaurant-menu' ),
+			'useLogo'    => __( 'Use Logo', 'jellopoint-restaurant-menu' ),
+		] );
 	}
 
 	public static function register_menu() : void {
@@ -59,7 +67,8 @@ final class Print_Document_Admin {
 		<div class="wrap jprm-print-settings">
 			<h1><?php esc_html_e( 'Print / PDF', 'jellopoint-restaurant-menu' ); ?></h1>
 			<p><?php esc_html_e( 'Choose an existing Menu, a dedicated print design and the paper settings.', 'jellopoint-restaurant-menu' ); ?></p>
-			<?php if ( isset( $_GET['updated'] ) ) : ?><div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Print settings saved.', 'jellopoint-restaurant-menu' ); ?></p></div><?php endif; ?>
+			<?php $updated = isset( $_GET['updated'] ) ? absint( wp_unslash( $_GET['updated'] ) ) : 0; ?>
+			<?php if ( 1 === $updated ) : ?><div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Print settings saved.', 'jellopoint-restaurant-menu' ); ?></p></div><?php endif; ?>
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<?php wp_nonce_field( self::NONCE_ACTION, self::NONCE_FIELD ); ?>
 				<table class="form-table" role="presentation">
@@ -104,8 +113,6 @@ final class Print_Document_Admin {
 			</form>
 			<?php if ( $document ) : ?><div class="card"><h2><?php esc_html_e( 'Document Source Check', 'jellopoint-restaurant-menu' ); ?></h2><p><strong><?php echo esc_html( (string) $document['menu']['name'] ); ?></strong></p><p><?php printf( esc_html__( '%1$d Sections and %2$d published Menu Items are ready for the printable templates.', 'jellopoint-restaurant-menu' ), count( $document['sections'] ), $item_count ); ?></p><p><?php esc_html_e( 'Prices, Price Labels, Dietary Badges and their icons are included in the document data.', 'jellopoint-restaurant-menu' ); ?></p></div><?php endif; ?>
 		</div>
-		<style>.jprm-print-settings .form-table{max-width:1000px}.jprm-margin-grid,.jprm-control-grid{display:grid;grid-template-columns:repeat(4,minmax(110px,160px));gap:12px}.jprm-margin-grid label,.jprm-control-grid label{display:grid;gap:4px}.jprm-logo-control{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.jprm-logo-preview{display:flex;align-items:center;justify-content:center;width:160px;min-height:70px;padding:6px;box-sizing:border-box;border:1px solid #c3c4c7;background:#fff}.jprm-logo-preview span{color:#646970;font-size:12px}.jprm-logo-preview img{display:block;max-width:146px;max-height:58px;width:auto;height:auto}.jprm-check{display:inline-flex;align-items:center;margin:0 20px 8px 0}.jprm-print-settings .card{max-width:850px;margin-top:24px}@media(max-width:782px){.jprm-margin-grid,.jprm-control-grid{grid-template-columns:repeat(2,minmax(100px,1fr))}}</style>
-		<script>jQuery(function($){var frame;var emptyText=<?php echo wp_json_encode( __( 'No logo selected', 'jellopoint-restaurant-menu' ) ); ?>;$('#jprm-select-logo').on('click',function(event){event.preventDefault();if(frame){frame.open();return}frame=wp.media({title:'<?php echo esc_js( __( 'Choose Logo', 'jellopoint-restaurant-menu' ) ); ?>',button:{text:'<?php echo esc_js( __( 'Use Logo', 'jellopoint-restaurant-menu' ) ); ?>'},library:{type:'image'},multiple:false});frame.on('select',function(){var image=frame.state().get('selection').first().toJSON();var sizes=image.sizes||{};var url=(sizes.medium&&sizes.medium.url)||(sizes.thumbnail&&sizes.thumbnail.url)||image.url||'';$('#jprm-print-logo-id').val(image.id||0);var $preview=$('#jprm-print-logo-preview').empty();if(url){$('<img>',{src:url,alt:''}).appendTo($preview)}else{$('<span>').text(emptyText).appendTo($preview)}});frame.open()});$('#jprm-remove-logo').on('click',function(event){event.preventDefault();$('#jprm-print-logo-id').val('0');$('#jprm-print-logo-preview').empty().append($('<span>').text(emptyText))})});</script>
 		<?php
 	}
 

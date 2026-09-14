@@ -2,11 +2,16 @@
 /** Verify the Plugins-screen badge follows the package identity, not entitlement. */
 define( 'ABSPATH', __DIR__ );
 define( 'JPRM_PLUGIN_FILE', dirname( __DIR__ ) . '/jellopoint-restaurant-menu.php' );
+define( 'JPRM_PLUGIN_URL', 'https://example.test/wp-content/plugins/jellopoint-restaurant-menu-premium/' );
+define( 'JPRM_VERSION', '2.0.43' );
 
 $jprm_test_premium = true;
 $jprm_test_hooks   = array();
 $jprm_test_free_active = false;
 $jprm_test_delete_data = false;
+$jprm_test_styles      = array();
+$jprm_test_scripts     = array();
+$jprm_test_localized   = array();
 $pagenow                = 'plugins.php';
 
 function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
@@ -29,6 +34,21 @@ function plugin_basename( $file ) {
 
 function wp_json_encode( $value ) {
 	return json_encode( $value );
+}
+
+function wp_enqueue_style( $handle, $src = '', $deps = array(), $version = false ) {
+	global $jprm_test_styles;
+	$jprm_test_styles[ $handle ] = compact( 'src', 'deps', 'version' );
+}
+
+function wp_enqueue_script( $handle, $src = '', $deps = array(), $version = false, $in_footer = false ) {
+	global $jprm_test_scripts;
+	$jprm_test_scripts[ $handle ] = compact( 'src', 'deps', 'version', 'in_footer' );
+}
+
+function wp_localize_script( $handle, $object_name, $data ) {
+	global $jprm_test_localized;
+	$jprm_test_localized[ $handle ] = compact( 'object_name', 'data' );
 }
 
 function current_user_can( $capability, ...$args ) {
@@ -86,26 +106,25 @@ require_once dirname( __DIR__ ) . '/includes/class-plugin.php';
 \JelloPoint\RestaurantMenu\Plugin::init();
 badge_check(
 	in_array(
-		array( 'admin_footer-plugins.php', array( \JelloPoint\RestaurantMenu\Plugin::class, 'render_plugin_edition_badge' ) ),
+		array( 'admin_enqueue_scripts', array( \JelloPoint\RestaurantMenu\Plugin::class, 'enqueue_plugin_edition_badge' ) ),
 		$jprm_test_hooks,
 		true
 	),
 	'Plugins-screen badge hook is not registered.'
 );
 
-ob_start();
-\JelloPoint\RestaurantMenu\Plugin::render_plugin_edition_badge();
-$premium_output = ob_get_clean();
-badge_check( false !== strpos( $premium_output, "badge.textContent = 'PRO';" ), 'Premium build does not render the PRO badge.' );
-badge_check( false !== strpos( $premium_output, 'jprm-plugin-edition-badge' ), 'Premium badge styling or selector is missing.' );
+\JelloPoint\RestaurantMenu\Plugin::enqueue_plugin_edition_badge( 'plugins.php' );
+badge_check( isset( $jprm_test_styles['jprm-plugin-edition-badge'] ), 'Premium badge stylesheet was not enqueued.' );
+badge_check( isset( $jprm_test_scripts['jprm-plugin-edition-badge'] ), 'Premium badge script was not enqueued.' );
+badge_check( isset( $jprm_test_localized['jprm-plugin-edition-badge'] ), 'Premium plugin basename was not localized.' );
+badge_check( 'jprmPluginEditionBadge' === $jprm_test_localized['jprm-plugin-edition-badge']['object_name'], 'Premium badge configuration has the wrong JavaScript object.' );
 
 $jprm_test_premium = false;
-ob_start();
-\JelloPoint\RestaurantMenu\Plugin::render_plugin_edition_badge();
-$free_output = ob_get_clean();
-badge_check( '' === $free_output, 'Free build renders the PRO badge.' );
+$jprm_test_styles = $jprm_test_scripts = $jprm_test_localized = array();
+\JelloPoint\RestaurantMenu\Plugin::enqueue_plugin_edition_badge( 'plugins.php' );
+badge_check( array() === $jprm_test_styles && array() === $jprm_test_scripts && array() === $jprm_test_localized, 'Free build enqueues the PRO badge.' );
 
-$method = new ReflectionMethod( \JelloPoint\RestaurantMenu\Plugin::class, 'render_plugin_edition_badge' );
+$method = new ReflectionMethod( \JelloPoint\RestaurantMenu\Plugin::class, 'enqueue_plugin_edition_badge' );
 $source = file( $method->getFileName() );
 $body   = implode( '', array_slice( $source, $method->getStartLine() - 1, $method->getEndLine() - $method->getStartLine() + 1 ) );
 badge_check( false !== strpos( $body, 'is_premium()' ), 'Badge is not based on Premium build identity.' );

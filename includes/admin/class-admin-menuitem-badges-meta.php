@@ -20,6 +20,26 @@ class JPRM_MenuItem_Badges_Meta {
 		$this->store = $store;
 		add_action( 'add_meta_boxes', [ $this, 'add_metabox' ] );
 		add_action( 'save_post_' . self::POST_TYPE, [ $this, 'save_post' ], 10, 2 );
+		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_assets' ] );
+	}
+
+	public function enqueue_assets() : void {
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		if ( ! $screen || self::POST_TYPE !== (string) $screen->post_type ) { return; }
+
+		$handle = 'jprm-menuitem-badges-meta';
+		wp_register_style( $handle, false, [], JPRM_VERSION );
+		wp_enqueue_style( $handle );
+		wp_add_inline_style( $handle, '
+			#jprm_item_badges ul{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+			#jprm_item_badges li{margin:0;padding:0}
+			#jprm_item_badges label{display:flex;align-items:center;gap:6px;border:1px solid #dcdcde;border-radius:6px;padding:6px 8px;background:#fff;cursor:pointer}
+			#jprm_item_badges img{width:18px;height:18px;border-radius:3px;object-fit:cover}
+			#jprm_item_badges .ph{width:18px;height:18px;display:inline-block;background:#f2f2f2;border-radius:3px}
+			#jprm_item_badges input[type=checkbox]{margin:0}
+			#jprm_item_badges .inactive{opacity:.55}
+			#jprm_item_badges .help{margin-top:6px;color:#646970}
+		' );
 	}
 
 	public function add_metabox() : void {
@@ -65,17 +85,6 @@ class JPRM_MenuItem_Badges_Meta {
 		});
 
 		$checked = $this->get_selected_slugs( (int) $post->ID );
-
-		echo '<style>
-		#jprm_item_badges ul{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
-		#jprm_item_badges li{margin:0;padding:0}
-		#jprm_item_badges label{display:flex;align-items:center;gap:6px;border:1px solid #dcdcde;border-radius:6px;padding:6px 8px;background:#fff;cursor:pointer}
-		#jprm_item_badges img{width:18px;height:18px;border-radius:3px;object-fit:cover}
-		#jprm_item_badges .ph{width:18px;height:18px;display:inline-block;background:#f2f2f2;border-radius:3px}
-		#jprm_item_badges input[type=checkbox]{margin:0}
-		#jprm_item_badges .inactive{opacity:.55}
-		#jprm_item_badges .help{margin-top:6px;color:#646970}
-		</style>';
 
 		if ( empty( $map_all ) ) {
 			echo '<p class="description">'.esc_html__( 'No dietary badges defined yet. Add them via JelloPoint → Dietary Badges.', 'jellopoint-restaurant-menu' ).'</p>';
