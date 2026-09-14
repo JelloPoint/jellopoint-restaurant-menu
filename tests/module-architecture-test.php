@@ -10,7 +10,7 @@ function check_module( bool $ok, string $message ) : void { if ( ! $ok ) { fwrit
 require_once JPRM_PLUGIN_PATH . 'includes/modules/class-module-catalog.php';
 require_once JPRM_PLUGIN_PATH . 'includes/modules/class-module-access.php';
 require_once JPRM_PLUGIN_PATH . 'includes/modules/class-module-loader.php';
-function jprm_fs() { return new class { public function is_premium() { return true; } public function can_use_premium_code() { return true; } }; }
+function jprm_fs() { return new class { public function is_premium() { return true; } public function is__premium_only() { return true; } public function can_use_premium_code() { return true; } }; }
 use JelloPoint\RestaurantMenu\Modules\Module_Catalog as Catalog;
 use JelloPoint\RestaurantMenu\Modules\Module_Loader as Loader;
 foreach ( [ 'multiple_prices', 'daily_weekly_menus', 'print_pdf', 'import_export' ] as $id ) {

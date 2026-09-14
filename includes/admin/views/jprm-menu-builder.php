@@ -82,6 +82,7 @@
             </div>
 
 <!-- JPRM_PRO_BEGIN:print-builder-panel -->
+			<?php if ( jprm_fs()->is__premium_only() ) : ?>
 			<?php if ( \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'print_pdf' ) ) : ?>
 			<div class="card" style="margin-top:16px;">
 				<h2><?php esc_html_e( 'Print/PDF Info Blocks', 'jellopoint-restaurant-menu' ); ?></h2>
@@ -92,6 +93,7 @@
 				<p><button class="button button-primary" id="jprm-add-info-block"><?php esc_html_e( 'Add Info Block', 'jellopoint-restaurant-menu' ); ?></button> <a class="button" id="jprm-new-info-block" target="_blank" rel="noopener"><?php esc_html_e( 'Create Info Block', 'jellopoint-restaurant-menu' ); ?></a></p>
 				<div id="jprm-info-placements"></div>
 			</div>
+			<?php endif; ?>
 			<?php endif; ?>
 <!-- JPRM_PRO_END:print-builder-panel -->
         </div>

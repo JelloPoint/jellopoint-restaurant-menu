@@ -3,7 +3,7 @@ Tags: restaurant, menu, elementor, food, prices
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2.0.44
+Stable tag: 2.0.45
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -53,6 +53,11 @@ Deactivation retains data. Deleting the plugin retains data by default. Enable t
 In Pro, open the printable menu and use your browser's print dialog to save as PDF.
 
 == Changelog ==
+
+= 2.0.45 =
+* Prepare a clean Freemius upload package that excludes development-only resources.
+* Address the remaining actionable WordPress Plugin Check findings in runtime code.
+* Declare complete Print/PDF and Import/Export files as premium-only for Freemius processing.
 
 = 2.0.44 =
 * Move Multiple Prices to Pro while keeping single prices fully available in Free.

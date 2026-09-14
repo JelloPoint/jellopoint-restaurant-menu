@@ -86,7 +86,7 @@ final class Uninstaller {
 		global $wpdb;
 		$report_like = $wpdb->esc_like( '_transient_jprm_ie_report_' ) . '%';
 		$timeout_like = $wpdb->esc_like( '_transient_timeout_jprm_ie_report_' ) . '%';
-		$wpdb->query(
+		$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Permanent uninstall cleanup cannot use or benefit from an object cache.
 			$wpdb->prepare(
 				"DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s",
 				$report_like,

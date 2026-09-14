@@ -174,30 +174,32 @@ class Menu_Builder_Controller extends \WP_REST_Controller {
 		] );
 
 // JPRM_PRO_BEGIN:print-routes
-		register_rest_route( self::NS, '/menu-builder/info-blocks', [ 'methods' => 'GET', 'callback' => [ $this, 'get_info_blocks' ], 'args' => [ 'menu_id' => $id_arg ], 'permission_callback' => [ $this, 'read_permissions_check' ] ] );
-		register_rest_route( self::NS, '/menu-builder/info-blocks/save', [
-			'methods' => 'POST',
-			'callback' => [ $this, 'save_info_blocks' ],
-			'args' => [
-				'menu_id' => $id_arg,
-				'placements' => [
-					'type' => 'array',
-					'required' => true,
-					'items' => [
-						'type' => 'object',
-						'required' => [ 'id', 'section_id', 'position', 'order' ],
-						'properties' => [
-							'id' => [ 'type' => 'integer', 'minimum' => 1 ],
-							'section_id' => [ 'type' => 'integer', 'minimum' => 1 ],
-							'position' => [ 'type' => 'string', 'enum' => [ 'above', 'below' ] ],
-							'order' => [ 'type' => 'integer', 'minimum' => 0 ],
+		if ( jprm_fs()->is__premium_only() ) {
+			register_rest_route( self::NS, '/menu-builder/info-blocks', [ 'methods' => 'GET', 'callback' => [ $this, 'get_info_blocks__premium_only' ], 'args' => [ 'menu_id' => $id_arg ], 'permission_callback' => [ $this, 'read_permissions_check' ] ] );
+			register_rest_route( self::NS, '/menu-builder/info-blocks/save', [
+				'methods' => 'POST',
+				'callback' => [ $this, 'save_info_blocks__premium_only' ],
+				'args' => [
+					'menu_id' => $id_arg,
+					'placements' => [
+						'type' => 'array',
+						'required' => true,
+						'items' => [
+							'type' => 'object',
+							'required' => [ 'id', 'section_id', 'position', 'order' ],
+							'properties' => [
+								'id' => [ 'type' => 'integer', 'minimum' => 1 ],
+								'section_id' => [ 'type' => 'integer', 'minimum' => 1 ],
+								'position' => [ 'type' => 'string', 'enum' => [ 'above', 'below' ] ],
+								'order' => [ 'type' => 'integer', 'minimum' => 0 ],
+							],
+							'additionalProperties' => false,
 						],
-						'additionalProperties' => false,
 					],
 				],
-			],
-			'permission_callback' => [ $this, 'write_permissions_check' ],
-		] );
+				'permission_callback' => [ $this, 'write_permissions_check' ],
+			] );
+		}
 // JPRM_PRO_END:print-routes
 	}
 
@@ -491,7 +493,7 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 	}
 
 // JPRM_PRO_BEGIN:print-rest-methods
-	public function get_info_blocks( $request ) {
+	public function get_info_blocks__premium_only( $request ) {
 		if ( ! \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'print_pdf' ) ) {
 			return new \WP_Error( 'jprm_pro_required', __( 'Print/PDF requires a Pro license.', 'jellopoint-restaurant-menu' ), [ 'status' => 403 ] );
 		}
@@ -511,7 +513,7 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 		return rest_ensure_response( [ 'blocks' => $blocks, 'placements' => $placements ] );
 	}
 
-	public function save_info_blocks( $request ) {
+	public function save_info_blocks__premium_only( $request ) {
 		if ( ! \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'print_pdf' ) ) {
 			return new \WP_Error( 'jprm_pro_required', __( 'Print/PDF requires a Pro license.', 'jellopoint-restaurant-menu' ), [ 'status' => 403 ] );
 		}

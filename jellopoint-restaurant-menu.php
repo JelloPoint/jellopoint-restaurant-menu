@@ -3,7 +3,7 @@
  * Plugin Name:       JelloPoint – Restaurant Menu
  * Plugin URI:        https://jellopoint.com/
  * Description:       Create and display restaurant menus with sections, flexible prices, dietary labels, and an Elementor widget.
- * Version:           2.0.44
+ * Version:           2.0.45
  * Requires at least: 6.5
  * Requires PHP:      7.4
  * Author:            JelloPoint
@@ -11,6 +11,8 @@
  * License URI:       https://www.gnu.org/licenses/gpl-3.0.html
  * Text Domain:       jellopoint-restaurant-menu
  * Domain Path:       /languages
+ *
+ * @fs_premium_only /assets/admin/import-export.css, /assets/admin/import-export.js, /assets/admin/print-document.css, /assets/admin/print-document.js, /assets/css/print-document.css, /includes/admin/class-admin-import-export.php, /includes/admin/class-admin-print-document.php, /includes/admin/views/import-export-page.php, /includes/data/class-importer.php, /includes/data/class-exporter.php, /includes/data/class-demo-menu.php, /includes/data/class-print-document-settings.php, /includes/data/class-print-document-builder.php, /includes/render/class-print-document-renderer.php, /includes/render/print/document.php
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -53,7 +55,7 @@ if ( ! function_exists( 'jprm_fs' ) ) {
  * Constants
  * ------------------------------------------------- */
 if ( ! defined( 'JPRM_VERSION' ) ) {
-	define( 'JPRM_VERSION', '2.0.44' );
+	define( 'JPRM_VERSION', '2.0.45' );
 }
 if ( ! defined( 'JPRM_PLUGIN_FILE' ) ) {
 	define( 'JPRM_PLUGIN_FILE', __FILE__ );

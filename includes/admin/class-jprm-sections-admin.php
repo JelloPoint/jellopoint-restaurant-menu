@@ -366,28 +366,29 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 	 * Get the next sequential order number for sections belonging to a Menu.
 	 */
 	private static function next_section_order_for_menu( int $owner_menu_id ) : int {
-		global $wpdb;
-
-		$meta_owner = self::META_MENU_OWNER;
-		$meta_order = self::META_SECTION_ORDER;
-
-		// Max existing order for this menu (terms without order meta are ignored here by design).
-		$max = $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT MAX(CAST(tm_sort.meta_value AS UNSIGNED))
-				 FROM {$wpdb->termmeta} tm_sort
-				 INNER JOIN {$wpdb->termmeta} tm_owner
-				   ON tm_owner.term_id = tm_sort.term_id
-				  AND tm_owner.meta_key = %s
-				 WHERE tm_sort.meta_key = %s
-				   AND tm_owner.meta_value = %s",
-				$meta_owner,
-				$meta_order,
-				(string) $owner_menu_id
-			)
+		$term_ids = get_terms(
+			[
+				'taxonomy'   => self::TAX_SECTION,
+				'hide_empty' => false,
+				'fields'     => 'ids',
+				'meta_query' => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- Required owner relation; cached by WP_Term_Query.
+					[
+						'key'     => self::META_MENU_OWNER,
+						'value'   => (string) $owner_menu_id,
+						'compare' => '=',
+					],
+				],
+			]
 		);
 
-		$max_i = (int) $max;
+		if ( is_wp_error( $term_ids ) ) {
+			return 1;
+		}
+
+		$max_i = 0;
+		foreach ( $term_ids as $term_id ) {
+			$max_i = max( $max_i, (int) get_term_meta( (int) $term_id, self::META_SECTION_ORDER, true ) );
+		}
 		return ( $max_i > 0 ) ? ( $max_i + 1 ) : 1;
 	}
 	/**

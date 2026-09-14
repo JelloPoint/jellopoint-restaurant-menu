@@ -104,6 +104,7 @@
   function loadItems(){ if(!state.currentMenu){ state.items=[]; return $.Deferred().resolve().promise(); } return apiGet('menu-builder/items?menu_id='+state.currentMenu).done(res=>{ state.items = res.items||[]; }); }
   function loadUnassigned(){ if(!state.currentMenu){ state.unassigned=[]; return $.Deferred().resolve().promise(); } return apiGet('menu-builder/items?menu_id='+state.currentMenu+'&unassigned=1').done(res=>{ state.unassigned = res.items||[]; }); }
 // JPRM_PRO_BEGIN:print-builder-functions
+/*! <fs_premium_only> */
   function loadInfoBlocks(){
     if(!state.currentMenu || JPRM_MENU_BUILDER.can_print !== true){
       state.infoBlocks=[]; state.infoPlacements=[];
@@ -119,6 +120,7 @@
 	const $list=$('#jprm-info-placements').empty(); state.infoPlacements.forEach((p,i)=>{$list.append($('<p>').text((names[p.id]||'#'+p.id)+' — '+(p.position==='below'?'Below ':'Above ')+(sections[p.section_id]||'Section')).append($('<button type="button" class="button-link-delete" style="margin-left:8px">Remove</button>').on('click',()=>{state.infoPlacements.splice(i,1);saveInfoBlocks();})));});
   }
   function saveInfoBlocks(){ return apiPost('menu-builder/info-blocks/save',{menu_id:state.currentMenu,placements:state.infoPlacements}).then(()=>loadInfoBlocks()).then(()=>renderInfoBlocks()); }
+/*! </fs_premium_only> */
 
 // JPRM_PRO_END:print-builder-functions
   function applyIndent($li, depth){ $li.attr('data-depth',depth).css('margin-left',(depth*INDENT)+'px'); }
@@ -509,8 +511,10 @@
   });
 
 // JPRM_PRO_BEGIN:print-builder-events
+/*! <fs_premium_only> */
   $('#jprm-new-info-block').attr('href',JPRM_MENU_BUILDER.admin_new_info_block_url);
   $('#jprm-add-info-block').on('click',function(){const id=parseInt($('#jprm-info-block').val(),10)||0,sectionId=parseInt($('#jprm-info-section').val(),10)||0;if(!id||!sectionId)return toast('Choose an Info Block and Section.');state.infoPlacements.push({id:id,section_id:sectionId,position:$('#jprm-info-position').val(),order:state.infoPlacements.length});saveInfoBlocks().then(()=>toast('Info Block added.'));});
+/*! </fs_premium_only> */
 
 // JPRM_PRO_END:print-builder-events
   $(function(){ loadMenus().then(()=>chainLoadAndRender(true)); });

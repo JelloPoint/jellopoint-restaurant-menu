@@ -111,7 +111,7 @@ final class Print_Document_Admin {
 					<span class="description"><?php esc_html_e( 'Choose “Save as PDF” in the browser print window to download the menu.', 'jellopoint-restaurant-menu' ); ?></span>
 				<?php endif; ?>
 			</form>
-			<?php if ( $document ) : ?><div class="card"><h2><?php esc_html_e( 'Document Source Check', 'jellopoint-restaurant-menu' ); ?></h2><p><strong><?php echo esc_html( (string) $document['menu']['name'] ); ?></strong></p><p><?php printf( esc_html__( '%1$d Sections and %2$d published Menu Items are ready for the printable templates.', 'jellopoint-restaurant-menu' ), count( $document['sections'] ), $item_count ); ?></p><p><?php esc_html_e( 'Prices, Price Labels, Dietary Badges and their icons are included in the document data.', 'jellopoint-restaurant-menu' ); ?></p></div><?php endif; ?>
+			<?php if ( $document ) : ?><div class="card"><h2><?php esc_html_e( 'Document Source Check', 'jellopoint-restaurant-menu' ); ?></h2><p><strong><?php echo esc_html( (string) $document['menu']['name'] ); ?></strong></p><p><?php printf( esc_html__( '%1$d Sections and %2$d published Menu Items are ready for the printable templates.', 'jellopoint-restaurant-menu' ), count( $document['sections'] ), absint( $item_count ) ); ?></p><p><?php esc_html_e( 'Prices, Price Labels, Dietary Badges and their icons are included in the document data.', 'jellopoint-restaurant-menu' ); ?></p></div><?php endif; ?>
 		</div>
 		<?php
 	}
