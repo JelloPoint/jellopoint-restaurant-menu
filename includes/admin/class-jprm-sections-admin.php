@@ -13,6 +13,8 @@ class Sections_Admin {
 	const META_SECTION_ORDER  = '_jprm_section_order';
 	const META_ITEM_SEPARATOR = '_jprm_item_separator';
 	const META_DISABLE_ITEM_SEPARATOR = '_jprm_disable_item_separator';
+	const NONCE_ACTION = 'jprm_save_section_fields';
+	const NONCE_FIELD  = '_jprm_section_nonce';
 
 	public static function init() : void {
 		// Columns
@@ -35,7 +37,7 @@ class Sections_Admin {
 		add_action( 'edited_'  . self::TAX_SECTION, [ __CLASS__, 'save_on_edit' ],   10, 2 );
 
 		// UI polish + **self-healing** filter injector (guarantees dropdown is present & works)
-		add_action( 'admin_head-edit-tags.php', [ __CLASS__, 'admin_head_assets' ] );
+		add_action( 'admin_enqueue_scripts', [ __CLASS__, 'enqueue_admin_assets' ] );
 
 		add_filter( 'terms_clauses', [ __CLASS__, 'force_admin_order' ], 999, 3 );
 
@@ -209,6 +211,7 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 
 	public static function add_field() {
 		$menus = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false ] );
+		wp_nonce_field( self::NONCE_ACTION, self::NONCE_FIELD );
 		?>
 		<div class="form-field term-owner-wrap">
 			<label for="jprm_owner_menus"><?php esc_html_e( 'Menus', 'jellopoint-restaurant-menu' ); ?></label>
@@ -236,6 +239,7 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 	public static function edit_field( $term, $taxonomy ) {
 		$menus   = get_terms( [ 'taxonomy' => self::TAX_MENU, 'hide_empty' => false ] );
 		$current = self::menu_ids_for_section( (int) $term->term_id );
+		wp_nonce_field( self::NONCE_ACTION, self::NONCE_FIELD );
 // JPRM_PRO_BEGIN:daily-section-read
 		$item_separator = (string) get_term_meta( $term->term_id, self::META_ITEM_SEPARATOR, true );
 		$disable_item_separator = '1' === (string) get_term_meta( $term->term_id, self::META_DISABLE_ITEM_SEPARATOR, true );
@@ -270,13 +274,26 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 	/* ================= Save & cascade ================= */
 
 	public static function save_on_create( $term_id, $tt_id ) {
+		if ( ! self::can_save( (int) $term_id ) ) { return; }
 		self::save_menu_relations( (int) $term_id );
 		self::save_item_separator( (int) $term_id );
 	}
 
 	public static function save_on_edit( $term_id, $tt_id ) {
+		if ( ! self::can_save( (int) $term_id ) ) { return; }
 		self::save_menu_relations( (int) $term_id );
 		self::save_item_separator( (int) $term_id );
+	}
+
+	private static function can_save( int $term_id ) : bool {
+		$nonce = isset( $_POST[ self::NONCE_FIELD ] ) && is_string( $_POST[ self::NONCE_FIELD ] )
+			? sanitize_text_field( wp_unslash( $_POST[ self::NONCE_FIELD ] ) )
+			: '';
+
+		return '' !== $nonce
+			&& wp_verify_nonce( $nonce, self::NONCE_ACTION )
+			&& current_user_can( 'manage_categories' )
+			&& current_user_can( 'edit_term', $term_id );
 	}
 
 	private static function save_menu_relations( int $term_id ) : void {
@@ -323,22 +340,7 @@ public static function force_admin_order( $pieces, $taxonomies, $args ) : array 
 	}
 
 	private static function item_separator_dependency_script() : void {
-		?>
-		<script>
-		document.addEventListener('DOMContentLoaded', function(){
-			var owner = document.getElementById('jprm_owner_menus');
-			var fields = document.querySelectorAll('.jprm-daily-section-option');
-			if (!owner || !fields.length) return;
-			function refresh(){
-				var visible = Array.prototype.some.call(owner.selectedOptions, function(option){
-					return option.getAttribute('data-daily') === '1';
-				});
-				fields.forEach(function(field){ field.style.display = visible ? '' : 'none'; });
-			}
-			owner.addEventListener('change', refresh); refresh();
-		});
-		</script>
-		<?php
+		wp_enqueue_script( 'jprm-sections-admin' );
 	}
 
 // JPRM_PRO_END:daily-section-save
@@ -470,19 +472,13 @@ public static function hook_terms_order_and_filter() : void {
 
 	/* ================= UI polish + self-healing injector ================= */
 
-	public static function admin_head_assets() : void {
+	public static function enqueue_admin_assets() : void {
 		$tax = isset( $_GET['taxonomy'] ) ? sanitize_key( wp_unslash( $_GET['taxonomy'] ) ) : '';
 		if ( $tax !== self::TAX_SECTION ) return;
 
-		// CSS
-		echo '<style>
-			.taxonomy-' . esc_attr( self::TAX_SECTION ) . ' .form-field.term-slug-wrap,
-			.taxonomy-' . esc_attr( self::TAX_SECTION ) . ' .term-slug-wrap { display:none!important; }
-			.fixed .column-jprm_order{ width:90px; text-align:right; }
-			.jprm-filter-wrap, .jprm-sections-filter { margin-right:8px; }
-		</style>';
+		wp_enqueue_style( 'jprm-sections-admin', JPRM_PLUGIN_URL . 'assets/admin/sections-admin.css', [], JPRM_VERSION );
+		wp_enqueue_script( 'jprm-sections-admin', JPRM_PLUGIN_URL . 'assets/admin/sections-admin.js', [], JPRM_VERSION, true );
 
-		// Build <option>s server-side for the self-healing injector
 		$selected = isset( $_GET['jprm_filter_menu'] ) ? absint( wp_unslash( $_GET['jprm_filter_menu'] ) ) : 0;
 		if ( $selected > 0 ) self::backfill_missing_orders_for_menu( (int) $selected );
 		$menus    = get_terms( [
@@ -491,50 +487,17 @@ public static function hook_terms_order_and_filter() : void {
 			'orderby'    => 'name',
 			'order'      => 'ASC',
 		] );
-		$options  = '<option value="0">' . esc_html__( 'All Menus', 'jellopoint-restaurant-menu' ) . '</option>';
+		$options = [];
 		if ( ! is_wp_error( $menus ) ) {
 			foreach ( $menus as $m ) {
-				$sel = ( $selected === (int) $m->term_id ) ? ' selected' : '';
-				$options .= '<option value="' . (int) $m->term_id . '"' . $sel . '>' . esc_html( $m->name ) . '</option>';
+				$options[] = [ 'id' => (int) $m->term_id, 'name' => (string) $m->name ];
 			}
 		}
-		?>
-		<script>
-		(function(){
-		  // If the toolbar select failed to render (some admin skins), inject it and wire navigation.
-		  function ensureToolbarFilter(){
-		    var form = document.getElementById('posts-filter');
-		    if (!form) return;
-
-		    var top = form.querySelector('.tablenav.top .actions') || form.querySelector('.tablenav.top');
-		    if (!top) return;
-
-		    if (document.getElementById('jprm_filter_menu')) return; // already present (from restrict_manage_terms)
-
-		    var wrap = document.createElement('div');
-		    wrap.className = 'alignleft actions jprm-sections-filter';
-		    wrap.innerHTML =
-		      '<label class="screen-reader-text" for="jprm_filter_menu"><?php echo esc_js(__('Filter by Menu', 'jellopoint-restaurant-menu')); ?></label>' +
-		      '<select name="jprm_filter_menu" id="jprm_filter_menu" class="postform"><?php echo wp_kses( $options, [ 'option' => [ 'value' => true, 'selected' => true ] ] ); ?></select>';
-		    top.prepend(wrap);
-
-		    var sel = wrap.querySelector('#jprm_filter_menu');
-	   	    if (sel) {
-		      sel.addEventListener('change', function(){
-		        var url = new URL(window.location.href);
-		        url.searchParams.set('jprm_filter_menu', this.value || '0');
-		        url.searchParams.delete('paged');
-		        if ((this.value||'0') === '0') {
-		          url.searchParams.delete('orderby');
-		          url.searchParams.delete('order');
-		        }
-		        window.location.assign(url.toString());
-		      });
-		    }
-		  }
-		  document.addEventListener('DOMContentLoaded', ensureToolbarFilter);
-		})();
-		</script>
-		<?php
+		wp_localize_script( 'jprm-sections-admin', 'jprmSectionsAdmin', [
+			'options'    => $options,
+			'selected'   => $selected,
+			'allMenus'   => __( 'All Menus', 'jellopoint-restaurant-menu' ),
+			'filterMenu' => __( 'Filter by Menu', 'jellopoint-restaurant-menu' ),
+		] );
 	}
 }

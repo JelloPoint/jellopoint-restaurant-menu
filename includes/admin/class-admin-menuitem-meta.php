@@ -12,18 +12,6 @@ class JPRM_Admin_MenuItem_Meta {
 		add_action('add_meta_boxes',           [__CLASS__, 'register_metaboxes']);
 		add_action('save_post_jprm_menu_item', [__CLASS__, 'save'], 10, 2);
 		add_action('admin_enqueue_scripts',    [__CLASS__, 'enqueue'], 100);
-		add_action('admin_head',               [__CLASS__, 'hide_core_editor']);
-	}
-
-	/**
-	 * Keep the core WP editor hidden for this CPT (your plugin uses metaboxes).
-	 * This does NOT affect the wp_editor() we render below.
-	 */
-	public static function hide_core_editor(){
-		$screen = function_exists('get_current_screen') ? get_current_screen() : null;
-		if ($screen && $screen->post_type === 'jprm_menu_item'){
-			echo '<style>#postdivrich,#wp-content-media-buttons{display:none!important;}</style>';
-		}
 	}
 
 	public static function enqueue(){
@@ -32,6 +20,35 @@ class JPRM_Admin_MenuItem_Meta {
 
 		wp_enqueue_script('jquery');
 		if (function_exists('wp_enqueue_media')) wp_enqueue_media();
+		wp_register_script( 'jprm-menuitem-meta-compliance', false, [ 'jquery', 'media-editor' ], JPRM_VERSION, true );
+		wp_enqueue_script( 'jprm-menuitem-meta-compliance' );
+		wp_register_style( 'jprm-menuitem-meta-compliance', false, [], JPRM_VERSION );
+		wp_enqueue_style( 'jprm-menuitem-meta-compliance' );
+		wp_add_inline_style( 'jprm-menuitem-meta-compliance', '
+			#postdivrich,#wp-content-media-buttons{display:none!important}
+			#jprm_price_meta .form-table th{width:120px}
+			.jprm-inline{display:inline-flex;gap:8px;align-items:center;flex-wrap:nowrap}
+			.jprm-inline select{max-width:220px}.jprm-inline input[type=text]{max-width:160px}
+			.jprm-icon-ph{width:32px;height:32px;border:1px dashed #ccd0d4;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;color:#777;background:#fff}
+			.jprm-mode-switch{display:inline-flex;border:1px solid #ccd0d4;border-radius:4px;overflow:hidden}
+			.jprm-pill{padding:2px 8px;cursor:pointer;background:#f6f7f7;border-right:1px solid #ccd0d4;user-select:none}
+			.jprm-pill:last-child{border-right:none}.jprm-pill.active{background:#2271b1;color:#fff}
+			#jprm2-prices-wrap{overflow-x:auto}
+			#jprm2-prices-table{table-layout:auto;width:100%;border-collapse:collapse}
+			#jprm2-prices-table th,#jprm2-prices-table td{vertical-align:middle;box-sizing:border-box}
+			#jprm2-prices-table td.label-td{overflow:hidden;position:relative;min-width:0}
+			.label-td .label-row{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;min-width:0}
+			.label-td .jprm-mode-switch{flex:0 0 auto}
+			.label-td .inline-field{display:inline-flex;gap:8px;align-items:center;flex:1 1 auto;min-width:0;overflow:hidden}
+			.label-td .inline-field select.label-ref{max-width:160px;flex:0 0 auto}
+			.label-td .inline-field input.label-custom{width:120px;max-width:140px;flex:0 0 auto}
+			#jprm2-prices-table input.amount{width:8em!important}
+			#jprm2-prices-table td.jprm-icon-cell{vertical-align:middle}
+			.jprm-icon-inline{display:inline-flex;align-items:center;gap:8px}
+			#jprm2-prices-table .jprm-row-icon-clear{margin:0}
+			.label-td[data-mode="ref"] input.label-custom{display:none!important}
+			.label-td[data-mode="custom"] select.label-ref{display:none!important}
+		' );
 
 		// Ensure WP editor assets are available for the metabox wp_editor().
 		if ( function_exists('wp_enqueue_editor') ) {
@@ -126,38 +143,6 @@ class JPRM_Admin_MenuItem_Meta {
 		}
 		$custom_url = $icon?$icon_url($icon):'';
 		$initial_url = ($lm==='ref') ? $predef_url : ($custom_url?:'');
-
-		/* --- styles --- */
-		echo '<style>
-		#jprm_price_meta .form-table th { width: 120px; }
-
-		.jprm-inline{display:inline-flex;gap:8px;align-items:center;flex-wrap:nowrap}
-		.jprm-inline select{max-width:220px}.jprm-inline input[type=text]{max-width:160px}
-		.jprm-icon-ph{width:32px;height:32px;border:1px dashed #ccd0d4;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;color:#777;background:#fff}
-		.jprm-mode-switch{display:inline-flex;border:1px solid #ccd0d4;border-radius:4px;overflow:hidden}
-		.jprm-pill{padding:2px 8px;cursor:pointer;background:#f6f7f7;border-right:1px solid #ccd0d4;user-select:none}
-		.jprm-pill:last-child{border-right:none}.jprm-pill.active{background:#2271b1;color:#fff}
-
-		#jprm2-prices-wrap{overflow-x:auto}
-		#jprm2-prices-table{table-layout:auto;width:100%;border-collapse:collapse}
-		#jprm2-prices-table th,#jprm2-prices-table td{vertical-align:middle;box-sizing:border-box}
-
-		#jprm2-prices-table td.label-td{overflow:hidden;position:relative;min-width:0}
-		.label-td .label-row{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;min-width:0}
-		.label-td .jprm-mode-switch{flex:0 0 auto}
-		.label-td .inline-field{display:inline-flex;gap:8px;align-items:center;flex:1 1 auto;min-width:0;overflow:hidden}
-		.label-td .inline-field select.label-ref{max-width:160px;flex:0 0 auto}
-		.label-td .inline-field input.label-custom{width:120px;max-width:140px;flex:0 0 auto}
-
-		#jprm2-prices-table input.amount{width:8em!important}
-
-		#jprm2-prices-table td.jprm-icon-cell{vertical-align:middle}
-		.jprm-icon-inline{display:inline-flex;align-items:center;gap:8px}
-		#jprm2-prices-table .jprm-row-icon-clear{margin:0}
-
-		.label-td[data-mode="ref"]  input.label-custom{display:none!important}
-		.label-td[data-mode="custom"] select.label-ref{display:none!important}
-		</style>';
 
 		/* --- markup --- */
 		echo '<table class="form-table"><tbody>';
@@ -293,11 +278,12 @@ class JPRM_Admin_MenuItem_Meta {
 				'pricePh'    => '€ 7,50',
 			],
 		];
-		echo '<script id="jprm-meta-data" type="application/json">'.wp_json_encode($js_data).'</script>'; ?>
-		<script>
+		wp_localize_script( 'jprm-menuitem-meta-compliance', 'jprmMenuItemMeta', $js_data );
+		ob_start();
+		?>
 		(function($){
 		  if (window.__JPRM2_BOUND__) return; window.__JPRM2_BOUND__=true;
-		  var NS='.jprm2', CFG={}; try{CFG=JSON.parse($('#jprm-meta-data').text()||'{}')}catch(e){CFG={};}
+		  var NS='.jprm2', CFG=window.jprmMenuItemMeta||{};
 
 		  function setMode(){
 			var m=$('input[name="jprm_price_mode"]:checked').val()||'single';
@@ -463,8 +449,8 @@ class JPRM_Admin_MenuItem_Meta {
 		  collect();
 		  $('#post').off('submit'+NS).on('submit'+NS,collect);
 		})(jQuery);
-		</script>
 		<?php
+		wp_add_inline_script( 'jprm-menuitem-meta-compliance', ob_get_clean() );
 	}
 
 	public static function render_visibility($post){

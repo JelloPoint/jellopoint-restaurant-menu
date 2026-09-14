@@ -69,9 +69,19 @@ class JPRM_Labels_Store {
             wp_enqueue_script( 'jquery' );
             wp_enqueue_script( 'jquery-ui-sortable' );
             wp_enqueue_style( 'dashicons' );
-            // Small style tweak for icon-only buttons
-            $css = '.button.jprm-icon-btn{padding:0 6px;height:28px;display:inline-flex;align-items:center;gap:4px} .jprm-actions{display:flex;gap:6px}';
-            wp_add_inline_style( 'dashicons', $css );
+            wp_enqueue_style( 'jprm-price-labels', JPRM_PLUGIN_URL . 'assets/admin/price-labels.css', [], JPRM_VERSION );
+            wp_enqueue_script( 'jprm-price-labels', JPRM_PLUGIN_URL . 'assets/admin/price-labels.js', [ 'jquery', 'jquery-ui-sortable', 'media-editor' ], JPRM_VERSION, true );
+            wp_localize_script( 'jprm-price-labels', 'jprmPriceLabels', [
+                'chooseIcon' => __( 'Choose icon', 'jellopoint-restaurant-menu' ),
+                'drag'       => __( 'Drag', 'jellopoint-restaurant-menu' ),
+                'clearIcon'  => __( 'Clear icon', 'jellopoint-restaurant-menu' ),
+                'clear'      => __( 'Clear', 'jellopoint-restaurant-menu' ),
+                'active'     => __( 'Active', 'jellopoint-restaurant-menu' ),
+                'deleteRow'  => __( 'Delete row', 'jellopoint-restaurant-menu' ),
+                'delete'     => __( 'Delete', 'jellopoint-restaurant-menu' ),
+                'selectIcon' => __( 'Select Icon', 'jellopoint-restaurant-menu' ),
+                'useIcon'    => __( 'Use this icon', 'jellopoint-restaurant-menu' ),
+            ] );
         }
     }
 
@@ -143,145 +153,6 @@ class JPRM_Labels_Store {
         echo '<p><button type="submit" class="button button-primary">'.esc_html__('Save Labels','jellopoint-restaurant-menu').'</button></p>';
         echo '</form>';
 
-        // Inline CSS & JS
-        ?>
-        <style>
-        .jprm-labels-table .col-drag { width:34px; }
-        .jprm-drag { cursor: move; display: inline-block; width: 20px; height: 20px; vertical-align: middle; }
-        .jprm-icon-wrap { display:flex; align-items:center; gap:8px; }
-        .jprm-icon-preview { width:28px; height:28px; border:1px solid #ccd0d4; display:flex; align-items:center; justify-content:center; background:#fff; cursor:pointer; }
-        .jprm-icon-preview img { width:100%; height:100%; object-fit:contain; }
-        .jprm-row { background:#fff; }
-        .jprm-row.placeholder { background:#f6f7f7; }
-        .jprm-hidden { display:none !important; }
-        .screen-reader-text { position:absolute; left:-10000px; top:auto; width:1px; height:1px; overflow:hidden; }
-        </style>
-        <script>
-        jQuery(function($){
-            function uniqueId(){ return 'lbl_' + (Date.now().toString(36)) + '_' + Math.random().toString(36).slice(2,7); }
-
-            function renumber(){
-                $('#jprm-labels-tbody tr').each(function(index){
-                    var $tr = $(this);
-                    $tr.find('input[name$="[order]"]').val(index);
-                    $tr.find('input, textarea, select').each(function(){
-                        var name = $(this).attr('name');
-                        if(!name) return;
-                        name = name.replace(/labels\[[^\]]+\]/, 'labels['+index+']');
-                        $(this).attr('name', name);
-                    });
-                });
-            }
-
-            function iconPlaceholder(){
-                return '<span class="dashicons dashicons-format-image" title="Choose icon"></span>';
-            }
-
-            function makeRow(){
-                var idx = $('#jprm-labels-tbody tr').length;
-                var id  = uniqueId();
-                var row = [
-                    '<tr class="jprm-row">',
-                      '<td class="col-drag"><span class="dashicons dashicons-menu jprm-drag" title="Drag"></span></td>',
-                      '<td>',
-                        '<input type="text" class="regular-text" name="labels['+idx+'][label]" value="" />',
-                        '<input type="hidden" name="labels['+idx+'][id]" value="'+id+'" />',
-                        '<input type="hidden" name="labels['+idx+'][order]" value="'+idx+'" />',
-                        // hidden slug keeps existing values; will be auto-generated from label if empty
-                        '<input type="hidden" name="labels['+idx+'][slug]" value="" />',
-                      '</td>',
-                      '<td>',
-                        '<div class="jprm-icon-wrap">',
-                          '<span class="jprm-icon-preview" role="button" tabindex="0">'+iconPlaceholder()+'</span>',
-                          '<input type="hidden" name="labels['+idx+'][icon_id]" value="0" />',
-                          '<input type="hidden" name="labels['+idx+'][icon_url]" value="" />',
-                          '<button type="button" class="button jprm-icon-btn jprm-icon-clear" title="Clear icon"><span class="dashicons dashicons-no"></span><span class="screen-reader-text">Clear</span></button>',
-                        '</div>',
-                      '</td>',
-                      '<td><label><input type="checkbox" name="labels['+idx+'][active]" value="1" checked /> Active</label></td>',
-                      '<td class="jprm-actions">',
-                        '<button type="button" class="button jprm-icon-btn jprm-row-delete" title="Delete row"><span class="dashicons dashicons-trash"></span><span class="screen-reader-text">Delete</span></button>',
-                      '</td>',
-                    '</tr>'
-                ].join('');
-                return $(row);
-            }
-
-            // Sortable
-            $('#jprm-labels-tbody').sortable({
-                handle: '.jprm-drag',
-                placeholder: 'placeholder',
-                items: '> tr',
-                update: renumber
-            });
-
-            // Add row
-            $('#jprm-add-row').on('click', function(){
-                var $tr = makeRow();
-                $('#jprm-labels-tbody').append($tr);
-                renumber();
-            });
-
-            // Open media on icon preview click
-            var frame;
-            $(document).on('click keypress', '.jprm-icon-preview', function(e){
-                if (e.type === 'keypress' && e.key !== 'Enter' && e.key !== ' ') return;
-                var $wrap = $(this).closest('.jprm-icon-wrap');
-                var $input = $wrap.find('input[type="hidden"][name*="[icon_id]"]');
-                var $urlInput = $wrap.find('input[type="hidden"][name*="[icon_url]"]');
-                var $preview = $wrap.find('.jprm-icon-preview');
-                if (frame) { frame.close(); }
-                frame = wp.media({
-                    title: 'Select Icon',
-                    button: { text: 'Use this icon' },
-                    library: { type: 'image' },
-                    multiple: false
-                });
-                frame.on('select', function(){
-                    var attachment = frame.state().get('selection').first().toJSON();
-                    var url = (attachment.sizes && attachment.sizes.thumbnail && attachment.sizes.thumbnail.url) ? attachment.sizes.thumbnail.url : (attachment.icon || attachment.url);
-                    $input.val(attachment.id);
-                    $urlInput.val('');
-                    $preview.html('<img src="'+url+'" alt="" />');
-                });
-                frame.open();
-            });
-
-            // Clear icon
-            $(document).on('click', '.jprm-icon-clear', function(){
-                var $wrap = $(this).closest('.jprm-icon-wrap');
-                $wrap.find('input[type="hidden"][name*="[icon_id]"]').val('0');
-                $wrap.find('input[type="hidden"][name*="[icon_url]"]').val('');
-                $wrap.find('.jprm-icon-preview').html(iconPlaceholder());
-            });
-
-            // Delete row
-            $(document).on('click', '.jprm-row-delete', function(){
-                var $tr = $(this).closest('tr');
-                $tr.remove();
-                renumber();
-            });
-
-            // On submit, ensure slug is set if missing (from label)
-            $('form').on('submit', function(){
-                $('#jprm-labels-tbody tr').each(function(){
-                    var $tr = $(this);
-                    var $slug = $tr.find('input[name$="[slug]"]');
-                    var slug = $slug.val();
-                    if(!slug){
-                        var label = ($tr.find('input[name$="[label]"]').val() || '').toLowerCase().trim();
-                        slug = label
-                            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-                            .replace(/[^a-z0-9]+/g, '-')
-                            .replace(/^-+|-+$/g, '');
-                        $slug.val(slug);
-                    }
-                });
-                renumber();
-            });
-        });
-        </script>
-        <?php
         echo '</div>';
     }
 
@@ -350,7 +221,7 @@ class JPRM_Labels_Store {
 
     /* ================= Internals ================= */
     protected static function sanitize_row( array $row ) : array {
-        $id    = isset($row['id']) ? (string)$row['id'] : '';
+        $id    = isset($row['id']) ? sanitize_key( (string)$row['id'] ) : '';
         $slug  = isset($row['slug']) ? sanitize_title( (string)$row['slug'] ) : '';
         $label = isset($row['label']) ? wp_kses_post( (string)$row['label'] ) : '';
         if ( $label === '' && isset($row['label_text']) ) {

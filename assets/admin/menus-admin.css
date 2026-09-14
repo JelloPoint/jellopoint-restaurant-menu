@@ -1,0 +1,4 @@
+body.taxonomy-jprm_menu .form-field.term-slug-wrap,
+body.taxonomy-jprm_menu .term-slug-wrap,
+body.taxonomy-jprm_menu .form-field.term-parent-wrap,
+body.taxonomy-jprm_menu .term-parent-wrap{display:none!important}

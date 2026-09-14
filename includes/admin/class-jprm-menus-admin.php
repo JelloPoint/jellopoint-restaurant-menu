@@ -33,9 +33,7 @@ class Menus_Admin {
 		add_action( 'created_' . self::TAX, [ __CLASS__, 'save_daily_menu_fields' ] );
 		add_action( 'edited_' . self::TAX, [ __CLASS__, 'save_daily_menu_fields' ] );
 
-		// Inject CSS/JS on BOTH taxonomy admin screens
-		add_action( 'admin_head-edit-tags.php', [ __CLASS__, 'inject_css_js' ] );
-		add_action( 'admin_head-term.php',      [ __CLASS__, 'inject_css_js' ] );
+		add_action( 'admin_enqueue_scripts', [ __CLASS__, 'enqueue_assets' ] );
 
 		/**
 		 * IMPORTANT:
@@ -167,12 +165,15 @@ class Menus_Admin {
 	/** Persist validated Daily Menu term metadata. */
 	public static function save_daily_menu_fields( $term_id ) : void {
 		if ( ! \JelloPoint\RestaurantMenu\Modules\Module_Access::allows( 'daily_weekly_menus' ) ) { return; }
-		if ( empty( $_POST[ self::NONCE_FIELD ] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST[ self::NONCE_FIELD ] ) ), self::NONCE_ACTION ) ) {
+		$term_id = (int) $term_id;
+		$nonce = isset( $_POST[ self::NONCE_FIELD ] ) && is_string( $_POST[ self::NONCE_FIELD ] )
+			? sanitize_text_field( wp_unslash( $_POST[ self::NONCE_FIELD ] ) )
+			: '';
+		if ( '' === $nonce || ! wp_verify_nonce( $nonce, self::NONCE_ACTION ) ) {
 			return;
 		}
-		if ( ! current_user_can( 'manage_categories' ) ) { return; }
+		if ( ! current_user_can( 'manage_categories' ) || ! current_user_can( 'edit_term', $term_id ) ) { return; }
 
-		$term_id = (int) $term_id;
 		$enabled = ! empty( $_POST['jprm_is_daily_menu'] );
 		$date = self::sanitize_date( isset( $_POST['jprm_daily_menu_date'] ) ? wp_unslash( $_POST['jprm_daily_menu_date'] ) : '' );
 		$date_type_raw = isset( $_POST['jprm_daily_menu_date_type'] ) ? sanitize_key( wp_unslash( $_POST['jprm_daily_menu_date_type'] ) ) : 'single';
@@ -221,32 +222,7 @@ class Menus_Admin {
 	}
 
 	private static function daily_menu_toggle_script() : void {
-		?>
-		<script>
-		document.addEventListener('DOMContentLoaded', function(){
-			var toggle = document.querySelector('input[name="jprm_is_daily_menu"]');
-			var type = document.getElementById('jprm_daily_menu_date_type');
-			var start = document.getElementById('jprm_daily_menu_date');
-			var end = document.getElementById('jprm_daily_menu_end_date');
-			if (!toggle) return;
-			function refresh(){
-				document.querySelectorAll('.jprm-daily-menu-detail').forEach(function(field){ field.style.display = toggle.checked ? '' : 'none'; });
-				var range = type && type.value === 'range';
-				var noDate = type && type.value === 'none';
-				document.querySelectorAll('.jprm-date-label-single').forEach(function(label){ label.style.display = range ? 'none' : ''; });
-				document.querySelectorAll('.jprm-date-label-range').forEach(function(label){ label.style.display = range ? '' : 'none'; });
-				document.querySelectorAll('.jprm-daily-menu-end-date').forEach(function(field){ field.style.display = toggle.checked && range ? '' : 'none'; });
-				if (start) { start.closest('.jprm-daily-menu-detail').style.display = toggle.checked && !noDate ? '' : 'none'; }
-				if (end) { end.min = start ? start.value : ''; end.required = toggle.checked && range; }
-				if (start) { start.required = toggle.checked && !noDate; }
-			}
-			toggle.addEventListener('change', refresh);
-			if (type) type.addEventListener('change', refresh);
-			if (start) start.addEventListener('change', refresh);
-			refresh();
-		});
-		</script>
-		<?php
+		wp_enqueue_script( 'jprm-menus-admin' );
 	}
 
 // JPRM_PRO_END:daily-admin
@@ -300,78 +276,20 @@ class Menus_Admin {
 		return $args;
 	}
 
-	/** CSS/JS polish – runs on edit-tags.php and term.php; no GET reliance */
-	public static function inject_css_js() : void {
-		?>
-		<style>
-			/* Hide Slug + Parent on add + edit for jprm_menu */
-			body.taxonomy-<?php echo esc_attr( self::TAX ); ?> .form-field.term-slug-wrap,
-			body.taxonomy-<?php echo esc_attr( self::TAX ); ?> .term-slug-wrap,
-			body.taxonomy-<?php echo esc_attr( self::TAX ); ?> .form-field.term-parent-wrap,
-			body.taxonomy-<?php echo esc_attr( self::TAX ); ?> .term-parent-wrap {
-				display: none !important;
-			}
-		</style>
-		<script>
-		(function(){
-			function onReady(fn){ if(document.readyState!=='loading'){fn();}else{document.addEventListener('DOMContentLoaded',fn);} }
+	/** Load taxonomy-screen behaviour through WordPress' asset API. */
+	public static function enqueue_assets() : void {
+		$taxonomy = isset( $_GET['taxonomy'] ) ? sanitize_key( wp_unslash( $_GET['taxonomy'] ) ) : '';
+		if ( self::TAX !== $taxonomy ) { return; }
 
-			function renameOnListOrAdd(){
-				if (!document.body.classList.contains('taxonomy-<?php echo esc_js(self::TAX); ?>')) return;
-
-				// Left add box title: "Add Category" -> "Add Menu"
-				var addHdr = document.querySelector('.wrap .form-wrap > h2') || document.querySelector('.tag-add-form h2');
-				if (addHdr && /Add\s+Category/i.test(addHdr.textContent)) addHdr.textContent = 'Add Menu';
-
-				// Left add box submit button text (covers input/button variants)
-				var addSubmit = document.querySelector('#addtag input#submit, #addtag button#submit, .tag-add-form input[type="submit"], .tag-add-form button[type="submit"]');
-				if (addSubmit) {
-					if (addSubmit.tagName === 'INPUT') addSubmit.value = 'Add Menu';
-					else addSubmit.textContent = 'Add Menu';
-					addSubmit.setAttribute('aria-label', 'Add Menu');
-				}
-
-				// Search label + placeholder (top right)
-				var searchLbl = document.querySelector('label[for="tag-search-input"]') ||
-				                document.querySelector('.search-form label') ||
-				                document.querySelector('.search-box label');
-				if (searchLbl) searchLbl.textContent = 'Search Menus:';
-
-				var searchInp = document.getElementById('tag-search-input') ||
-				                document.querySelector('.search-form input[type="search"], .search-form input[type="text"]');
-				if (searchInp) searchInp.placeholder = 'Search Menus';
-
-				// Page title & subnav text
-				var h1 = document.querySelector('.wrap > h1');
-				if (h1) h1.textContent = h1.textContent.replace(/Categories/gi, 'Menus').replace(/\bCategory\b/gi, 'Menu');
-
-				document.querySelectorAll('.subsubsub a').forEach(function(a){
-					a.textContent = a.textContent.replace(/Categories/gi, 'Menus').replace(/\bCategory\b/gi, 'Menu');
-				});
-
-				// Ensure hidden parent select doesn't accidentally submit non-zero
-				var parentAdd = document.querySelector('#addtag .form-field.term-parent-wrap select');
-				if (parentAdd) parentAdd.value = '0';
-			}
-
-			function renameOnSingleEdit(){
-				if (!document.body.classList.contains('taxonomy-<?php echo esc_js(self::TAX); ?>')) return;
-
-				// Page title
-				var h1 = document.querySelector('.wrap > h1');
-				if (h1) h1.textContent = h1.textContent.replace(/Categories/gi, 'Menus').replace(/\bCategory\b/gi, 'Menu');
-
-				// Ensure hidden parent on edit stays zero
-				var parentEdit = document.querySelector('.edit-tag-form .form-field.term-parent-wrap select');
-				if (parentEdit) parentEdit.value = '0';
-			}
-
-			onReady(function(){
-				renameOnListOrAdd();
-				renameOnSingleEdit();
-			});
-		})();
-		</script>
-		<?php
+		wp_enqueue_style( 'jprm-menus-admin', JPRM_PLUGIN_URL . 'assets/admin/menus-admin.css', [], JPRM_VERSION );
+		wp_enqueue_script( 'jprm-menus-admin', JPRM_PLUGIN_URL . 'assets/admin/menus-admin.js', [], JPRM_VERSION, true );
+		wp_localize_script( 'jprm-menus-admin', 'jprmMenusAdmin', [
+			'addMenu'     => __( 'Add Menu', 'jellopoint-restaurant-menu' ),
+			'searchMenus' => __( 'Search Menus', 'jellopoint-restaurant-menu' ),
+			'category'    => __( 'Category', 'default' ),
+			'categories'  => __( 'Categories', 'default' ),
+			'menu'        => __( 'Menu', 'jellopoint-restaurant-menu' ),
+			'menus'       => __( 'Menus', 'jellopoint-restaurant-menu' ),
+		] );
 	}
 }

@@ -8,6 +8,7 @@ $checks = [
 		"sanitize_text_field( wp_unslash( \$_POST['jprm_labels_nonce'] ) )",
 		"wp_unslash( \$_POST['labels'] )",
 		"sanitize_key( wp_unslash( \$_GET['page'] ) )",
+		"sanitize_key( (string)\$row['id'] )",
 	],
 	'includes/admin/class-admin-menuitem-badges-meta.php' => [
 		"sanitize_text_field( wp_unslash( \$_POST[ self::NONCE_NAME ] ) )",
@@ -22,6 +23,13 @@ $checks = [
 	'includes/admin/class-jprm-sections-admin.php' => [
 		"sanitize_key( wp_unslash( \$_GET['orderby'] ) )",
 		"absint( wp_unslash( \$_GET['jprm_filter_menu'] ) )",
+		"wp_nonce_field( self::NONCE_ACTION, self::NONCE_FIELD )",
+		"wp_verify_nonce( \$nonce, self::NONCE_ACTION )",
+		"current_user_can( 'edit_term', \$term_id )",
+	],
+	'includes/admin/class-jprm-menus-admin.php' => [
+		"wp_verify_nonce( \$nonce, self::NONCE_ACTION )",
+		"current_user_can( 'edit_term', \$term_id )",
 	],
 ];
 
@@ -50,6 +58,16 @@ foreach ( $render_sources as $relative_path => $needle ) {
 	$source = file_get_contents( $root . '/' . $relative_path );
 	if ( false === $source || false === strpos( $source, $needle ) ) {
 		fwrite( STDERR, "Missing escaped item title in {$relative_path}.\n" );
+		exit( 1 );
+	}
+}
+
+$inline_asset_sources = glob( $root . '/includes/*.php' );
+$inline_asset_sources = array_merge( $inline_asset_sources ?: [], glob( $root . '/includes/admin/*.php' ) ?: [], glob( $root . '/includes/data/*.php' ) ?: [] );
+foreach ( $inline_asset_sources as $source_path ) {
+	$source = file_get_contents( $source_path );
+	if ( false !== $source && preg_match( '/<(?:script|style)(?:\s|>)/i', $source ) ) {
+		fwrite( STDERR, 'Literal script/style tag remains in ' . basename( $source_path ) . ".\n" );
 		exit( 1 );
 	}
 }

@@ -40,8 +40,7 @@ class Menu_Item_List {
 		add_filter( 'handle_bulk_actions-edit-' . self::CPT, [ __CLASS__, 'handle_bulk_actions' ], 10, 3 );
 		add_action( 'admin_notices', [ __CLASS__, 'bulk_admin_notice' ] );
 
-		// Inject selector for bulk-assign + tiny JS for toggling multi-prices
-		add_action( 'admin_footer-edit.php', [ __CLASS__, 'inject_bulk_assign_selector' ] );
+		add_action( 'admin_enqueue_scripts', [ __CLASS__, 'enqueue_list_assets' ] );
 	}
 
 	/* ---------------- Columns ---------------- */
@@ -219,12 +218,13 @@ class Menu_Item_List {
 			/* translators: %d: number of menu items. */
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( _n( 'Assigned %d item.', 'Assigned %d items.', $c, 'jellopoint-restaurant-menu' ), $c ) ) . '</p></div>';
 		}
-		if ( isset( $_GET['jprm_bulk_error'] ) ) { // phpcs:ignore
+		$bulk_error = isset( $_GET['jprm_bulk_error'] ) ? sanitize_key( wp_unslash( $_GET['jprm_bulk_error'] ) ) : '';
+		if ( '' !== $bulk_error ) {
 			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Please choose a Section for bulk assign.', 'jellopoint-restaurant-menu' ) . '</p></div>';
 		}
 	}
 
-	public static function inject_bulk_assign_selector() : void {
+	public static function enqueue_list_assets() : void {
 		$screen = get_current_screen();
 		if ( ! $screen || $screen->id !== 'edit-' . self::CPT ) return;
 
@@ -239,61 +239,27 @@ class Menu_Item_List {
 			}
 		}
 
-		?>
-		<script>
-		(function(){
-			/* ------- Bulk-assign section selector ------- */
-			function buildSelectHtml(){
-				var html = '<select name="jprm_target_section" id="jprm_target_section" style="margin-left:6px;">';
-				html += '<option value="0"><?php echo esc_js( __( '— choose Section —', 'jellopoint-restaurant-menu' ) ); ?></option>';
-				<?php
-				if ( ! is_wp_error( $menus ) ) {
-					foreach ( $menus as $m ) {
-						printf( "html += '<optgroup label=\"%s\">';\n", esc_js( $m->name ) );
-						if ( ! empty( $by_menu[ $m->term_id ] ) ) {
-							$tree = self::flatten_sections_with_depth( $by_menu[ $m->term_id ] );
-							foreach ( $tree as $row ) {
-								printf(
-									"html += '<option value=\"%d\">%s%s</option>';\n",
-									intval( $row['id'] ),
-									esc_js( str_repeat( '— ', $row['depth'] ) ),
-									esc_js( $row['name'] )
-								);
-							}
-						}
-						echo "html += '</optgroup>';\n";
+		$groups = [];
+		if ( ! is_wp_error( $menus ) ) {
+			foreach ( $menus as $menu ) {
+				$items = [];
+				if ( ! empty( $by_menu[ $menu->term_id ] ) ) {
+					foreach ( self::flatten_sections_with_depth( $by_menu[ $menu->term_id ] ) as $row ) {
+						$items[] = [
+							'id'   => (int) $row['id'],
+							'name' => str_repeat( '— ', (int) $row['depth'] ) . (string) $row['name'],
+						];
 					}
 				}
-				?>
-				html += '</select>';
-				return html;
+				$groups[] = [ 'name' => (string) $menu->name, 'items' => $items ];
 			}
-			function ensureSelector($which){
-				var $bulk = jQuery($which);
-				if (!$bulk.length) return;
-				if ($bulk.find('#jprm_target_section').length) return;
-				$bulk.append( buildSelectHtml() );
-			}
-			jQuery(document).on('change', 'select[name="action"], select[name="action2"]', function(){
-				var val = jQuery(this).val();
-				if (val === 'jprm_assign_section') {
-					if (this.name === 'action') ensureSelector('#bulk-action-selector-top');
-					if (this.name === 'action2') ensureSelector('#bulk-action-selector-bottom');
-				} else {
-					jQuery('#jprm_target_section').remove();
-				}
-			});
+		}
 
-			/* ------- Toggle for "Multiple prices (N)" ------- */
-			jQuery(document).on('click', '.jprm-multi-toggle', function(e){
-				e.preventDefault();
-				var target = jQuery(this).attr('data-target');
-				if (!target) return;
-				jQuery('#'+target).toggle();
-			});
-		})();
-		</script>
-		<?php
+		wp_enqueue_script( 'jprm-menu-item-list', JPRM_PLUGIN_URL . 'assets/admin/menu-item-list.js', [ 'jquery' ], JPRM_VERSION, true );
+		wp_localize_script( 'jprm-menu-item-list', 'jprmMenuItemList', [
+			'chooseSection' => __( '— choose Section —', 'jellopoint-restaurant-menu' ),
+			'groups'        => $groups,
+		] );
 	}
 
 	/* ---------------- Helpers ---------------- */

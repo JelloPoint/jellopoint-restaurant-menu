@@ -149,6 +149,16 @@ final class JPRM_Admin_Bulk_Price_Labels {
 							form.submit();
 						});
 					}
+
+					var master = document.getElementById("jprm-select-all");
+					if (master) {
+						master.addEventListener("change", function(){
+							var checks = document.querySelectorAll("input[name=\"jprm_rows[]\"]");
+							for (var i = 0; i < checks.length; i++) {
+								checks[i].checked = master.checked;
+							}
+						});
+					}
 				});
 			}());
 		';
@@ -163,8 +173,8 @@ final class JPRM_Admin_Bulk_Price_Labels {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'jellopoint-restaurant-menu' ) );
 		}
 
-		$current_menu    = isset( $_GET['filter_menu'] )    ? (int) $_GET['filter_menu']    : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$current_section = isset( $_GET['filter_section'] ) ? (int) $_GET['filter_section'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$current_menu    = isset( $_GET['filter_menu'] ) ? absint( wp_unslash( $_GET['filter_menu'] ) ) : 0;
+		$current_section = isset( $_GET['filter_section'] ) ? absint( wp_unslash( $_GET['filter_section'] ) ) : 0;
 
 		// Label registry (id => row).
 		$labels_index = self::load_price_labels_index();
@@ -388,19 +398,6 @@ final class JPRM_Admin_Bulk_Price_Labels {
 				</table>
 
 				<?php self::render_bulk_actions_bar( 'bottom', $labels_index ); ?>
-
-				<script>
-					(function(){
-						const master = document.getElementById('jprm-select-all');
-						if (!master) return;
-						master.addEventListener('change', function(){
-							const checks = document.querySelectorAll('input[name="jprm_rows[]"]');
-							for (const c of checks) {
-								c.checked = master.checked;
-							}
-						});
-					}());
-				</script>
 			</form>
 		</div>
 		<?php

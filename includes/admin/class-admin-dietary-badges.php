@@ -50,6 +50,17 @@ class JPRM_Admin_Dietary_Badges {
 		wp_enqueue_style( $style_handle );
 		wp_add_inline_style( $style_handle, $this->inline_css() );
 
+		$script_handle = 'jprm-admin-badges';
+		wp_register_script( $script_handle, false, [ 'jquery', 'jquery-ui-sortable', 'media-editor' ], JPRM_VERSION, true );
+		wp_enqueue_script( $script_handle );
+		wp_localize_script( $script_handle, 'jprmDietaryBadges', [
+			'rowTemplate' => $this->row_html( '__INDEX__', $this->store->blank_row() ),
+			'iconPlaceholder' => self::ICON_PLACEH,
+			'selectTitle' => __( 'Select Badge Icon', 'jellopoint-restaurant-menu' ),
+			'useIcon' => __( 'Use this icon', 'jellopoint-restaurant-menu' ),
+		] );
+		wp_add_inline_script( $script_handle, $this->inline_js() );
+
 		?>
 		<div class="wrap jprm-wrap">
 			<h1 class="wp-heading-inline"><?php esc_html_e( 'Dietary Badges', 'jellopoint-restaurant-menu' ); ?></h1>
@@ -100,95 +111,80 @@ class JPRM_Admin_Dietary_Badges {
 					</tfoot>
 				</table>
 			</form>
-
-			<script type="text/html" id="tmpl-jprm-badge-row">
-				<?php echo $this->row_html( '__INDEX__', $this->store->blank_row() ); // phpcs:ignore ?>
-			</script>
 		</div>
-
-		<script>
-		jQuery(function($){
-			var $tbody = $('#jprm-badges-table .jprm-rows');
-			var tmpl = $('#tmpl-jprm-badge-row').html();
-
-			function renumberOrders(){
-				$tbody.find('tr.jprm-row').each(function(i){
-					$(this).find('input.jprm-order').val(i);
-				});
-			}
-
-			// Find max existing index to avoid name collisions when adding rows
-			var nextIndex = (function(){
-				var max = -1;
-				$tbody.find('tr.jprm-row').each(function(){
-					var i = parseInt($(this).attr('data-index'),10);
-					if (!isNaN(i) && i > max) max = i;
-				});
-				return max + 1;
-			})();
-
-			$tbody.sortable({
-				handle: '.jprm-sort',
-				axis: 'y',
-				helper: function(e, ui){
-					ui.children().each(function(){ $(this).width($(this).width()); });
-					return ui;
-				},
-				update: renumberOrders
-			});
-
-			$('.jprm-add-row').on('click', function(){
-				var html = tmpl.replace(/__INDEX__/g, nextIndex);
-				$tbody.append(html);
-				nextIndex++;
-				renumberOrders();
-			});
-
-			$tbody.on('click', '.jprm-delete', function(e){
-				e.preventDefault();
-				$(this).closest('tr.jprm-row').remove();
-				renumberOrders();
-			});
-
-			/* ===============================
-			 * MEDIA PICKER (fixed behavior)
-			 * ===============================
-			 * Create a NEW frame per click so the
-			 * select handler always targets the row
-			 * that opened it.
-			 */
-			$tbody.on('click', '.jprm-choose-icon, .jprm-icon-preview', function(e){
-				e.preventDefault();
-				var $row = $(this).closest('tr.jprm-row');
-
-				var frame = wp.media({
-					title: <?php echo wp_json_encode( __( 'Select Badge Icon', 'jellopoint-restaurant-menu' ) ); ?>,
-					button: { text: <?php echo wp_json_encode( __( 'Use this icon', 'jellopoint-restaurant-menu' ) ); ?> },
-					multiple: false
-				});
-
-				frame.on('select', function(){
-					var att = frame.state().get('selection').first().toJSON();
-					$row.find('.jprm-icon-id').val(att.id);
-					$row.find('.jprm-icon-url').val(att.url || '');
-					$row.find('.jprm-icon-preview').html('<img src="'+(att.url||'')+'" alt="" class="jprm-icon-img">');
-				});
-
-				frame.open();
-				return false;
-			});
-
-			$tbody.on('click', '.jprm-clear-icon', function(e){
-				e.preventDefault();
-				var $row = $(this).closest('tr.jprm-row');
-				$row.find('.jprm-icon-id').val('0');
-				$row.find('.jprm-icon-url').val('');
-				$row.find('.jprm-icon-preview').html('<?php echo self::ICON_PLACEH; // phpcs:ignore ?>');
-				return false;
-			});
-		});
-		</script>
 		<?php
+	}
+
+	protected function inline_js() : string {
+		return <<<'JS'
+jQuery(function($){
+	var config = window.jprmDietaryBadges || {};
+	var $tbody = $('#jprm-badges-table .jprm-rows');
+	var tmpl = config.rowTemplate || '';
+
+	function renumberOrders(){
+		$tbody.find('tr.jprm-row').each(function(i){
+			$(this).find('input.jprm-order').val(i);
+		});
+	}
+
+	var nextIndex = (function(){
+		var max = -1;
+		$tbody.find('tr.jprm-row').each(function(){
+			var i = parseInt($(this).attr('data-index'),10);
+			if (!isNaN(i) && i > max) max = i;
+		});
+		return max + 1;
+	})();
+
+	$tbody.sortable({
+		handle: '.jprm-sort',
+		axis: 'y',
+		helper: function(e, ui){
+			ui.children().each(function(){ $(this).width($(this).width()); });
+			return ui;
+		},
+		update: renumberOrders
+	});
+
+	$('.jprm-add-row').on('click', function(){
+		$tbody.append(tmpl.replace(/__INDEX__/g, nextIndex));
+		nextIndex++;
+		renumberOrders();
+	});
+
+	$tbody.on('click', '.jprm-delete', function(e){
+		e.preventDefault();
+		$(this).closest('tr.jprm-row').remove();
+		renumberOrders();
+	});
+
+	$tbody.on('click', '.jprm-choose-icon, .jprm-icon-preview', function(e){
+		e.preventDefault();
+		var $row = $(this).closest('tr.jprm-row');
+		var frame = wp.media({
+			title: config.selectTitle || '',
+			button: { text: config.useIcon || '' },
+			multiple: false
+		});
+		frame.on('select', function(){
+			var att = frame.state().get('selection').first().toJSON();
+			$row.find('.jprm-icon-id').val(att.id);
+			$row.find('.jprm-icon-url').val(att.url || '');
+			$row.find('.jprm-icon-preview').empty().append($('<img>', {src: att.url || '', alt: '', class: 'jprm-icon-img'}));
+		});
+		frame.open();
+	});
+
+	$tbody.on('click', '.jprm-clear-icon', function(e){
+		e.preventDefault();
+		var $row = $(this).closest('tr.jprm-row');
+		$row.find('.jprm-icon-id').val('0');
+		$row.find('.jprm-icon-url').val('');
+		$row.find('.jprm-icon-preview').html(config.iconPlaceholder || '');
+	});
+});
+JS;
 	}
 
 	protected function row_html( $index, $row ) : string {
