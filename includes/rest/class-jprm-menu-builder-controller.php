@@ -403,7 +403,12 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 		$placements = Menu_Structure_Store::item_placements( $menu_id );
 		$out = [];
 		foreach ( (array) $q->posts as $pid ) {
-			if ( ! current_user_can( 'read_post', (int) $pid ) ) { continue; }
+			$post = get_post( (int) $pid );
+			if ( ! $post ) { continue; }
+			// Drafts and pending items may only be exposed to users who can edit that item.
+			// A broad edit_posts capability must not grant access to another author's content.
+			if ( 'publish' !== $post->post_status && ! current_user_can( 'edit_post', (int) $pid ) ) { continue; }
+			if ( 'publish' === $post->post_status && ! current_user_can( 'read_post', (int) $pid ) ) { continue; }
 			$placement = $placements[ (int) $pid ] ?? null;
 			$belongs = is_array( $placement );
 
@@ -431,6 +436,19 @@ return rest_ensure_response( [ 'ok' => true, 'count' => count( $flat ) ] );
 		$items = (array) $request['items'];
 		if ( $menu_id <= 0 ) { return new \WP_Error( 'jprm_bad_params', __( 'menu_id and items are required.', 'jellopoint-restaurant-menu' ), [ 'status' => 400 ] ); }
 		$section_ids = Menu_Structure_Store::section_ids( $menu_id );
+		$existing = Menu_Structure_Store::item_placements( $menu_id );
+		$submitted_ids = [];
+		foreach ( $items as $row ) {
+			$item_id = (int) ( $row['id'] ?? 0 );
+			if ( $item_id > 0 ) { $submitted_ids[ $item_id ] = true; }
+		}
+		// save_items() replaces the complete placement map. Refuse a partial request
+		// that would silently remove items the current user cannot edit.
+		foreach ( array_keys( $existing ) as $existing_id ) {
+			if ( ! isset( $submitted_ids[ (int) $existing_id ] ) && ! current_user_can( 'edit_post', (int) $existing_id ) ) {
+				return new \WP_Error( 'jprm_item_forbidden', __( 'You cannot change all items in this Menu.', 'jellopoint-restaurant-menu' ), [ 'status' => 403 ] );
+			}
+		}
 		$valid = [];
 		foreach ( $items as $row ) {
 			$pid = (int) ( $row['id'] ?? 0 );

@@ -121,7 +121,8 @@ class Sections_Admin {
 		$taxonomies = (array) ( $q->query_vars['taxonomy'] ?? [] );
 		if ( ! in_array( self::TAX_SECTION, $taxonomies, true ) ) return;
 
-		// Read menu and ordering parameters without changing state.
+		// Native list-table filters are read-only display parameters; they do not
+		// mutate data, so adding a nonce to the GET URL would not provide CSRF value.
 		$menu_id = 0;
 		if ( isset( $_GET['jprm_filter_menu'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list-table filter.
 			$menu_id = absint( wp_unslash( $_GET['jprm_filter_menu'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list-table filter.

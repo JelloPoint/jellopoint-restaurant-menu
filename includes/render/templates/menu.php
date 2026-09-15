@@ -370,7 +370,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 	// ------- ABOVE info blocks ------- //
 	if ( ! empty( $ib_map[ $tid ]['above'] ) ) {
 		// The renderer applies contextual escaping to every Info Block field.
-		echo '<li class="jp-menu__infoblock-li">' . jprm_infoblocks_render_group( $ib_map[ $tid ]['above'], 'above' ) . '</li>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo '<li class="jp-menu__infoblock-li">' . wp_kses_post( jprm_infoblocks_render_group( $ib_map[ $tid ]['above'], 'above' ) ) . '</li>';
 	}
 
 	// ------- Section header HTML (now lives INSIDE the box) ------- //
@@ -424,7 +424,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 		echo '<li class="' . esc_attr( implode( ' ', $wrapper_classes ) ) . '" data-section-id="' . esc_attr( (string) $tid ) . '">';
 
 		// Header (if any)
-		echo $header_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo wp_kses_post( $header_html );
 
 		// ------- Include layout if there are items ------- //
 		$base = __DIR__;
@@ -599,7 +599,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 	// ------- BELOW info blocks ------- //
 	if ( ! empty( $ib_map[ $tid ]['below'] ) ) {
 		// The renderer applies contextual escaping to every Info Block field.
-		echo '<li class="jp-menu__infoblock-li">' . jprm_infoblocks_render_group( $ib_map[ $tid ]['below'], 'below' ) . '</li>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo '<li class="jp-menu__infoblock-li">' . wp_kses_post( jprm_infoblocks_render_group( $ib_map[ $tid ]['below'], 'below' ) ) . '</li>';
 	}
 };
 
@@ -608,7 +608,7 @@ echo '<div class="jprm-menu-preset jprm-preset--' . esc_attr( $style_preset ) . 
 
 // JPRM_PRO_BEGIN:heading-above
 if ( $menu_term && ( $show_menu_title || $show_menu_desc || ! empty( $daily_menu['enabled'] ) ) && $menu_pos === 'above_menu' ) {
-	echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global', $daily_menu, $show_daily_date, $show_daily_price && 'bottom_menu' !== $daily_price_position, $currency_opts, $daily_price_position ); // phpcs:ignore
+	echo wp_kses_post( jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global', $daily_menu, $show_daily_date, $show_daily_price && 'bottom_menu' !== $daily_price_position, $currency_opts, $daily_price_position ) );
 }
 
 // JPRM_PRO_END:heading-above
@@ -622,7 +622,7 @@ foreach ( $columns_sets as $col_idx => $roots ) {
 	echo '<ul class="jp-menu jp-menu--col" data-col="' . (int) $col_idx . '">';
 // JPRM_PRO_BEGIN:heading-column
 	if ( 0 === (int) $col_idx && 'first_column' === $menu_pos && $menu_term && ( $show_menu_title || $show_menu_desc || ! empty( $daily_menu['enabled'] ) ) ) {
-		echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'column', $daily_menu, $show_daily_date, $show_daily_price && 'bottom_menu' !== $daily_price_position, $currency_opts, $daily_price_position ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo wp_kses_post( jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'column', $daily_menu, $show_daily_date, $show_daily_price && 'bottom_menu' !== $daily_price_position, $currency_opts, $daily_price_position ) );
 	}
 // JPRM_PRO_END:heading-column
 	foreach ( $roots as $root_tid ) {
@@ -634,14 +634,14 @@ echo '</div>';
 
 // JPRM_PRO_BEGIN:daily-bottom-price
 if ( $menu_term && ! empty( $daily_menu['enabled'] ) && $show_daily_price && 'bottom_menu' === $daily_price_position ) {
-	echo jprm_render_menu_meta( $menu_term, false, false, 'bottom', $daily_menu, false, true, $currency_opts, 'beside_date' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	echo wp_kses_post( jprm_render_menu_meta( $menu_term, false, false, 'bottom', $daily_menu, false, true, $currency_opts, 'beside_date' ) );
 }
 
 // JPRM_PRO_END:daily-bottom-price
 /* -------------- bottom meta (below) -------------- */
 // JPRM_PRO_BEGIN:heading-below
 if ( $menu_term && ( $show_menu_title || $show_menu_desc || ! empty( $daily_menu['enabled'] ) ) && $menu_pos === 'below_menu' ) {
-	echo jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global', $daily_menu, $show_daily_date, $show_daily_price && 'bottom_menu' !== $daily_price_position, $currency_opts, $daily_price_position ); // phpcs:ignore
+	echo wp_kses_post( jprm_render_menu_meta( $menu_term, $show_menu_title, $show_menu_desc, 'global', $daily_menu, $show_daily_date, $show_daily_price && 'bottom_menu' !== $daily_price_position, $currency_opts, $daily_price_position ) );
 }
 
 // JPRM_PRO_END:heading-below

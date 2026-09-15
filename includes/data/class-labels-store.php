@@ -131,7 +131,7 @@ class JPRM_Labels_Store {
 
         if ( empty($rows) ) {
             // row_html() escapes each stored value and returns the fixed admin row markup.
-            echo self::row_html( 0, [ // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			echo wp_kses_post( self::row_html( 0, [
                 'id' => '',
                 'label' => '',
                 'slug' => '',
@@ -139,11 +139,11 @@ class JPRM_Labels_Store {
                 'icon_url' => '',
                 'active' => true,
                 'order' => 0,
-            ] );
+			] ) );
         } else {
             foreach ( $rows as $i => $row ) {
                 // row_html() escapes each stored value and returns the fixed admin row markup.
-                echo self::row_html( $i, $row ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				echo wp_kses_post( self::row_html( $i, $row ) );
             }
         }
 

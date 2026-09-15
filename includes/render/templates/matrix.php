@@ -362,11 +362,11 @@ foreach ( $items as $item_index => $post ) {
 			if ( $title !== '' ) {
 				echo '<div class="jp-menu__titlewrap">';
 					if ( $badges_position === 'before' && $badges_html !== '' ) {
-						echo $badges_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+						echo wp_kses_post( $badges_html );
 					}
 				echo '<span class="jp-menu__title">' . esc_html( $title ) . '</span>';
 					if ( $badges_position !== 'before' && $badges_html !== '' ) {
-						echo $badges_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+						echo wp_kses_post( $badges_html );
 					}
 				echo '</div>';
 			}

@@ -127,9 +127,9 @@ foreach ($items as $item_index => $post) {
 	echo '<div class="jp-menu__content">';
 		if ($title !== '') {
 			echo '<div class="jp-menu__titlewrap">';
-				if ($badges_position === 'before' && $badges_html !== '') echo $badges_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Render helper escapes badge fields.
+				if ($badges_position === 'before' && $badges_html !== '') echo wp_kses_post( $badges_html );
 				echo '<span class="jp-menu__title">'.esc_html($title).'</span>';
-				if ($badges_position !== 'before' && $badges_html !== '') echo $badges_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Render helper escapes badge fields.
+				if ($badges_position !== 'before' && $badges_html !== '') echo wp_kses_post( $badges_html );
 			echo '</div>';
 		}
 		if ( is_string( $desc ) && $desc !== '' ) {
@@ -179,7 +179,7 @@ foreach ($items as $item_index => $post) {
 			}
 
 			// Pair fragments contain only fixed markup plus values escaped above.
-			echo implode('', $pairs); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			echo wp_kses_post( implode( '', $pairs ) );
 
 		echo '</div>'; // .jp-inline-below__line
 	echo '</div>'; // .jp-menu__pricegroup--below
