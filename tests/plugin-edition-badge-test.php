@@ -3,7 +3,7 @@
 define( 'ABSPATH', __DIR__ );
 define( 'JPRM_PLUGIN_FILE', dirname( __DIR__ ) . '/jellopoint-restaurant-menu.php' );
 define( 'JPRM_PLUGIN_URL', 'https://example.test/wp-content/plugins/jellopoint-restaurant-menu-premium/' );
-define( 'JPRM_VERSION', '2.0.48' );
+define( 'JPRM_VERSION', '2.0.49' );
 
 $jprm_test_premium = true;
 $jprm_test_hooks   = array();

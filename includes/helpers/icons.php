@@ -12,9 +12,13 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 /** Create a mask <span> for an SVG URL (color via currentColor). */
 if ( ! function_exists('jprm_svg_mask_span') ) {
     function jprm_svg_mask_span( string $url, string $extra_class = '' ) : string {
-        $url = esc_url( $url );
+        $url = esc_url_raw( $url, [ 'http', 'https' ] );
+        if ( '' === $url ) { return ''; }
+        // Encode delimiters for an unquoted CSS URL, avoiding HTML quote entities.
+        $url = str_replace( [ "'", '"', '(', ')', '\\', ';', ' ' ], [ '%27', '%22', '%28', '%29', '%5C', '%3B', '%20' ], $url );
+        $style = '--jprm-icon-image:url(' . $url . ');';
         $cls = 'jp-icon-mask' . ( $extra_class ? ' ' . $extra_class : '' );
-        return '<span class="' . esc_attr($cls) . '" style="-webkit-mask-image:url(\''.$url.'\');mask-image:url(\''.$url.'\');" aria-hidden="true"></span>';
+        return '<span class="' . esc_attr($cls) . '" style="' . esc_attr( $style ) . '" aria-hidden="true"></span>';
     }
 }
 
