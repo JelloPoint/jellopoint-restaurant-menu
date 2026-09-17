@@ -5,8 +5,9 @@ includes:
 parameters:
   level: 2
   paths: [ . ]
-  # Generated artifacts and the real-WordPress fixture are checked separately.
-  excludePaths: [ vendor/*, node_modules/*, .github/*, package/*, tests/fixtures/edition-wordpress-smoke.php ]
+  # Generated artifacts and real-WordPress integration fixtures are checked separately.
+  # Their standalone WordPress stubs must not override production API signatures.
+  excludePaths: [ vendor/*, node_modules/*, .github/*, package/*, tests/fixtures/edition-wordpress-smoke.php, tests/price-labels-form-test.php ]
 
   stubFiles:
     - vendor/php-stubs/wordpress-stubs/wordpress-stubs.php

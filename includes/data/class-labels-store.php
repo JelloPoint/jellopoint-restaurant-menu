@@ -129,9 +129,17 @@ class JPRM_Labels_Store {
         echo '<th style="width:90px">' . esc_html__( 'Actions', 'jellopoint-restaurant-menu' ) . '</th>';
         echo '</tr></thead><tbody id="jprm-labels-tbody">';
 
+        // This is a form, not post content: preserve only the required input attributes.
+        // Keep this allowlist local; never enable form fields in general post HTML.
+        $allowed_html = wp_kses_allowed_html( 'post' );
+        $allowed_html['input'] = array(
+            'type' => true, 'class' => true, 'name' => true,
+            'value' => true, 'checked' => true,
+        );
+
         if ( empty($rows) ) {
             // row_html() escapes each stored value and returns the fixed admin row markup.
-			echo wp_kses_post( self::row_html( 0, [
+			echo wp_kses( self::row_html( 0, [
                 'id' => '',
                 'label' => '',
                 'slug' => '',
@@ -139,11 +147,11 @@ class JPRM_Labels_Store {
                 'icon_url' => '',
                 'active' => true,
                 'order' => 0,
-			] ) );
+			] ), $allowed_html );
         } else {
             foreach ( $rows as $i => $row ) {
                 // row_html() escapes each stored value and returns the fixed admin row markup.
-				echo wp_kses_post( self::row_html( $i, $row ) );
+				echo wp_kses( self::row_html( $i, $row ), $allowed_html );
             }
         }
 
