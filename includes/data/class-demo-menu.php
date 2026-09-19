@@ -134,7 +134,7 @@ final class JPRM_Demo_Menu {
 					'label_custom' => $label,
 					'icon_id'      => 0,
 					'amount'       => $amount,
-					'hide_icon'    => true,
+					'hide_icon'    => false,
 				];
 			}
 			return self::item( $title, $section, $description, $badges, [ 'mode' => 'multi', 'rows' => $prices ] );
