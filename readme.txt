@@ -7,25 +7,48 @@ Stable tag: 2.0.51
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-Create restaurant menus with sections, price labels, dietary badges and an Elementor widget.
+Create beautiful, flexible restaurant menus in WordPress with sections, prices, dietary badges and seamless Elementor integration.
 
 == Description ==
 
-Manage Menu Items, Menus, Sections and reusable Info Blocks centrally. Display your restaurant menu using the JelloPoint Restaurant Menu Elementor widget.
+**Create beautiful restaurant menus directly in WordPress.**
 
-Core menu features include single prices, price labels, dietary badges, icons, section ordering and responsive presentation controls.
+JelloPoint – Restaurant Menu gives restaurants, cafés and food businesses an easy way to create, organize and display professional menus on their website.
 
-[//]: # fs_free_only_begin
-Multiple Prices, Daily/Weekly Menus, Print/PDF and CSV/JSON Import/Export are available in Pro and are not included in this Free package.
-[//]: # fs_free_only_end
+Build your menu from reusable **Menus, Sections, Menu Items and Info Blocks**, then display it with the included Elementor widget. Organize dishes in the Menu Builder, add prices and dietary information, and customize the presentation to match your website.
 
-[//]: # fs_premium_only_begin
-The Pro edition adds Multiple Prices, Daily/Weekly Menus, Print/PDF and CSV/JSON Import/Export. A non-blocking expired license retains these features; updates and support require renewal.
-[//]: # fs_premium_only_end
+= Free features =
 
-Elementor is required for the website widget. Menu management remains available without Elementor. WPML is optional; an included language configuration registers menu content and widget fields for translation.
+* Create and manage multiple restaurant menus
+* Reusable Sections and Menu Items
+* Visual Menu Builder for organizing your menu
+* Single prices and customizable price labels
+* Dietary badges and icons
+* Reusable Info Blocks
+* Elementor Restaurant Menu widget
+* Flexible menu layouts and extensive styling controls
+* Responsive presentation
+* Demo menu import to help you get started
+* WPML configuration for multilingual menu content
 
-== External service: Freemius ==
+= JelloPoint Pro =
+
+JelloPoint Pro adds:
+
+* Multiple Prices – ideal for sizes, portions, glass/bottle pricing and more
+* Daily and Weekly Menus
+* Print-friendly menus and PDF creation
+* CSV and JSON Import/Export
+
+If a Pro subscription expires, Pro functionality continues to work with the installed version. Renewal is required for future Pro updates and support.
+
+= Elementor integration =
+
+Use the JelloPoint Restaurant Menu widget to place your menus directly in Elementor. Choose the menu you want to display and customize its layout, typography, spacing, colors, sections, prices, badges and other presentation options from the Elementor editor.
+
+Elementor is required for the website widget. Restaurant menu management in WordPress remains available without Elementor.
+
+= External service: Freemius =
 
 The plugin bundles Freemius SDK 2.13.4 for account registration, license activation, updates, checkout and optional usage-data sharing. The SDK communicates with Freemius services and can transmit site URL, plugin and WordPress/PHP versions, account/contact details and license information as part of these operations. Review its connection and permission screens before proceeding. Free menu management does not require a license or optional usage-data sharing. Restaurant menu content is not explicitly sent by JelloPoint to Freemius.
 
@@ -51,6 +74,14 @@ Deactivation retains data. Deleting the plugin retains data by default. Enable t
 = How is a PDF created? =
 
 In Pro, open the printable menu and use your browser's print dialog to save as PDF.
+
+== Screenshots ==
+
+1. Build and organize restaurant menus with reusable Sections and Menu Items.
+2. Display and customize your restaurant menu visually with the JelloPoint Elementor widget.
+3. Create clean restaurant menu layouts with prices, descriptions and flexible styling.
+4. Add dietary information, icons and price labels directly to your menu items.
+5. Create structured drinks menus with flexible pricing layouts.
 
 == Changelog ==
 

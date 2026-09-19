@@ -2,6 +2,17 @@
 /** Test compiler fail-closed behavior and, when supplied, the actual built ZIPs. */
 require_once dirname( __DIR__ ) . '/tools/build-packages.php';
 function package_check( $ok, string $message ) : void { if ( ! $ok ) { throw new RuntimeException( $message ); } }
+// The repository readme is the canonical product description for both editions.
+// Keep these checks before the no-artifact return so CI catches a shortened source.
+$source_readme = str_replace( "\r\n", "\n", file_get_contents( dirname( __DIR__ ) . '/readme.txt' ) );
+foreach ( [ '= Free features =', '= JelloPoint Pro =', '= Elementor integration =', '== Screenshots ==', 'External service: Freemius' ] as $section ) {
+	package_check( false !== strpos( $source_readme, $section ), 'Full product readme section missing: ' . $section );
+}
+preg_match( '/^ \* Version:\s*(\S+)/m', file_get_contents( dirname( __DIR__ ) . '/jellopoint-restaurant-menu.php' ), $version_match );
+package_check( isset( $version_match[1] ), 'Plugin version missing.' );
+package_check( false !== strpos( $source_readme, 'Stable tag: ' . $version_match[1] . "\n" ), 'Readme stable tag differs from plugin version.' );
+package_check( false !== strpos( $source_readme, '= ' . $version_match[1] . ' =' ), 'Current release changelog missing.' );
+
 $regions = ['example' => ['file' => 'sample.php', 'free' => "free();\n"]];
 $seen = [];
 $input = "before();\n// JPRM_PRO_BEGIN:example\npremium();\n// JPRM_PRO_END:example\nafter();\n";
@@ -58,6 +69,7 @@ foreach ( ['free' => false, 'pro' => true] as $edition => $premium ) {
 	foreach ( [ 'tests', 'tools', 'stubs', 'docs', '.github', '.vscode', 'package', 'composer.json', 'composer.lock', 'phpcs.xml', 'phpstan.neon', 'phpstan-baseline.neon', 'CONTRIBUTING.md' ] as $development_path ) {
 		package_check( ! file_exists( "$dir/$development_path" ), "Development-only path leaked into $edition: $development_path" );
 	}
+	package_check( $source_readme === str_replace( "\r\n", "\n", file_get_contents( "$dir/readme.txt" ) ), "$edition readme differs from the full canonical product description." );
 	foreach ( JPRM_Package_Builder::PRO_FILES as $pro_file ) { package_check( $premium === is_file( "$dir/$pro_file" ), "Wrong edition: $pro_file" ); }
 	$builder = file_get_contents( "$dir/includes/admin/assets/jprm-menu-builder.js" );
 	package_check( $premium === ( false !== strpos( $builder, 'menu-builder/info-blocks' ) ), 'Print placement JS has wrong edition.' );

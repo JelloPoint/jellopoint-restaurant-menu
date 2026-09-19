@@ -64,5 +64,6 @@ foreach ( [
 	$content = file_get_contents( $root . '/' . $premium_source );
 	fs_check( false !== strpos( $content, 'can_use_premium_code__premium_only' ) || false !== strpos( $content, '__premium_only(' ), 'Freemius cannot identify Multiple Prices premium code in ' . $premium_source );
 }
-fs_check( false !== strpos( $readme, 'fs_free_only_begin' ) && false !== strpos( $readme, 'fs_premium_only_begin' ), 'Freemius readme edition markers missing.' );
+// The full product description is shared; Freemius must not strip sections from it.
+fs_check( ! preg_match( '/fs_(?:free|premium)_only_(?:begin|end)/', $readme ), 'Keep the canonical product readme outside edition-only blocks.' );
 echo "Freemius configuration and package checks passed; WordPress sandbox testing still required.\n";
