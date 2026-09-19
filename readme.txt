@@ -3,7 +3,7 @@ Tags: restaurant, menu, elementor, food, prices
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2.0.50
+Stable tag: 2.0.51
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -53,6 +53,11 @@ Deactivation retains data. Deleting the plugin retains data by default. Enable t
 In Pro, open the printable menu and use your browser's print dialog to save as PDF.
 
 == Changelog ==
+
+= 2.0.51 =
+* Show full annual prices on the Freemius Upgrade page instead of monthly equivalents.
+* Fix Matrix price column alignment so label icons and headers follow the price cell alignment.
+* Add responsive Price Column Spacing under Style > Prices & Labels for Matrix layouts, without extra padding after the last price column.
 
 = 2.0.50 =
 * Fix Price Labels form fields disappearing and existing labels being lost when saving.
