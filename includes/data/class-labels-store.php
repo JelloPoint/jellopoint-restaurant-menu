@@ -39,7 +39,12 @@ class JPRM_Labels_Store {
     public static function resolve( $ref_or_text ) : array {
         $ref = is_scalar($ref_or_text) ? (string)$ref_or_text : '';
         if ( $ref !== '' ) {
+            $name_matches = [];
             foreach ( self::all() as $row ) {
+                // Keep ID/slug matches authoritative, even if an earlier name matches.
+                if ( $ref === (string) ( $row['label'] ?? '' ) ) {
+                    $name_matches[] = $row;
+                }
                 $id   = (string)($row['id'] ?? '');
                 $slug = (string)($row['slug'] ?? '');
                 if ( $ref === $id || $ref === $slug ) {
@@ -49,6 +54,16 @@ class JPRM_Labels_Store {
                     $icon_url = (string)($row['icon_url'] ?? '');
                     return ['label_text' => $text, 'icon_id' => ($icon > 0 ? $icon : 0), 'icon_url' => $icon_url];
                 }
+            }
+            // Legacy/custom references can contain the visible catalog name.
+            // Ambiguous names stay plain text rather than choosing an arbitrary icon.
+            if ( count( $name_matches ) === 1 ) {
+                $match = $name_matches[0];
+                return [
+                    'label_text' => $ref,
+                    'icon_id'    => max( 0, (int) ( $match['icon_id'] ?? 0 ) ),
+                    'icon_url'   => (string) ( $match['icon_url'] ?? '' ),
+                ];
             }
         }
         return ['label_text' => $ref, 'icon_id' => 0, 'icon_url' => ''];
