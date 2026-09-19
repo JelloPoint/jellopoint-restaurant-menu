@@ -17,6 +17,8 @@ JelloPoint – Restaurant Menu gives restaurants, cafés and food businesses an 
 
 Build your menu from reusable **Menus, Sections, Menu Items and Info Blocks**, then display it with the included Elementor widget. Organize dishes in the Menu Builder, add prices and dietary information, and customize the presentation to match your website.
 
+[View the live demo](https://jprm.jellopoint.com/filtered-menu/) to explore example restaurant menus. The demo also showcases Pro features; see the Free and Pro feature lists below for availability.
+
 = Free features =
 
 * Create and manage multiple restaurant menus
