@@ -1013,6 +1013,20 @@ trait Restaurant_Menu_Style {
 			]
 		);
 
+		$this->add_responsive_control(
+			'jprm_price_spacing_matrix',
+			[
+				'label'       => __( 'Price Column Spacing', 'jellopoint-restaurant-menu' ),
+				'type'        => Controls_Manager::SLIDER,
+				'size_units'  => [ 'px' ],
+				'range'       => [ 'px' => [ 'min' => 0, 'max' => 60, 'step' => 1 ] ],
+				'description' => __( 'Matrix only: extra space between price columns, including their label headers.', 'jellopoint-restaurant-menu' ),
+				'selectors'   => [
+					'{{WRAPPER}} .jp-matrix > .jp-matrix__row > .jp-matrix__cell[data-label-key]:not(:last-child)' => 'padding-inline-end: {{SIZE}}{{UNIT}};',
+				],
+			]
+		);
+
 		/* Labels */
 		$this->add_control(
 			'jprm_labels_heading',
