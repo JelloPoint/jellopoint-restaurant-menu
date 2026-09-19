@@ -1008,6 +1008,7 @@ trait Restaurant_Menu_Style {
 				],
 				'selectors' => [
 					'{{WRAPPER}} .jp-matrix__row .jp-matrix__cell--value' => 'text-align: {{VALUE}};',
+					'{{WRAPPER}} .jp-matrix__row .jp-matrix__cell--head' => 'text-align: {{VALUE}};',
 				],
 			]
 		);
@@ -1455,7 +1456,10 @@ trait Restaurant_Menu_Style {
 				'center'=>['title'=>__('Center','jellopoint-restaurant-menu'),'icon'=>'eicon-text-align-center'],
 				'right'=>['title'=>__('Right','jellopoint-restaurant-menu'),'icon'=>'eicon-text-align-right'],
 			],
-			'selectors'=>['{{WRAPPER}} .jp-matrix__cell--value'=>'text-align: {{VALUE}};'],
+			'selectors'=>[
+				'{{WRAPPER}} .jp-matrix__cell--value'=>'text-align: {{VALUE}};',
+				'{{WRAPPER}} .jp-matrix__cell--head'=>'text-align: {{VALUE}};',
+			],
 		]);
 		$this->end_controls_section();
 	}
