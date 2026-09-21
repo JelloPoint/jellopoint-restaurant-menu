@@ -281,7 +281,9 @@ $this->add_control( 'items_order_overrides', [
 			'type' => Controls_Manager::SWITCHER,
 			'default' => '',
 			'return_value' => 'yes',
-			'condition' => [ 'layout_columns' => [ '2', '3' ] ],
+			// Elementor compares condition values strictly on the frontend.
+			// Existing widgets can store SELECT values as numbers or strings.
+			'condition' => [ 'layout_columns' => [ '2', '3', 2, 3 ] ],
 			'description' => __( 'Balance items within each section. Section headings, descriptions and Info Blocks span the full width.', 'jellopoint-restaurant-menu' ),
 		] );
 

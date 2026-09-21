@@ -29,6 +29,18 @@ $root = dirname( __DIR__ );
 $controls = file_get_contents( $root . '/includes/widgets/traits/restaurant-menu-controls.php' );
 columns_check( strpos( $controls, "'section_source'" ) < strpos( $controls, "'jprm_section_layout'" ) && strpos( $controls, "'jprm_section_layout'" ) < strpos( $controls, "'jprm_section_sections_menus'" ), 'Layout control order incorrect.' );
 columns_check( substr_count( $controls, "'jprm_section_layout'" ) === 1, 'Layout registered twice.' );
-columns_check( preg_match( "/add_control\( 'layout_section_heading_full_width', \\[.*?'default' => '',.*?'condition' => \\[ 'layout_columns' => \\[ '2', '3' \\] \\]/s", $controls ) === 1, 'New setting must default off and require multiple columns.' );
+columns_check( preg_match( "/add_control\\( 'layout_section_heading_full_width', \\[.*?'default' => '',.*?'condition' => \\[ 'layout_columns' => \\[([^\\]]+)\\] \\]/s", $controls, $condition_match ) === 1, 'New setting must default off and require multiple columns.' );
+// Read the actual registered condition values, preserving numeric/string types.
+preg_match_all( "/'([^']*)'|(\\d+)/", $condition_match[1], $condition_values, PREG_SET_ORDER );
+$accepted_columns = array_map( function( $match ) { return isset( $match[2] ) ? (int) $match[2] : $match[1]; }, $condition_values );
+foreach ( [ '2', 2, '3', 3 ] as $saved_columns ) {
+    // Match Elementor's strict frontend condition comparison.
+    columns_check( in_array( $saved_columns, $accepted_columns, true ), 'Frontend must retain the switch for ' . var_export( $saved_columns, true ) );
+    $html = jprm_columns_fixture( [ 'layout_columns' => $saved_columns ] );
+    columns_check( strpos( $html, 'jp-menu-grid--section-columns' ) !== false, 'Enabled layout missing.' );
+}
+foreach ( [ '1', 1, '', null, false, 0, '4', 4 ] as $saved_columns ) {
+    columns_check( ! in_array( $saved_columns, $accepted_columns, true ), 'Switch must remain hidden for unsupported column values.' );
+}
 columns_check( substr_count( $controls, "'layout_section_heading_full_width!' => 'yes'" ) === 3, 'All manual section splitting controls must hide in new mode.' );
 echo "Section column rendering, hierarchy, item order, layouts, Info Blocks and legacy mode passed.\n";
