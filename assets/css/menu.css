@@ -658,6 +658,20 @@
 }
 
 /* Title area details */
+/* Collapsed content must not reserve an empty title/description grid row. */
+.jp-layout-inline .jp-grid--no-description,
+.jp-layout-inline .jp-grid--no-titleline { grid-template-rows: auto; row-gap: 0; }
+.jp-layout-inline .jp-grid--no-description .jp-right-pricegroup,
+.jp-layout-inline .jp-grid--no-titleline .jp-right-pricegroup { grid-row: 1; }
+.jp-layout-inline .jp-grid--no-titleline .jp-left-desc { grid-row: 1; }
+.jp-inline-below .jp-menu__pricegroup--below:first-child { margin-top: 0; }
+.jp-matrix.jp-matrix--no-item-text {
+  grid-template-columns: auto repeat(var(--jp-matrix-cols, 1), auto);
+}
+/* Override Elementor's generated item-text minimum width when that text is hidden. */
+.jp-matrix.jp-matrix--no-item-text .jp-matrix__cell--item { min-width: 0 !important; }
+.jp-matrix.jp-matrix--no-item-text .jp-matrix__cell--item:empty { margin: 0; padding: 0; }
+
 .jp-layout-inline .jp-menu__titlewrap{ display:flex; width:100%; align-items:baseline; gap:.35rem; }
 
 /* Price rows baseline tidy */

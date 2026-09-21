@@ -121,8 +121,8 @@ foreach ( $items as $item_index => $post ) {
 	}
 // JPRM_PRO_END:daily-inline-separator
 	$pid   = (int) $post->ID;
-	$title = get_the_title( $pid );
-	$desc  = get_post_meta( $pid, 'jprm_desc', true );
+	$title = ( $sctx['show_item_title'] ?? true ) ? get_the_title( $pid ) : '';
+	$desc  = ( $sctx['show_item_description'] ?? true ) ? get_post_meta( $pid, 'jprm_desc', true ) : '';
 
 	$rows = $show_item_prices && function_exists( 'jprm_get_pricegroup_data' )
 		? jprm_get_pricegroup_data( $pid, $label_map, $currency_opts )
@@ -146,27 +146,30 @@ foreach ( $items as $item_index => $post ) {
 	echo '<div class="jp-menu__item"><div class="jp-menu__inner">';
 
 	// --- GRID: Title + Leader + Prices (row 1) ; Description under Title (row 2) ---
-	echo '<div class="jp-grid jp-grid--inline">';
+	$has_titleline = $title !== '' || $badges_html !== '';
+	$has_description = is_string( $desc ) && $desc !== '';
+	$grid_classes = 'jp-grid jp-grid--inline';
+	if ( ! $has_titleline ) { $grid_classes .= ' jp-grid--no-titleline'; }
+	if ( ! $has_description ) { $grid_classes .= ' jp-grid--no-description'; }
+	echo '<div class="' . esc_attr( $grid_classes ) . '">';
 
 		// LEFT column, row 1: Title (+badges)
-		echo '<div class="jp-left-title">';
-			echo '<div class="jp-menu__content">';
-				if ( $title !== '' ) {
-					echo '<div class="jp-menu__titlewrap">';
-						if ( $badges_position === 'before' && $badges_html !== '' ) {
-							echo $badges_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-						}
-						echo '<span class="jp-menu__title">' . esc_html( $title ) . '</span>';
-						if ( $badges_position !== 'before' && $badges_html !== '' ) {
-							echo $badges_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-						}
-					echo '</div>';
+		if ( $has_titleline ) {
+			echo '<div class="jp-left-title"><div class="jp-menu__content"><div class="jp-menu__titlewrap">';
+				if ( $badges_position === 'before' && $badges_html !== '' ) {
+					echo $badges_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				}
-			echo '</div>';
-		echo '</div>';
+				if ( $title !== '' ) {
+					echo '<span class="jp-menu__title">' . esc_html( $title ) . '</span>';
+				}
+				if ( $badges_position !== 'before' && $badges_html !== '' ) {
+					echo $badges_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				}
+			echo '</div></div></div>';
+		}
 
 		// MIDDLE column, row 1: Leader
-		if ( $leader_enabled && $has_price ) {
+		if ( $leader_enabled && $has_price && $title !== '' ) {
 			echo '<span class="jp-leader" aria-hidden="true" data-style="' . esc_attr( $leader_style ) . '"></span>';
 		} else {
 			// keep grid structure consistent
@@ -196,11 +199,9 @@ foreach ( $items as $item_index => $post ) {
 		echo '</div>';
 
 		// LEFT column, row 2: Description (under title)
-		echo '<div class="jp-left-desc">';
-			if ( is_string( $desc ) && $desc !== '' ) {
-				echo '<div class="jp-menu__desc">' . wp_kses_post( wpautop( wp_kses_post( $desc ) ) ) . '</div>';
-			}
-		echo '</div>';
+		if ( $has_description ) {
+			echo '<div class="jp-left-desc"><div class="jp-menu__desc">' . wp_kses_post( wpautop( wp_kses_post( $desc ) ) ) . '</div></div>';
+		}
 
 	echo '</div>'; // .jp-grid
 

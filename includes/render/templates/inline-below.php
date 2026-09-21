@@ -108,8 +108,8 @@ foreach ($items as $item_index => $post) {
 	}
 // JPRM_PRO_END:daily-inline-below-separator
 	$pid   = (int)$post->ID;
-	$title = get_the_title($pid);
-	$desc  = get_post_meta($pid, 'jprm_desc', true);
+	$title = ( $sctx['show_item_title'] ?? true ) ? get_the_title($pid) : '';
+	$desc  = ( $sctx['show_item_description'] ?? true ) ? get_post_meta($pid, 'jprm_desc', true) : '';
 
 	$rows = $show_item_prices && function_exists('jprm_get_pricegroup_data')
 		? jprm_get_pricegroup_data($pid, $label_map, $currency_opts)
@@ -124,11 +124,14 @@ foreach ($items as $item_index => $post) {
 	echo '<div class="jp-menu__item"><div class="jp-menu__inner">';
 
 	// ---- Content (title + desc) ----
+	if ( $title !== '' || $badges_html !== '' || ( is_string( $desc ) && $desc !== '' ) ) {
 	echo '<div class="jp-menu__content">';
-		if ($title !== '') {
+		if ($title !== '' || $badges_html !== '') {
 			echo '<div class="jp-menu__titlewrap">';
 				if ($badges_position === 'before' && $badges_html !== '') echo wp_kses_post( $badges_html );
-				echo '<span class="jp-menu__title">'.esc_html($title).'</span>';
+				if ( $title !== '' ) {
+					echo '<span class="jp-menu__title">'.esc_html($title).'</span>';
+				}
 				if ($badges_position !== 'before' && $badges_html !== '') echo wp_kses_post( $badges_html );
 			echo '</div>';
 		}
@@ -136,6 +139,7 @@ foreach ($items as $item_index => $post) {
 				echo '<div class="jp-menu__desc">' . wp_kses_post( wpautop( wp_kses_post( $desc ) ) ) . '</div>';
 			}
 	echo '</div>';
+	}
 
 	// ---- Full-width line of chips below ----
 	if ( $show_item_prices ) {

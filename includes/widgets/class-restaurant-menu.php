@@ -482,6 +482,9 @@ final class Restaurant_Menu extends Widget_Base {
 
         // Build ctx for template
         $ctx = [
+            // Missing settings on existing widgets retain both pieces of content.
+            'show_item_title' => ( $this->get_settings( 'show_item_title' ) ?? 'yes' ) === 'yes',
+            'show_item_description' => ( $this->get_settings( 'show_item_description' ) ?? 'yes' ) === 'yes',
             // Multi-column
             'layout_columns' => $columns,
             // This non-dynamic switch must survive Elementor's visibility filtering:

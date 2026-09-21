@@ -18,8 +18,11 @@ columns_check( substr_count( $old, 'class="jp-menu jp-menu--col"' ) === 2, 'Lega
 $hidden = jprm_columns_fixture( [ 'show_main_sections' => 'no', 'show_section_name' => false ] );
 columns_check( strpos( $hidden, '<h3' ) === false && strpos( $hidden, '<h4' ) === false, 'New layout must respect heading visibility.' );
 $variants = jprm_columns_fixture( [ 'layout_desktop' => 'matrix', 'layout_tablet' => 'inline_below', 'layout_mobile' => 'inline' ] );
-columns_check( substr_count( $variants, 'class="jp-menu__section-items"' ) === 2, 'Device variants must share section column wrappers.' );
+columns_check( substr_count( $variants, ' jp-menu__section-items ' ) === 6, 'Each device variant must own its column formatting context.' );
+columns_check( strpos( $variants, 'class="jp-menu__section-items"' ) === false, 'Do not balance around responsive wrappers.' );
 columns_check( substr_count( $variants, 'jprm-layout-variant' ) === 6, 'Device layout variants missing.' );
+$legacy_variants = jprm_columns_fixture( [ 'layout_section_heading_full_width' => false, 'layout_desktop' => 'matrix', 'layout_tablet' => 'inline_below', 'layout_mobile' => 'inline' ] );
+columns_check( strpos( $legacy_variants, 'jp-menu__section-items' ) === false, 'Legacy device variants must not gain item columns.' );
 $daily = jprm_columns_fixture( [ 'daily_menu' => [ 'enabled' => true, 'item_separator' => 'or' ] ] );
 if ( ! getenv( 'JPRM_RENDER_TEST_ROOT' ) || strpos( getenv( 'JPRM_RENDER_TEST_ROOT' ), '-premium' ) !== false ) {
     columns_check( strpos( $daily, '>8.50<' ) === false, 'Daily menus must keep item prices hidden.' );
@@ -53,3 +56,36 @@ foreach ( [ '1', 1, '', null, false, 0, '4', 4 ] as $saved_columns ) {
 }
 columns_check( substr_count( $controls, "'layout_section_heading_full_width!' => 'yes'" ) === 3, 'All manual section splitting controls must hide in new mode.' );
 echo "Section column rendering, hierarchy, item order, layouts, Info Blocks and legacy mode passed.\n";
+
+// Both switches are independent in every layout and device variant. Exercise
+// the same templates against source and locally generated Free/Pro editions.
+foreach ( [ 'inline', 'inline_below', 'matrix', 'mixed' ] as $layout ) {
+    foreach ( [ false, true ] as $title ) {
+        foreach ( [ false, true ] as $description ) {
+            foreach ( [ false, true ] as $badges ) {
+                $options = [ 'show_item_title' => $title, 'show_item_description' => $description, 'show_badges' => $badges, 'inline_leader_enable' => 'yes' ];
+                $options += $layout === 'mixed'
+                    ? [ 'layout_desktop' => 'matrix', 'layout_tablet' => 'inline_below', 'layout_mobile' => 'inline' ]
+                    : [ 'layout_desktop' => $layout, 'layout_tablet' => $layout, 'layout_mobile' => $layout ];
+                $html = jprm_columns_fixture( $options );
+                $copies = $layout === 'mixed' ? 3 : 1;
+                columns_check( substr_count( $html, 'class="jp-menu__title"' ) === ( $title ? 12 * $copies : 0 ), 'Title visibility incorrect: ' . $layout );
+                columns_check( substr_count( $html, 'class="jp-menu__desc"' ) === ( $description ? 12 * $copies : 0 ), 'Description visibility incorrect: ' . $layout );
+                columns_check( substr_count( $html, '>Vegetarian</span>' ) === ( $badges ? 12 * $copies : 0 ), 'Hiding content lost badges: ' . $layout );
+                columns_check( substr_count( $html, '>8.50<' ) === 12 * $copies, 'Hiding content lost prices: ' . $layout );
+                columns_check( strpos( $html, '>Glass<' ) !== false, 'Hiding content lost price labels: ' . $layout );
+                columns_check( substr_count( $html, 'Section information' ) === 2, 'Hiding content lost Info Blocks.' );
+                if ( ! $title ) { columns_check( strpos( $html, 'class="jp-leader"' ) === false, 'Titleless content must not leave a leader.' ); }
+                if ( ! $description ) { columns_check( strpos( $html, 'class="jp-left-desc"' ) === false, 'Hidden descriptions must not leave empty wrappers.' ); }
+                if ( ! $title && ! $badges ) { columns_check( strpos( $html, 'class="jp-menu__titlewrap"' ) === false, 'Hidden titles must not leave empty wrappers.' ); }
+            }
+        }
+    }
+}
+$defaults = jprm_columns_fixture();
+columns_check( $defaults === jprm_columns_fixture( [ 'show_item_title' => true, 'show_item_description' => true ] ), 'Missing settings must preserve existing menus.' );
+columns_check( strpos( $controls, "'jprm_section_sections_menus'" ) < strpos( $controls, "'jprm_section_item_content'" ) && strpos( $controls, "'jprm_section_item_content'" ) < strpos( $controls, "'jprm_section_prices_labels'" ), 'Item panel must follow Sections and Menus.' );
+foreach ( [ 'show_item_title', 'show_item_description' ] as $key ) {
+    columns_check( preg_match( "/add_control\\( '" . $key . "', \\[.*?'default'\\s*=> 'yes'/s", $controls ) === 1, 'Visibility switch must default on.' );
+}
+echo "All item title/description combinations, device variants, badges, prices and backwards-compatible defaults passed.\n";

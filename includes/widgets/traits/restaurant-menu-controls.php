@@ -443,6 +443,23 @@ $this->add_control( 'items_order_overrides', [
 
 		$this->end_controls_section();
 
+		$this->start_controls_section( 'jprm_section_item_content', [
+			'label' => __( 'Item Title & Description', 'jellopoint-restaurant-menu' ),
+		] );
+		$this->add_control( 'show_item_title', [
+			'label'        => __( 'Show item title', 'jellopoint-restaurant-menu' ),
+			'type'         => Controls_Manager::SWITCHER,
+			'return_value' => 'yes',
+			'default'      => 'yes',
+		] );
+		$this->add_control( 'show_item_description', [
+			'label'        => __( 'Show item description', 'jellopoint-restaurant-menu' ),
+			'type'         => Controls_Manager::SWITCHER,
+			'return_value' => 'yes',
+			'default'      => 'yes',
+		] );
+		$this->end_controls_section();
+
 		/* --- Prices and Labels -------------------------------------------------- */
 		$this->start_controls_section(
 			'jprm_section_prices_labels',

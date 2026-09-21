@@ -73,6 +73,8 @@ if ( ! function_exists( 'jprm_render_menu_meta' ) ) {
 $menu_term         = $ctx['menu_term'] ?? null;
 $show_menu_title   = ! empty( $ctx['show_menu_title'] );
 $show_menu_desc    = ! empty( $ctx['show_menu_desc'] );
+$show_item_title   = (bool) ( $ctx['show_item_title'] ?? true );
+$show_item_description = (bool) ( $ctx['show_item_description'] ?? true );
 // JPRM_PRO_BEGIN:daily-render-context
 $daily_menu        = is_array( $ctx['daily_menu'] ?? null ) ? $ctx['daily_menu'] : [];
 $show_item_prices  = empty( $daily_menu['enabled'] );
@@ -319,6 +321,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 	&$__render_section,
 	$registry, $children_map, $section_columns,
 	$show_section_name, $show_section_desc,
+	$show_item_title, $show_item_description,
 	$global_labels_layout, $section_layouts,
 	$global_matrix_placeholder, $computed_global_inline_separator, $global_placeholder_legacy,
 	$label_presentation, $label_position, $label_map, $currency_opts,
@@ -431,10 +434,6 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 		$base = __DIR__;
 
 		if ( ! empty( $items ) ) {
-			if ( $section_columns ) {
-				echo '<div class="jp-menu__section-items">';
-			}
-
 			// --- Decide layouts per device for THIS section ---
 			if ( $layout_strategy === 'force_global' ) {
 				// Desktop: per-section; Tablet/Mobile: forced global layouts
@@ -454,6 +453,9 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 
 			// If all 3 are identical, render ONCE (no grey overlays).
 			if ( $ld === $lt && $ld === $lm ) {
+				if ( $section_columns ) {
+					echo '<div class="jp-menu__section-items">';
+				}
 				$layout_to_use = $ld;
 
 				switch ( $layout_to_use ) {
@@ -470,6 +472,8 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 
 				if ( file_exists( $file ) ) {
 					$_section_ctx = [
+						'show_item_title'       => $show_item_title,
+						'show_item_description' => $show_item_description,
 						'term'                 => $term,
 						'items'                => $items,
 						'label_presentation'   => $label_presentation,
@@ -499,6 +503,9 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 					echo '<div class="jp-menu__error">Missing layout template: ' . esc_html( basename( $file ) ) . '</div>';
 				}
 
+				if ( $section_columns ) {
+					echo '</div>'; // .jp-menu__section-items
+				}
 			} else {
 				// === Device-specific variants ===
 				$variants = [];
@@ -552,6 +559,11 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 
 					$extra_class  = trim( (string) $variant['class'] );
 					$layout_class = 'jprm-layout-variant jprm-layout-' . $layout;
+					// Balance inside the visible variant, not around the responsive
+					// wrapper. Matrix rows can then fragment directly into columns.
+					if ( $section_columns ) {
+						$layout_class .= ' jp-menu__section-items';
+					}
 					if ( $extra_class !== '' ) {
 						$layout_class .= ' ' . $extra_class;
 					}
@@ -559,6 +571,8 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 					echo '<div class="' . esc_attr( $layout_class ) . '">';
 
 					$_section_ctx = [
+						'show_item_title'       => $show_item_title,
+						'show_item_description' => $show_item_description,
 						'term'                 => $term,
 						'items'                => $items,
 						'label_presentation'   => $label_presentation,
@@ -590,9 +604,6 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 			}
 		}
 
-		if ( $section_columns && ! empty( $items ) ) {
-			echo '</div>'; // .jp-menu__section-items
-		}
 		echo '</li>';
 	}
 

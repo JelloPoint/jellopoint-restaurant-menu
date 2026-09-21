@@ -9,9 +9,14 @@ function wp_strip_all_tags( $v ) { return strip_tags( $v ); }
 function get_term_meta( ...$args ) { return ''; }
 function get_term( $id, $taxonomy = '' ) { return (object) [ 'term_id' => $id, 'parent' => 0, 'name' => 'Parent' ]; }
 function is_wp_error( $v ) { return false; }
-function get_the_title( $id ) { return 'Dish ' . $id; }
-function get_post_meta( $id, $key, $single = false ) { return str_repeat( 'Seasonal vegetables, fresh herbs and house dressing. ', $id % 3 + 1 ); }
-function jprm_get_pricegroup_data( $id, ...$args ) { return [ [ 'label_text' => 'Glass', 'formatted' => '8.50', 'label_icon_html' => '', 'label_icon_url' => '' ], [ 'label_text' => 'Bottle', 'formatted' => '29.00', 'label_icon_html' => '', 'label_icon_url' => '' ] ]; }
+function get_the_title( $id ) { return [ 261 => 'Merlot', 262 => 'Prosecco', 260 => 'Sauvignon Blanc' ][$id] ?? 'Dish ' . $id; }
+function get_post_meta( $id, $key, $single = false ) {
+    return [ 261 => 'Soft and rounded with ripe plum, blackberry and gentle spice.', 262 => 'Light sparkling wine with apple, pear and floral notes.', 260 => 'Fresh and aromatic with citrus, gooseberry and a crisp finish.' ][$id] ?? str_repeat( 'Seasonal vegetables, fresh herbs and house dressing. ', $id % 3 + 1 );
+}
+function jprm_get_pricegroup_data( $id, ...$args ) {
+    $labels = $id === 260 ? [ 'glass', 'bottle' ] : [ 'Glass', 'Bottle' ];
+    return [ [ 'label_text' => $labels[0], 'formatted' => '8.50', 'label_icon_html' => '', 'label_icon_url' => '' ], [ 'label_text' => $labels[1], 'formatted' => '29.00', 'label_icon_html' => '', 'label_icon_url' => '' ] ];
+}
 function jprm_colorize_icon( ...$args ) { return ''; }
 function jprm_render_badges_inline_html( ...$args ) { return '<span class="jp-menu__badges">Vegetarian</span>'; }
 function jprm_infoblocks_render_group( $blocks, $position ) { return '<div class="jprm-infoblock">Section information ' . esc_html( $position ) . '</div>'; }
@@ -38,6 +43,25 @@ function jprm_columns_fixture( array $overrides = [] ) : string {
 if ( PHP_SAPI !== 'cli' ) {
     $layout = in_array( $_GET['layout'] ?? '', [ 'inline', 'inline_below', 'matrix' ], true ) ? $_GET['layout'] : 'inline';
     $columns = max( 1, min( 3, (int) ( $_GET['columns'] ?? 2 ) ) );
-    echo '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Section columns test</title><link rel="stylesheet" href="../../assets/css/menu.css"><style>body{font:16px/1.5 Arial;margin:24px}.jp-menu__section{margin-bottom:24px}</style>';
-    echo jprm_columns_fixture( [ 'layout_columns' => $columns, 'layout_desktop' => $layout, 'layout_tablet' => $layout, 'layout_mobile' => $layout, 'layout_section_heading_full_width' => ! isset( $_GET['legacy'] ) ] );
+    echo '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Section columns test</title><link rel="stylesheet" href="../../assets/css/menu.css"><style>body{font:16px/1.5 Arial;margin:24px}.jp-menu__section{margin-bottom:24px}
+    @media(min-width:1025px){.elementor-hidden-desktop{display:none!important}}
+    @media(min-width:768px) and (max-width:1024px){.elementor-hidden-tablet{display:none!important}}
+    @media(max-width:767px){.elementor-hidden-mobile{display:none!important}}
+    .jp-matrix__cell--item{min-width:12rem}.jp-matrix{column-gap:0;row-gap:0}
+    .jp-matrix__cell[data-label-key]:not(:last-child){padding-inline-end:5px}
+    </style>';
+    $options = [ 'layout_columns' => $columns, 'layout_desktop' => $layout, 'layout_tablet' => $layout, 'layout_mobile' => $layout, 'layout_section_heading_full_width' => ! isset( $_GET['legacy'] ), 'show_item_title' => ( $_GET['title'] ?? '1' ) !== '0', 'show_item_description' => ( $_GET['description'] ?? '1' ) !== '0', 'show_badges' => ( $_GET['badges'] ?? '1' ) !== '0' ];
+    if ( isset( $_GET['mixed'] ) ) {
+        // Match the supplied export: Inline globally, Wine override Matrix,
+        // force Inline on tablet/mobile, with the live page's three Wine items.
+        $options['layout_desktop'] = $options['layout_tablet'] = $options['layout_mobile'] = 'inline';
+        $options['section_layouts'] = [ 3 => [ 'layout' => 'matrix' ] ];
+        $options['layout_strategy'] = 'force_global';
+        $options['sections_order'] = [ 1, 3 ];
+        $options['sections_data'] = [
+            1 => [ 'term' => (object) [ 'term_id' => 1, 'parent' => 0, 'name' => 'Regular section', 'description' => '' ], 'items' => array_map( function( $id ) { return (object) [ 'ID' => $id ]; }, range( 1, 7 ) ) ],
+            3 => [ 'term' => (object) [ 'term_id' => 3, 'parent' => 0, 'name' => 'Wine', 'description' => '' ], 'items' => array_map( function( $id ) { return (object) [ 'ID' => $id ]; }, [ 261, 262, 260 ] ) ],
+        ];
+    }
+    echo jprm_columns_fixture( $options );
 }

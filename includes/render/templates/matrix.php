@@ -301,7 +301,11 @@ $col_count = max( 1, count( $col_keys ) );
 
 /* ---------- markup ---------- */
 
-echo '<div class="jp-matrix" style="--jp-matrix-cols:' . esc_attr( (string) $col_count ) . '">';
+$matrix_classes = 'jp-matrix';
+if ( ! ( $sctx['show_item_title'] ?? true ) && ! ( $sctx['show_item_description'] ?? true ) ) {
+	$matrix_classes .= ' jp-matrix--no-item-text';
+}
+echo '<div class="' . esc_attr( $matrix_classes ) . '" style="--jp-matrix-cols:' . esc_attr( (string) $col_count ) . '">';
 
 /* header row: first cell blank (item title column) */
 if ( $show_item_prices ) {
@@ -329,8 +333,8 @@ foreach ( $items as $item_index => $post ) {
 	}
 // JPRM_PRO_END:daily-matrix-separator
 	$pid   = (int) $post->ID;
-	$title = get_the_title( $pid );
-	$desc  = get_post_meta( $pid, 'jprm_desc', true );
+	$title = ( $sctx['show_item_title'] ?? true ) ? get_the_title( $pid ) : '';
+	$desc  = ( $sctx['show_item_description'] ?? true ) ? get_post_meta( $pid, 'jprm_desc', true ) : '';
 	$rows  = $show_item_prices && function_exists( 'jprm_get_pricegroup_data' )
 		? jprm_get_pricegroup_data( $pid, $label_map, $currency_opts )
 		: [];
@@ -359,12 +363,14 @@ foreach ( $items as $item_index => $post ) {
 				$badges_html = jprm_render_badges_inline_html( $pid, $badges_presentation );
 			}
 
-			if ( $title !== '' ) {
+			if ( $title !== '' || $badges_html !== '' ) {
 				echo '<div class="jp-menu__titlewrap">';
 					if ( $badges_position === 'before' && $badges_html !== '' ) {
 						echo wp_kses_post( $badges_html );
 					}
-				echo '<span class="jp-menu__title">' . esc_html( $title ) . '</span>';
+				if ( $title !== '' ) {
+					echo '<span class="jp-menu__title">' . esc_html( $title ) . '</span>';
+				}
 					if ( $badges_position !== 'before' && $badges_html !== '' ) {
 						echo wp_kses_post( $badges_html );
 					}
