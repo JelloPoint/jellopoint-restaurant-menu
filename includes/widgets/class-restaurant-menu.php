@@ -484,6 +484,7 @@ final class Restaurant_Menu extends Widget_Base {
         $ctx = [
             // Multi-column
             'layout_columns' => $columns,
+            'layout_section_heading_full_width' => ( $s['layout_section_heading_full_width'] ?? '' ) === 'yes',
 			'style_preset'  => $style_preset,
             'layout_split_mode'           => $split_mode,
             'layout_split_after_section'  => $split_after_1,

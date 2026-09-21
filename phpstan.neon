@@ -7,7 +7,7 @@ parameters:
   paths: [ . ]
   # Generated artifacts and real-WordPress integration fixtures are checked separately.
   # Their standalone WordPress stubs must not override production API signatures.
-  excludePaths: [ vendor/*, node_modules/*, .github/*, package/*, tests/fixtures/edition-wordpress-smoke.php, tests/price-labels-form-test.php ]
+  excludePaths: [ vendor/*, node_modules/*, .github/*, package/*, tests/fixtures/edition-wordpress-smoke.php, tests/price-labels-form-test.php, tests/fixtures/section-columns.php, tests/section-columns-test.php ]
 
   stubFiles:
     - vendor/php-stubs/wordpress-stubs/wordpress-stubs.php

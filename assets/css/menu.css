@@ -190,6 +190,53 @@
 }
 
 /* Section headers inside columns */
+.jp-menu-grid.jp-menu-grid--section-columns {
+  --jp-cols: var(--jp-section-base-cols, 1);
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (max-width: 992px) {
+  .jp-menu-grid.jp-menu-grid--section-columns { --jp-cols: min(var(--jp-section-base-cols, 1), 2); }
+}
+@media (max-width: 768px) {
+  .jp-menu-grid.jp-menu-grid--section-columns { --jp-cols: 1; }
+}
+.jp-menu-grid--section-columns .jp-menu__section-items {
+  column-count: var(--jp-cols, 1);
+  column-gap: var(--jp-item-column-gap, 24px);
+  column-fill: balance;
+}
+.jp-menu-grid--section-columns .jp-inline,
+.jp-menu-grid--section-columns .jp-inline-below,
+.jp-menu-grid--section-columns .jp-matrix {
+  break-inside: auto;
+}
+.jp-menu-grid--section-columns .jp-menu__item-separator {
+  break-after: avoid;
+}
+.jp-menu-grid--section-columns .jp-matrix__row { break-inside: avoid; }
+/* Table formatting keeps matrix prices aligned and each item row intact
+   while allowing the table to fragment between item columns. */
+@media (min-width: 768px) {
+  .jp-menu-grid--section-columns .jp-matrix {
+    display: table;
+    width: 100%;
+    border-spacing: 0;
+  }
+  .jp-menu-grid--section-columns .jp-matrix__row {
+    display: table-row;
+    break-inside: avoid;
+  }
+  .jp-menu-grid--section-columns .jp-matrix__row--header {
+    display: table-header-group;
+  }
+  .jp-menu-grid--section-columns .jp-matrix__cell {
+    display: table-cell;
+    vertical-align: top;
+  }
+  .jp-menu-grid--section-columns .jp-matrix__cell:not(.jp-matrix__cell--item) {
+    padding-inline-start: 1.25rem;
+  }
+}
 .jp-menu__section-header { margin: 0 0 6px 0; padding: 0; }
 .jp-section__title { margin: 0 0 2px 0; font-size: 1.05em; line-height: 1.2; }
 .jp-section__desc  { margin: 0 0 8px 0; font-size: 0.95em; opacity: 0.8; }

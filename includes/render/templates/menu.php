@@ -121,6 +121,7 @@ $inline_leader_char   = (string) ( $ctx['inline_leader_char']   ?? '' );
 $inline_leader_style  = (string) ( $ctx['inline_leader_style']  ?? 'dotted' ); // 'dotted'|'dashed'|'solid'
 
 $columns                  = max( 1, min( 3, (int) ( $ctx['layout_columns'] ?? 1 ) ) );
+$section_columns = ! empty( $ctx['layout_section_heading_full_width'] );
 $split_mode               = (string) ( $ctx['layout_split_mode']         ?? 'auto' );
 $split_after_section_id_1 = (int) ( $ctx['layout_split_after_section']   ?? 0 );
 $split_after_section_id_2 = (int) ( $ctx['layout_split_after_section2']  ?? 0 );
@@ -316,7 +317,7 @@ $__render_section = null;
 
 $__render_section = function( int $tid, ?array $inherit = null ) use (
 	&$__render_section,
-	$registry, $children_map,
+	$registry, $children_map, $section_columns,
 	$show_section_name, $show_section_desc,
 	$global_labels_layout, $section_layouts,
 	$global_matrix_placeholder, $computed_global_inline_separator, $global_placeholder_legacy,
@@ -430,6 +431,9 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 		$base = __DIR__;
 
 		if ( ! empty( $items ) ) {
+			if ( $section_columns ) {
+				echo '<div class="jp-menu__section-items">';
+			}
 
 			// --- Decide layouts per device for THIS section ---
 			if ( $layout_strategy === 'force_global' ) {
@@ -586,6 +590,9 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 			}
 		}
 
+		if ( $section_columns && ! empty( $items ) ) {
+			echo '</div>'; // .jp-menu__section-items
+		}
 		echo '</li>';
 	}
 
@@ -617,7 +624,10 @@ $columns_sets = ( function() use ( $top_level_order, $columns, $split_mode, $spl
 	return $__split_sections( $top_level_order, $columns, $split_mode, $split_after_section_id_1, $split_after_section_id_2 );
 } )();
 
-echo '<div class="jp-menu-grid jp-menu-grid--cols-' . (int) $columns . '" style="--jp-cols:' . (int) $columns . ';">';
+if ( $section_columns ) {
+	$columns_sets = [ $top_level_order ];
+}
+echo '<div class="jp-menu-grid jp-menu-grid--cols-' . (int) $columns . ( $section_columns ? ' jp-menu-grid--section-columns' : '' ) . '" style="' . ( $section_columns ? '--jp-section-base-cols:' : '--jp-cols:' ) . (int) $columns . ';">';
 foreach ( $columns_sets as $col_idx => $roots ) {
 	echo '<ul class="jp-menu jp-menu--col" data-col="' . (int) $col_idx . '">';
 // JPRM_PRO_BEGIN:heading-column

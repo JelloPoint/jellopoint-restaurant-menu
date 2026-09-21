@@ -3,7 +3,7 @@ Tags: restaurant, menu, elementor, food, prices
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2.0.51
+Stable tag: 2.0.52
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -86,6 +86,10 @@ In Pro, open the printable menu and use your browser's print dialog to save as P
 5. Create structured drinks menus with flexible pricing layouts.
 
 == Changelog ==
+
+= 2.0.52 =
+* Move Elementor Layout controls directly below Data Source.
+* Add optional full-width section headings with automatically balanced item columns.
 
 = 2.0.51 =
 * Show full annual prices on the Freemius Upgrade page instead of monthly equivalents.

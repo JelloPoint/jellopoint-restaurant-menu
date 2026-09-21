@@ -253,6 +253,97 @@ $this->add_control( 'items_order_overrides', [
 
 		$this->end_controls_section();
 
+		/* --- Layout (columns, split) ------------------------------------------- */
+		$this->start_controls_section(
+			'jprm_section_layout',
+			[ 'label' => __( 'Layout', 'jellopoint-restaurant-menu' ) ]
+		);
+
+		$this->add_responsive_control( 'layout_columns', [
+		'label'        => __( 'Columns', 'jellopoint-restaurant-menu' ),
+		'type'         => \Elementor\Controls_Manager::SELECT,
+		'default'      => '2',          // desktop default
+		'tablet_default' => '2',
+		'mobile_default' => '1',        // mobile → 1 column by default
+		'options'      => [
+			'1' => '1',
+			'2' => '2',
+			'3' => '3',
+		],
+		// Override the CSS variable per breakpoint; the !important ensures it beats inline style
+		'selectors'    => [
+			'{{WRAPPER}} .jp-menu-grid' => '--jp-cols: {{VALUE}} !important;',
+		],
+		]);
+
+		$this->add_control( 'layout_section_heading_full_width', [
+			'label' => __( 'Section title above all columns', 'jellopoint-restaurant-menu' ),
+			'type' => Controls_Manager::SWITCHER,
+			'default' => '',
+			'return_value' => 'yes',
+			'condition' => [ 'layout_columns' => [ '2', '3' ] ],
+			'description' => __( 'Balance items within each section. Section headings, descriptions and Info Blocks span the full width.', 'jellopoint-restaurant-menu' ),
+		] );
+
+		$this->add_control( 'layout_split_mode', [
+			'label'   => __( 'Split mode', 'jellopoint-restaurant-menu' ),
+			'type'    => Controls_Manager::SELECT,
+			'default' => 'auto',
+			'options' => [
+				'auto'   => __( 'Auto (balance by items, keep whole sections)', 'jellopoint-restaurant-menu' ),
+				'manual' => __( 'Manual (split after section)', 'jellopoint-restaurant-menu' ),
+			],
+			'condition' => [
+				'layout_section_heading_full_width!' => 'yes',
+				'layout_columns' => [ '2', '3' ],
+			],
+		] );
+
+		$this->add_control( 'layout_split_after_section', [
+			'label'     => __( 'Split after section (1)', 'jellopoint-restaurant-menu' ),
+			'type'      => Controls_Manager::SELECT,
+			'options'   => $_scoped_sections,
+			'classes'   => 'jprm-scope-target',
+			'default'   => '',
+			'condition' => [
+				'layout_columns'   => [ '2', '3' ],
+				'layout_split_mode'=> 'manual',
+				'layout_section_heading_full_width!' => 'yes',
+			],
+			'description' => __( 'If the chosen section is not present in the result, auto-balance is used.', 'jellopoint-restaurant-menu' ),
+		] );
+
+		$this->add_control( 'layout_split_after_section2', [
+			'label'     => __( 'Split after section (2)', 'jellopoint-restaurant-menu' ),
+			'type'      => Controls_Manager::SELECT,
+			'options'   => $_scoped_sections,
+			'classes'   => 'jprm-scope-target',
+			'default'   => '',
+			'condition' => [
+				'layout_columns'   => '3',
+				'layout_split_mode'=> 'manual',
+				'layout_section_heading_full_width!' => 'yes',
+			],
+			'description' => __( 'Second split point. Must come after the first selected section.', 'jellopoint-restaurant-menu' ),
+		] );
+
+		$this->add_control( 'layout_column_gap', [
+			'label'   => __( 'Column gap', 'jellopoint-restaurant-menu' ),
+			'type'    => Controls_Manager::SLIDER,
+			'size_units' => [ 'px' ],
+			'range'   => [ 'px' => [ 'min' => 0, 'max' => 48 ] ],
+			'default' => [ 'size' => 24 ],
+			'selectors' => [
+				'{{WRAPPER}} .jp-menu-grid' => 'gap: {{SIZE}}{{UNIT}};',
+				'{{WRAPPER}} .jp-menu-grid--section-columns' => '--jp-item-column-gap: {{SIZE}}{{UNIT}};',
+			],
+			'condition' => [
+				'layout_columns' => [ '2', '3' ],
+			],
+		] );
+
+		$this->end_controls_section();
+
 		/* --- Sections and Menus ------------------------------------------------- */
 		$this->start_controls_section(
 			'jprm_section_sections_menus',
@@ -694,83 +785,6 @@ $this->end_controls_section();
 
 		$this->end_controls_section();
 
-		/* --- Layout (columns, split) ------------------------------------------- */
-		$this->start_controls_section(
-			'jprm_section_layout',
-			[ 'label' => __( 'Layout', 'jellopoint-restaurant-menu' ) ]
-		);
-
-		$this->add_responsive_control( 'layout_columns', [
-		'label'        => __( 'Columns', 'jellopoint-restaurant-menu' ),
-		'type'         => \Elementor\Controls_Manager::SELECT,
-		'default'      => '2',          // desktop default
-		'tablet_default' => '2',
-		'mobile_default' => '1',        // mobile → 1 column by default
-		'options'      => [
-			'1' => '1',
-			'2' => '2',
-			'3' => '3',
-		],
-		// Override the CSS variable per breakpoint; the !important ensures it beats inline style
-		'selectors'    => [
-			'{{WRAPPER}} .jp-menu-grid' => '--jp-cols: {{VALUE}} !important;',
-		],
-		]);
-
-		$this->add_control( 'layout_split_mode', [
-			'label'   => __( 'Split mode', 'jellopoint-restaurant-menu' ),
-			'type'    => Controls_Manager::SELECT,
-			'default' => 'auto',
-			'options' => [
-				'auto'   => __( 'Auto (balance by items, keep whole sections)', 'jellopoint-restaurant-menu' ),
-				'manual' => __( 'Manual (split after section)', 'jellopoint-restaurant-menu' ),
-			],
-			'condition' => [
-				'layout_columns' => [ '2', '3' ],
-			],
-		] );
-
-		$this->add_control( 'layout_split_after_section', [
-			'label'     => __( 'Split after section (1)', 'jellopoint-restaurant-menu' ),
-			'type'      => Controls_Manager::SELECT,
-			'options'   => $_scoped_sections,
-			'classes'   => 'jprm-scope-target',
-			'default'   => '',
-			'condition' => [
-				'layout_columns'   => [ '2', '3' ],
-				'layout_split_mode'=> 'manual',
-			],
-			'description' => __( 'If the chosen section is not present in the result, auto-balance is used.', 'jellopoint-restaurant-menu' ),
-		] );
-
-		$this->add_control( 'layout_split_after_section2', [
-			'label'     => __( 'Split after section (2)', 'jellopoint-restaurant-menu' ),
-			'type'      => Controls_Manager::SELECT,
-			'options'   => $_scoped_sections,
-			'classes'   => 'jprm-scope-target',
-			'default'   => '',
-			'condition' => [
-				'layout_columns'   => '3',
-				'layout_split_mode'=> 'manual',
-			],
-			'description' => __( 'Second split point. Must come after the first selected section.', 'jellopoint-restaurant-menu' ),
-		] );
-
-		$this->add_control( 'layout_column_gap', [
-			'label'   => __( 'Column gap', 'jellopoint-restaurant-menu' ),
-			'type'    => Controls_Manager::SLIDER,
-			'size_units' => [ 'px' ],
-			'range'   => [ 'px' => [ 'min' => 0, 'max' => 48 ] ],
-			'default' => [ 'size' => 24 ],
-			'selectors' => [
-				'{{WRAPPER}} .jp-menu-grid' => 'gap: {{SIZE}}{{UNIT}};',
-			],
-			'condition' => [
-				'layout_columns' => [ '2', '3' ],
-			],
-		] );
-
-		$this->end_controls_section();
 
 		$this->register_style_controls();
 	}
