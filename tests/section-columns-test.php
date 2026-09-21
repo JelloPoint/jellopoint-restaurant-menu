@@ -26,6 +26,15 @@ if ( ! getenv( 'JPRM_RENDER_TEST_ROOT' ) || strpos( getenv( 'JPRM_RENDER_TEST_RO
     columns_check( substr_count( $daily, 'class="jp-menu__item-separator"' ) === 10, 'Daily separators missing.' );
 }
 $root = dirname( __DIR__ );
+$widget_source = file_get_contents( $root . '/includes/widgets/class-restaurant-menu.php' );
+columns_check( strpos( $widget_source, "'layout_section_heading_full_width' => \$this->get_settings( 'layout_section_heading_full_width' ) === 'yes'" ) !== false, 'Saved switch must not depend on Elementor active-control filtering.' );
+// The supplied Elementor export stores the switch, but omits default columns.
+$export_settings = [ 'layout_section_heading_full_width' => 'yes' ];
+$default_columns_html = jprm_columns_fixture( [
+    'layout_columns' => $export_settings['layout_columns'] ?? '2',
+    'layout_section_heading_full_width' => ( $export_settings['layout_section_heading_full_width'] ?? '' ) === 'yes',
+] );
+columns_check( strpos( $default_columns_html, 'jp-menu-grid--cols-2 jp-menu-grid--section-columns' ) !== false, 'Default two columns must retain the explicitly saved switch.' );
 $controls = file_get_contents( $root . '/includes/widgets/traits/restaurant-menu-controls.php' );
 columns_check( strpos( $controls, "'section_source'" ) < strpos( $controls, "'jprm_section_layout'" ) && strpos( $controls, "'jprm_section_layout'" ) < strpos( $controls, "'jprm_section_sections_menus'" ), 'Layout control order incorrect.' );
 columns_check( substr_count( $controls, "'jprm_section_layout'" ) === 1, 'Layout registered twice.' );
