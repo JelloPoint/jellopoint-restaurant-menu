@@ -428,12 +428,23 @@ trait Restaurant_Menu_Style {
 			]
 		);
 		$this->add_responsive_control(
-			'jprm_daily_separator_spacing',
+			'jprm_daily_separator_spacing_before',
 			[
-				'label'      => __( 'Spacing', 'jellopoint-restaurant-menu' ),
-				'type'       => Controls_Manager::DIMENSIONS,
+				'label'      => __( 'Space Above', 'jellopoint-restaurant-menu' ),
+				'type'       => Controls_Manager::SLIDER,
 				'size_units' => [ 'px', 'em', 'rem' ],
-				'selectors'  => [ '{{WRAPPER}} .jp-menu__item-separator' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};' ],
+				'range'      => [ 'px' => [ 'min' => 0, 'max' => 80 ], 'em' => [ 'min' => 0, 'max' => 5 ], 'rem' => [ 'min' => 0, 'max' => 5 ] ],
+				'selectors'  => [ '{{WRAPPER}} .jp-menu__item:has(+ .jp-menu__item-separator)' => 'margin-bottom: {{SIZE}}{{UNIT}};' ],
+			]
+		);
+		$this->add_responsive_control(
+			'jprm_daily_separator_spacing_after',
+			[
+				'label'      => __( 'Space Below', 'jellopoint-restaurant-menu' ),
+				'type'       => Controls_Manager::SLIDER,
+				'size_units' => [ 'px', 'em', 'rem' ],
+				'range'      => [ 'px' => [ 'min' => 0, 'max' => 80 ], 'em' => [ 'min' => 0, 'max' => 5 ], 'rem' => [ 'min' => 0, 'max' => 5 ] ],
+				'selectors'  => [ '{{WRAPPER}} .jp-menu__item-separator' => 'margin-bottom: {{SIZE}}{{UNIT}};' ],
 			]
 		);
 
