@@ -404,6 +404,39 @@ trait Restaurant_Menu_Style {
 			'selectors' => [ '{{WRAPPER}} .jp-menu__daily-price' => 'color: {{VALUE}};' ],
 		] );
 
+		$this->add_control(
+			'jprm_daily_separator_heading',
+			[
+				'label'     => __( 'Daily Menu Separator', 'jellopoint-restaurant-menu' ),
+				'type'      => Controls_Manager::HEADING,
+				'separator' => 'before',
+			]
+		);
+		$this->add_group_control(
+			Group_Control_Typography::get_type(),
+			[
+				'name'     => 'jprm_daily_separator_typography',
+				'selector' => '{{WRAPPER}} .jp-menu__item-separator',
+			]
+		);
+		$this->add_control(
+			'jprm_daily_separator_color',
+			[
+				'label'     => __( 'Color', 'jellopoint-restaurant-menu' ),
+				'type'      => Controls_Manager::COLOR,
+				'selectors' => [ '{{WRAPPER}} .jp-menu__item-separator' => 'color: {{VALUE}};' ],
+			]
+		);
+		$this->add_responsive_control(
+			'jprm_daily_separator_spacing',
+			[
+				'label'      => __( 'Spacing', 'jellopoint-restaurant-menu' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => [ 'px', 'em', 'rem' ],
+				'selectors'  => [ '{{WRAPPER}} .jp-menu__item-separator' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};' ],
+			]
+		);
+
 		}
 // JPRM_PRO_END:daily-style
 		// Line height for items & matrix cells
