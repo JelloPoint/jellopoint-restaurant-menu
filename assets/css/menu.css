@@ -205,6 +205,18 @@
   column-gap: var(--jp-item-column-gap, 24px);
   column-fill: balance;
 }
+/* Explicit groups avoid browser-dependent table fragmentation. The inner
+   column-count exposes Elementor's responsive count to the balancing script. */
+.jp-menu-grid--section-columns .jp-menu__section-items--matrix { column-count: auto; }
+.jp-matrix-columns {
+  display: grid;
+  grid-template-columns: repeat(var(--jprm-matrix-group-count, 1), minmax(0, 1fr));
+  column-count: var(--jp-cols, 1);
+  gap: var(--jp-item-column-gap, 24px);
+  align-items: start;
+  min-width: 0;
+}
+.jp-matrix-columns > .jp-matrix { min-width: 0; }
 .jp-menu-grid--section-columns .jp-inline,
 .jp-menu-grid--section-columns .jp-inline-below,
 .jp-menu-grid--section-columns .jp-matrix {

@@ -26,7 +26,7 @@ final class Restaurant_Menu extends Widget_Base {
     public function get_categories() { return [ 'jellopoint-widgets' ]; }
     public function get_keywords() { return [ 'menu','restaurant','prices','jellopoint','labels' ]; }
     public function get_style_depends() { return [ 'jprm-menu' ]; }
-    public function get_script_depends() { return []; }
+    public function get_script_depends() { return [ 'jprm-matrix-columns' ]; }
 
     /* ===== Partials / helpers ===== */
 

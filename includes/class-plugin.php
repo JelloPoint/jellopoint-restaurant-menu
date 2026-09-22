@@ -171,6 +171,7 @@ class Plugin {
 	 * ========================= */
 
 	public static function register_assets() : void {
+		wp_register_script( 'jprm-matrix-columns', JPRM_PLUGIN_URL . 'assets/js/matrix-columns.js', [ 'elementor-frontend' ], JPRM_VERSION, true );
 		// Register the widget stylesheet so Elementor can enqueue it via get_style_depends().
 		if ( ! wp_style_is( 'jprm-menu', 'registered' ) ) {
 			$url_css     = JPRM_PLUGIN_URL . 'assets/css/menu.css';
