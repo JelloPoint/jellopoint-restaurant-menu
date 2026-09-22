@@ -545,7 +545,7 @@
 .jp-label__icon--mask{
   display:inline-block;
   width:1em; height:1em;
-  background-color: currentColor;
+  background-color: var(--jprm-label-icon-color, currentColor);
   -webkit-mask-image: var(--jprm-icon-image);
   mask-image: var(--jprm-icon-image);
   -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;

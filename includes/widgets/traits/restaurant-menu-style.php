@@ -1065,6 +1065,7 @@ trait Restaurant_Menu_Style {
 				'label'     => __( 'Text & Icon Color', 'jellopoint-restaurant-menu' ),
 				'type'      => Controls_Manager::COLOR,
 				'selectors' => [
+					'{{WRAPPER}} .jp-menu-grid' => '--jprm-label-icon-color: {{VALUE}};',
 					'{{WRAPPER}} .jp-menu__label' => 'color: {{VALUE}};',
 					'{{WRAPPER}} .jp-menu__label .jp-label__icon--mask' => 'background-color: {{VALUE}};',
 					'{{WRAPPER}} .jp-label__icon--mask' => 'background-color: {{VALUE}};',
