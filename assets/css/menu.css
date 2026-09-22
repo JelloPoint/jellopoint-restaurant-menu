@@ -326,6 +326,21 @@
 .jp-matrix__cell--value{ text-align: left; }
 
 /* Matrix headers use label styling */
+/* Pad every cell equally in grid/table mode. On mobile, pad the whole
+   stacked item once instead. Unset controls retain the existing spacing. */
+@media (min-width: 768px) {
+  .jp-matrix > .jp-matrix__row[data-post-id] > .jp-matrix__cell {
+    padding-top: var(--jprm-matrix-row-padding-top, 0px);
+    padding-bottom: var(--jprm-matrix-row-padding-bottom, 0px);
+  }
+}
+@media (max-width: 767px) {
+  .jp-matrix > .jp-matrix__row[data-post-id] {
+    padding-top: var(--jprm-matrix-row-padding-top, .25rem);
+    padding-bottom: var(--jprm-matrix-row-padding-bottom, .25rem);
+  }
+}
+
 .jp-matrix .jp-matrix__cell--head .jp-menu__label{
   display:inline-flex;
   align-items:center;

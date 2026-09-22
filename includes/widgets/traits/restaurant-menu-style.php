@@ -1027,6 +1027,18 @@ trait Restaurant_Menu_Style {
 			]
 		);
 
+		$this->add_responsive_control( 'jprm_matrix_row_padding', [
+			'label'              => __( 'Matrix Row Padding', 'jellopoint-restaurant-menu' ),
+			'type'               => Controls_Manager::DIMENSIONS,
+			'size_units'         => [ 'px', 'em', 'rem' ],
+			'allowed_dimensions' => [ 'top', 'bottom' ],
+			'render_type'        => 'template',
+			'description'        => __( 'Space above and below Matrix items only. Price-label headers and other layouts are unchanged.', 'jellopoint-restaurant-menu' ),
+			'selectors'          => [
+				'{{WRAPPER}} .jp-matrix' => '--jprm-matrix-row-padding-top: {{TOP}}{{UNIT}}; --jprm-matrix-row-padding-bottom: {{BOTTOM}}{{UNIT}};',
+			],
+		] );
+
 		/* Labels */
 		$this->add_control(
 			'jprm_labels_heading',
