@@ -1069,6 +1069,7 @@ trait Restaurant_Menu_Style {
 					'{{WRAPPER}} .jp-menu__label' => 'color: {{VALUE}};',
 					'{{WRAPPER}} .jp-menu__label .jp-label__icon--mask' => 'background-color: {{VALUE}};',
 					'{{WRAPPER}} .jp-label__icon--mask' => 'background-color: {{VALUE}};',
+					'{{WRAPPER}} .jp-chip .jp-label__icon--mask' => 'background-color: {{VALUE}};',
 					'{{WRAPPER}} .jp-menu__label svg, {{WRAPPER}} .jp-menu__label .jp-label__svg' =>
 						'fill: {{VALUE}} !important; stroke: {{VALUE}} !important;',
 					'{{WRAPPER}} .jp-label__svg' =>
