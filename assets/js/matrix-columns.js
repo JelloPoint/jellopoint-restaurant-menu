@@ -67,7 +67,8 @@
             let used = 0;
             let items = 0;
             while (index < state.groups.length) {
-                if (items && columnsLeft > 1 && (state.groups.length - index <= columnsLeft - 1 || Math.abs(used - target) <= Math.abs(used + heights[index] - target))) { break; }
+                // On equal-height alternatives, keep the extra item in the earlier column.
+                if (items && columnsLeft > 1 && (state.groups.length - index <= columnsLeft - 1 || Math.abs(used - target) < Math.abs(used + heights[index] - target))) { break; }
                 state.groups[index].forEach(function (node) { column.appendChild(node); });
                 used += heights[index++];
                 items++;

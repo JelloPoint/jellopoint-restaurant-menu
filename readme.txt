@@ -3,7 +3,7 @@ Tags: restaurant, menu, elementor, food, prices
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2.0.54
+Stable tag: 2.0.55
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -86,6 +86,9 @@ In Pro, open the printable menu and use your browser's print dialog to save as P
 5. Create structured drinks menus with flexible pricing layouts.
 
 == Changelog ==
+
+= 2.0.55 =
+* Prefer the earlier Matrix column for extra items when both arrangements are equally balanced.
 
 = 2.0.54 =
 * Render separate balanced Matrix columns with explicit price-label headers in every column under full-width section headings.
