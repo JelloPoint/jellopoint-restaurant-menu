@@ -1067,9 +1067,14 @@ trait Restaurant_Menu_Style {
 				'selectors' => [
 					'{{WRAPPER}} .jp-menu__label' => 'color: {{VALUE}};',
 					'{{WRAPPER}} .jp-menu__label .jp-label__icon--mask' => 'background-color: {{VALUE}};',
+					'{{WRAPPER}} .jp-label__icon--mask' => 'background-color: {{VALUE}};',
 					'{{WRAPPER}} .jp-menu__label svg, {{WRAPPER}} .jp-menu__label .jp-label__svg' =>
 						'fill: {{VALUE}} !important; stroke: {{VALUE}} !important;',
+					'{{WRAPPER}} .jp-label__svg' =>
+						'fill: {{VALUE}} !important; stroke: {{VALUE}} !important;',
 					'{{WRAPPER}} .jp-menu__label .jp-menu__icon' =>
+						'fill: {{VALUE}} !important; stroke: {{VALUE}} !important; background-color: {{VALUE}} !important;',
+					'{{WRAPPER}} .jp-menu__icon' =>
 						'fill: {{VALUE}} !important; stroke: {{VALUE}} !important; background-color: {{VALUE}} !important;',
 				],
 			]
