@@ -104,6 +104,8 @@ $layout_desktop  = (string) ( $ctx['layout_desktop']  ?? 'inline' );
 $layout_tablet   = (string) ( $ctx['layout_tablet']   ?? $layout_desktop );
 $layout_mobile   = (string) ( $ctx['layout_mobile']   ?? $layout_tablet );
 $layout_strategy = (string) ( $ctx['layout_strategy'] ?? 'force_global' );
+$layout_behaviour_tablet = (string) ( $ctx['layout_behaviour_tablet'] ?? 'per_section' );
+$layout_behaviour_mobile = (string) ( $ctx['layout_behaviour_mobile'] ?? 'per_section' );
 
 $global_labels_layout = $layout_desktop; // base for desktop inheritance
 
@@ -435,17 +437,9 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 
 		if ( ! empty( $items ) ) {
 			// --- Decide layouts per device for THIS section ---
-			if ( $layout_strategy === 'force_global' ) {
-				// Desktop: per-section; Tablet/Mobile: forced global layouts
-				$section_desktop_layout = $eff_layout;
-				$section_tablet_layout  = $layout_tablet;
-				$section_mobile_layout  = $layout_mobile;
-			} else {
-				// respect_overrides: same layout on all devices, based on desktop effective layout
-				$section_desktop_layout = $eff_layout;
-				$section_tablet_layout  = $eff_layout;
-				$section_mobile_layout  = $eff_layout;
-			}
+			$section_desktop_layout = $eff_layout;
+			$section_tablet_layout  = 'per_section' === $layout_behaviour_tablet ? $eff_layout : $layout_tablet;
+			$section_mobile_layout  = 'per_section' === $layout_behaviour_mobile ? $eff_layout : $layout_mobile;
 
 			$ld = $section_desktop_layout;
 			$lt = $section_tablet_layout;

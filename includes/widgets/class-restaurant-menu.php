@@ -409,39 +409,27 @@ final class Restaurant_Menu extends Widget_Base {
             $layout_desktop = 'inline';
         }
 
-        // Behaviour for tablet & mobile:
-        //  - inline       → always Inline on tablet+mobile
-        //  - inline_below → always Inline Below on tablet+mobile
-        //  - per_section  → follow the per-section desktop layout (Matrix / Inline / Inline Below)
-        $behaviour = isset( $s['labels_mobile_behaviour'] )
-            ? (string) $s['labels_mobile_behaviour']
-            : 'inline_below';
+        // Responsive behaviour values are stored by Elementor as the base,
+        // tablet and mobile variants of one responsive control.
+        $behaviour_desktop = isset( $s['labels_layout_behaviour'] )
+            ? (string) $s['labels_layout_behaviour']
+            : 'per_section';
+        $behaviour_tablet = isset( $s['labels_layout_behaviour_tablet'] )
+            ? (string) $s['labels_layout_behaviour_tablet']
+            : $behaviour_desktop;
+        $behaviour_mobile = isset( $s['labels_layout_behaviour_mobile'] )
+            ? (string) $s['labels_layout_behaviour_mobile']
+            : $behaviour_tablet;
+        $valid_behaviours = [ 'inline', 'inline_below', 'per_section' ];
+        if ( ! in_array( $behaviour_desktop, $valid_behaviours, true ) ) { $behaviour_desktop = 'per_section'; }
+        if ( ! in_array( $behaviour_tablet, $valid_behaviours, true ) ) { $behaviour_tablet = $behaviour_desktop; }
+        if ( ! in_array( $behaviour_mobile, $valid_behaviours, true ) ) { $behaviour_mobile = $behaviour_tablet; }
 
-        if ( ! in_array( $behaviour, [ 'inline', 'inline_below', 'per_section' ], true ) ) {
-            $behaviour = 'inline_below';
-        }
-
-        switch ( $behaviour ) {
-            case 'inline':
-                $layout_tablet   = 'inline';
-                $layout_mobile   = 'inline';
-                $layout_strategy = 'force_global';
-                break;
-
-            case 'inline_below':
-                $layout_tablet   = 'inline_below';
-                $layout_mobile   = 'inline_below';
-                $layout_strategy = 'force_global';
-                break;
-
-            case 'per_section':
-            default:
-                // Tablet & mobile follow each section's effective desktop layout.
-                $layout_tablet   = $layout_desktop;
-                $layout_mobile   = $layout_desktop;
-                $layout_strategy = 'respect_overrides';
-                break;
-        }
+        $layout_tablet = 'per_section' === $behaviour_tablet ? $layout_desktop : $behaviour_tablet;
+        $layout_mobile = 'per_section' === $behaviour_mobile ? $layout_desktop : $behaviour_mobile;
+        $layout_strategy = ( 'per_section' === $behaviour_desktop || 'per_section' === $behaviour_tablet || 'per_section' === $behaviour_mobile )
+            ? 'respect_overrides'
+            : 'force_global';
 
         // Global placeholder defaults (desktop base)
         $global_matrix_placeholder = isset( $s['labels_matrix_placeholder'] )
@@ -543,6 +531,8 @@ final class Restaurant_Menu extends Widget_Base {
             'layout_tablet'       => $layout_tablet,
             'layout_mobile'       => $layout_mobile,
             'layout_strategy'     => $layout_strategy,
+            'layout_behaviour_tablet' => $behaviour_tablet,
+            'layout_behaviour_mobile' => $behaviour_mobile,
 
             // Global default (desktop) used for inheritance base
             'global_labels_layout'=> $layout_desktop,

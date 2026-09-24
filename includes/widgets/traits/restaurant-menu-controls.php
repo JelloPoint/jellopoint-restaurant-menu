@@ -568,25 +568,22 @@ $this->add_control( 'labels_layout', [
 ] );
 
 /**
- * HOW tablet & mobile should behave
- *
- *  - inline       → always Inline on tablet+mobile
- *  - inline_below → always Inline Below on tablet+mobile
- *  - per_section  → follow the section layout (Matrix / Inline / Inline Below)
+ * Responsive layout behaviour. Elementor stores separate values for each
+ * viewport (desktop, tablet and mobile), allowing Matrix to be retained on
+ * tablet while switching to Inline on mobile, for example.
  */
-$this->add_control( 'labels_mobile_behaviour', [
-    'label'   => __( 'Tablet & Mobile behaviour', 'jellopoint-restaurant-menu' ),
-    'type'    => Controls_Manager::SELECT,
-    'default' => 'inline_below', // sensible default
-    'options' => [
-        'inline'       => __( 'Inline',               'jellopoint-restaurant-menu' ),
-        'inline_below' => __( 'Inline Below',         'jellopoint-restaurant-menu' ),
-        'per_section'  => __( 'Per Section Layouts',  'jellopoint-restaurant-menu' ),
+$this->add_responsive_control( 'labels_layout_behaviour', [
+    'label'      => __( 'Layout behaviour', 'jellopoint-restaurant-menu' ),
+    'type'       => Controls_Manager::SELECT,
+    'default'    => 'per_section',
+    'tablet_default' => 'per_section',
+    'mobile_default' => 'inline_below',
+    'options'    => [
+        'inline'       => __( 'Inline',              'jellopoint-restaurant-menu' ),
+        'inline_below' => __( 'Inline Below',        'jellopoint-restaurant-menu' ),
+        'per_section'  => __( 'Per Section Layouts', 'jellopoint-restaurant-menu' ),
     ],
-    'description' => __(
-        'Choose how Matrix sections behave on smaller screens. “Per Section Layouts” keeps Matrix on mobile; the others force a single layout everywhere.',
-        'jellopoint-restaurant-menu'
-    ),
+    'description' => __( 'Choose independently how each viewport renders the selected section layouts.', 'jellopoint-restaurant-menu' ),
 ] );
 
 
