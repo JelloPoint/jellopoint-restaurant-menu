@@ -1444,6 +1444,37 @@ trait Restaurant_Menu_Style {
 
 		$this->end_controls_section();
 
+		$this->start_controls_section('jprm_style_badges_legend', [
+			'label' => __('Dietary Badges Legend','jellopoint-restaurant-menu'),
+			'tab'   => \Elementor\Controls_Manager::TAB_STYLE,
+		]);
+		$this->add_group_control(\Elementor\Group_Control_Typography::get_type(), [
+			'name' => 'badges_legend_title_typo', 'selector' => '{{WRAPPER}} .jp-menu__badges-legend-title',
+		]);
+		$this->add_control('badges_legend_title_color', [
+			'label' => __('Title Color','jellopoint-restaurant-menu'), 'type' => \Elementor\Controls_Manager::COLOR,
+			'selectors' => [ '{{WRAPPER}} .jp-menu__badges-legend-title' => 'color: {{VALUE}};' ],
+		]);
+		$this->add_control('badges_legend_color', [
+			'label' => __('Text & Icon Color','jellopoint-restaurant-menu'), 'type' => \Elementor\Controls_Manager::COLOR,
+			'selectors' => [ '{{WRAPPER}} .jp-menu__badges-legend' => 'color: {{VALUE}};', '{{WRAPPER}} .jp-menu__badges-legend .jp-badge__icon--mask' => 'background-color: {{VALUE}};' ],
+		]);
+		$this->add_responsive_control('badges_legend_icon_size', [
+			'label' => __('Icon Size','jellopoint-restaurant-menu'), 'type' => \Elementor\Controls_Manager::SLIDER,
+			'size_units' => ['px','em','rem'], 'range' => [ 'px' => [ 'min' => 8, 'max' => 64 ] ],
+			'selectors' => [ '{{WRAPPER}} .jp-menu__badges-legend .jp-icon-mask, {{WRAPPER}} .jp-menu__badges-legend svg' => 'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};' ],
+		]);
+		$this->add_responsive_control('badges_legend_gap', [
+			'label' => __('Gap Between Badges','jellopoint-restaurant-menu'), 'type' => \Elementor\Controls_Manager::SLIDER,
+			'size_units' => ['px','em','rem'], 'range' => [ 'px' => [ 'min' => 0, 'max' => 48 ] ],
+			'selectors' => [ '{{WRAPPER}} .jp-menu__badges-legend-items' => 'gap: {{SIZE}}{{UNIT}};' ],
+		]);
+		$this->add_responsive_control('badges_legend_spacing', [
+			'label' => __('Spacing Above/Below','jellopoint-restaurant-menu'), 'type' => \Elementor\Controls_Manager::DIMENSIONS,
+			'size_units' => ['px','em','rem'], 'selectors' => [ '{{WRAPPER}} .jp-menu__badges-legend' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};' ],
+		]);
+		$this->end_controls_section();
+
 		/* ===== Info Blocks ===== */
 		$this->start_controls_section('jprm_style_infoblocks',[
 			'label'=>__('Website Info Blocks','jellopoint-restaurant-menu'),

@@ -742,6 +742,20 @@ $this->end_controls_section();
 			'condition' => [ 'show_badges' => 'yes' ],
 		] );
 
+		$this->add_control( 'show_badges_legend', [
+			'label'        => __( 'Show Dietary Badges Legend', 'jellopoint-restaurant-menu' ),
+			'type'         => Controls_Manager::SWITCHER,
+			'return_value' => 'yes',
+			'default'      => '',
+			'condition'    => [ 'show_badges' => 'yes' ],
+		] );
+		$this->add_control( 'badges_legend_title', [
+			'label'     => __( 'Legend Title', 'jellopoint-restaurant-menu' ),
+			'type'      => Controls_Manager::TEXT,
+			'default'   => __( 'Dietary information', 'jellopoint-restaurant-menu' ),
+			'condition' => [ 'show_badges_legend' => 'yes' ],
+		] );
+
 		$this->end_controls_section();
 
 		/* --- Reusable Info Blocks ----------------------------------------------- */
