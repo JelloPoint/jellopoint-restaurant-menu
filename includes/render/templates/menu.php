@@ -436,10 +436,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 		$base = __DIR__;
 
 		if ( ! empty( $items ) ) {
-		$section_item_count = count( $items );
-		$section_rows_2 = (int) ceil( $section_item_count / 2 );
-		$section_rows_3 = (int) ceil( $section_item_count / 3 );
-		$section_columns_style = ' style="--jp-section-rows-2:' . $section_rows_2 . ';--jp-section-rows-3:' . $section_rows_3 . ';"';
+		$section_columns_style = '';
 			// --- Decide layouts per device for THIS section ---
 			$section_desktop_layout = $eff_layout;
 			$section_tablet_layout  = 'per_section' === $layout_behaviour_tablet ? $eff_layout : $layout_tablet;
