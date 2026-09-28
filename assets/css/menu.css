@@ -220,6 +220,8 @@
 .jp-menu-grid--section-columns .jp-inline,
 .jp-menu-grid--section-columns .jp-inline-below {
   display: grid;
+  column-count: 1;
+  column-gap: 0;
   grid-template-columns: repeat(var(--jp-cols, 1), minmax(0, 1fr));
   grid-template-rows: repeat(var(--jp-section-rows-3, 1), max-content);
   grid-auto-flow: column;
