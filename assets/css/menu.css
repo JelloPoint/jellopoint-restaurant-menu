@@ -205,6 +205,14 @@
   column-gap: var(--jp-item-column-gap, 24px);
   column-fill: balance;
 }
+/* Inline grids own their columns; do not fragment their parent wrapper with
+   the legacy CSS multi-column flow. Matrix keeps the multi-column path below. */
+.jp-menu-grid--section-columns .jp-menu__section-items:has(> .jp-inline),
+.jp-menu-grid--section-columns .jp-menu__section-items:has(> .jp-inline-below) {
+  column-count: 1;
+  column-gap: 0;
+  column-fill: auto;
+}
 /* Explicit groups avoid browser-dependent table fragmentation. The inner
    column-count exposes Elementor's responsive count to the balancing script. */
 .jp-menu-grid--section-columns .jp-menu__section-items--matrix { column-count: auto; }
