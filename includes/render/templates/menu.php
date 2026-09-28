@@ -104,8 +104,8 @@ $layout_desktop  = (string) ( $ctx['layout_desktop']  ?? 'inline' );
 $layout_tablet   = (string) ( $ctx['layout_tablet']   ?? $layout_desktop );
 $layout_mobile   = (string) ( $ctx['layout_mobile']   ?? $layout_tablet );
 $layout_strategy = (string) ( $ctx['layout_strategy'] ?? 'force_global' );
-$layout_behaviour_tablet = (string) ( $ctx['layout_behaviour_tablet'] ?? 'per_section' );
-$layout_behaviour_mobile = (string) ( $ctx['layout_behaviour_mobile'] ?? 'per_section' );
+$layout_behaviour_tablet = (string) ( $ctx['layout_behaviour_tablet'] ?? $layout_tablet );
+$layout_behaviour_mobile = (string) ( $ctx['layout_behaviour_mobile'] ?? $layout_mobile );
 
 $global_labels_layout = $layout_desktop; // base for desktop inheritance
 
@@ -336,7 +336,8 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 	$show_main_sections, $show_main_even_if_empty,
 	$inline_leader_enable, $inline_leader_char, $inline_leader_style,
 	$__resolve_section_level, $ib_map,
-	$layout_desktop, $layout_tablet, $layout_mobile, $layout_strategy
+	$layout_desktop, $layout_tablet, $layout_mobile, $layout_strategy,
+	$layout_behaviour_tablet, $layout_behaviour_mobile
 ) : void {
 
 	if ( empty( $registry[ $tid ] ) ) {

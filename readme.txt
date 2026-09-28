@@ -87,6 +87,11 @@ In Pro, open the printable menu and use your browser's print dialog to save as P
 
 == Changelog ==
 
+= 2.0.56 =
+* Add an optional Dietary Badges Legend with icon and label text.
+* Add responsive layout behavior controls for Desktop, Tablet and Mobile.
+* Improve balanced multi-column section rendering.
+
 = 2.0.55 =
 * Prefer the earlier Matrix column for extra items when both arrangements are equally balanced.
 
