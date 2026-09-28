@@ -1449,10 +1449,11 @@ trait Restaurant_Menu_Style {
 			'tab'   => \Elementor\Controls_Manager::TAB_STYLE,
 		]);
 		$this->add_group_control(\Elementor\Group_Control_Typography::get_type(), [
-			'name' => 'badges_legend_title_typo', 'selector' => '{{WRAPPER}} .jp-menu__badges-legend-title',
+			'name' => 'badges_legend_title_typo', 'label' => __('Title Typography','jellopoint-restaurant-menu'), 'selector' => '{{WRAPPER}} .jp-menu__badges-legend-title',
 		]);
 		$this->add_group_control(\Elementor\Group_Control_Typography::get_type(), [
 			'name' => 'badges_legend_text_typo',
+			'label' => __('Label Text Typography','jellopoint-restaurant-menu'),
 			'selector' => '{{WRAPPER}} .jp-menu__badges-legend-item, {{WRAPPER}} .jp-menu__badges-legend-label',
 		]);
 		$this->add_control('badges_legend_title_color', [
