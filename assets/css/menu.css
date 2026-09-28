@@ -218,9 +218,29 @@
 }
 .jp-matrix-columns > .jp-matrix { min-width: 0; }
 .jp-menu-grid--section-columns .jp-inline,
-.jp-menu-grid--section-columns .jp-inline-below,
+.jp-menu-grid--section-columns .jp-inline-below {
+  display: grid;
+  grid-template-columns: repeat(var(--jp-cols, 1), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--jp-section-rows-3, 1), max-content);
+  grid-auto-flow: column;
+  column-gap: var(--jp-item-column-gap, 24px);
+  row-gap: 0;
+}
 .jp-menu-grid--section-columns .jp-matrix {
   break-inside: auto;
+}
+@media (max-width: 992px) {
+  .jp-menu-grid--section-columns .jp-inline,
+  .jp-menu-grid--section-columns .jp-inline-below {
+    grid-template-rows: repeat(var(--jp-section-rows-2, 1), max-content);
+  }
+}
+@media (max-width: 768px) {
+  .jp-menu-grid--section-columns .jp-inline,
+  .jp-menu-grid--section-columns .jp-inline-below {
+    grid-template-rows: none;
+    grid-auto-flow: row;
+  }
 }
 .jp-menu-grid--section-columns .jp-menu__item-separator {
   break-after: avoid;

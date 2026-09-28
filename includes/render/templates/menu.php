@@ -436,6 +436,10 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 		$base = __DIR__;
 
 		if ( ! empty( $items ) ) {
+		$section_item_count = count( $items );
+		$section_rows_2 = (int) ceil( $section_item_count / 2 );
+		$section_rows_3 = (int) ceil( $section_item_count / 3 );
+		$section_columns_style = ' style="--jp-section-rows-2:' . $section_rows_2 . ';--jp-section-rows-3:' . $section_rows_3 . ';"';
 			// --- Decide layouts per device for THIS section ---
 			$section_desktop_layout = $eff_layout;
 			$section_tablet_layout  = 'per_section' === $layout_behaviour_tablet ? $eff_layout : $layout_tablet;
@@ -448,7 +452,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 			// If all 3 are identical, render ONCE (no grey overlays).
 			if ( $ld === $lt && $ld === $lm ) {
 				if ( $section_columns ) {
-					echo '<div class="jp-menu__section-items">';
+					echo '<div class="jp-menu__section-items"' . $section_columns_style . '>';
 				}
 				$layout_to_use = $ld;
 
@@ -562,7 +566,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 						$layout_class .= ' ' . $extra_class;
 					}
 
-					echo '<div class="' . esc_attr( $layout_class ) . '">';
+					echo '<div class="' . esc_attr( $layout_class ) . '"' . ( $section_columns ? $section_columns_style : '' ) . '>';
 
 					$_section_ctx = [
 						'show_item_title'       => $show_item_title,
