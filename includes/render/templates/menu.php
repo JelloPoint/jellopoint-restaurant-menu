@@ -118,6 +118,8 @@ $global_placeholder_legacy = (string) ( $ctx['global_placeholder']        ?? 'â€
 $show_badges         = ! empty( $ctx['show_badges'] );
 $badges_position     = (string) ( $ctx['badges_position']     ?? 'after' );
 $badges_presentation = (string) ( $ctx['badges_presentation'] ?? 'icon_text' );
+$show_badges_legend  = ! empty( $ctx['show_badges_legend'] );
+$badges_legend_title = (string) ( $ctx['badges_legend_title'] ?? '' );
 
 /* === Inline leader (from widget ctx) === */
 $inline_leader_enable = ( ! empty( $ctx['inline_leader_enable'] ) && $ctx['inline_leader_enable'] === 'yes' ) ? 'yes' : 'no';
@@ -662,3 +664,7 @@ if ( $menu_term && ( $show_menu_title || $show_menu_desc || ! empty( $daily_menu
 
 // JPRM_PRO_END:heading-below
 echo '</div>';
+
+if ( $show_badges_legend && function_exists( 'jprm_render_badges_legend_html' ) ) {
+	echo wp_kses_post( jprm_render_badges_legend_html( $sections_data, $badges_legend_title ) );
+}

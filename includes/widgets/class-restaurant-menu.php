@@ -151,6 +151,8 @@ final class Restaurant_Menu extends Widget_Base {
         $show_badges         = ( isset( $s['show_badges'] ) && $s['show_badges'] === 'yes' );
         $badges_presentation = isset( $s['badges_presentation'] ) ? (string) $s['badges_presentation'] : 'icon_text';
         $badges_position     = isset( $s['badges_position'] ) ? (string) $s['badges_position'] : 'after';
+		$show_badges_legend  = ( isset( $s['show_badges_legend'] ) && 'yes' === $s['show_badges_legend'] );
+		$badges_legend_title = isset( $s['badges_legend_title'] ) ? (string) $s['badges_legend_title'] : __( 'Dietary information', 'jellopoint-restaurant-menu' );
 
         $inline_leader_enable = ( !empty($s['inline_leader_enable']) && $s['inline_leader_enable'] === 'yes' ) ? 'yes' : 'no';
         $inline_leader_style  = (string) ( $s['inline_leader_style'] ?? 'dotted' );
@@ -509,6 +511,8 @@ final class Restaurant_Menu extends Widget_Base {
             'show_badges'         => $show_badges,
             'badges_presentation' => $badges_presentation,
             'badges_position'     => $badges_position,
+			'show_badges_legend'  => $show_badges_legend,
+			'badges_legend_title' => $badges_legend_title,
 
             // Labels + currency
             'label_presentation'  => $label_presentation,

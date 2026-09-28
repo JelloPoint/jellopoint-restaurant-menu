@@ -126,3 +126,37 @@ if ( $presentation === 'icon' ) {
 	return $out;
 }
 endif;
+
+if ( ! function_exists( 'jprm_render_badges_legend_html' ) ) :
+function jprm_render_badges_legend_html( array $sections_data, string $title = '' ) : string {
+	$catalog = get_option( 'jprm_dietary_badges_v1', null );
+	if ( ! is_array( $catalog ) || empty( $catalog ) ) { $catalog = get_option( 'jprm_dietary_badges', [] ); }
+	if ( ! is_array( $catalog ) ) { return ''; }
+	$used = [];
+	foreach ( $sections_data as $bucket ) {
+		foreach ( (array) ( $bucket['items'] ?? [] ) as $post ) {
+			$slugs = get_post_meta( (int) $post->ID, 'jprm_item_badges', true );
+			foreach ( is_array( $slugs ) ? $slugs : [] as $slug ) { $used[ sanitize_title( (string) $slug ) ] = true; }
+		}
+	}
+	$items = [];
+	foreach ( $catalog as $row ) {
+		if ( ! is_array( $row ) || empty( $row['active'] ) ) { continue; }
+		$name = isset( $row['name'] ) ? (string) $row['name'] : '';
+		$slug = sanitize_title( (string) ( $row['slug'] ?? $name ) );
+		if ( $name === '' || $slug === '' || ! isset( $used[ $slug ] ) ) { continue; }
+		$items[] = [ 'name' => $name, 'icon' => (string) ( $row['icon_url'] ?? '' ), 'order' => (int) ( $row['order'] ?? 0 ) ];
+	}
+	if ( empty( $items ) ) { return ''; }
+	usort( $items, static fn( $a, $b ) => $a['order'] <=> $b['order'] );
+	$out = '<div class="jp-menu__badges-legend" aria-label="' . esc_attr__( 'Dietary badges legend', 'jellopoint-restaurant-menu' ) . '">';
+	if ( trim( $title ) !== '' ) { $out .= '<h3 class="jp-menu__badges-legend-title">' . esc_html( $title ) . '</h3>'; }
+	$out .= '<div class="jp-menu__badges-legend-items">';
+	foreach ( $items as $item ) {
+		$out .= '<span class="jp-menu__badges-legend-item">';
+		if ( $item['icon'] !== '' ) { $out .= jprm_colorize_icon( '', $item['icon'], 'badge' ); }
+		$out .= '<span class="jp-menu__badges-legend-label">' . esc_html( $item['name'] ) . '</span></span>';
+	}
+	return $out . '</div></div>';
+}
+endif;

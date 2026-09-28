@@ -10,6 +10,10 @@
 .jp-menu__content { min-width: 0; }
 .jp-menu__title { margin: 0; }
 .jp-menu__desc { opacity: .85; }
+.jp-menu__badges-legend { margin: 1.5rem 0 0; text-align: center; }
+.jp-menu__badges-legend-title { margin: 0 0 .6rem; }
+.jp-menu__badges-legend-items { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .5rem 1rem; }
+.jp-menu__badges-legend-item { display: inline-flex; align-items: center; gap: .35rem; }
 /* JPRM_PRO_BEGIN:daily-css-separator */
 .jp-menu__item-separator { margin: .45rem 0 .8rem; color: var(--jprm-muted, inherit); font-style: italic; text-align: center; }
 .jp-menu__item-separator--matrix { grid-column: 1 / -1; }
