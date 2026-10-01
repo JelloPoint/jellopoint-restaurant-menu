@@ -1,5 +1,5 @@
 === JelloPoint – Restaurant Menu ===
-Tags: restaurant, menu, elementor, food, prices
+Tags: restaurant, restaurant menu, elementor, food menu, cafe
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
@@ -7,30 +7,40 @@ Stable tag: 2.0.56
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-Create beautiful, flexible restaurant menus in WordPress with sections, prices, dietary badges and seamless Elementor integration.
+WordPress restaurant menu plugin for Elementor Free. Manage dishes and prices in WordPress and style your menu separately in Elementor.
 
 == Description ==
 
-**Create beautiful restaurant menus directly in WordPress.**
+**A WordPress restaurant menu plugin for Elementor Free, with easy everyday menu management.**
 
-JelloPoint – Restaurant Menu gives restaurants, cafés and food businesses an easy way to create, organize and display professional menus on their website.
+JelloPoint – Restaurant Menu helps restaurants, cafés, bars and food businesses create and display food and drinks menus on their WordPress website. It works with **Elementor Free**; Elementor Pro is not required.
 
-Build your menu from reusable **Menus, Sections, Menu Items and Info Blocks**, then display it with the included Elementor widget. Organize dishes in the Menu Builder, add prices and dietary information, and customize the presentation to match your website.
+**Create your menu in WordPress. Style it in Elementor.** Build your content from reusable **Menus, Sections, Menu Items and Info Blocks**, then display it with the included Elementor Restaurant Menu widget.
+
+Once your layout is set up, update dishes, descriptions, prices and menu order in the WordPress administration. **You do not need to edit the Elementor page for everyday menu changes.** The widget displays the updated menu content using your existing design.
+
+= How it works =
+
+1. **Create your menu content in WordPress.** Add dishes and drinks manually, set prices and dietary badges, and organize sections with the visual Menu Builder.
+2. **Design the presentation with Elementor Free.** Select your menu in the Restaurant Menu widget and style its columns, typography, colors and spacing.
+3. **Keep the menu up to date in WordPress.** Change dishes, prices, descriptions and order without reopening the Elementor page.
+
+Manual menu creation is available in both Free and Pro. **JelloPoint Pro** also lets you import compatible **CSV and JSON** menu files, so you can prepare or maintain menu data outside WordPress and import it using the supported format.
 
 [View the live demo](https://demo.jellopoint.com/) to explore example restaurant menus. The demo also showcases Pro features; see the Free and Pro feature lists below for availability.
 
 = Free features =
 
-* Create and manage multiple restaurant menus
+* Create and manage multiple food and drinks menus in WordPress
 * Reusable Sections and Menu Items
 * Visual Menu Builder for organizing your menu
 * Single prices and customizable price labels
 * Dietary badges and icons
 * Reusable Info Blocks
-* Elementor Restaurant Menu widget
-* Flexible menu layouts and extensive styling controls
+* Restaurant Menu widget for Elementor Free; Elementor Pro is not required
+* Flexible menu layouts, multiple columns and extensive styling controls
 * Responsive presentation
-* Demo menu import to help you get started
+* Bundled demo menu import to help you get started
 * WPML configuration for multilingual menu content
 
 = JelloPoint Pro =
@@ -40,15 +50,19 @@ JelloPoint Pro adds:
 * Multiple Prices – ideal for sizes, portions, glass/bottle pricing and more
 * Daily and Weekly Menus
 * Print-friendly menus and PDF creation
-* CSV and JSON Import/Export
+* Import and export your own menu data using compatible CSV and JSON files
 
 If a Pro subscription expires, Pro functionality continues to work with the installed version. Renewal is required for future Pro updates and support.
 
 = Elementor integration =
 
-Use the JelloPoint Restaurant Menu widget to place your menus directly in Elementor. Choose the menu you want to display and customize its layout, typography, spacing, colors, sections, prices, badges and other presentation options from the Elementor editor.
+Use the JelloPoint Restaurant Menu widget to display your WordPress menu on an Elementor page. **Elementor Free is sufficient** for the website widget, including menus that use JelloPoint Pro features.
 
-Elementor is required for the website widget. Restaurant menu management in WordPress remains available without Elementor.
+Manage the original menu content in WordPress. Use Elementor to choose which menu and sections to display and customize the layout, typography, spacing, colors, price presentation and badges. You only need to reopen Elementor when you want to change the page's menu selection or design.
+
+Elementor is required to display menus with the website widget. Restaurant menu management in WordPress remains available without Elementor.
+
+[Explore restaurant menu demos](https://demo.jellopoint.com/) | [Read the documentation](https://jellopoint.com/docs/) | [Compare Pro features](https://jellopoint.com/docs/pro-features/)
 
 = External service: Freemius =
 
@@ -63,11 +77,28 @@ Product information: https://jellopoint.com/
 == Installation ==
 
 1. Install and activate JelloPoint Restaurant Menu.
-2. Activate Elementor to display menus on your website.
-3. Create your content under JelloPoint in the WordPress administration.
-4. Add the Restaurant Menu widget to an Elementor page and select a Menu.
+2. Install and activate Elementor Free to display menus on your website. Elementor Pro is not required.
+3. Create dishes, drinks, sections and menus under JelloPoint in the WordPress administration.
+4. Add the Restaurant Menu widget to an Elementor page, select a Menu and style its presentation.
+5. For everyday updates, edit your menu content under JelloPoint in WordPress; the Elementor page uses the updated content.
 
 == Frequently Asked Questions ==
+
+= Does it work with Elementor Free? =
+
+Yes. The Restaurant Menu widget works with Elementor Free. Elementor Pro is not required, even when using JelloPoint Pro features such as Multiple Prices or Daily and Weekly Menus.
+
+= Do I need to edit the Elementor page to change dishes or prices? =
+
+No. Update dishes, descriptions, prices and menu order under JelloPoint in the WordPress administration. The widget displays those changes using the layout you have already designed. Open Elementor when you want to change the widget's menu selection or styling.
+
+= Can I create a menu manually or import an existing menu? =
+
+You can create menus manually in Free and Pro. Free includes a bundled demo menu import for getting started. Importing your own CSV or JSON menu data requires JelloPoint Pro and files that follow the supported import format. See the [Import / Export documentation](https://jellopoint.com/docs/import-export/) for details.
+
+= Which features are Free and which require Pro? =
+
+Free includes menu management, reusable sections, single prices, dietary badges, Info Blocks, multiple columns and the Elementor widget. Pro adds Multiple Prices, Daily and Weekly Menus, Print / PDF and CSV / JSON Import/Export. Both editions use Elementor Free for website styling.
 
 = Does deactivation or deletion remove restaurant data? =
 

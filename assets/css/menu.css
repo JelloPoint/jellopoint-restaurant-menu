@@ -202,7 +202,9 @@
   .jp-menu-grid.jp-menu-grid--section-columns { --jp-cols: min(var(--jp-section-base-cols, 1), 2); }
 }
 @media (max-width: 768px) {
-  .jp-menu-grid.jp-menu-grid--section-columns { --jp-cols: 1; }
+  /* Keep the responsive Elementor value (including Tablet = 2) instead of
+     forcing section-heading layouts back to one column at this breakpoint. */
+  .jp-menu-grid.jp-menu-grid--section-columns { --jp-cols: min(var(--jp-section-base-cols, 1), 2); }
 }
 .jp-menu-grid--section-columns .jp-menu__section-items {
   column-count: var(--jp-cols, 1);
