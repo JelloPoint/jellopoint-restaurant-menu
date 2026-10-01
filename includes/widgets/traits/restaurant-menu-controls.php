@@ -273,6 +273,9 @@ $this->add_control( 'items_order_overrides', [
 		// Override the CSS variable per breakpoint; the !important ensures it beats inline style
 		'selectors'    => [
 			'{{WRAPPER}} .jp-menu-grid' => '--jp-cols: {{VALUE}} !important;',
+			// Section-heading mode uses a separate base variable so its inner
+			// item columns can retain the selected responsive count.
+			'{{WRAPPER}} .jp-menu-grid--section-columns' => '--jp-section-base-cols: {{VALUE}} !important;',
 		],
 		]);
 
