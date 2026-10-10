@@ -11,8 +11,8 @@ https://www.gnu.org/licenses/gpl-2.0.html
 
 ## Runtime dependencies
 
-The distribution bundles Freemius WordPress SDK 2.13.4, licensed GPL-3.0-only.
-Source: https://github.com/Freemius/wordpress-sdk/tree/2.13.4
+The distribution bundles Freemius WordPress SDK 2.13.5, licensed GPL-3.0-only.
+Source: https://github.com/Freemius/wordpress-sdk/tree/2.13.5
 Its license is included at vendor/freemius/LICENSE.txt. The combined distribution
 is distributed under GPL version 3; JelloPoint's own source remains available
 under GPL-2.0-or-later as stated above.

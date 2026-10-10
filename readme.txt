@@ -3,7 +3,7 @@ Tags: restaurant, restaurant menu, elementor, food menu, cafe
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2.0.56
+Stable tag: 2.0.57
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -66,7 +66,7 @@ Elementor is required to display menus with the website widget. Restaurant menu 
 
 = External service: Freemius =
 
-The plugin bundles Freemius SDK 2.13.4 for account registration, license activation, updates, checkout and optional usage-data sharing. The SDK communicates with Freemius services and can transmit site URL, plugin and WordPress/PHP versions, account/contact details and license information as part of these operations. Review its connection and permission screens before proceeding. Free menu management does not require a license or optional usage-data sharing. Restaurant menu content is not explicitly sent by JelloPoint to Freemius.
+The plugin bundles Freemius SDK 2.13.5 for account registration, license activation, updates, checkout and optional usage-data sharing. The SDK communicates with Freemius services and can transmit site URL, plugin and WordPress/PHP versions, account/contact details and license information as part of these operations. Review its connection and permission screens before proceeding. Free menu management does not require a license or optional usage-data sharing. Restaurant menu content is not explicitly sent by JelloPoint to Freemius.
 
 Service: https://freemius.com/
 Terms: https://freemius.com/terms/
@@ -117,6 +117,9 @@ In Pro, open the printable menu and use your browser's print dialog to save as P
 5. Create structured drinks menus with flexible pricing layouts.
 
 == Changelog ==
+
+= 2.0.57 =
+* Updated Freemius SDK to the latest version.
 
 = 2.0.56 =
 * Add an optional Dietary Badges Legend with icon and label text.

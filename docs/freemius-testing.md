@@ -5,7 +5,7 @@ For current separate-edition packaging and local round-trip results, see
 approvals and the online license/payment checks still needed before release.
 
 Product 39068; Pro plan `pro`; initial offer EUR 39 annually for one site.
-The user-supplied dashboard snippet initializes bundled SDK 2.13.4 early in the
+The user-supplied dashboard snippet initializes bundled SDK 2.13.5 early in the
 main plugin. No secret or sandbox constant is shipped. Release Plans remains off.
 The SDK is tracked for Plesk Git deployment; Composer development tools are not.
 
