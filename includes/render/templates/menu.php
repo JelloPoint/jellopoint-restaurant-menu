@@ -452,7 +452,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 			// If all 3 are identical, render ONCE (no grey overlays).
 			if ( $ld === $lt && $ld === $lm ) {
 				if ( $section_columns ) {
-					echo '<div class="jp-menu__section-items"' . $section_columns_style . '>';
+					echo '<div class="jp-menu__section-items"' . esc_attr( $section_columns_style ) . '>';
 				}
 				$layout_to_use = $ld;
 
@@ -566,7 +566,7 @@ $__render_section = function( int $tid, ?array $inherit = null ) use (
 						$layout_class .= ' ' . $extra_class;
 					}
 
-					echo '<div class="' . esc_attr( $layout_class ) . '"' . ( $section_columns ? $section_columns_style : '' ) . '>';
+					echo '<div class="' . esc_attr( $layout_class ) . '"' . ( $section_columns ? esc_attr( $section_columns_style ) : '' ) . '>';
 
 					$_section_ctx = [
 						'show_item_title'       => $show_item_title,
