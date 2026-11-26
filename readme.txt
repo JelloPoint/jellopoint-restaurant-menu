@@ -1,7 +1,7 @@
 === JelloPoint – Restaurant Menu ===
 Tags: restaurant, restaurant menu, elementor, food menu, cafe
 Requires at least: 6.5
-Tested up to: 7.1
+Tested up to: 7.2
 Requires PHP: 7.4
 Stable tag: 2.0.57
 License: GPLv3
