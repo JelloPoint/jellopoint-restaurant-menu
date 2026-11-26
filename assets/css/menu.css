@@ -170,10 +170,13 @@
 
 /* Responsive collapse */
 @media (max-width: 992px) {
-  .jp-menu-grid { --jp-cols: min(var(--jp-cols, 1), 2); }
+  /* Safe fallback for non-Elementor markup. Elementor's responsive selector
+     uses !important and therefore remains the source of truth when present. */
+  .jp-menu-grid--cols-3 { --jp-cols: 2; }
 }
 @media (max-width: 768px) {
-  .jp-menu-grid { --jp-cols: 1; }
+  .jp-menu-grid--cols-2,
+  .jp-menu-grid--cols-3 { --jp-cols: 1; }
 }
 
 /* Column UL should not fight the grid */
