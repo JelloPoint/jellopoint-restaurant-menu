@@ -3,7 +3,7 @@ Tags: restaurant, restaurant menu, elementor, food menu, cafe
 Requires at least: 6.5
 Tested up to: 7.2
 Requires PHP: 7.4
-Stable tag: 2.0.57
+Stable tag: 2.0.58
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -117,6 +117,9 @@ In Pro, open the printable menu and use your browser's print dialog to save as P
 5. Create structured drinks menus with flexible pricing layouts.
 
 == Changelog ==
+
+= 2.0.58 =
+* Fix responsive Tablet rendering for three-column menus.
 
 = 2.0.57 =
 * Updated Freemius SDK to the latest version.
